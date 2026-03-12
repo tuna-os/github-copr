@@ -16,7 +16,6 @@ on:
 
 env:
   R2_BUCKET: bluefin
-  AWS_ENDPOINT_URL: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
 
 jobs:
   build-x86_64:
@@ -49,12 +48,22 @@ jobs:
           git_committer_name: RPM Builder
           git_committer_email: rpm-signing@tunaos.org
 
-      - name: Configure AWS CLI for R2
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          aws-region: auto
+      - name: Install rclone
+        run: |
+          curl -sS https://rclone.org/install.sh | sudo bash
+
+      - name: Configure rclone for R2
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [remote]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          acl = private
+          EOF
 
       - name: Get build matrix
         id: matrix
@@ -92,12 +101,16 @@ jobs:
       - name: Upload to R2
         run: |
           for target in ${{ steps.matrix.outputs.targets }}; do
-            aws s3 sync output/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
-
-            aws s3 sync s3://${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/ --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
+            rclone sync output/$target/ remote:${{ env.R2_BUCKET }}/repo/$target/ --delete
+            
+            rclone sync remote:${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/
             createrepo_c --update ./repodata/$target/
-            aws s3 sync ./repodata/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
+            rclone sync ./repodata/$target/ remote:${{ env.R2_BUCKET }}/repo/$target/ --delete
           done
+
+      - name: Upload GPG public key to R2
+        run: |
+          rclone copyto public.gpg remote:${{ env.R2_BUCKET }}/public.gpg
 
       - name: Cleanup old versions
         run: |
@@ -141,12 +154,22 @@ jobs:
           git_committer_name: RPM Builder
           git_committer_email: rpm-signing@tunaos.org
 
-      - name: Configure AWS CLI for R2
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          aws-region: auto
+      - name: Install rclone
+        run: |
+          curl -sS https://rclone.org/install.sh | sudo bash
+
+      - name: Configure rclone for R2
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [remote]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          acl = private
+          EOF
 
       - name: Build RPMs
         run: |
@@ -175,11 +198,11 @@ jobs:
       - name: Upload to R2
         run: |
           for target in fedora-43-aarch64 almalinux-10-aarch64 centos-stream-10-aarch64; do
-            aws s3 sync output/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
-
-            aws s3 sync s3://${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/ --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
+            rclone sync output/$target/ remote:${{ env.R2_BUCKET }}/repo/$target/ --delete
+            
+            rclone sync remote:${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/
             createrepo_c --update ./repodata/$target/
-            aws s3 sync ./repodata/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
+            rclone sync ./repodata/$target/ remote:${{ env.R2_BUCKET }}/repo/$target/ --delete
           done
 
       - name: Upload artifact
