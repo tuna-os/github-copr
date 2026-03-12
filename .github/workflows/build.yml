@@ -67,12 +67,27 @@ jobs:
           fi
           echo "targets=$TARGETS" >> $GITHUB_OUTPUT
 
+      - name: Upload sources to R2
+        run: |
+          for tarball in src/*.tar.gz; do
+            [ -f "$tarball" ] || continue
+            pkg=$(basename "$tarball" .tar.gz)
+            echo "Uploading $tarball to R2 sources/"
+            rclone copyto "$tarball" "remote:${{ env.R2_BUCKET }}/sources/$pkg.tar.gz"
+          done
+
       - name: Build RPMs
         run: |
-          # Create source RPM first
+          # Download sources from R2
+          for tarball in src/*.tar.gz; do
+            [ -f "$tarball" ] || continue
+            pkg=$(basename "$tarball" .tar.gz)
+            rclone copy "remote:${{ env.R2_BUCKET }}/sources/$pkg.tar.gz" ~/rpmbuild/SOURCES/
+          done
+          
+          # Copy spec and build SRPM
           mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS,SPECS}
           cp src/*.spec ~/rpmbuild/SPECS/
-          cp src/*.tar.gz ~/rpmbuild/SOURCES/ 2>/dev/null || true
           rpmbuild -bs ~/rpmbuild/SPECS/*.spec --define "_topdir $HOME/rpmbuild"
           
           for target in ${{ steps.matrix.outputs.targets }}; do
