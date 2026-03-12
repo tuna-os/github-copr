@@ -2,7 +2,7 @@
 
 ## Phase 1: Specification and Dependency Mapping
 
-- [ ] **Task: Fetch GNOME 50 Specs from Rawhide**
+- [x] **Task: Fetch GNOME 50 Specs from Rawhide** 72125f9
   - [ ] Use `fedpkg` to clone the latest specifications for GNOME 50 packages.
   - [ ] Organize specifications in `src/gnome-50/`.
 - [ ] **Task: Initial Mock Builds & Dependency Analysis**
@@ -10,7 +10,7 @@
   - [ ] Parse `mock` logs to identify missing dependencies.
 - [ ] **Task: Conductor - User Manual Verification 'Phase 1: Specification and Dependency Mapping' (Protocol in workflow.md)**
 
-## Phase 2: Iterative Dependency Fulfillment
+## Phase 2: Iterative Dependency Fulfillment & Container Testing
 
 - [ ] **Task: Build Missing Dependencies**
   - [ ] Fetch specs for missing dependencies from Fedora.
@@ -18,8 +18,11 @@
   - [ ] Update build environment to include newly built packages.
 - [ ] **Task: Update & Patch SPEC Files**
   - [ ] If builds fail for reasons other than missing dependencies, apply necessary patches to SPEC files.
-  - [ ] Document all patches and reasons for changes.
-- [ ] **Task: Conductor - User Manual Verification 'Phase 2: Iterative Dependency Fulfillment' (Protocol in workflow.md)**
+- [ ] **Task: Iterative Container Installation Test**
+  - [ ] Create a Docker/Podman container based on CentOS 10.
+  - [ ] Attempt to install the newly built GNOME 50 packages in the container to verify dependency resolution.
+  - [ ] Resolve any installation-time dependency conflicts.
+- [ ] **Task: Conductor - User Manual Verification 'Phase 2: Iterative Dependency Fulfillment & Container Testing' (Protocol in workflow.md)**
 
 ## Phase 3: Core GNOME Build & Integration
 
