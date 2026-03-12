@@ -5,7 +5,7 @@
 - [x] **Task: Fetch GNOME 50 Specs from Rawhide** 72125f9
   - [ ] Use `fedpkg` to clone the latest specifications for GNOME 50 packages.
   - [ ] Organize specifications in `src/gnome-50/`.
-- [ ] **Task: Initial Mock Builds & Dependency Analysis**
+- [x] **Task: Initial Mock Builds & Dependency Analysis** ae48379
   - [ ] Run `mock --buildsrpm` for core GNOME 50 packages (e.g., `xdg-desktop-portal`).
   - [ ] Parse `mock` logs to identify missing dependencies.
 - [ ] **Task: Conductor - User Manual Verification 'Phase 1: Specification and Dependency Mapping' (Protocol in workflow.md)**
