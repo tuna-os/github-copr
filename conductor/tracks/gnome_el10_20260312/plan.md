@@ -5,7 +5,7 @@
 - [x] **Task: Verify Environment** f33b4f6
   - [ ] Check if `copr-cli` is installed and functional.
   - [ ] Verify access to the source Copr repository: `jreilly1821/c10s-gnome-49`.
-- [ ] **Task: Setup Storage Structure**
+- [x] **Task: Setup Storage Structure** a50d066
   - [ ] Create a dedicated subdirectory in `src/` for GNOME 49 sources if necessary.
 - [ ] **Task: Conductor - User Manual Verification 'Phase 1: Preparation and Environment Setup' (Protocol in workflow.md)**
 
