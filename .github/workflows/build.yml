@@ -78,6 +78,7 @@ jobs:
           for target in ${{ steps.matrix.outputs.targets }}; do
             echo "Building for $target"
             mock -r $target --init
+            mock -r $target --install gcc make
             mock -r $target --rebuild ~/rpmbuild/SRPMS/*.src.rpm
             mock -r $target --resultdir=./output/$target clean
           done
