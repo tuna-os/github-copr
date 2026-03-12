@@ -26,7 +26,7 @@
 
 - [x] **Task: Mock Configuration for EL10** e84a9c4
   - [ ] Configure `mock` for EL10 targets (e.g., `centos-stream-10-x86_64`).
-- [ ] **Task: Fetch and Build from Upstream Tarballs**
+- [x] **Task: Fetch and Build from Upstream Tarballs** 5caf481
   - [ ] Create a script to download upstream tarballs into the build environment.
   - [ ] Perform a test build for a core GNOME package using Rawhide SPEC + Upstream Tarball.
 - [ ] **Task: Conductor - User Manual Verification 'Phase 3: Build Pipeline and EL10 Integration' (Protocol in workflow.md)**
