@@ -10,9 +10,9 @@
 - [x] **Task: Tooling Assessment (Meson)** 6423360
   - [x] Check if `meson` upgrade is required by the new specs (e.g., `BuildSystem: meson`).
   - [ ] Build and install newer `meson` if needed.
-- [ ] **Task: Core Component Dependency Analysis**
-  - [ ] Run `mock --buildsrpm` for `gnome-shell`, `gnome-session`, and `gdm`.
-  - [ ] Identify minimum set of Rawhide dependencies demanded by these packages.
+- [x] **Task: Core Component Dependency Analysis** fe60c3a
+  - [x] Run `mock --buildsrpm` for `gnome-shell`, `gnome-session`, and `gdm`.
+  - [x] Identify minimum set of Rawhide dependencies demanded by these packages.
 - [ ] **Task: Conductor - User Manual Verification 'Phase 1: Specification and Dependency Mapping' (Protocol in workflow.md)**
 
 ## Phase 2: Iterative Dependency Fulfillment & Container Testing
