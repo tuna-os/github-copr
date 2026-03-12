@@ -14,7 +14,7 @@
 - [x] **Task: Verify `fedpkg` and Dist-Git Access** 1122da5
   - [ ] Install `fedpkg` if missing.
   - [ ] Test cloning a package from Fedora Dist-Git.
-- [ ] **Task: Script Specification Pulling from Rawhide**
+- [x] **Task: Script Specification Pulling from Rawhide** e878169
   - [ ] Use `fedpkg` to fetch the latest SPEC files for GNOME packages from Rawhide.
   - [ ] Store SPEC files in `src/gnome-49/`.
 - [ ] **Task: Identify Upstream Source Tarballs**
