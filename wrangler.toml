@@ -1,0 +1,16 @@
+name = "repo-proxy"
+main = "workers/repo-proxy.ts"
+compatibility_date = "2024-01-01"
+
+[[r1_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "repo-james-rc"
+
+# Route all repo requests through the worker
+routes = [
+  { pattern = "repo.yourdomain.com/*", zone_name = "yourdomain.com" }
+]
+
+# For development
+[vars]
+ENV = "production"

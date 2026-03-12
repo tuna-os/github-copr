@@ -1,0 +1,41 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+output/
+repodata/
+build/
+*.rpm
+*.src.rpm
+
+# GPG keys (never commit these!)
+*.key
+secrets/
+private.gpg
+private.key
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Mock
+mock/
+result/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
