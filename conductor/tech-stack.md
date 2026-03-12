@@ -5,9 +5,10 @@
 - **Bash/Python**: Used for build and maintenance scripts (`scripts/`).
 - **C/C++**: The example RPM source language (`src/`).
 
-## Frameworks and Platforms
+## Frameworks, Platforms, and Tooling
 - **Cloudflare Workers**: High-performance repository proxy.
 - **GitHub Actions**: Automated CI/CD pipeline for builds, signing, and uploads.
+- **fedpkg**: Used for interacting with Fedora Dist-Git to fetch specifications from Rawhide.
 
 ## Storage and Infrastructure
 - **Cloudflare R2**: Object storage for RPMs and repository metadata.
