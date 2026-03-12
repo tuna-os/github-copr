@@ -22,23 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build mock container
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          load: true
-          tags: mock-builder:fedora-43
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
@@ -47,6 +33,10 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
           git_committer_name: RPM Builder
           git_committer_email: rpm-signing@tunaos.org
+
+      - name: Install mock and dependencies
+        run: |
+          sudo dnf install -y dnf-plugins-core mock createrepo_c rpm-sign rpm-build
 
       - name: Install rclone
         run: |
@@ -78,18 +68,9 @@ jobs:
         run: |
           for target in ${{ steps.matrix.outputs.targets }}; do
             echo "Building for $target"
-            
-            docker run --rm \
-              -v "${{ github.workspace }}:/workspace" \
-              -w /workspace \
-              -u $(id -u):$(id -g) \
-              -e HOME=/tmp \
-              mock-builder:fedora-43 \
-              sh -c "
-                mock -r \$target --init && \
-                mock -r \$target --build src/*.src.rpm && \
-                mock -r \$target --resultdir=./output/\$target clean
-              "
+            mock -r $target --init
+            mock -r $target --build src/*.src.rpm
+            mock -r $target --resultdir=./output/$target clean
           done
 
       - name: Sign RPMs
@@ -120,94 +101,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rpm-builds-x86_64
-          path: output/
-          retention-days: 7
-
-  build-aarch64:
-    runs-on: ubuntu-24.04-arm
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build mock container
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          load: true
-          tags: mock-builder:fedora-43
-          platforms: linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v6
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-          git_committer_name: RPM Builder
-          git_committer_email: rpm-signing@tunaos.org
-
-      - name: Install rclone
-        run: |
-          curl -sS https://rclone.org/install.sh | sudo bash
-
-      - name: Configure rclone for R2
-        run: |
-          mkdir -p ~/.config/rclone
-          cat > ~/.config/rclone/rclone.conf << EOF
-          [remote]
-          type = s3
-          provider = Cloudflare
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          acl = private
-          EOF
-
-      - name: Build RPMs
-        run: |
-          for target in fedora-43-aarch64 almalinux-10-aarch64 centos-stream-10-aarch64; do
-            echo "Building for $target"
-            
-            docker run --rm \
-              -v "${{ github.workspace }}:/workspace" \
-              -w /workspace \
-              -u $(id -u):$(id -g) \
-              -e HOME=/tmp \
-              mock-builder:fedora-43 \
-              sh -c "
-                mock -r \$target --init && \
-                mock -r \$target --build src/*.src.rpm && \
-                mock -r \$target --resultdir=./output/\$target clean
-              "
-          done
-
-      - name: Sign RPMs
-        run: |
-          find output -name "*.rpm" -exec rpmsign --addsign {} \;
-        env:
-          GPG_AGENT_INFO: ""
-
-      - name: Upload to R2
-        run: |
-          for target in fedora-43-aarch64 almalinux-10-aarch64 centos-stream-10-aarch64; do
-            rclone sync output/$target/ remote:${{ env.R2_BUCKET }}/repo/$target/ --delete
-            
-            rclone sync remote:${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/
-            createrepo_c --update ./repodata/$target/
-            rclone sync ./repodata/$target/ remote:${{ env.R2_BUCKET }}/repo/$target/ --delete
-          done
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rpm-builds-aarch64
           path: output/
           retention-days: 7
