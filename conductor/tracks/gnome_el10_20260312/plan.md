@@ -2,7 +2,7 @@
 
 ## Phase 1: Preparation and Environment Setup
 
-- [ ] **Task: Verify Environment**
+- [x] **Task: Verify Environment** f33b4f6
   - [ ] Check if `copr-cli` is installed and functional.
   - [ ] Verify access to the source Copr repository: `jreilly1821/c10s-gnome-49`.
 - [ ] **Task: Setup Storage Structure**
