@@ -4,24 +4,27 @@ Release:        1%{?dist}
 Summary:        A simple hello world program
 License:        MIT
 URL:            https://example.com
-Source0:        %{name}-%{version}.tar.gz
+Source0:        hello-world-1.0.0.tar.gz
+
+BuildRequires:  gcc, make
 
 %description
 A simple hello world program for testing the build pipeline.
 
 %prep
-%autosetup
+%setup -q
 
 %build
 make %{?_smp_mflags}
 
 %install
-mkdir -p %{buildroot}%{_bindir}
-install -m 0755 hello %{buildroot}%{_bindir}/%{name}
+rm -rf %{buildroot}
+mkdir -p %{buildroot}/usr/bin
+install -m 0755 hello %{buildroot}/usr/bin/hello-world
 
 %files
-%{_bindir}/%{name}
+/usr/bin/hello-world
 
 %changelog
-* Thu Mar 12 2026 James Reilly <james@example.com> - 1.0.0-1
+* Thu Mar 12 2026 Tuna OS <info@tunaos.org> - 1.0.0-1
 - Initial package
