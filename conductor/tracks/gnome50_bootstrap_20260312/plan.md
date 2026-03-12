@@ -7,8 +7,8 @@
   - [x] Organize specifications in `src/gnome-50/`.
 - [x] **Task: Fetch GDM and GNOME Session Specs** 62f447e
   - [ ] Fetch latest `gdm` and `gnome-session` specs from Rawhide.
-- [ ] **Task: Tooling Assessment (Meson)**
-  - [ ] Check if `meson` upgrade is required by the new specs (e.g., `BuildSystem: meson`).
+- [x] **Task: Tooling Assessment (Meson)** 6423360
+  - [x] Check if `meson` upgrade is required by the new specs (e.g., `BuildSystem: meson`).
   - [ ] Build and install newer `meson` if needed.
 - [ ] **Task: Core Component Dependency Analysis**
   - [ ] Run `mock --buildsrpm` for `gnome-shell`, `gnome-session`, and `gdm`.
