@@ -4,13 +4,11 @@ compatibility_date = "2024-01-01"
 
 [[r1_buckets]]
 binding = "R2_BUCKET"
-bucket_name = "repo-james-rc"
+bucket_name = "bluefin"
 
-# Route all repo requests through the worker
 routes = [
-  { pattern = "repo.yourdomain.com/*", zone_name = "yourdomain.com" }
+  { pattern = "repo.tuna-os.dev/*", zone_name = "tuna-os.dev" }
 ]
 
-# For development
 [vars]
 ENV = "production"

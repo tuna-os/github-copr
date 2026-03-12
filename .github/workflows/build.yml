@@ -15,7 +15,7 @@ on:
         default: 'fedora-43-x86_64,almalinux-10-x86_64,centos-stream-10-x86_64'
 
 env:
-  R2_BUCKET: repo-james-rc
+  R2_BUCKET: bluefin
 
 jobs:
   build-x86_64:
