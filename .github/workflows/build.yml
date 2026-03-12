@@ -39,11 +39,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          dnf install -y dnf-plugins-core mock createrepo_c rpm-sign rpm-build
-
-      - name: Install rclone
-        run: |
-          curl -sS https://rclone.org/install.sh | bash
+          dnf install -y dnf-plugins-core mock createrepo_c rpm-sign rpm-build rclone
 
       - name: Configure rclone for R2
         run: |
@@ -55,7 +51,6 @@ jobs:
           access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
           secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
           endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          acl = private
           EOF
 
       - name: Get build matrix
@@ -67,27 +62,12 @@ jobs:
           fi
           echo "targets=$TARGETS" >> $GITHUB_OUTPUT
 
-      - name: Upload sources to R2
-        run: |
-          for tarball in src/*.tar.gz; do
-            [ -f "$tarball" ] || continue
-            pkg=$(basename "$tarball" .tar.gz)
-            echo "Uploading $tarball to R2 sources/"
-            rclone copyto "$tarball" "remote:${{ env.R2_BUCKET }}/sources/$pkg.tar.gz"
-          done
-
       - name: Build RPMs
         run: |
-          # Download sources from R2
-          for tarball in src/*.tar.gz; do
-            [ -f "$tarball" ] || continue
-            pkg=$(basename "$tarball" .tar.gz)
-            rclone copy "remote:${{ env.R2_BUCKET }}/sources/$pkg.tar.gz" ~/rpmbuild/SOURCES/
-          done
-          
-          # Copy spec and build SRPM
+          # Copy sources and build SRPM
           mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS,SPECS}
           cp src/*.spec ~/rpmbuild/SPECS/
+          cp src/*.tar.gz ~/rpmbuild/SOURCES/ 2>/dev/null || true
           rpmbuild -bs ~/rpmbuild/SPECS/*.spec --define "_topdir $HOME/rpmbuild"
           
           for target in ${{ steps.matrix.outputs.targets }}; do
@@ -107,11 +87,19 @@ jobs:
       - name: Upload to R2
         run: |
           for target in ${{ steps.matrix.outputs.targets }}; do
-            rclone sync output/$target/ remote:${{ env.R2_BUCKET }}/repo/$target/ --delete
+            mkdir -p ./repo/$target/
             
-            rclone sync remote:${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/
-            createrepo_c --update ./repodata/$target/
-            rclone sync ./repodata/$target/ remote:${{ env.R2_BUCKET }}/repo/$target/ --delete
+            echo "Downloading existing repository..."
+            rclone sync remote:${{ env.R2_BUCKET }}/repo/$target/ ./repo/$target/ || true
+            
+            echo "Copying newly built RPMs..."
+            cp -a output/$target/*.rpm ./repo/$target/ || true
+            
+            echo "Generating repository metadata..."
+            createrepo_c --update ./repo/$target/
+            
+            echo "Uploading repository to R2..."
+            rclone sync ./repo/$target/ remote:${{ env.R2_BUCKET }}/repo/$target/ --delete
           done
 
       - name: Upload GPG public key to R2
