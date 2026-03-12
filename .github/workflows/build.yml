@@ -23,6 +23,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      secrets: inherit
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,10 +112,11 @@ jobs:
           retention-days: 7
 
   build-aarch64:
-    runs-on: ubuntu-latest-arm64
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       id-token: write
+      secrets: inherit
     steps:
       - name: Checkout
         uses: actions/checkout@v4
