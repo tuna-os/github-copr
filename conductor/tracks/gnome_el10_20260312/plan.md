@@ -9,7 +9,7 @@
   - [x] Create a dedicated subdirectory in `src/` for GNOME 49 sources if necessary.
 - [x] **Task: Conductor - User Manual Verification 'Phase 1: Preparation and Environment Setup' (Protocol in workflow.md)** a65ef4c
 
-## Phase 2: Dist-Git Integration and Specification Fetching
+## Phase 2: Dist-Git Integration and Specification Fetching [checkpoint: d8da00b]
 
 - [x] **Task: Verify `fedpkg` and Dist-Git Access** 1122da5
   - [ ] Install `fedpkg` if missing.
@@ -20,7 +20,7 @@
 - [x] **Task: Identify Upstream Source Tarballs** 5ab8729
   - [ ] Parse SPEC files to find upstream source URLs.
   - [ ] Create a manifest for downloading GNOME tarballs.
-- [ ] **Task: Conductor - User Manual Verification 'Phase 2: Dist-Git Integration and Specification Fetching' (Protocol in workflow.md)**
+- [x] **Task: Conductor - User Manual Verification 'Phase 2: Dist-Git Integration and Specification Fetching' (Protocol in workflow.md)** d8da00b
 
 ## Phase 3: Build Pipeline and EL10 Integration
 
