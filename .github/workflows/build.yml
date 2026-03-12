@@ -16,6 +16,7 @@ on:
 
 env:
   R2_BUCKET: bluefin
+  AWS_ENDPOINT_URL: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
 
 jobs:
   build-x86_64:
@@ -45,8 +46,8 @@ jobs:
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
-          git_config_name: RPM Builder
-          git_config_email: rpm-signing@yourdomain.com
+          git_committer_name: RPM Builder
+          git_committer_email: rpm-signing@tunaos.org
 
       - name: Configure AWS CLI for R2
         uses: aws-actions/configure-aws-credentials@v4
@@ -54,7 +55,6 @@ jobs:
           aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           aws-region: auto
-          aws-endpoint-url: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
 
       - name: Get build matrix
         id: matrix
@@ -92,11 +92,11 @@ jobs:
       - name: Upload to R2
         run: |
           for target in ${{ steps.matrix.outputs.targets }}; do
-            aws s3 sync output/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete
+            aws s3 sync output/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
 
-            aws s3 sync s3://${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/
+            aws s3 sync s3://${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/ --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
             createrepo_c --update ./repodata/$target/
-            aws s3 sync ./repodata/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete
+            aws s3 sync ./repodata/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
           done
 
       - name: Cleanup old versions
@@ -138,8 +138,8 @@ jobs:
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
-          git_config_name: RPM Builder
-          git_config_email: rpm-signing@yourdomain.com
+          git_committer_name: RPM Builder
+          git_committer_email: rpm-signing@tunaos.org
 
       - name: Configure AWS CLI for R2
         uses: aws-actions/configure-aws-credentials@v4
@@ -147,7 +147,6 @@ jobs:
           aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           aws-region: auto
-          aws-endpoint-url: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
 
       - name: Build RPMs
         run: |
@@ -176,11 +175,11 @@ jobs:
       - name: Upload to R2
         run: |
           for target in fedora-43-aarch64 almalinux-10-aarch64 centos-stream-10-aarch64; do
-            aws s3 sync output/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete
+            aws s3 sync output/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
 
-            aws s3 sync s3://${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/
+            aws s3 sync s3://${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/ --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
             createrepo_c --update ./repodata/$target/
-            aws s3 sync ./repodata/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete
+            aws s3 sync ./repodata/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete --endpoint-url=${{ env.AWS_ENDPOINT_URL }}
           done
 
       - name: Upload artifact
