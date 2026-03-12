@@ -17,7 +17,7 @@
 - [x] **Task: Script Specification Pulling from Rawhide** e878169
   - [ ] Use `fedpkg` to fetch the latest SPEC files for GNOME packages from Rawhide.
   - [ ] Store SPEC files in `src/gnome-49/`.
-- [ ] **Task: Identify Upstream Source Tarballs**
+- [x] **Task: Identify Upstream Source Tarballs** 5ab8729
   - [ ] Parse SPEC files to find upstream source URLs.
   - [ ] Create a manifest for downloading GNOME tarballs.
 - [ ] **Task: Conductor - User Manual Verification 'Phase 2: Dist-Git Integration and Specification Fetching' (Protocol in workflow.md)**
