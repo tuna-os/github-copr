@@ -1,0 +1,8 @@
+{
+  "track_id": "gnome_el10_20260312",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-03-12T10:00:00Z",
+  "updated_at": "2026-03-12T10:00:00Z",
+  "description": "use copr-cli to pull down the specs for all the packages in https://copr.fedorainfracloud.org/coprs/jreilly1821/c10s-gnome-49/ so we can provide new GNOME on EL10"
+}
