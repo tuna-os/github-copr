@@ -11,7 +11,7 @@
 
 ## Phase 2: Source Acquisition
 
-- [ ] **Task: Identify All Packages in Copr**
+- [x] **Task: Identify All Packages in Copr** f1e283e
   - [ ] Use `copr-cli` to list all packages in `jreilly1821/c10s-gnome-49`.
   - [ ] Create a local manifest of these packages.
 - [ ] **Task: Download Sources**
