@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 #
-# Install James Reilly Consulting RPM Repository
+# Tuna OS RPM Repository
 #
 # Usage:
-#   curl -sSL https://repo.yourdomain.com/install.sh | sudo bash
-#   # Or download and inspect first:
-#   curl -sSLO https://repo.yourdomain.com/install.sh && chmod +x install.sh
+#   curl -sSL https://repo.tunaos.org/install.sh | sudo bash
 
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://repo.yourdomain.com}"
-REPO_NAME="${REPO_NAME:-james-rc}"
+REPO_URL="${REPO_URL:-https://repo.tunaos.org}"
+REPO_NAME="${REPO_NAME:-tuna-os}"
 
 detect_distro() {
     if [ -f /etc/os-release ]; then
