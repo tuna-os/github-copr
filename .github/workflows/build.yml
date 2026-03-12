@@ -69,10 +69,16 @@ jobs:
 
       - name: Build RPMs
         run: |
+          # Create source RPM first
+          mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS,SPECS}
+          cp src/*.spec ~/rpmbuild/SPECS/
+          cp src/*.tar.gz ~/rpmbuild/SOURCES/ 2>/dev/null || true
+          rpmbuild -bs ~/rpmbuild/SPECS/*.spec --define "_topdir $HOME/rpmbuild"
+          
           for target in ${{ steps.matrix.outputs.targets }}; do
             echo "Building for $target"
             mock -r $target --init
-            mock -r $target --build src/*.src.rpm
+            mock -r $target --rebuild ~/rpmbuild/SRPMS/*.src.rpm
             mock -r $target --resultdir=./output/$target clean
           done
 
