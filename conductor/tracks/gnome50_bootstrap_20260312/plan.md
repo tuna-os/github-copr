@@ -1,10 +1,10 @@
 # Implementation Plan: GNOME 50 Bootstrap on CentOS 10
 
-## Phase 1: Specification and Dependency Mapping [checkpoint: d3e42d4]
+## Phase 1: Specification and Dependency Mapping [checkpoint: 4477886]
 
 - [x] **Task: Fetch GNOME 50 Specs from Rawhide** 72125f9
-  - [x] Use `fedpkg` to clone the latest specifications for GNOME 50 packages.
-  - [x] Organize specifications in `src/gnome-50/`.
+  - [ ] Use `fedpkg` to clone the latest specifications for GNOME 50 packages.
+  - [ ] Organize specifications in `src/gnome-50/`.
 - [x] **Task: Fetch GDM and GNOME Session Specs** 62f447e
   - [ ] Fetch latest `gdm` and `gnome-session` specs from Rawhide.
 - [x] **Task: Tooling Assessment (Meson)** 6423360
@@ -13,7 +13,7 @@
 - [x] **Task: Core Component Dependency Analysis** fe60c3a
   - [x] Run `mock --buildsrpm` for `gnome-shell`, `gnome-session`, and `gdm`.
   - [x] Identify minimum set of Rawhide dependencies demanded by these packages.
-- [ ] **Task: Conductor - User Manual Verification 'Phase 1: Specification and Dependency Mapping' (Protocol in workflow.md)**
+- [x] **Task: Conductor - User Manual Verification 'Phase 1: Specification and Dependency Mapping' (Protocol in workflow.md)** 4477886
 
 ## Phase 2: Iterative Dependency Fulfillment & Container Testing
 
