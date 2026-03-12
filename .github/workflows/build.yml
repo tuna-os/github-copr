@@ -1,0 +1,191 @@
+name: Build and Publish RPMs
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: 'Comma-separated build targets'
+        required: false
+        default: 'fedora-43-x86_64,almalinux-10-x86_64,centos-stream-10-x86_64'
+
+env:
+  R2_BUCKET: repo-james-rc
+
+jobs:
+  build-x86_64:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build mock container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: mock-builder:fedora-43
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_config_name: RPM Builder
+          git_config_email: rpm-signing@yourdomain.com
+
+      - name: Configure AWS CLI for R2
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          aws-region: auto
+          aws-endpoint-url: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+
+      - name: Get build matrix
+        id: matrix
+        run: |
+          TARGETS="${{ github.event.inputs.targets }}"
+          if [ -z "$TARGETS" ]; then
+            TARGETS="fedora-43-x86_64 almalinux-10-x86_64 almalinux-10-x86_64_v2 centos-stream-10-x86_64"
+          fi
+          echo "targets=$TARGETS" >> $GITHUB_OUTPUT
+
+      - name: Build RPMs
+        run: |
+          for target in ${{ steps.matrix.outputs.targets }}; do
+            echo "Building for $target"
+            
+            docker run --rm \
+              -v "${{ github.workspace }}:/workspace" \
+              -w /workspace \
+              -u $(id -u):$(id -g) \
+              -e HOME=/tmp \
+              mock-builder:fedora-43 \
+              sh -c "
+                mock -r \$target --init && \
+                mock -r \$target --build src/*.src.rpm && \
+                mock -r \$target --resultdir=./output/\$target clean
+              "
+          done
+
+      - name: Sign RPMs
+        run: |
+          find output -name "*.rpm" -exec rpmsign --addsign {} \;
+        env:
+          GPG_AGENT_INFO: ""
+
+      - name: Upload to R2
+        run: |
+          for target in ${{ steps.matrix.outputs.targets }}; do
+            aws s3 sync output/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete
+
+            aws s3 sync s3://${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/
+            createrepo_c --update ./repodata/$target/
+            aws s3 sync ./repodata/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete
+          done
+
+      - name: Cleanup old versions
+        run: |
+          python3 scripts/cleanup.py --bucket ${{ env.R2_BUCKET }} --keep 3
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-builds-x86_64
+          path: output/
+          retention-days: 7
+
+  build-aarch64:
+    runs-on: ubuntu-latest-arm64
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build mock container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: mock-builder:fedora-43
+          platforms: linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_config_name: RPM Builder
+          git_config_email: rpm-signing@yourdomain.com
+
+      - name: Configure AWS CLI for R2
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          aws-region: auto
+          aws-endpoint-url: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+
+      - name: Build RPMs
+        run: |
+          for target in fedora-43-aarch64 almalinux-10-aarch64 centos-stream-10-aarch64; do
+            echo "Building for $target"
+            
+            docker run --rm \
+              -v "${{ github.workspace }}:/workspace" \
+              -w /workspace \
+              -u $(id -u):$(id -g) \
+              -e HOME=/tmp \
+              mock-builder:fedora-43 \
+              sh -c "
+                mock -r \$target --init && \
+                mock -r \$target --build src/*.src.rpm && \
+                mock -r \$target --resultdir=./output/\$target clean
+              "
+          done
+
+      - name: Sign RPMs
+        run: |
+          find output -name "*.rpm" -exec rpmsign --addsign {} \;
+        env:
+          GPG_AGENT_INFO: ""
+
+      - name: Upload to R2
+        run: |
+          for target in fedora-43-aarch64 almalinux-10-aarch64 centos-stream-10-aarch64; do
+            aws s3 sync output/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete
+
+            aws s3 sync s3://${{ env.R2_BUCKET }}/repo/$target/ ./repodata/$target/
+            createrepo_c --update ./repodata/$target/
+            aws s3 sync ./repodata/$target/ s3://${{ env.R2_BUCKET }}/repo/$target/ --delete
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-builds-aarch64
+          path: output/
+          retention-days: 7
