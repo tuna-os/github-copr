@@ -7,7 +7,7 @@ binding = "R2_BUCKET"
 bucket_name = "bluefin"
 
 routes = [
-  { pattern = "repo.tuna-os.dev/*", zone_name = "tuna-os.dev" }
+  { pattern = "repo.tunaos.org/*", zone_name = "tunaos.org" }
 ]
 
 [vars]
