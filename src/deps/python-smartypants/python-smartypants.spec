@@ -1,10 +1,10 @@
 Name:           python-smartypants
-Version:        2.0.1
+Version:        2.0.2
 Release:        1%{?dist}
 Summary:        Python with the SmartyPants Web publishing tool
 License:        BSD-3-Clause
 URL:            https://github.com/leo-hemsted/smartypants.py
-Source0:        smartypants-%{version}.tar.gz
+Source0:        https://files.pythonhosted.org/packages/source/s/smartypants/smartypants-%{version}.tar.gz
 BuildArch:      noarch
 
 BuildRequires:  python3-devel
