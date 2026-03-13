@@ -11,6 +11,10 @@ on:
         description: 'Build only this package path (e.g. src/deps/meson)'
         required: false
         default: ''
+      jobs:
+        description: 'Parallel builds within a tier (default: nproc/2)'
+        required: false
+        default: ''
 
 env:
   R2_BUCKET: bluefin
@@ -84,6 +88,9 @@ jobs:
           fi
           if [[ -n "${{ github.event.inputs.packages }}" ]]; then
             ARGS+=(--package "${{ github.event.inputs.packages }}")
+          fi
+          if [[ -n "${{ github.event.inputs.jobs }}" ]]; then
+            ARGS+=(--jobs "${{ github.event.inputs.jobs }}")
           fi
           ./scripts/build-chain.sh "${ARGS[@]}"
 
