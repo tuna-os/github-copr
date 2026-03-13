@@ -1,0 +1,48 @@
+# Mock Runner Image for GNOME 50 / CentOS Stream 10 builds
+#
+# Bakes in:
+#   - mock + toolchain (rpm-build, createrepo_c, rpmdevtools, spectool)
+#   - centos-stream-10-ci mock config
+#   - Pre-bootstrapped CentOS Stream 10 mock chroot
+#
+# Build (requires --privileged for mock --init):
+#   podman build --privileged -f mock/Containerfile -t mock-runner:local mock/
+#
+# Push:
+#   podman tag mock-runner:local ghcr.io/tuna-os/mock-runner:centos-stream-10
+#   podman push ghcr.io/tuna-os/mock-runner:centos-stream-10
+
+FROM fedora:latest
+
+# Install build toolchain
+RUN dnf install -y \
+        mock \
+        rpm-build \
+        rpm-sign \
+        createrepo_c \
+        rpmdevtools \
+        python3-pyyaml \
+        git \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+# Copy mock config into place
+COPY centos-stream-10-ci.cfg /etc/mock/centos-stream-10-ci.cfg
+
+# Create an empty local repo so mock --init doesn't fail on the
+# file:///local-repo baseurl (it'll be bind-mounted at build time)
+RUN mkdir -p /local-repo && createrepo_c /local-repo
+
+# Bootstrap the CentOS Stream 10 chroot.
+# This downloads ~400 MB of base packages once and bakes them into the image.
+# Subsequent `mock --rebuild --no-clean` invocations skip this phase entirely.
+RUN mock --init -r centos-stream-10-ci \
+        --no-cleanup-after \
+    && echo "Bootstrap complete" \
+    # Clean the DNF package cache inside the chroot to save image space
+    && mock -r centos-stream-10-ci --shell "dnf clean all" \
+    # Remove build logs from bootstrap
+    && rm -f /var/lib/mock/centos-stream-10-ci/result/*
+
+LABEL org.opencontainers.image.description="Fedora + mock with CentOS Stream 10 chroot pre-bootstrapped"
+LABEL org.opencontainers.image.source="https://github.com/tuna-os/github-copr"

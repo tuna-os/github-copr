@@ -31,7 +31,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 MANIFEST="${REPO_ROOT}/build-order.yml"
 BACKEND="podman"
-BUILD_IMAGE="quay.io/centos/centos:stream10"
+BUILD_IMAGE="ghcr.io/tuna-os/mock-runner:centos-stream-10"
 MOCK_CONFIG="centos-stream-10-ci"
 LOCAL_REPO="${REPO_ROOT}/local-repo"
 JOBS=$(( $(nproc) / 2 ))
@@ -149,17 +149,22 @@ prepare_sources() {
     }
 }
 
-# --- Podman backend ---
+# --- Podman backend (mock-in-podman) ---
+#
+# Builds the SRPM on the host, then runs `mock --rebuild` inside a
+# privileged Fedora container. Mock handles all CentOS 10 dep resolution
+# and package name mappings correctly. The local-repo is bind-mounted into
+# the container so mock can see RPMs built in earlier tiers.
 build_package_podman() {
     local pkg_dir="$1"
     local spec_override="$2"
 
-    local spec pkg_name abs_pkg_dir builddir
+    local spec pkg_name abs_pkg_dir
     spec="$(find_spec "$pkg_dir" "$spec_override")"
     pkg_name="$(basename "$spec" .spec)"
     abs_pkg_dir="${REPO_ROOT}/${pkg_dir}"
 
-    echo "==> [${pkg_name}] Building (podman) from ${pkg_dir}"
+    echo "==> [${pkg_name}] Building (podman+mock) from ${pkg_dir}"
 
     local builddir
     builddir="$(mktemp -d)"
@@ -167,18 +172,30 @@ build_package_podman() {
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
 
+    # Build SRPM on the host (just file prep, no target-distro deps needed)
     local spec_basename
     spec_basename="$(basename "$spec")"
+    echo "==> [${pkg_name}] Building SRPM..."
+    rpmbuild -bs "${builddir}/SPECS/${spec_basename}" \
+        --define "_topdir ${builddir}" \
+        --define "dist .el10"
 
-    echo "==> [${pkg_name}] Running rpmbuild in container..."
-    podman run --rm \
-        --pull=missing \
-        -v "${builddir}:/builddir:Z" \
-        -v "${LOCAL_REPO}:/local-repo:Z,ro" \
-        "${BUILD_IMAGE}" \
-        bash -exc "
-            # Local repo from previous tiers
-            cat > /etc/yum.repos.d/local-build.repo << 'REPO'
+    local srpm
+    srpm="$(find "${builddir}/SRPMS" -name "*.src.rpm" | head -1)"
+    if [[ -z "$srpm" ]]; then
+        echo "ERROR: No SRPM produced for ${pkg_name}" >&2
+        return 1
+    fi
+
+    local resultdir="${builddir}/results"
+    mkdir -p "$resultdir"
+
+    # Write the mock config for use inside the container
+    local mock_cfg="${builddir}/centos-stream-10-ci.cfg"
+    cat > "$mock_cfg" << 'MOCKCFG'
+include('/etc/mock/centos-stream-10-x86_64.cfg')
+config_opts['root'] = 'centos-stream-10-ci'
+config_opts['yum.conf'] += """
 [local-build]
 name=Local Build Repo
 baseurl=file:///local-repo
@@ -186,29 +203,54 @@ enabled=1
 gpgcheck=0
 priority=1
 module_hotfixes=1
-REPO
 
-            # EPEL 10
-            dnf install -y --quiet \
-                https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm \
-                2>/dev/null || true
+[epel]
+name=Extra Packages for Enterprise Linux 10 - x86_64
+baseurl=https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64
+enabled=1
+gpgcheck=0
+priority=10
+"""
+config_opts['plugin_conf']['bind_mount_enable'] = True
+config_opts['plugin_conf']['bind_mount_opts']['dirs'].append(
+    ('/local-repo', '/local-repo')
+)
+MOCKCFG
 
-            # Install build dependencies
-            dnf builddep -y --quiet /builddir/SPECS/${spec_basename}
+    echo "==> [${pkg_name}] Running mock inside podman (${BUILD_IMAGE})..."
 
-            # Build
-            rpmbuild -bb /builddir/SPECS/${spec_basename} \
-                --define '_topdir /builddir' \
-                --define 'dist .el10'
+    # Bind-mount the host mock RPM download cache so packages aren't
+    # re-downloaded across builds. /var/cache/mock is safe to share
+    # between parallel container runs (dnf uses per-request locking).
+    local mock_cache_vol=""
+    if [[ -d /var/cache/mock ]]; then
+        mock_cache_vol="-v /var/cache/mock:/var/cache/mock:Z"
+    fi
+
+    podman run --rm --privileged \
+        --pull=missing \
+        -v "${builddir}:/builddir:Z" \
+        -v "${LOCAL_REPO}:/local-repo:Z" \
+        ${mock_cache_vol} \
+        "${BUILD_IMAGE}" \
+        bash -exc "
+            createrepo_c /local-repo/
+            mock -r centos-stream-10-ci \
+                --uniqueext='${pkg_name}' \
+                --rebuild /builddir/SRPMS/*.src.rpm \
+                --resultdir=/builddir/results \
+                --define 'dist .el10' \
+                --no-clean \
+                --no-cleanup-after
         "
 
-    # Collect RPMs
+    # Collect RPMs from results
     local rpm_count=0
     while IFS= read -r -d '' rpm; do
         cp "$rpm" "${LOCAL_REPO}/"
         echo "==> [${pkg_name}] -> $(basename "$rpm")"
         rpm_count=$(( rpm_count + 1 ))
-    done < <(find "${builddir}/RPMS" -name "*.rpm" -print0)
+    done < <(find "$resultdir" -name "*.rpm" ! -name "*.src.rpm" -print0)
 
     if [[ $rpm_count -eq 0 ]]; then
         echo "ERROR: No RPMs produced for ${pkg_name}" >&2
