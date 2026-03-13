@@ -7,7 +7,6 @@ on:
       - 'mock/Containerfile'
       - 'mock/centos-stream-10-ci.cfg'
   workflow_dispatch:
-    inputs: {}
 
 env:
   REGISTRY: ghcr.io
