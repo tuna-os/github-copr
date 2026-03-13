@@ -219,19 +219,10 @@ MOCKCFG
 
     echo "==> [${pkg_name}] Running mock inside podman (${BUILD_IMAGE})..."
 
-    # Bind-mount the host mock RPM download cache so packages aren't
-    # re-downloaded across builds. /var/cache/mock is safe to share
-    # between parallel container runs (dnf uses per-request locking).
-    local mock_cache_vol=""
-    if [[ -d /var/cache/mock ]]; then
-        mock_cache_vol="-v /var/cache/mock:/var/cache/mock:Z"
-    fi
-
     podman run --rm --privileged \
         --pull=missing \
         -v "${builddir}:/builddir:Z" \
         -v "${LOCAL_REPO}:/local-repo:Z" \
-        ${mock_cache_vol} \
         "${BUILD_IMAGE}" \
         bash -exc "
             createrepo_c /local-repo/
