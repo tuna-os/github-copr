@@ -8,20 +8,26 @@
 target: centos-stream-10-x86_64
 
 tiers:
-  - name: build-tools
+  # Tier 0: packages that only need base CentOS Stream 10 + EPEL to build.
+  # Nothing here may depend on a package from this repo.
+  - name: base-tools
     packages:
       - path: src/deps/meson
       - path: src/deps/autoconf
+      - path: src/deps/libldac
+      - path: src/deps/python-smartypants
+      - path: src/deps/python-typogrify
+
+  # Tier 1: packages that need meson or autoconf from tier 0.
+  - name: build-tools
+    packages:
       - path: src/deps/wayland-protocols
       - path: src/deps/icu
         spec_override: libicu77-bootstrap.spec
       - path: src/deps/libxcvt
-      - path: src/deps/libldac
       - path: src/deps/shaderc
       - path: src/deps/umockdev
       - path: src/deps/python-dbusmock
-      - path: src/deps/python-smartypants
-      - path: src/deps/python-typogrify
       - path: src/deps/gi-docgen
       - path: src/deps/avahi
 

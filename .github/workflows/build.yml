@@ -16,13 +16,14 @@ on:
         required: false
         default: ''
       image:
-        description: 'Container image for builds'
+        description: 'Mock runner image (override pre-built default)'
         required: false
-        default: 'quay.io/centos/centos:stream10'
+        default: ''
 
 env:
   R2_BUCKET: bluefin
   LOCAL_REPO: ${{ github.workspace }}/local-repo
+  MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
 
 jobs:
   build:
@@ -39,9 +40,15 @@ jobs:
           sudo apt-get install -y -q \
             podman createrepo-c rpm rpmdevtools python3-yaml \
             gpg gpgconf
-
-          # rclone
           curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Cache mock RPM downloads
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/mock
+          key: mock-cache-centos-stream-10-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+          restore-keys: |
+            mock-cache-centos-stream-10-
 
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
@@ -63,8 +70,13 @@ jobs:
           endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
           EOF
 
-      - name: Pull build image
-        run: podman pull "${{ github.event.inputs.image || 'quay.io/centos/centos:stream10' }}"
+      - name: Pull mock runner image
+        run: |
+          IMAGE="${{ github.event.inputs.image || env.MOCK_RUNNER_IMAGE }}"
+          podman pull "${IMAGE}"
+          # Warm the /var/cache/mock host directory so the bind-mount
+          # inside containers picks up cached RPM downloads
+          sudo mkdir -p /var/cache/mock
 
       - name: Seed local repo from R2
         run: |
@@ -77,7 +89,7 @@ jobs:
 
       - name: Build packages
         run: |
-          IMAGE="${{ github.event.inputs.image || 'quay.io/centos/centos:stream10' }}"
+          IMAGE="${{ github.event.inputs.image || env.MOCK_RUNNER_IMAGE }}"
           ARGS=(
             --backend podman
             --image   "${IMAGE}"

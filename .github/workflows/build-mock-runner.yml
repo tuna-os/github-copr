@@ -1,0 +1,52 @@
+name: Build Mock Runner Image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mock/Containerfile'
+      - 'mock/centos-stream-10-ci.cfg'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/tuna-os/mock-runner
+  TAG: centos-stream-10
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build image
+        run: |
+          podman build \
+            --privileged \
+            --pull=always \
+            -f mock/Containerfile \
+            -t "${IMAGE}:${TAG}" \
+            -t "${IMAGE}:${TAG}-${{ github.sha }}" \
+            mock/
+
+      - name: Push image
+        run: |
+          podman push "${IMAGE}:${TAG}"
+          podman push "${IMAGE}:${TAG}-${{ github.sha }}"
+
+      - name: Inspect
+        run: podman inspect "${IMAGE}:${TAG}" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)[0]
+print('Size:  ', round(data['Size'] / 1024**2, 1), 'MiB')
+print('Layers:', len(data['RootFS']['Layers']))
+"
