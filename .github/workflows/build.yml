@@ -42,13 +42,23 @@ jobs:
             gpg gpgconf
           curl -fsSL https://rclone.org/install.sh | sudo bash
 
-      - name: Cache mock RPM downloads
+      - name: Cache CentOS Stream 10 container image
+        id: cache-cs10
         uses: actions/cache@v4
         with:
-          path: /var/cache/mock
-          key: mock-cache-centos-stream-10-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-          restore-keys: |
-            mock-cache-centos-stream-10-
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+
+      - name: Load or pull CentOS Stream 10 image
+        run: |
+          if [[ -f /tmp/cs10-image.tar ]]; then
+            echo "Restoring cached image..."
+            podman load -i /tmp/cs10-image.tar
+          else
+            echo "Pulling quay.io/centos/centos:stream10..."
+            podman pull quay.io/centos/centos:stream10
+            podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10
+          fi
 
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
@@ -74,9 +84,6 @@ jobs:
         run: |
           IMAGE="${{ github.event.inputs.image || env.MOCK_RUNNER_IMAGE }}"
           podman pull "${IMAGE}"
-          # Warm the /var/cache/mock host directory so the bind-mount
-          # inside containers picks up cached RPM downloads
-          sudo mkdir -p /var/cache/mock
 
       - name: Seed local repo from R2
         run: |

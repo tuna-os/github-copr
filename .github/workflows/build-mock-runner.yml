@@ -1,5 +1,7 @@
 name: Build Mock Runner Image
 # Builds and pushes ghcr.io/tuna-os/mock-runner:centos-stream-10
+# Image is just Fedora + mock toolchain. The CentOS Stream 10 environment
+# is pulled at build time via mock's use_bootstrap_image.
 
 on:
   push:
@@ -10,7 +12,6 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
   IMAGE: ghcr.io/tuna-os/mock-runner
   TAG: centos-stream-10
 
@@ -31,12 +32,7 @@ jobs:
 
       - name: Build image
         run: |
-          # mock --init inside a RUN layer needs SYS_ADMIN + SYS_CHROOT.
-          # podman build doesn't support --privileged; use --cap-add=all
-          # with sudo so the runner process has the needed kernel capabilities.
-          sudo podman build \
-            --cap-add=all \
-            --security-opt label=disable \
+          podman build \
             --pull=always \
             -f mock/Containerfile \
             -t "${IMAGE}:${TAG}" \
@@ -45,8 +41,8 @@ jobs:
 
       - name: Push image
         run: |
-          sudo podman push "${IMAGE}:${TAG}"
-          sudo podman push "${IMAGE}:${TAG}-${{ github.sha }}"
+          podman push "${IMAGE}:${TAG}"
+          podman push "${IMAGE}:${TAG}-${{ github.sha }}"
 
       - name: Inspect
-        run: sudo podman images "${IMAGE}:${TAG}" --format "{{.Repository}}:{{.Tag}}  {{.Size}}"
+        run: podman images "${IMAGE}:${TAG}" --format "{{.Repository}}:{{.Tag}}  {{.Size}}"
