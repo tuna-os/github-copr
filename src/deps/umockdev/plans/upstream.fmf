@@ -1,0 +1,7 @@
+discover:
+  how: fmf
+  dist-git-source: true
+  # tmt 1.32 now runs `rpmbuild -bp`
+  dist-git-install-builddeps: true
+execute:
+  how: tmt
