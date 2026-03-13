@@ -60,6 +60,7 @@ jobs:
   build-base-tools:
     needs: seed-repo
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -168,6 +169,7 @@ jobs:
   build-build-tools:
     needs: consolidate-base-tools
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -279,6 +281,7 @@ jobs:
   build-icu-full:
     needs: consolidate-build-tools
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -383,6 +386,7 @@ jobs:
   build-glib2-bootstrap:
     needs: consolidate-icu-full
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -487,6 +491,7 @@ jobs:
   build-gi-bootstrap:
     needs: consolidate-glib2-bootstrap
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -591,6 +596,7 @@ jobs:
   build-glib2-full:
     needs: consolidate-gi-bootstrap
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -695,6 +701,7 @@ jobs:
   build-gi-full:
     needs: consolidate-glib2-full
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -799,6 +806,7 @@ jobs:
   build-low-level-libs:
     needs: consolidate-gi-full
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -908,6 +916,7 @@ jobs:
   build-gjs:
     needs: consolidate-low-level-libs
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -1012,6 +1021,7 @@ jobs:
   build-gtk-layer:
     needs: consolidate-gjs
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -1118,6 +1128,7 @@ jobs:
   build-libadwaita:
     needs: consolidate-gtk-layer
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -1224,6 +1235,7 @@ jobs:
   build-compositor:
     needs: consolidate-libadwaita
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -1329,6 +1341,7 @@ jobs:
   build-shell:
     needs: consolidate-compositor
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:
@@ -1434,6 +1447,7 @@ jobs:
   build-session:
     needs: consolidate-shell
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     container:
       image: quay.io/centos/centos:stream10
     strategy:

@@ -114,7 +114,9 @@ BuildRequires:      perl(Text::ParseWords)
 # %%configure replaces config.guess/config.sub for us, which confuses autoconf
 # build system and it produces empty man pages for those scripts if help2man is
 # not installed
+%if 0%{?fedora}
 BuildRequires:      help2man
+%endif
 BuildRequires:      make
 
 # gettext-devel   0.23.2,  0.24.2 or 0.25.1 introduced behavior changes that
