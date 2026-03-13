@@ -92,7 +92,7 @@ BuildArch:  noarch
 
 
 # run "make check" by default
-%bcond_without check
+%bcond_with check
 
 BuildRequires:      perl
 Requires:           perl(File::Compare)
