@@ -4,7 +4,7 @@ Release:        1%{?dist}
 Summary:        A documentation generator for GObject-based libraries
 License:        Apache-2.0 OR GPL-3.0-or-later
 URL:            https://gnome.pages.gitlab.gnome.org/gi-docgen/
-Source0:        https://files.pythonhosted.org/packages/source/g/gi-docgen/gi-docgen-%{version}.tar.gz
+Source0:        https://files.pythonhosted.org/packages/source/g/gi-docgen/gi_docgen-%{version}.tar.gz
 BuildArch:      noarch
 
 BuildRequires:  python3-devel

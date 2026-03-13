@@ -10,6 +10,7 @@ env:
   R2_BUCKET: bluefin
   LOCAL_REPO: ${{ github.workspace }}/local-repo
   MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
+  RPM_SOURCES_CACHE: /root/rpmbuild/sources-cache
 jobs:
   seed-repo:
     runs-on: ubuntu-latest
@@ -59,6 +60,8 @@ jobs:
   build-base-tools:
     needs: seed-repo
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
@@ -69,26 +72,41 @@ jobs:
         - src/deps/python-smartypants
         - src/deps/python-typogrify
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-0
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -109,6 +127,7 @@ jobs:
         retention-days: 1
   consolidate-base-tools:
     needs: build-base-tools
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -127,6 +146,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -136,6 +168,8 @@ jobs:
   build-build-tools:
     needs: consolidate-base-tools
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
@@ -149,26 +183,41 @@ jobs:
         - src/deps/gi-docgen
         - src/deps/avahi
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-1
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -189,6 +238,7 @@ jobs:
         retention-days: 1
   consolidate-build-tools:
     needs: build-build-tools
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -207,6 +257,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -216,32 +279,49 @@ jobs:
   build-icu-full:
     needs: consolidate-build-tools
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
         package:
         - src/deps/icu
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-2
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -262,6 +342,7 @@ jobs:
         retention-days: 1
   consolidate-icu-full:
     needs: build-icu-full
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -280,6 +361,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -289,32 +383,49 @@ jobs:
   build-glib2-bootstrap:
     needs: consolidate-icu-full
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
         package:
         - src/gnome-50/glib2
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-3
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -335,6 +446,7 @@ jobs:
         retention-days: 1
   consolidate-glib2-bootstrap:
     needs: build-glib2-bootstrap
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -353,6 +465,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -362,32 +487,49 @@ jobs:
   build-gi-bootstrap:
     needs: consolidate-glib2-bootstrap
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
         package:
         - src/gnome-50/gobject-introspection
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-4
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -408,6 +550,7 @@ jobs:
         retention-days: 1
   consolidate-gi-bootstrap:
     needs: build-gi-bootstrap
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -426,6 +569,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -435,32 +591,49 @@ jobs:
   build-glib2-full:
     needs: consolidate-gi-bootstrap
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
         package:
         - src/gnome-50/glib2
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-5
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -481,6 +654,7 @@ jobs:
         retention-days: 1
   consolidate-glib2-full:
     needs: build-glib2-full
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -499,6 +673,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -508,32 +695,49 @@ jobs:
   build-gi-full:
     needs: consolidate-glib2-full
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
         package:
         - src/gnome-50/gobject-introspection
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-6
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -554,6 +758,7 @@ jobs:
         retention-days: 1
   consolidate-gi-full:
     needs: build-gi-full
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -572,6 +777,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -581,6 +799,8 @@ jobs:
   build-low-level-libs:
     needs: consolidate-gi-full
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
@@ -592,26 +812,41 @@ jobs:
         - src/deps/mozjs140
         - src/deps/pipewire
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-7
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -632,6 +867,7 @@ jobs:
         retention-days: 1
   consolidate-low-level-libs:
     needs: build-low-level-libs
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -650,6 +886,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -659,32 +908,49 @@ jobs:
   build-gjs:
     needs: consolidate-low-level-libs
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
         package:
         - src/gnome-50/gjs
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-8
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -705,6 +971,7 @@ jobs:
         retention-days: 1
   consolidate-gjs:
     needs: build-gjs
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -723,6 +990,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -732,6 +1012,8 @@ jobs:
   build-gtk-layer:
     needs: consolidate-gjs
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
@@ -740,26 +1022,41 @@ jobs:
         - src/deps/gtk4
         - src/deps/glycin
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-9
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -780,6 +1077,7 @@ jobs:
         retention-days: 1
   consolidate-gtk-layer:
     needs: build-gtk-layer
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -798,6 +1096,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -807,6 +1118,8 @@ jobs:
   build-libadwaita:
     needs: consolidate-gtk-layer
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
@@ -815,26 +1128,41 @@ jobs:
         - src/gnome-50/xdg-desktop-portal
         - src/gnome-50/nautilus
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-10
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -855,6 +1183,7 @@ jobs:
         retention-days: 1
   consolidate-libadwaita:
     needs: build-libadwaita
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -873,6 +1202,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -882,6 +1224,8 @@ jobs:
   build-compositor:
     needs: consolidate-libadwaita
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
@@ -889,26 +1233,41 @@ jobs:
         - src/gnome-50/mutter
         - src/gnome-50/xdg-desktop-portal-gnome
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-11
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -929,6 +1288,7 @@ jobs:
         retention-days: 1
   consolidate-compositor:
     needs: build-compositor
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -947,6 +1307,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -956,6 +1329,8 @@ jobs:
   build-shell:
     needs: consolidate-compositor
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
@@ -963,26 +1338,41 @@ jobs:
         - src/gnome-50/gnome-shell
         - src/gnome-50/gnome-settings-daemon
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-12
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -1003,6 +1393,7 @@ jobs:
         retention-days: 1
   consolidate-shell:
     needs: build-shell
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -1021,6 +1412,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -1030,6 +1434,8 @@ jobs:
   build-session:
     needs: consolidate-shell
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix:
@@ -1038,26 +1444,41 @@ jobs:
         - src/gnome-50/gnome-control-center
         - src/gnome-50/gdm
     steps:
+    - name: Install build tools
+      run: |
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y epel-release || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-13
         path: local-repo
+    - name: Set up local repo
+      run: |
+        createrepo_c local-repo
+        cat > /etc/yum.repos.d/local-build.repo << EOF
+        [local-build]
+        name=Local Build Repo
+        baseurl=file://${GITHUB_WORKSPACE}/local-repo
+        enabled=1
+        gpgcheck=0
+        priority=1
+        module_hotfixes=1
+        EOF
+        dnf makecache --repo local-build || true
+    - name: Restore source cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.RPM_SOURCES_CACHE }}
+        key: sources-${{ matrix.package }}-${{ hashFiles(format('{0}/*.spec', matrix.package)) }}
+        restore-keys: |
+          sources-${{ matrix.package }}-
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend native --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -1078,6 +1499,7 @@ jobs:
         retention-days: 1
   consolidate-session:
     needs: build-session
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Install createrepo_c
@@ -1096,6 +1518,19 @@ jobs:
         merge-multiple: true
     - name: Update repo
       run: createrepo_c --update local-repo
+    - name: Upload new RPMs to R2
+      run: |
+        sudo apt-get install -y -q rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        EOF
+        rclone copy local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/" --exclude "repodata/**"
     - name: Upload updated repo
       uses: actions/upload-artifact@v4
       with:
@@ -1104,6 +1539,7 @@ jobs:
         retention-days: 1
   publish:
     needs: consolidate-session
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
