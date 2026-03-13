@@ -38,7 +38,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q \
-            podman createrepo-c rpm rpmdevtools python3-yaml \
+            podman createrepo-c rpm python3-yaml \
             gpg gpgconf
           curl -fsSL https://rclone.org/install.sh | sudo bash
 
