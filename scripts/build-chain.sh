@@ -39,6 +39,7 @@ JOBS=$(( $(nproc) / 2 ))
 FILTER_TIER=""
 FILTER_PACKAGE=""
 DRY_RUN=false
+FORCE=false
 
 # --- Argument parsing ---
 while [[ $# -gt 0 ]]; do
@@ -52,6 +53,7 @@ while [[ $# -gt 0 ]]; do
         --tier)        FILTER_TIER="$2"; shift 2 ;;
         --package)     FILTER_PACKAGE="$2"; shift 2 ;;
         --dry-run)     DRY_RUN=true;     shift ;;
+        --force)       FORCE=true;       shift ;;
         *)
             echo "Unknown option: $1" >&2
             exit 1
@@ -154,6 +156,38 @@ prepare_sources() {
     }
 }
 
+# Check if the package already exists in the local repo with the same NVR
+check_package_exists() {
+    local pkg_name="$1"
+    local spec="$2"
+    local spec_basename
+    spec_basename="$(basename "$spec")"
+
+    # Query the spec file inside the container to get the expected NVR
+    # We do this inside the container to ensure macro expansion (%autorelease, %dist, etc.)
+    local nvr
+    nvr=$(podman run --rm \
+        --pull=missing \
+        -v "$(dirname "$spec"):/specdir:Z" \
+        "${BUILD_IMAGE}" \
+        rpm -q --specquery "/specdir/${spec_basename}" \
+            --define "dist .el10" \
+            --queryformat "%{NAME}-%{VERSION}-%{RELEASE}\n" | head -1)
+
+    if [[ -z "$nvr" ]]; then
+        return 1
+    fi
+
+    # Check if any RPM starting with this NVR exists in the local repo
+    # We check for $nvr.rpm or $nvr.*.rpm
+    if ls "${LOCAL_REPO}/${nvr}"*.rpm &>/dev/null; then
+        echo "==> [${pkg_name}] Skipping: ${nvr} already exists in local repo"
+        return 0
+    fi
+
+    return 1
+}
+
 # --- Podman backend (mock-in-podman) ---
 #
 # Builds the SRPM on the host, then runs `mock --rebuild` inside a
@@ -168,6 +202,10 @@ build_package_podman() {
     spec="$(find_spec "$pkg_dir" "$spec_override")"
     pkg_name="$(basename "$spec" .spec)"
     abs_pkg_dir="${REPO_ROOT}/${pkg_dir}"
+
+    if ! $FORCE && check_package_exists "$pkg_name" "$spec"; then
+        return 0
+    fi
 
     echo "==> [${pkg_name}] Building (podman+mock) from ${pkg_dir}"
 
@@ -273,6 +311,10 @@ build_package_mock() {
     spec="$(find_spec "$pkg_dir" "$spec_override")"
     pkg_name="$(basename "$spec" .spec)"
     abs_pkg_dir="${REPO_ROOT}/${pkg_dir}"
+
+    if ! $FORCE && check_package_exists "$pkg_name" "$spec"; then
+        return 0
+    fi
 
     echo "==> [${pkg_name}] Building (mock) from ${pkg_dir}"
 
