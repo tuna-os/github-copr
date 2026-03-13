@@ -101,10 +101,11 @@ def generate_workflow(manifest_path, output_path):
             {'name': 'Checkout', 'uses': 'actions/checkout@v4'},
             {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf\ncurl -fsSL https://rclone.org/install.sh | sudo bash\n'},
             {'name': 'Download final repo', 'uses': 'actions/download-artifact@v4', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
-            {'name': 'Import GPG key', 'uses': 'crazy-max/ghaction-import-gpg@v6', 'with': {'gpg_private_key': '${{ secrets.GPG_PRIVATE_KEY }}', 'passphrase': '${{ secrets.GPG_PASSPHRASE }}', 'git_committer_name': 'RPM Builder', 'git_committer_email': 'rpm-signing@tunaos.org'}},
+            {'name': 'Import GPG key', 'id': 'import-gpg', 'uses': 'crazy-max/ghaction-import-gpg@v6', 'with': {'gpg_private_key': '${{ secrets.GPG_PRIVATE_KEY }}', 'passphrase': '${{ secrets.GPG_PASSPHRASE }}', 'git_committer_name': 'RPM Builder', 'git_committer_email': 'rpm-signing@tunaos.org'}},
+            {'name': 'Configure RPM macros', 'run': 'echo "%_signature gpg" > ~/.rpmmacros\necho "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros\necho "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \\"%{_gpg_name}\\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros\n'},
             {'name': 'Sign RPMs', 'run': 'find local-repo -name "*.rpm" -exec rpmsign --addsign {} \\;\ncreaterepo_c --update local-repo\n'},
             {'name': 'Configure rclone', 'run': 'mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com\nEOF\n'},
-            {'name': 'Upload to R2', 'run': 'echo "Uploading to 10-stream-x86_64..."\nrclone sync local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/"\necho "Uploading to 10-x86_64..."\nrclone sync local-repo/ "r2:${R2_BUCKET}/repo/10-x86_64/"\nrclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"\n'}
+            {'name': 'Upload to R2', 'run': 'echo "Uploading to 10-stream-x86_64..."\nrclone sync local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/"\necho "Uploading to 10-x86_64..."\nrclone sync local-repo/ "r2:${R2_BUCKET}/repo/10-x86_64/"\nrclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"\nrclone copyto contrib/install.sh "r2:${R2_BUCKET}/install.sh"\n'}
         ]
     }
 

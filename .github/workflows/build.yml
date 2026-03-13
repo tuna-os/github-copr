@@ -64,11 +64,18 @@ jobs:
 
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
+        id: import-gpg
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
           git_committer_name: RPM Builder
           git_committer_email: rpm-signing@tunaos.org
+
+      - name: Configure RPM macros
+        run: |
+          echo "%_signature gpg" > ~/.rpmmacros
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
 
       - name: Configure rclone for R2
         run: |
@@ -130,7 +137,9 @@ jobs:
           rclone sync "${LOCAL_REPO}/" "r2:${R2_BUCKET}/repo/10-x86_64/"
 
       - name: Upload GPG public key
-        run: rclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"
+        run: |
+          rclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"
+          rclone copyto contrib/install.sh "r2:${R2_BUCKET}/install.sh"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
