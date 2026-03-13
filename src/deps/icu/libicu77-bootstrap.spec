@@ -4,7 +4,7 @@ Release:        1%{?dist}
 Summary:        International Components for Unicode (Bootstrap v77)
 License:        MIT and UCD and Public Domain
 URL:            http://site.icu-project.org/
-Source0:        icu4c-77_1-src.tgz
+Source0:        https://github.com/unicode-org/icu/releases/download/release-77-1/icu4c-77_1-src.tgz
 
 BuildRequires:  gcc-c++
 BuildRequires:  make
