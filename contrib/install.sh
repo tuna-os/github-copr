@@ -60,7 +60,7 @@ install_repo_file() {
     
     cat > "/etc/yum.repos.d/${REPO_NAME}.repo" << EOF
 [${REPO_NAME}]
-name=James Reilly Consulting - \$releasever
+name=Tuna OS - \$releasever
 baseurl=${REPO_URL}/repo/\$releasever/\$basearch/
 enabled=1
 gpgcheck=1

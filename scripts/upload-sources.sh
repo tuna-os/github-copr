@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-BUCKET="${R2_BUCKET:-repo-james-rc}"
+BUCKET="${R2_BUCKET:-bluefin}"
 R2_ENDPOINT="${R2_ENDPOINT:-https://r2.cloudflarestorage.com}"
 
 usage() {

@@ -8,7 +8,6 @@
  * - GPG key serving
  */
 
-const R2_BUCKET = "repo-james-rc";
 const ALLOWED_ORIGINS = ["*"];
 const CACHE_TTL = 3600;
 
@@ -44,8 +43,9 @@ export default {
     }
 
     // Route: Serve primary/comps/filelists XML
-    if (path.includes("-primary.xml.gz") || 
-        path.includes("-filelists.xml.gz") || 
+    if (path.includes("-primary.xml.gz") ||
+        path.includes("-filelists.xml.gz") ||
+        path.includes("-other.xml.gz") ||
         path.includes("-comps.xml")) {
       return serveFromR2(env, path, {
         contentType: path.includes("gz") ? "application/x-gzip" : "application/xml",
@@ -96,7 +96,9 @@ async function serveFromR2(env, path, options = {}) {
   const { contentType, cacheable = false, addHeaders = {} } = options;
 
   try {
-    const object = await env.R2_BUCKET.get(path);
+    // Strip leading slash — R2 keys don't start with /
+    const key = path.startsWith("/") ? path.slice(1) : path;
+    const object = await env.R2_BUCKET.get(key);
 
     if (!object) {
       return new Response("Not Found", {

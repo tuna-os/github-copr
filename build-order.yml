@@ -1,0 +1,90 @@
+# Build Order Manifest for GNOME 50 on CentOS Stream 10
+#
+# Packages within a tier build in parallel; tiers are sequential.
+# Each package entry is a path relative to the repo root (directory containing
+# the spec file and sources). Use `spec_override` to pick a non-default spec
+# (e.g. bootstrap variants).
+
+target: centos-stream-10-x86_64
+
+tiers:
+  - name: build-tools
+    packages:
+      - path: src/deps/meson
+      - path: src/deps/autoconf
+      - path: src/deps/wayland-protocols
+      - path: src/deps/icu
+        spec_override: libicu77-bootstrap.spec
+      - path: src/deps/libxcvt
+      - path: src/deps/libldac
+      - path: src/deps/shaderc
+      - path: src/deps/umockdev
+      - path: src/deps/python-dbusmock
+      - path: src/deps/python-smartypants
+      - path: src/deps/python-typogrify
+      - path: src/deps/gi-docgen
+      - path: src/deps/avahi
+
+  - name: icu-full
+    packages:
+      - path: src/deps/icu
+        spec_override: libicu77.spec
+
+  - name: glib2-bootstrap
+    packages:
+      - path: src/gnome-50/glib2
+        spec_override: glib2-bootstrap.spec
+
+  - name: gi-bootstrap
+    packages:
+      - path: src/gnome-50/gobject-introspection
+        spec_override: gobject-introspection-bootstrap.spec
+
+  - name: glib2-full
+    packages:
+      - path: src/gnome-50/glib2
+
+  - name: gi-full
+    packages:
+      - path: src/gnome-50/gobject-introspection
+
+  - name: low-level-libs
+    packages:
+      - path: src/deps/fontconfig
+      - path: src/deps/cairo
+      - path: src/deps/pango
+      - path: src/deps/libei
+      - path: src/deps/mozjs140
+      - path: src/deps/pipewire
+
+  - name: gjs
+    packages:
+      - path: src/gnome-50/gjs
+
+  - name: gtk-layer
+    packages:
+      - path: src/gnome-50/gsettings-desktop-schemas
+      - path: src/deps/gtk4
+      - path: src/deps/glycin
+
+  - name: libadwaita
+    packages:
+      - path: src/gnome-50/libadwaita
+      - path: src/gnome-50/xdg-desktop-portal
+      - path: src/gnome-50/nautilus
+
+  - name: compositor
+    packages:
+      - path: src/gnome-50/mutter
+      - path: src/gnome-50/xdg-desktop-portal-gnome
+
+  - name: shell
+    packages:
+      - path: src/gnome-50/gnome-shell
+      - path: src/gnome-50/gnome-settings-daemon
+
+  - name: session
+    packages:
+      - path: src/gnome-50/gnome-session
+      - path: src/gnome-50/gnome-control-center
+      - path: src/gnome-50/gdm
