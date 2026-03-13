@@ -1,0 +1,18 @@
+---
+
+# Tests that run in classic context
+- hosts: localhost
+  roles:
+  - role: standard-test-beakerlib
+    tags:
+    - classic
+    tests:
+    - Basic-sanity-test
+    - got-audit
+    required_packages:
+    - avahi
+    - avahi-tools
+    - bind
+    - bind-chroot
+    - bind-utils
+    - gdb-gef           # needed to test got-audit

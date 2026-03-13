@@ -1,0 +1,111 @@
+* Mon Nov 24 2025 Fxzx micah <fxzxmicah@outlook.com> - 1:49.1-2
+- Don't require dbus-daemon
+
+* Fri Oct 10 2025 Packit <hello@packit.dev> - 1:49.1-1
+- Update to 49.1 upstream release
+- Resolves: rhbz#2403219
+
+* Wed Sep 17 2025 Michael Catanzaro <mcatanzaro@redhat.com> - 1:49.0.1-6
+- Also drop /usr/local/sbin from default path
+
+* Wed Sep 17 2025 Jens Petersen <petersen@redhat.com> - 1:49.0.1-5
+- drop deprecated /usr/sbin from the default PATH
+
+* Wed Sep 17 2025 Zbigniew Jędrzejewski-Szmek <zbyszek@in.waw.pl> - 1:49.0.1-4
+- Drop call to %sysusers_create_compat
+
+* Wed Sep 17 2025 Michael Catanzaro <mcatanzaro@redhat.com> - 1:49.0.1-3
+- Simplify packaging
+
+* Tue Sep 16 2025 Michael Catanzaro <mcatanzaro@redhat.com> - 1:49.0.1-2
+- Restore X11 session support
+
+* Tue Sep 16 2025 Michael Catanzaro <mcatanzaro@redhat.com> - 1:49.0.1-1
+- Update to 49.0.1
+
+* Thu Sep 04 2025 Michael Catanzaro <mcatanzaro@redhat.com> - 1:49~rc-1
+- Update to 49.rc
+
+* Tue Aug 12 2025 nmontero <nmontero@redhat.com> - 1:49~beta-1
+- Update to 49~beta
+
+* Wed Jul 23 2025 Fedora Release Engineering <releng@fedoraproject.org> - 1:49~alpha.1-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_43_Mass_Rebuild
+
+* Mon Jul 07 2025 Milan Crha <mcrha@redhat.com> - 1:49~alpha.1-1
+- Update to 49.alpha.1
+
+* Tue Jun 17 2025 Carlos Garnacho <cgarnach@redhat.com> - 1:49~alpha.0-1
+- Update to 49~alpha-0
+
+* Sun May 18 2025 Michel Lind <salimma@fedoraproject.org> - 1:48.0-2
+- Fix Source URL and make it easier to maintain
+
+* Wed Mar 19 2025 nmontero <nmontero@redhat.com> - 1:48.0-1
+- Update to 48.0
+
+* Tue Feb 18 2025 nmontero <nmontero@redhat.com> - 1:48~beta-1
+- Update to 48~beta
+
+* Mon Jan 27 2025 Zbigniew Jędrzejewski-Szmek <zbyszek@in.waw.pl> - 1:47.0-6
+- Add patch to fix build with gcc 15 (rhbz#2340200)
+
+* Thu Jan 16 2025 Fedora Release Engineering <releng@fedoraproject.org> - 1:47.0-5
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_42_Mass_Rebuild
+
+* Fri Nov 22 2024 Davide Cavalca <dcavalca@fedoraproject.org> - 1:47.0-4
+- Relocate dbus policy to /usr
+
+* Tue Sep 17 2024 Ray Strode <rstrode@redhat.com> - 1:47.0-2
+- Update sources
+
+* Tue Sep 17 2024 Ray Strode <rstrode@redhat.com> - 1:47.0-1
+- Update to 47.0, drop X11 support
+
+* Mon Jul 22 2024 Ray Strode <rstrode@redhat.com> - 1:47~alpha-1
+- Update to 47.alpha
+
+* Thu Jul 18 2024 Fedora Release Engineering <releng@fedoraproject.org> - 1:46.2-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_41_Mass_Rebuild
+
+* Thu Jul 11 2024 Niels De Graef <ndegraef@redhat.com> - 1:46.2-3
+- Remove setxkbmap dependency
+
+* Tue Jul 09 2024 Neal Gompa <ngompa@fedoraproject.org> - 1:46.2-2
+- Drop rules for falling back in X11
+
+* Thu May 30 2024 David King <amigadave@amigadave.com> - 1:46.2-1
+- Update to 46.2
+
+* Mon Apr 08 2024 Jonas Ådahl <jadahl@gmail.com> - 1:46.0-2
+- Add headless session helper files
+
+* Thu Mar 21 2024 David King <amigadave@amigadave.com> - 1:46.0-1
+- Update to 46.0
+
+* Fri Feb 02 2024 Stephen Gallagher <sgallagh@redhat.com> - 1:46.alpha-5
+- Restore i686 on Fedora ELN
+
+* Tue Jan 23 2024 Pavel Březina <pbrezina@redhat.com> - 1:46.alpha-4
+- Add missing header files to gdm-pam-extensions-devel
+
+* Fri Jan 19 2024 Fedora Release Engineering <releng@fedoraproject.org> - 1:46.alpha-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_40_Mass_Rebuild
+
+* Wed Jan 17 2024 Michael Catanzaro <mcatanzaro@redhat.com> - 1:46.alpha-2
+- Bump revision
+
+* Wed Jan 17 2024 Michael Catanzaro <mcatanzaro@redhat.com> - 1:46.alpha-1
+- Update to 46.alpha
+
+* Wed Jan 17 2024 Yaakov Selkowitz <yselkowi@redhat.com> - 1:45.0.1-8
+- Avoid Xorg build dependency
+
+* Mon Jan 15 2024 Colin Walters <walters@verbum.org> - 1:45.0.1-7
+- Scope ExcludeArch: ix86 to RHEL10+
+
+* Tue Jan 09 2024 Troy Dawson <tdawson@redhat.com> - 1:45.0.1-6
+- Exclude i686
+
+* Thu Nov 30 2023 Yaakov Selkowitz <yselkowi@redhat.com> - 1:45.0.1-5
+- Drop unused yelp-devel dependency

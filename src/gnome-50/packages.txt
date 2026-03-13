@@ -1,0 +1,10 @@
+xdg-desktop-portal
+xdg-desktop-portal-gnome
+mutter
+gnome-shell
+gnome-control-center
+gnome-session
+gnome-settings-daemon
+gsettings-desktop-schemas
+libadwaita
+gtk4

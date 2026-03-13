@@ -1,24 +1,24 @@
 name: Build and Publish RPMs
 
 on:
-  push:
-    branches: [main]
-    tags:
-      - 'v*'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
-      targets:
-        description: 'Comma-separated build targets'
+      tier:
+        description: 'Build only this tier (leave empty for all)'
         required: false
-        default: 'fedora-43-x86_64,almalinux-10-x86_64,centos-stream-10-x86_64'
+        default: ''
+      packages:
+        description: 'Build only this package path (e.g. src/deps/meson)'
+        required: false
+        default: ''
 
 env:
   R2_BUCKET: bluefin
+  LOCAL_REPO: /local-repo
+  MOCK_CONFIG: centos-stream-10-ci
 
 jobs:
-  build-x86_64:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,6 +29,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: |
+          dnf install -y \
+            mock createrepo_c rpm-sign rpm-build rclone \
+            rpmdevtools python3-pyyaml
+
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
         with:
@@ -37,15 +43,11 @@ jobs:
           git_committer_name: RPM Builder
           git_committer_email: rpm-signing@tunaos.org
 
-      - name: Install dependencies
-        run: |
-          dnf install -y dnf-plugins-core mock createrepo_c rpm-sign rpm-build rclone
-
       - name: Configure rclone for R2
         run: |
           mkdir -p ~/.config/rclone
           cat > ~/.config/rclone/rclone.conf << EOF
-          [remote]
+          [r2]
           type = s3
           provider = Cloudflare
           access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -53,62 +55,63 @@ jobs:
           endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
           EOF
 
-      - name: Get build matrix
-        id: matrix
+      - name: Seed local repo from R2
         run: |
-          TARGETS="${{ github.event.inputs.targets }}"
-          if [ -z "$TARGETS" ]; then
-            TARGETS="fedora-43-x86_64 almalinux-10-x86_64 almalinux-10-x86_64_v2 centos-stream-10-x86_64"
-          fi
-          echo "targets=$TARGETS" >> $GITHUB_OUTPUT
+          mkdir -p "${LOCAL_REPO}"
+          echo "Downloading existing repo from R2 (10-stream-x86_64)..."
+          rclone sync "r2:${R2_BUCKET}/repo/10-stream-x86_64/" "${LOCAL_REPO}/" \
+            --exclude "repodata/**" || true
+          echo "Initializing local repo metadata..."
+          createrepo_c "${LOCAL_REPO}"
 
-      - name: Build RPMs
+      - name: Install mock config
         run: |
-          # Copy sources and build SRPM
-          mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS,SPECS}
-          cp src/*.spec ~/rpmbuild/SPECS/
-          cp src/*.tar.gz ~/rpmbuild/SOURCES/ 2>/dev/null || true
-          rpmbuild -bs ~/rpmbuild/SPECS/*.spec --define "_topdir $HOME/rpmbuild"
-          
-          for target in ${{ steps.matrix.outputs.targets }}; do
-            echo "Building for $target"
-            mock -r $target --init
-            mock -r $target --install gcc make
-            mock -r $target --rebuild ~/rpmbuild/SRPMS/*.src.rpm
-            mock -r $target --resultdir=./output/$target clean
-          done
+          # Update the mock config to point to the actual local repo path
+          sed "s|file:///local-repo/|file://${LOCAL_REPO}/|g" \
+            mock/centos-stream-10-ci.cfg > /etc/mock/centos-stream-10-ci.cfg
+          # Also fix the bind mount path
+          sed -i "s|('/local-repo', '/local-repo')|('${LOCAL_REPO}', '/local-repo')|g" \
+            /etc/mock/centos-stream-10-ci.cfg
+
+      - name: Build packages
+        run: |
+          ARGS=(
+            --mock-config "${MOCK_CONFIG}"
+            --local-repo "${LOCAL_REPO}"
+          )
+          if [[ -n "${{ github.event.inputs.tier }}" ]]; then
+            ARGS+=(--tier "${{ github.event.inputs.tier }}")
+          fi
+          if [[ -n "${{ github.event.inputs.packages }}" ]]; then
+            ARGS+=(--package "${{ github.event.inputs.packages }}")
+          fi
+          ./scripts/build-chain.sh "${ARGS[@]}"
 
       - name: Sign RPMs
         run: |
-          find output -name "*.rpm" -exec rpmsign --addsign {} \;
-        env:
-          GPG_AGENT_INFO: ""
+          find "${LOCAL_REPO}" -name "*.rpm" -newer "${LOCAL_REPO}/repodata/repomd.xml" \
+            -exec rpmsign --addsign {} \;
+          # Regenerate metadata after signing
+          createrepo_c --update "${LOCAL_REPO}"
 
       - name: Upload to R2
         run: |
-          for target in ${{ steps.matrix.outputs.targets }}; do
-            mkdir -p ./repo/$target/
-            
-            echo "Downloading existing repository..."
-            rclone sync remote:${{ env.R2_BUCKET }}/repo/$target/ ./repo/$target/ || true
-            
-            echo "Copying newly built RPMs..."
-            cp -a output/$target/*.rpm ./repo/$target/ || true
-            
-            echo "Generating repository metadata..."
-            createrepo_c --update ./repo/$target/
-            
-            echo "Uploading repository to R2..."
-            rclone sync ./repo/$target/ remote:${{ env.R2_BUCKET }}/repo/$target/ --delete
-          done
+          # Upload to both paths for CentOS Stream 10 ($releasever=10-stream)
+          # and AlmaLinux 10 ($releasever=10)
+          echo "Uploading to 10-stream-x86_64 (CentOS Stream 10)..."
+          rclone sync "${LOCAL_REPO}/" "r2:${R2_BUCKET}/repo/10-stream-x86_64/"
 
-      - name: Upload GPG public key to R2
+          echo "Uploading to 10-x86_64 (AlmaLinux 10)..."
+          rclone sync "${LOCAL_REPO}/" "r2:${R2_BUCKET}/repo/10-x86_64/"
+
+      - name: Upload GPG public key
         run: |
-          rclone copyto public.gpg remote:${{ env.R2_BUCKET }}/public.gpg
+          rclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"
 
-      - name: Upload artifact
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: rpm-builds-x86_64
-          path: output/
+          name: rpm-builds
+          path: ${{ env.LOCAL_REPO }}/
           retention-days: 7

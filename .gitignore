@@ -29,9 +29,18 @@ __pycache__/
 .venv/
 venv/
 
-# Mock
-mock/
+# Mock build results (but not configs)
+mock/*/
+mock/repo/
 result/
+local-repo/
+
+# Source tarballs — download at build time via spectool
+src/**/*.tar.gz
+src/**/*.tar.xz
+src/**/*.tar.bz2
+src/**/*.tgz
+src/**/*.zip
 
 # Logs
 *.log
