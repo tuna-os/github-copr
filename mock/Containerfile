@@ -39,10 +39,11 @@ RUN mkdir -p /local-repo && createrepo_c /local-repo
 RUN mock --init -r centos-stream-10-ci \
         --no-cleanup-after \
     && echo "Bootstrap complete" \
-    # Clean the DNF package cache inside the chroot to save image space
-    && mock -r centos-stream-10-ci --shell "dnf clean all" \
-    # Remove build logs from bootstrap
-    && rm -f /var/lib/mock/centos-stream-10-ci/result/*
+    # Remove cached RPMs inside the chroot and build logs to trim image size
+    && find /var/lib/mock/centos-stream-10-ci/ \
+        \( -name "*.rpm" -o -name "*.log" \) -delete \
+    && rm -rf /var/lib/mock/centos-stream-10-ci/root/var/cache/dnf \
+    && rm -rf /var/lib/mock/centos-stream-10-ci-bootstrap/root/var/cache/dnf
 
 LABEL org.opencontainers.image.description="Fedora + mock with CentOS Stream 10 chroot pre-bootstrapped"
 LABEL org.opencontainers.image.source="https://github.com/tuna-os/github-copr"
