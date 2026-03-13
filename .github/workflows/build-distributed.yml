@@ -75,8 +75,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -187,8 +188,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -292,8 +294,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -397,8 +400,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -502,8 +506,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -607,8 +612,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -712,8 +718,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -822,8 +829,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -927,8 +935,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -1034,8 +1043,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -1141,8 +1151,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -1247,8 +1258,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -1353,8 +1365,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
@@ -1460,8 +1473,9 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml
+        dnf install -y git rpm-build rpmdevtools createrepo_c python3-pyyaml dnf-plugins-core
         dnf install -y epel-release || true
+        dnf config-manager --enable crb || true
     - name: Checkout
       uses: actions/checkout@v4
       with:
