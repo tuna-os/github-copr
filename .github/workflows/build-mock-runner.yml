@@ -31,8 +31,12 @@ jobs:
 
       - name: Build image
         run: |
-          podman build \
-            --privileged \
+          # mock --init inside a RUN layer needs SYS_ADMIN + SYS_CHROOT.
+          # podman build doesn't support --privileged; use --cap-add=all
+          # with sudo so the runner process has the needed kernel capabilities.
+          sudo podman build \
+            --cap-add=all \
+            --security-opt label=disable \
             --pull=always \
             -f mock/Containerfile \
             -t "${IMAGE}:${TAG}" \
@@ -41,8 +45,8 @@ jobs:
 
       - name: Push image
         run: |
-          podman push "${IMAGE}:${TAG}"
-          podman push "${IMAGE}:${TAG}-${{ github.sha }}"
+          sudo podman push "${IMAGE}:${TAG}"
+          sudo podman push "${IMAGE}:${TAG}-${{ github.sha }}"
 
       - name: Inspect
-        run: podman images "${IMAGE}:${TAG}" --format "{{.Repository}}:{{.Tag}}  {{.Size}}"
+        run: sudo podman images "${IMAGE}:${TAG}" --format "{{.Repository}}:{{.Tag}}  {{.Size}}"
