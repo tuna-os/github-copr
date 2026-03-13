@@ -1,6 +1,11 @@
 name: Distributed Build and Publish RPMs
 'on':
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Force rebuild even if package exists in repo
+        type: boolean
+        default: false
 env:
   R2_BUCKET: bluefin
   LOCAL_REPO: ${{ github.workspace }}/local-repo
@@ -83,11 +88,7 @@ jobs:
         name: repo-0
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -167,11 +168,7 @@ jobs:
         name: repo-1
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -244,11 +241,7 @@ jobs:
         name: repo-2
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -321,11 +314,7 @@ jobs:
         name: repo-3
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -398,11 +387,7 @@ jobs:
         name: repo-4
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -475,11 +460,7 @@ jobs:
         name: repo-5
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -552,11 +533,7 @@ jobs:
         name: repo-6
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -634,11 +611,7 @@ jobs:
         name: repo-7
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -711,11 +684,7 @@ jobs:
         name: repo-8
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -790,11 +759,7 @@ jobs:
         name: repo-9
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -869,11 +834,7 @@ jobs:
         name: repo-10
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -947,11 +908,7 @@ jobs:
         name: repo-11
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -1025,11 +982,7 @@ jobs:
         name: repo-12
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -1104,11 +1057,7 @@ jobs:
         name: repo-13
         path: local-repo
     - name: Build package
-      run: 'touch .build-marker
-
-        ./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}
-
-        '
+      run: "touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms

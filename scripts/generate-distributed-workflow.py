@@ -12,7 +12,15 @@ def generate_workflow(manifest_path, output_path):
     workflow = {
         'name': 'Distributed Build and Publish RPMs',
         'on': {
-            'workflow_dispatch': {}
+            'workflow_dispatch': {
+                'inputs': {
+                    'force': {
+                        'description': 'Force rebuild even if package exists in repo',
+                        'type': 'boolean',
+                        'default': False
+                    }
+                }
+            }
         },
         'env': {
             'R2_BUCKET': 'bluefin',
@@ -63,7 +71,7 @@ def generate_workflow(manifest_path, output_path):
                 {'name': 'Cache CentOS Stream 10 image', 'uses': 'actions/cache@v4', 'with': {'path': '/tmp/cs10-image.tar', 'key': "cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}"}},
                 {'name': 'Load or pull image', 'run': 'if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n'},
                 {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v4', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
-                {'name': 'Build package', 'run': 'touch .build-marker\n./scripts/build-chain.sh --backend podman --package ${{ matrix.package }}\n'},
+                {'name': 'Build package', 'run': 'touch .build-marker\nARGS=(--backend podman --package ${{ matrix.package }})\nif [[ "${{ github.event.inputs.force }}" == "true" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh "${ARGS[@]}"\n'},
                 {'name': 'Find new RPMs', 'id': 'find-rpms', 'run': 'mkdir -p new-rpms\nfind local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \\;\ncount=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)\necho "count=$count" >> $GITHUB_OUTPUT\n'},
                 {'name': 'Upload RPMs', 'if': "steps.find-rpms.outputs.count > '0'", 'uses': 'actions/upload-artifact@v4', 'with': {'name': f'rpms-{tier_name}-${{{{ strategy.job-index }}}}', 'path': 'new-rpms/*.rpm', 'retention-days': 1}}
             ]
