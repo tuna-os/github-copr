@@ -142,8 +142,18 @@ prepare_sources() {
         ! -name "*.zip" \
         -exec cp {} "${builddir}/SOURCES/" \;
 
+    # Download tarballs. Run spectool inside BUILD_IMAGE (has rpmdevtools)
+    # so the host doesn't need rpmdevtools — it's Fedora-only.
     echo "==> [${pkg_name}] Downloading sources via spectool..."
-    spectool -g -C "${builddir}/SOURCES/" "$spec" || {
+    if command -v spectool &>/dev/null; then
+        spectool -g -C "${builddir}/SOURCES/" "$spec"
+    else
+        podman run --rm \
+            --pull=missing \
+            -v "${builddir}:/builddir:Z" \
+            "${BUILD_IMAGE}" \
+            spectool -g -C /builddir/SOURCES/ "/builddir/SPECS/$(basename "$spec")"
+    fi || {
         echo "ERROR: spectool failed for ${pkg_name}" >&2
         return 1
     }
