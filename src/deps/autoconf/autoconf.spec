@@ -114,7 +114,7 @@ BuildRequires:      perl(Text::ParseWords)
 # %%configure replaces config.guess/config.sub for us, which confuses autoconf
 # build system and it produces empty man pages for those scripts if help2man is
 # not installed
-%if 0%{?fedora}
+%if 0%{?fedora} || 0%{?rhel}
 BuildRequires:      help2man
 %endif
 BuildRequires:      make
