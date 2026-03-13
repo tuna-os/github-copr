@@ -1,4 +1,5 @@
 name: Build Mock Runner Image
+# Builds and pushes ghcr.io/tuna-os/mock-runner:centos-stream-10
 
 on:
   push:
