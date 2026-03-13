@@ -17,7 +17,7 @@
 
 ## Phase 2: Iterative Dependency Fulfillment & Container Testing
 
-- [ ] **Task: Build Demanded Dependencies**
+- [~] **Task: Build Demanded Dependencies**
   - [ ] Build `glib2`, `gobject-introspection`, and `gjs` if demanded versions exceed EL10.
   - [ ] Update build environment local repository.
 - [ ] **Task: Build Core GNOME 50 Priority Packages**

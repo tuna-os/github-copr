@@ -128,18 +128,13 @@ prepare_sources() {
 
     cp "$spec" "${builddir}/SPECS/"
 
-    # Copy patches and non-tarball sources
+    # Copy patches and other sources (don't exclude tarballs/zips if they exist locally)
     find "$abs_pkg_dir" -maxdepth 1 -type f \
         ! -name "*.spec" \
         ! -name "sources" \
         ! -name "changelog" \
         ! -name "rpminspect.yaml" \
         ! -name "*.md" \
-        ! -name "*.tar.gz" \
-        ! -name "*.tar.xz" \
-        ! -name "*.tar.bz2" \
-        ! -name "*.tgz" \
-        ! -name "*.zip" \
         -exec cp {} "${builddir}/SOURCES/" \;
 
     # Download tarballs. Run spectool inside BUILD_IMAGE (has rpmdevtools)
@@ -182,13 +177,17 @@ build_package_podman() {
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
 
-    # Build SRPM on the host (just file prep, no target-distro deps needed)
+    # Build SRPM inside the container (to ensure macros like %autorelease are available)
     local spec_basename
     spec_basename="$(basename "$spec")"
     echo "==> [${pkg_name}] Building SRPM..."
-    rpmbuild -bs "${builddir}/SPECS/${spec_basename}" \
-        --define "_topdir ${builddir}" \
-        --define "dist .el10"
+    podman run --rm \
+        --pull=missing \
+        -v "${builddir}:/builddir:Z" \
+        "${BUILD_IMAGE}" \
+        rpmbuild -bs "/builddir/SPECS/${spec_basename}" \
+            --define "_topdir /builddir" \
+            --define "dist .el10"
 
     local srpm
     srpm="$(find "${builddir}/SRPMS" -name "*.src.rpm" | head -1)"
@@ -235,14 +234,18 @@ MOCKCFG
         -v "${LOCAL_REPO}:/local-repo:Z" \
         "${BUILD_IMAGE}" \
         bash -exc "
-            createrepo_c /local-repo/
-            mock -r centos-stream-10-ci \
-                --uniqueext='${pkg_name}' \
-                --rebuild /builddir/SRPMS/*.src.rpm \
-                --resultdir=/builddir/results \
-                --define 'dist .el10' \
-                --no-clean \
-                --no-cleanup-after
+            # Use flock to ensure only one process updates the repo and runs mock at a time
+            # because they share /local-repo and mock chroot initialization.
+            flock /local-repo/repo.lock -c \"
+                createrepo_c /local-repo/
+                mock -r centos-stream-10-ci \
+                    --uniqueext='${pkg_name}' \
+                    --rebuild /builddir/SRPMS/*.src.rpm \
+                    --resultdir=/builddir/results \
+                    --define 'dist .el10' \
+                    --no-clean \
+                    --no-cleanup-after
+            \"
         "
 
     # Collect RPMs from results
@@ -278,14 +281,17 @@ build_package_mock() {
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
 
+    # Build SRPM inside the container (to ensure macros like %autorelease are available)
     local spec_basename
     spec_basename="$(basename "$spec")"
-
-    # Build SRPM
     echo "==> [${pkg_name}] Building SRPM..."
-    rpmbuild -bs "${builddir}/SPECS/${spec_basename}" \
-        --define "_topdir ${builddir}" \
-        --define "dist .el10"
+    podman run --rm \
+        --pull=missing \
+        -v "${builddir}:/builddir:Z" \
+        "${BUILD_IMAGE}" \
+        rpmbuild -bs "/builddir/SPECS/${spec_basename}" \
+            --define "_topdir /builddir" \
+            --define "dist .el10"
 
     local srpm
     srpm="$(find "${builddir}/SRPMS" -name "*.src.rpm" | head -1)"
@@ -298,13 +304,16 @@ build_package_mock() {
     local resultdir="${builddir}/results"
     mkdir -p "$resultdir"
 
-    mock -r "${MOCK_CONFIG}" \
-        --uniqueext="${pkg_name}" \
-        --rebuild "$srpm" \
-        --resultdir="$resultdir" \
-        --define "dist .el10" \
-        --no-clean \
-        --no-cleanup-after
+    flock "${LOCAL_REPO}/repo.lock" -c "
+        createrepo_c \"${LOCAL_REPO}\"
+        mock -r \"${MOCK_CONFIG}\" \
+            --uniqueext=\"${pkg_name}\" \
+            --rebuild \"$srpm\" \
+            --resultdir=\"$resultdir\" \
+            --define \"dist .el10\" \
+            --no-clean \
+            --no-cleanup-after
+    "
 
     local rpm_count=0
     while IFS= read -r -d '' rpm; do

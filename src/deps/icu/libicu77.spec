@@ -7,20 +7,20 @@
 %define version_dash %{gsub %{version} %. -}
 %define version_underscore %{gsub %{version} %. _}
 
-Name:           liblibicu777777
+Name:           icu
 Version:   77.1
 Release:   2%{?dist}
 Summary:   International Components for Unicode
 
 License:   Unicode-DFS-2016 AND BSD-2-Clause AND BSD-3-Clause AND NAIST-2003 AND LicenseRef-Fedora-Public-Domain
-URL:       http://site.liblibicu7777-project.org/
-Source0:   https://github.com/unicode-org/liblibicu7777/releases/download/release-%{version_dash}/liblibicu77774c-%{version_underscore}-src.tgz
+URL:       http://site.icu-project.org/
+Source0:   https://github.com/unicode-org/icu/releases/download/release-%{version_dash}/icu4c-%{version_underscore}-src.tgz
 %if 0%{?use_tzdata_update}
-Source1:   https://github.com/unicode-org/liblibicu7777/releases/download/release-%{version_dash}/liblibicu77774c-%{version_underscore}-data.zip
-Source2:   https://raw.githubusercontent.com/unicode-org/liblibicu7777-data/main/tzdata/liblibicu7777new/2022b/44/metaZones.txt
-Source3:   https://raw.githubusercontent.com/unicode-org/liblibicu7777-data/main/tzdata/liblibicu7777new/2022b/44/timezoneTypes.txt
-Source4:   https://raw.githubusercontent.com/unicode-org/liblibicu7777-data/main/tzdata/liblibicu7777new/2022b/44/windowsZones.txt
-Source5:   https://raw.githubusercontent.com/unicode-org/liblibicu7777-data/main/tzdata/liblibicu7777new/2022b/44/zoneinfo64.txt
+Source1:   https://github.com/unicode-org/icu/releases/download/release-%{version_dash}/icu4c-%{version_underscore}-data.zip
+Source2:   https://raw.githubusercontent.com/unicode-org/icu-data/main/tzdata/icu/new/2022b/44/metaZones.txt
+Source3:   https://raw.githubusercontent.com/unicode-org/icu-data/main/tzdata/icu/new/2022b/44/timezoneTypes.txt
+Source4:   https://raw.githubusercontent.com/unicode-org/icu-data/main/tzdata/icu/new/2022b/44/windowsZones.txt
+Source5:   https://raw.githubusercontent.com/unicode-org/icu-data/main/tzdata/icu/new/2022b/44/zoneinfo64.txt
 %endif
 
 
@@ -31,12 +31,12 @@ BuildRequires: make
 Requires: lib%{name}%{?_isa} = %{version}-%{release}
 
 Patch4: gennorm2-man.patch
-Patch5: liblibicu7777info-man.patch
-# https://github.com/unicode-org/liblibicu7777/pull/3496
+Patch5: icuinfo-man.patch
+# https://github.com/unicode-org/icu/pull/3496
 Patch6: 3496.patch
 
 %description
-Tools and utilities for developing with liblibicu7777.
+Tools and utilities for developing with icu.
 
 %package -n lib%{name}
 Summary: International Components for Unicode - libraries
@@ -59,7 +59,7 @@ Requires: lib%{name}%{?_isa} = %{version}-%{release}
 Requires: pkgconfig
 
 %description -n lib%{name}-devel
-Includes and definitions for developing with liblibicu7777.
+Includes and definitions for developing with icu.
 
 %package -n lib%{name}-doc
 Summary: Documentation for International Components for Unicode
@@ -73,11 +73,11 @@ BuildArch: noarch
 
 
 %prep
-%autosetup -p1 -n liblibicu7777
+%autosetup -p1 -n icu
 %if 0%{?use_tzdata_update}
 pushd source
 unzip -o %{SOURCE1}
-rm -f data/in/liblibicu7777dt*l.dat
+rm -f data/in/icudt*l.dat
 cp -v -f %{SOURCE2} %{SOURCE3} %{SOURCE4} %{SOURCE5} data/misc
 popd
 %endif
@@ -106,8 +106,8 @@ sed -i 's| \$(docfilesdir)/installdox||' Makefile
 # There is no source/doc/html/search/ directory
 sed -i '/^\s\+\$(INSTALL_DATA) \$(docsrchfiles) \$(DESTDIR)\$(docdir)\/\$(docsubsrchdir)\s*$/d' Makefile
 # rhbz#856594 The configure --disable-renaming and possibly other options
-# result in liblibicu7777/source/uconfig.h.prepend being created, include that content in
-# liblibicu7777/source/common/unicode/uconfig.h to propagate to consumer packages.
+# result in icu/source/uconfig.h.prepend being created, include that content in
+# icu/source/common/unicode/uconfig.h to propagate to consumer packages.
 test -f uconfig.h.prepend && sed -e '/^#define __UCONFIG_H__/ r uconfig.h.prepend' -i common/unicode/uconfig.h
 
 # more verbosity for build.log
@@ -123,9 +123,9 @@ sed -i -r 's|(PKGDATA_OPTS = )|\1-v |' data/Makefile
 chmod +x $RPM_BUILD_ROOT%{_libdir}/*.so.*
 (
  cd $RPM_BUILD_ROOT%{_bindir}
-#  mv liblibicu7777-config liblibicu7777-config-%{__isa_bits}
+#  mv icu-config icu-config-%{__isa_bits}
 )
-# install -p -m755 -D %{SOURCE10} $RPM_BUILD_ROOT%{_bindir}/liblibicu7777-config
+# install -p -m755 -D %{SOURCE10} $RPM_BUILD_ROOT%{_bindir}/icu-config
 
 
 %check
@@ -149,7 +149,7 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 %{_bindir}/gencnval
 %{_bindir}/gendict
 %{_bindir}/genrb
-%{_bindir}/liblibicu7777exportdata
+%{_bindir}/icuexportdata
 %{_bindir}/makeconv
 %{_bindir}/pkgdata
 %{_bindir}/uconv
@@ -158,14 +158,14 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 %{_sbindir}/gencmn
 %{_sbindir}/gennorm2
 %{_sbindir}/gensprep
-%{_sbindir}/liblibicu7777pkg
+%{_sbindir}/icupkg
 %{_mandir}/man1/derb.1*
 %{_mandir}/man1/genbrk.1*
 %{_mandir}/man1/gencfu.1*
 %{_mandir}/man1/gencnval.1*
 %{_mandir}/man1/gendict.1*
 %{_mandir}/man1/genrb.1*
-%{_mandir}/man1/liblibicu7777exportdata.1*
+%{_mandir}/man1/icuexportdata.1*
 %{_mandir}/man1/makeconv.1*
 %{_mandir}/man1/pkgdata.1*
 %{_mandir}/man1/uconv.1*
@@ -180,9 +180,9 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 %license LICENSE
 %doc source/samples/
 %{_bindir}/%{name}-config*
-%{_bindir}/liblibicu7777info
+%{_bindir}/icuinfo
 %{_mandir}/man1/%{name}-config.1*
-%{_mandir}/man1/liblibicu7777info.1*
+%{_mandir}/man1/icuinfo.1*
 %{_includedir}/unicode
 %{_libdir}/*.so
 %{_libdir}/pkgconfig/*.pc
@@ -326,7 +326,7 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 * Wed Jan 23 2019 Pete Walter <pwalter@fedoraproject.org> - 63.1-1
 - Update to 63.1
 
-* Tue Nov 06 2018 Eike Rathke <erack@redhat.com> - 62.1-3
+* Tue Nov 06 2018 Eike Rathke <erack@redhat.com> - 63.1-3
 - Resolves: rhbz#1646703 CVE-2018-18928
 
 * Fri Jul 13 2018 Fedora Release Engineering <releng@fedoraproject.org> - 62.1-2
@@ -388,7 +388,7 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - make check failure is fatal again
 
 * Tue Apr 05 2016 Eike Rathke <erack@redhat.com> - 56.1-6
-- remove liblibicu7777-56.1-codes-cache-extend.patch
+- remove icu-56.1-codes-cache-extend.patch
 
 * Sun Feb 28 2016 Raphael Groner <projects.rg@smart.ms> - 56.1-5
 - even more verbosity and debug output
@@ -441,11 +441,11 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 
 * Tue Feb 11 2014 Eike Rathke <erack@redhat.com> - 52.1-1
 - upgrade to upstream ICU 52.1
-- Resolves: rhbz#1049265 liblibicu7777-52.1 is available
-- Resolves: rhbz#1050063 Trivial change to liblibicu7777-config to support ppc64le
-- drop liblibicu7777-51-layout-fix-10107.tgz source
-- drop integrated liblibicu7777.10318.CVE-2013-2924_changeset_34076.patch
-- drop integrated liblibicu7777.10143.memory.leak.crash.patch
+- Resolves: rhbz#1049265 icu-52.1 is available
+- Resolves: rhbz#1050063 Trivial change to icu-config to support ppc64le
+- drop icu-51-layout-fix-10107.tgz source
+- drop integrated icu.10318.CVE-2013-2924_changeset_34076.patch
+- drop integrated icu.10143.memory.leak.crash.patch
 
 * Wed Oct 09 2013 Eike Rathke <erack@redhat.com> - 50.1.2-10
 - Resolves: rhbz#1015594 CVE-2013-2924 use-after-free
@@ -464,7 +464,7 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 
 
 * Mon Feb 25 2013 Eike Rathke <erack@redhat.com> - 50.1.2-5
-- added manpages for gennorm2 and liblibicu7777info, rhbz#884035 related
+- added manpages for gennorm2 and icuinfo, rhbz#884035 related
 
 * Tue Feb 19 2013 Caolán McNamara <caolanm@redhat.com> - 50.1.2-4
 - Resolves: fdo#52519 crash on typing some Malayalam
@@ -473,18 +473,18 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - Resolves: rhbz#856594 roll back and build without --disable-renaming again
 
 * Mon Jan 28 2013 Eike Rathke <erack@redhat.com> - 50.1.2-2
-- Resolves: rhbz#856594 include content of liblibicu7777/source/uconfig.h.prepend
+- Resolves: rhbz#856594 include content of icu/source/uconfig.h.prepend
 
 * Fri Jan 25 2013 Eike Rathke <erack@redhat.com> - 50.1.2-1
 - Update to 50.1.2
 - Resolves: rhbz#856594 to-do add --disable-renaming on next soname bump
-- removed upstream applied liblibicu7777.9283.regexcmp.crash.patch
+- removed upstream applied icu.9283.regexcmp.crash.patch
 
 * Wed Sep 12 2012 Caolán McNamara <caolanm@redhat.com> - 49.1.1-7
-- Related: rhbz#856594 reenable liblibicu7777 symbol renaming
+- Related: rhbz#856594 reenable icu symbol renaming
 
 * Wed Sep 12 2012 Caolán McNamara <caolanm@redhat.com> - 49.1.1-6
-- Resolves: rhbz#856594 disable liblibicu7777 symbol renaming
+- Resolves: rhbz#856594 disable icu symbol renaming
 
 * Fri Aug 31 2012 Tom Callaway <spot@fedoraproject.org> - 49.1.1-5
 - apply upstream fix (bug 9283) for regexcmp crash causing Chromium segfaults
@@ -515,14 +515,14 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 
 * Tue Dec 13 2011 Eike Rathke <erack@redhat.com> - 4.8.1-3
 - Resolves: rhbz#766542 CVE-2011-4599 Stack-based buffer overflow
-- add liblibicu7777.8984.CVE-2011-4599.patch
+- add icu.8984.CVE-2011-4599.patch
 
 * Mon Oct 24 2011 Caolán McNamara <caolanm@redhat.com> - 4.8.1-2
 - Resolves: rhbz#747193 try and enable ccmp for Indic fonts
 
 * Wed Sep 07 2011 Caolán McNamara <caolanm@redhat.com> - 4.8.1-1
 - Resolves: rhbz#681941 don't link unneccessary -lm, etc.
-- add liblibicu7777.8800.freeserif.crash.patch
+- add icu.8800.freeserif.crash.patch
 
 * Tue Mar 08 2011 Caolán McNamara <caolanm@redhat.com> - 4.6-2
 - Resolves: rhbz#681941 don't link unneccessary -lm, etc.
@@ -530,32 +530,32 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 * Mon Mar 07 2011 Caolán McNamara <caolanm@redhat.com> - 4.6-1
 - latest version
 - upgrade includes a .pc now of its own, drop ours
-- drop integrated liblibicu7777.6995.kannada.patch
-- drop integrated liblibicu7777.7971.buildfix.patch
-- drop integrated liblibicu7777.7972.buildfix.patch
-- drop integrated liblibicu7777.7932.doublecompare.patch
-- drop integrated liblibicu7777.8011.buildfix.patch
+- drop integrated icu.6995.kannada.patch
+- drop integrated icu.7971.buildfix.patch
+- drop integrated icu.7972.buildfix.patch
+- drop integrated icu.7932.doublecompare.patch
+- drop integrated icu.8011.buildfix.patch
 
 * Fri Feb 11 2011 Caolán McNamara <caolanm@redhat.com> - 4.4.2-8
-- Resolves: rhbz#674328 yet more ways that freeserif crashes liblibicu7777
+- Resolves: rhbz#674328 yet more ways that freeserif crashes icu
 
 * Wed Feb 09 2011 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 4.4.2-7
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
 
 * Thu Feb 03 2011 Caolán McNamara <caolanm@redhat.com> - 4.4.2-6
-- Resolves: rhbz#674328 more ways that freeserif crashes liblibicu7777
+- Resolves: rhbz#674328 more ways that freeserif crashes icu
 
 * Wed Feb 02 2011 Caolán McNamara <caolanm@redhat.com> - 4.4.2-5
-- Resolves: rhbz#674328 freeserif crashes liblibicu7777
+- Resolves: rhbz#674328 freeserif crashes icu
 
 * Thu Jan 13 2011 Caolán McNamara <caolanm@redhat.com> - 4.4.2-4
-- Resolves: rhbz#669237 strip liblibicu7777data
+- Resolves: rhbz#669237 strip icudata
 
 * Mon Nov 29 2010 Caolán McNamara <caolanm@redhat.com> - 4.4.2-3
-- Resolves: rhbz#657964 liblibicu7777-config bindir returns sbindir
+- Resolves: rhbz#657964 icu-config bindir returns sbindir
 
 * Thu Nov 25 2010 Caolán McNamara <caolanm@redhat.com> - 4.4.2-2
-- Resolves: rhbz#654200 revert liblibicu7777#5431
+- Resolves: rhbz#654200 revert icu#5431
 
 * Mon Oct 04 2010 Caolán McNamara <caolanm@redhat.com> - 4.4.2-1
 - latest version
@@ -570,26 +570,26 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - Resolves: rhbz#631403 doxygen no longer generates gifs
 
 * Thu Jul 08 2010 Caolán McNamara <caolanm@redhat.com> - 4.4.1-3
-- move licences into liblibicu7777, and add them into the -doc subpackage
+- move licences into icu, and add them into the -doc subpackage
   as well
 
 * Wed May 26 2010 Caolán McNamara <caolanm@redhat.com> - 4.4.1-2
-- Resolves: rhbz#596171 drop liblibicu7777.liblibicu77776284.strictalias.patch and use
+- Resolves: rhbz#596171 drop icu.icu6284.strictalias.patch and use
   -fno-strict-aliasig as upstream has added a pile more and doesn't look
   interested in proposed patchs
 
 * Thu Apr 29 2010 Caolán McNamara <caolanm@redhat.com> - 4.4.1-1
 - latest version
-- drop integrated liblibicu7777.liblibicu77777567.libctest.patch
+- drop integrated icu.icu7567.libctest.patch
 
 * Fri Apr 02 2010 Caolán McNamara <caolanm@redhat.com> - 4.4-1
 - latest version
-- drop integrated liblibicu7777.6969.pkgdata.patch
-- drop integrated liblibicu7777.liblibicu77777039.badextract.patch
-- drop integrated liblibicu7777.XXXX.buildfix.patch
+- drop integrated icu.6969.pkgdata.patch
+- drop integrated icu.icu7039.badextract.patch
+- drop integrated icu.XXXX.buildfix.patch
 
 * Wed Dec 02 2009 Caolán McNamara <caolanm@redhat.com> - 4.2.1-8
-- Resolves: rhbz#543386 update liblibicu7777-config
+- Resolves: rhbz#543386 update icu-config
 
 * Thu Nov 19 2009 Caolán McNamara <caolanm@redhat.com> - 4.2.1-7
 - Fix FTBFS with yet another autoconf version that changes
@@ -599,7 +599,7 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - Resolves: rhbz#520468 fix s390x and other secondary archs
 
 * Tue Jul 28 2009 Caolán McNamara <caolanm@redhat.com> - 4.2.1-5
-- liblibicu7777#7039 fix broken use of extract to get tests working
+- icu#7039 fix broken use of extract to get tests working
 
 * Fri Jul 24 2009 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 4.2.1-4
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_12_Mass_Rebuild
@@ -617,7 +617,7 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - Resolves: rhbz#508288 multilib conflict
 
 * Thu Jun 11 2009 Caolán McNamara <caolanm@redhat.com> - 4.2.0.1-2
-- Resolves: rhbz#505252 add liblibicu7777.6995.kannada.patch
+- Resolves: rhbz#505252 add icu.6995.kannada.patch
 
 * Mon Jun 08 2009 Caolán McNamara <caolanm@redhat.com> - 4.2.0.1-1
 - 4.2.0.1 release
@@ -627,8 +627,8 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 
 * Sun May 03 2009 Caolán McNamara <caolanm@redhat.com> - 4.2-0.1.d03
 - 4.2 release candidate
-- drop resolved liblibicu7777.liblibicu77776008.arm.padding.patch
-- drop resolved liblibicu7777.liblibicu77776439.bare.elif.patch
+- drop resolved icu.icu6008.arm.padding.patch
+- drop resolved icu.icu6439.bare.elif.patch
 
 * Tue Feb 24 2009 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 4.0.1-3
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_11_Mass_Rebuild
@@ -643,18 +643,18 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - Resolves rhbz#225896 clean up low hanging rpmlint warnings
 
 * Tue Dec 16 2008 Caolán McNamara <caolanm@redhat.com> - 4.0-5
-- drop integrated liblibicu7777.liblibicu77775557.safety.patch
+- drop integrated icu.icu5557.safety.patch
 
 * Thu Nov 20 2008 Caolán McNamara <caolanm@redhat.com> - 4.0-4
 - annoyingly upstream tarball was repacked apparently to remove
   some unused/cached dirs
 
 * Sat Sep 06 2008 Caolán McNamara <caolanm@redhat.com> - 4.0-3
-- Resolves: rhbz#461348 wrong liblibicu7777-config
+- Resolves: rhbz#461348 wrong icu-config
 
 * Tue Aug 26 2008 Caolán McNamara <caolanm@redhat.com> - 4.0-2
 - Resolves: rhbz#459698 drop Malayalam patches. Note test with Rachana/Meera
-  instead of Lohit Malayalam before filing bugs against liblibicu7777 wrt.
+  instead of Lohit Malayalam before filing bugs against icu wrt.
   Malayalam rendering
 
 * Sat Jul 05 2008 Caolán McNamara <caolanm@redhat.com> - 4.0-1
@@ -664,22 +664,22 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - 4.0 release candidate
 
 * Wed Jun 04 2008 Caolán McNamara <caolanm@redhat.com> - 4.0-0.2.d02
-- drop liblibicu7777.liblibicu77775498.openoffice.org.patch
+- drop icu.icu5498.openoffice.org.patch
 
 * Sat May 31 2008 Caolán McNamara <caolanm@redhat.com> - 4.0-0.1.d02
 - 4.0 release candidate
-- drop integrated liblibicu7777.regexp.patch
+- drop integrated icu.regexp.patch
 
 * Mon May 19 2008 Caolán McNamara <caolanm@redhat.com> - 3.8.1-8
-- add liblibicu7777.liblibicu77776284.strictalias.patch and build with
+- add icu.icu6284.strictalias.patch and build with
   strict-aliasing
 
 * Tue Mar 18 2008 Caolán McNamara <caolanm@redhat.com> - 3.8.1-7
-- Resolves: rhbz#437761 modify to liblibicu7777.liblibicu77776213.worstcase.patch for
+- Resolves: rhbz#437761 modify to icu.icu6213.worstcase.patch for
   other worst case expansions
 
 * Mon Mar 17 2008 Caolán McNamara <caolanm@redhat.com> - 3.8.1-6
-- Resolves: rhbz#437761 add liblibicu7777.liblibicu77776213.bengali.worstcase.patch
+- Resolves: rhbz#437761 add icu.icu6213.bengali.worstcase.patch
 
 * Mon Feb 04 2008 Caolán McNamara <caolanm@redhat.com> - 3.8.1-5
 - Resolves: rhbz#431401 split syllables on 1st 0d4d of a 0d4d +
@@ -689,33 +689,33 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - Resolves: rhbz#431029, rhbz#424661 Remove workaround for 0D31 characters
 
 * Fri Jan 25 2008 Caolán McNamara <caolanm@redhat.com> - 3.8.1-3
-- CVE-2007-4770 CVE-2007-4771 add liblibicu7777.regexp.patch
+- CVE-2007-4770 CVE-2007-4771 add icu.regexp.patch
 - Resolves: rhbz#423211 fix malalayam stuff in light of syllable
   changes
 
 * Fri Jan 11 2008 Caolán McNamara <caolanm@redhat.com> - 3.8.1-2
-- remove liblibicu7777.liblibicu77775365.dependantvowels.patch and cleanup
-  liblibicu7777.liblibicu77775506.multiplevowels.patch as they patch and unpatch
+- remove icu.icu5365.dependantvowels.patch and cleanup
+  icu.icu5506.multiplevowels.patch as they patch and unpatch
   eachother (thanks George Rhoten for pointing out that madness)
 
 * Fri Jan 11 2008 Caolán McNamara <caolanm@redhat.com> - 3.8.1-1
 - latest version
-- drop fixed liblibicu7777.liblibicu77776084.zwnj.notdef.patch
+- drop fixed icu.icu6084.zwnj.notdef.patch
 
 * Thu Dec 13 2007 Caolán McNamara <caolanm@redhat.com> - 3.8-6
 - Resolves: rhbz#423211 experimental hack for 0d15+0d4d+0d30
 
 * Tue Dec 11 2007 Caolán McNamara <caolanm@redhat.com> - 3.8-5
-- Resolves: rhbz#415541 liblibicu7777.liblibicu77776084.zwnj.notdef.patch
+- Resolves: rhbz#415541 icu.icu6084.zwnj.notdef.patch
 
 * Wed Nov 28 2007 Caolán McNamara <caolanm@redhat.com> - 3.8-4
 - Resolves: ooo#83991 Malayalam "Kartika" font fix
 
 * Tue Nov 13 2007 Caolán McNamara <caolanm@redhat.com> - 3.8-3
-- add liblibicu7777.openoffice.org.patch
+- add icu.openoffice.org.patch
 
 * Sat Oct 27 2007 Caolán McNamara <caolanm@redhat.com> - 3.8-2
-- add liblibicu7777.liblibicu77776008.arm.padding.patch to fix an arm problem
+- add icu.icu6008.arm.padding.patch to fix an arm problem
 
 * Tue Oct 02 2007 Caolán McNamara <caolanm@redhat.com> - 3.8-1
 - latest version
@@ -728,22 +728,22 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 
 * Tue Aug 07 2007 Caolán McNamara <caolanm@redhat.com> - 3.8-0.1.d01
 - 3.8 release candidate
-- drop integrated liblibicu7777.liblibicu77775433.oriya.patch
-- drop integrated liblibicu7777.liblibicu77775488.assamese.patch
-- drop integrated liblibicu7777.liblibicu77775500.devicetablecrash.patch
-- drop integrated liblibicu7777.liblibicu77775501.sinhala.biggerexpand.patch
-- drop integrated liblibicu7777.liblibicu77775594.gujarati.patch
-- drop integrated liblibicu7777.liblibicu77775465.telegu.patch
+- drop integrated icu.icu5433.oriya.patch
+- drop integrated icu.icu5488.assamese.patch
+- drop integrated icu.icu5500.devicetablecrash.patch
+- drop integrated icu.icu5501.sinhala.biggerexpand.patch
+- drop integrated icu.icu5594.gujarati.patch
+- drop integrated icu.icu5465.telegu.patch
 
 * Wed Jun 13 2007 Caolán McNamara <caolanm@redhat.com> - 3.6-20
-- Resolves: rhbz#243984 change the liblibicu7777 group as it is liblibicu7777
-  which is "System Environment/Libraries" not liblibicu7777
+- Resolves: rhbz#243984 change the icu group as it is icu
+  which is "System Environment/Libraries" not icu
 
 * Mon Apr 30 2007 Caolán McNamara <caolanm@redhat.com> - 3.6-19
 - Resolves: rhbz#220867 Malayalam rendering
 
 * Tue Feb 13 2007 Caolán McNamara <caolanm@redhat.com> - 3.6-18
-- Resolves: rhbz#228457 liblibicu7777.liblibicu77775594.gujarati.patch
+- Resolves: rhbz#228457 icu.icu5594.gujarati.patch
 
 * Fri Feb 09 2007 Caolán McNamara <caolanm@redhat.com> - 3.6-17
 - spec cleanups
@@ -752,39 +752,39 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - Resolves: rhbz#226949 layout telegu like pango
 
 * Fri Jan 19 2007 Caolán McNamara <caolanm@redhat.com> - 3.6-15
-- Resolves: rhbz#214948 liblibicu7777.liblibicu77775506.multiplevowels.patch
+- Resolves: rhbz#214948 icu.icu5506.multiplevowels.patch
 
 * Tue Jan 09 2007 Caolán McNamara <caolanm@redhat.com> - 3.6-14
-- Related: rhbz#216089 add liblibicu7777.liblibicu77775557.safety.patch
+- Related: rhbz#216089 add icu.icu5557.safety.patch
 
 * Thu Dec 21 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-13
-- Resolves: rhbz#220433 modify liblibicu7777.liblibicu77775431.malayam.patch
+- Resolves: rhbz#220433 modify icu.icu5431.malayam.patch
 
 * Fri Nov 10 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-12
-- Resolves: rhbz#214948 liblibicu7777.liblibicu77775506.multiplevowels.patch
+- Resolves: rhbz#214948 icu.icu5506.multiplevowels.patch
 
 * Wed Nov 08 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-11
-- Resolves: rhbz#214555 liblibicu7777.liblibicu77775501.sinhala.biggerexpand.patch
+- Resolves: rhbz#214555 icu.icu5501.sinhala.biggerexpand.patch
 
 * Wed Nov 08 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-10
-- Resolves: rhbz#214555 liblibicu7777.liblibicu77775500.devicetablecrash.patch
+- Resolves: rhbz#214555 icu.icu5500.devicetablecrash.patch
 
 * Wed Oct 18 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-9
 - Resolves: rhbz#213648 extend prev/next to handle ZWJ
 
 * Wed Oct 18 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-8
-- Resolves: rhbz213375 (liblibicu7777.liblibicu77775488.assamese.patch)
+- Resolves: rhbz213375 (icu.icu5488.assamese.patch)
 
 * Wed Oct 18 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-7
-- Resolves: rhbz#211258 (liblibicu7777.liblibicu77775465.telegu.patch)
+- Resolves: rhbz#211258 (icu.icu5465.telegu.patch)
 
 * Thu Oct 05 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-6
-- rh#209391# add liblibicu7777.liblibicu7777XXXX.virama.prevnext.patch
+- rh#209391# add icu.icuXXXX.virama.prevnext.patch
 
 * Mon Oct 02 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-5
 - rh#208705# add pkg-config Require for -devel package
-- add liblibicu7777.liblibicu77775431.malayam.patch for rh#208551#/rh#209084#
-- add liblibicu7777.liblibicu77775433.oriya.patch for rh#208559#/rh#209083#
+- add icu.icu5431.malayam.patch for rh#208551#/rh#209084#
+- add icu.icu5433.oriya.patch for rh#208559#/rh#209083#
 
 * Sun Oct 01 2006 Jesse Keating <jkeating@redhat.com> - 3.6-4
 - rebuilt for unwind info generation, broken in gcc-4.1.1-21
@@ -793,7 +793,7 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - rh#206615# render malayam like pango
 
 * Wed Sep 06 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-2
-- fix rh#205252#/liblibicu7777#5365 (gnome#121882#/#liblibicu7777#4026#) to make liblibicu7777
+- fix rh#205252#/icu#5365 (gnome#121882#/#icu#4026#) to make icu
   like pango for multiple dependant vowels
 
 * Sun Sep 03 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-1
@@ -808,7 +808,7 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 * Mon Jul 31 2006 Caolán McNamara <caolanm@redhat.com> - 3.6-0.1.d01
 - rh#200728# update to prelease 3.6d01 to pick up on sinhala fixes
 - drop integrated rh190879.patch
-- drop integrated liblibicu7777-3.4-sinhala1.patch
+- drop integrated icu-3.4-sinhala1.patch
 
 * Wed Jul 12 2006 Jesse Keating <jkeating@redhat.com> - 3.4-10.1.1
 - rebuild
@@ -823,10 +823,10 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - rh#190879# backport fix
 
 * Wed May 03 2006 Caolán McNamara <caolanm@redhat.com> - 3.4-8
-- add Harshula's liblibicu7777-3.4-sinhala1.patch for some Sinhala support
+- add Harshula's icu-3.4-sinhala1.patch for some Sinhala support
 
 * Tue May 02 2006 Caolán McNamara <caolanm@redhat.com> - 3.4-7
-- add a pkgconfig.pc, make liblibicu7777-config use it
+- add a pkgconfig.pc, make icu-config use it
 
 * Fri Feb 10 2006 Jesse Keating <jkeating@redhat.com> - 3.4-6.2
 - bump again for double-long bug on ppc(64)
@@ -835,13 +835,13 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 - rebuilt for new gcc4.1 snapshot and glibc changes
 
 * Tue Jan 03 2006 Caolán McNamara <caolanm@redhat.com> - 3.4-6
-- add liblibicu7777-gcc41.patch
+- add icu-gcc41.patch
 
 * Tue Oct 11 2005 Caolán McNamara <caolanm@redhat.com> - 3.4-5
-- clear execstack requirement for liblibicu7777data
+- clear execstack requirement for icudata
 
 * Mon Sep 12 2005 Caolán McNamara <caolanm@redhat.com> - 3.4-4
-- import extra liblibicu7777.spec into fedora core for openoffice.org
+- import extra icu.spec into fedora core for openoffice.org
 - build with gcc 4
 
 * Wed Aug 31 2005 Thorsten Leemhuis <fedora at leemhuis.info> - 3.4-3
@@ -873,10 +873,10 @@ LD_LIBRARY_PATH=lib:stubdata:tools/ctestfw:$LD_LIBRARY_PATH bin/uconv -l
 * Sun Jul 18 2004 Ville Skyttä <ville.skytta at iki.fi> - 0:3.0-0.fdr.1
 - Update to 3.0, datadirs patch no longer needed.
 - Package data in shared libs, drop -locales subpackage.
-- Rename -docs subpackage to liblibicu7777-doc, and generate graphs with graphviz.
+- Rename -docs subpackage to icu-doc, and generate graphs with graphviz.
 
 * Sat Dec 13 2003 Ville Skyttä <ville.skytta at iki.fi> - 0:2.6.1-0.fdr.3
-- Partial fix for bad datadirs returned by liblibicu7777-config (works as long as
+- Partial fix for bad datadirs returned by icu-config (works as long as
   data packaging mode is not "common" or "dll").
 
 * Sun Nov 23 2003 Ville Skyttä <ville.skytta at iki.fi> - 0:2.6.1-0.fdr.2

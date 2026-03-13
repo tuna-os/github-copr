@@ -1,0 +1,9 @@
+# This is a metapackage with no files.
+addFilter(r"^gi-docgen-fonts\..*: no-documentation$")
+# As noted in the spec file, normally, this would go in a -devel package, but
+# there is little point in providing a -devel package for *just* the .pc file
+# when there are no libraries or headers.
+addFilter(r" devel-file-in-non-devel-package /\S+/gi-docgen\.pc$")
+# GPLv2/LGPLv2 license text has been updated
+# https://gitlab.gnome.org/GNOME/gi-docgen/-/issues/220
+addFilter(r" incorrect-fsf-address ")

@@ -82,18 +82,21 @@ build_srpm() {
     cp "$spec" "$topdir/SPECS/"
     
     # Create tarball if needed
+    # (Note: This still runs on host, but for hello-world it's fine.
+    # For more complex specs it might need refinement)
     local name version
-    name=$(rpm -qp --queryformat '%{NAME}' "$spec" 2>/dev/null || echo "$pkg")
-    version=$(rpm -qp --queryformat '%{VERSION}' "$spec" 2>/dev/null || echo "1.0.0")
+    name=$(basename "$spec" .spec)
     
-    if [ ! -d "$PROJECT_DIR/src/$name-$version" ]; then
-        echo "Warning: Source directory $name-$version not found"
-    else
-        tar -czf "$topdir/SOURCES/$name-$version.tar.gz" -C "$PROJECT_DIR/src" "$name-$version"
+    if [ -d "$PROJECT_DIR/src/$name" ]; then
+        tar -czf "$topdir/SOURCES/$name.tar.gz" -C "$PROJECT_DIR/src" "$name"
     fi
     
-    # Build SRPM
-    rpmbuild --define "_topdir $topdir" -bs "$spec"
+    # Build SRPM inside container
+    $CONTAINER_RUNTIME run --rm \
+        -v "$PROJECT_DIR:/workspace" \
+        -w /workspace \
+        "$CONTAINER_IMAGE" \
+        rpmbuild --define "_topdir /workspace/build" -bs "/workspace/build/SPECS/$(basename "$spec")"
     
     echo "SRPM created: $topdir/SRPMS/"
 }

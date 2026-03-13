@@ -58,6 +58,8 @@
 
 %define rc rc2
 
+%global version_no_tilde %%(echo %{version} | tr '~' '-')
+
 Name:             avahi
 Version:          0.9%{?rc:~%{rc}}
 Release:          8%{?dist}
