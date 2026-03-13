@@ -1,5 +1,7 @@
 set dotenv-load := true
 
+export R2_BUCKET := "bluefin"
+
 default:
     @just --list
 
@@ -71,10 +73,10 @@ sign-all:
 sync-to-r2 target:
     #!/usr/bin/env bash
     set -euo pipefail
-    aws s3 sync ./output/{{target}}/ "s3://${R2_BUCKET}/repo/{{target}}/" --delete
-    aws s3 sync "s3://${R2_BUCKET}/repo/{{target}}/" ./repodata/{{target}}/
+    rclone --s3-no-check-bucket sync ./output/{{target}}/ "r2:${R2_BUCKET}/repo/{{target}}/"
+    rclone --s3-no-check-bucket sync "r2:${R2_BUCKET}/repo/{{target}}/" ./repodata/{{target}}/
     createrepo_c --update ./repodata/{{target}}/
-    aws s3 sync ./repodata/{{target}}/ "s3://${R2_BUCKET}/repo/{{target}}/" --delete
+    rclone --s3-no-check-bucket sync ./repodata/{{target}}/ "r2:${R2_BUCKET}/repo/{{target}}/"
 
 # Full build and publish pipeline
 publish target:
@@ -82,16 +84,85 @@ publish target:
     @just update-metadata {{target}}
     @just sync-to-r2 {{target}}
 
-# Publish all targets
-publish-all: 
-    @just publish fedora-43-x86_64
-    @just publish almalinux-10-x86_64
-    @just publish almalinux-10-x86_64_v2
-    @just publish centos-stream-10-x86_64
+# Deploy the Cloudflare Worker proxy
+deploy-proxy:
+    npx wrangler deploy
+
+# Interactively check for required secrets and configuration
+check-secrets:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    MISSING=0
+    for s in R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY CLOUDFLARE_ACCOUNT_ID GPG_PRIVATE_KEY GPG_PASSPHRASE; do
+        if ! grep -q "$s" .env 2>/dev/null; then
+            echo "[-] Missing secret in .env: $s"
+            MISSING=$((MISSING+1))
+        else
+            echo "[+] Found secret in .env: $s"
+        fi
+    done
+    if [ $MISSING -eq 0 ]; then
+        echo "All secrets found in .env. You can now use 'just publish'."
+    else
+        echo "Please add the missing secrets to your .env file or GitHub Secrets."
+    fi
+
+# Initial setup for the project
+setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "=== Initializing GitHub Copr-like RPM Repository ==="
+    if ! command -v mock &>/dev/null; then echo "Warning: 'mock' not found. Local builds will fail."; fi
+    if ! command -v createrepo_c &>/dev/null; then echo "Warning: 'createrepo_c' not found."; fi
+    if ! command -v rclone &>/dev/null; then echo "Warning: 'rclone' not found. Syncing to R2 will fail."; fi
+    if ! command -v wrangler &>/dev/null; then echo "Hint: install wrangler with 'npm install -g wrangler'"; fi
+    
+    if [ ! -f .env ]; then
+        echo "Creating .env from .env.example..."
+        cp .env.example .env
+    fi
+    
+    if [ ! -f public.gpg ]; then
+        echo "Warning: public.gpg not found. Follow GPG_SETUP.md to generate your signing key."
+    fi
+    
+    echo "Setup complete. Check GPG_SETUP.md for key generation steps."
+
+# Upload GPG public key and install script to R2 root
+publish-static:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f public.gpg ]; then
+        echo "Error: public.gpg not found. Run GPG export first."
+        exit 1
+    fi
+    echo "Uploading public.gpg..."
+    rclone --s3-no-check-bucket copyto public.gpg "r2:${R2_BUCKET}/public.gpg"
+    echo "Uploading install.sh..."
+    rclone --s3-no-check-bucket copyto contrib/install.sh "r2:${R2_BUCKET}/install.sh"
 
 # Clean build artifacts
 clean:
     rm -rf output/ repodata/ build/
+
+# Pull all RPMs from R2, sign them, and push back
+sign-r2:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p tmp-repo
+    echo "Downloading existing repository from R2..."
+    rclone --s3-no-check-bucket sync "r2:${R2_BUCKET}/repo/" ./tmp-repo/
+    echo "Signing RPMs..."
+    find ./tmp-repo -name "*.rpm" -exec rpmsign --addsign {} \;
+    echo "Updating metadata..."
+    for dir in ./tmp-repo/*; do
+        if [ -d "$dir" ]; then
+            createrepo_c --update "$dir"
+        fi
+    done
+    echo "Uploading signed repository back to R2..."
+    rclone --s3-no-check-bucket sync ./tmp-repo/ "r2:${R2_BUCKET}/repo/"
+    rm -rf tmp-repo
 
 # Verify GPG setup
 verify-gpg:
