@@ -2,19 +2,26 @@
 #
 # Build Chain Engine
 #
-# Builds RPM packages tier-by-tier from build-order.yml using mock.
+# Builds RPM packages tier-by-tier from build-order.yml.
 # Packages within a tier build in parallel (--jobs N); tiers are sequential.
+#
+# Backends:
+#   podman  - runs rpmbuild inside a CentOS Stream 10 container (default)
+#   mock    - uses mock chroots (requires mock group membership)
 #
 # Usage:
 #   ./scripts/build-chain.sh [options]
 #
 # Options:
 #   --manifest <path>    Path to build-order.yml (default: build-order.yml)
-#   --mock-config <cfg>  Mock config to use (default: centos-stream-10-ci)
+#   --backend <name>     Build backend: podman or mock (default: podman)
+#   --image <ref>        Container image for podman backend
+#                        (default: quay.io/centos/centos:stream10)
+#   --mock-config <cfg>  Mock config name (default: centos-stream-10-ci)
 #   --local-repo <path>  Path to local repo directory (default: ./local-repo)
-#   --jobs <N>           Parallel jobs within a tier (default: nproc/2, min 1)
+#   --jobs <N>           Parallel jobs within a tier (default: nproc/2)
 #   --tier <name>        Only build a specific tier
-#   --package <path>     Only build a specific package (path as in manifest)
+#   --package <path>     Only build a specific package path
 #   --dry-run            Print what would be built without building
 
 set -euo pipefail
@@ -23,6 +30,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 MANIFEST="${REPO_ROOT}/build-order.yml"
+BACKEND="podman"
+BUILD_IMAGE="quay.io/centos/centos:stream10"
 MOCK_CONFIG="centos-stream-10-ci"
 LOCAL_REPO="${REPO_ROOT}/local-repo"
 JOBS=$(( $(nproc) / 2 ))
@@ -34,13 +43,15 @@ DRY_RUN=false
 # --- Argument parsing ---
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --manifest)    MANIFEST="$2"; shift 2 ;;
+        --manifest)    MANIFEST="$2";    shift 2 ;;
+        --backend)     BACKEND="$2";     shift 2 ;;
+        --image)       BUILD_IMAGE="$2"; shift 2 ;;
         --mock-config) MOCK_CONFIG="$2"; shift 2 ;;
-        --local-repo)  LOCAL_REPO="$2"; shift 2 ;;
-        --jobs)        JOBS="$2"; shift 2 ;;
+        --local-repo)  LOCAL_REPO="$2";  shift 2 ;;
+        --jobs)        JOBS="$2";        shift 2 ;;
         --tier)        FILTER_TIER="$2"; shift 2 ;;
         --package)     FILTER_PACKAGE="$2"; shift 2 ;;
-        --dry-run)     DRY_RUN=true; shift ;;
+        --dry-run)     DRY_RUN=true;     shift ;;
         *)
             echo "Unknown option: $1" >&2
             exit 1
@@ -49,9 +60,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 # --- Helpers ---
-log()  { echo "==> $*"; }
-err()  { echo "ERROR: $*" >&2; }
-plog() { echo "[${1}] ${2}"; }  # prefixed log for parallel output
+log() { echo "==> $*"; }
+err() { echo "ERROR: $*" >&2; }
 
 ensure_local_repo() {
     mkdir -p "${LOCAL_REPO}"
@@ -80,7 +90,6 @@ find_spec() {
         return 1
     fi
 
-    # Find the default spec: the one matching the directory name, or the only one
     local dir_name
     dir_name="$(basename "$pkg_dir")"
     local default_spec="${REPO_ROOT}/${pkg_dir}/${dir_name}.spec"
@@ -89,7 +98,7 @@ find_spec() {
         return
     fi
 
-    # Fallback: find any .spec that isn't a bootstrap/rawhide variant
+    # Fallback: any .spec that isn't a bootstrap/rawhide variant
     local specs=()
     while IFS= read -r -d '' f; do
         if [[ ! "$f" =~ -bootstrap\.spec$ ]] && [[ ! "$f" =~ -rawhide\.spec$ ]]; then
@@ -106,35 +115,20 @@ find_spec() {
     return 1
 }
 
-# Build a single package. All output goes to stdout so callers can redirect
-# to a per-job log file for clean parallel output.
-build_package() {
-    local pkg_dir="$1"
-    local spec_override="$2"
-
-    local spec
-    spec="$(find_spec "$pkg_dir" "$spec_override")"
+# Prepare a build tree (spec + patches + downloaded sources) in $builddir.
+# Does NOT build — just stages everything so a backend can pick it up.
+prepare_sources() {
+    local builddir="$1"
+    local spec="$2"
+    local abs_pkg_dir="$3"
     local pkg_name
     pkg_name="$(basename "$spec" .spec)"
-    local abs_pkg_dir="${REPO_ROOT}/${pkg_dir}"
 
-    echo "==> [${pkg_name}] Building from ${pkg_dir} (spec: $(basename "$spec"))"
-
-    if $DRY_RUN; then
-        echo "  [dry-run] Would build: ${spec}"
-        return 0
-    fi
-
-    # Isolated build tree per package
-    local builddir
-    builddir="$(mktemp -d)"
-    trap "rm -rf '${builddir}'" RETURN
     mkdir -p "${builddir}"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS,SPECS}
 
-    # Copy spec
     cp "$spec" "${builddir}/SPECS/"
 
-    # Copy local patches and non-tarball sources
+    # Copy patches and non-tarball sources
     find "$abs_pkg_dir" -maxdepth 1 -type f \
         ! -name "*.spec" \
         ! -name "sources" \
@@ -148,16 +142,103 @@ build_package() {
         ! -name "*.zip" \
         -exec cp {} "${builddir}/SOURCES/" \;
 
-    # Download tarballs from upstream URLs in the spec
     echo "==> [${pkg_name}] Downloading sources via spectool..."
     spectool -g -C "${builddir}/SOURCES/" "$spec" || {
-        echo "ERROR: spectool failed for ${pkg_name} — check Source URLs in spec" >&2
+        echo "ERROR: spectool failed for ${pkg_name}" >&2
         return 1
     }
+}
 
-    # Build SRPM
+# --- Podman backend ---
+build_package_podman() {
+    local pkg_dir="$1"
+    local spec_override="$2"
+
+    local spec pkg_name abs_pkg_dir builddir
+    spec="$(find_spec "$pkg_dir" "$spec_override")"
+    pkg_name="$(basename "$spec" .spec)"
+    abs_pkg_dir="${REPO_ROOT}/${pkg_dir}"
+
+    echo "==> [${pkg_name}] Building (podman) from ${pkg_dir}"
+
+    local builddir
+    builddir="$(mktemp -d)"
+    trap "rm -rf '${builddir}'" RETURN
+
+    prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
+
     local spec_basename
     spec_basename="$(basename "$spec")"
+
+    echo "==> [${pkg_name}] Running rpmbuild in container..."
+    podman run --rm \
+        --pull=missing \
+        -v "${builddir}:/builddir:Z" \
+        -v "${LOCAL_REPO}:/local-repo:Z,ro" \
+        "${BUILD_IMAGE}" \
+        bash -exc "
+            # Local repo from previous tiers
+            cat > /etc/yum.repos.d/local-build.repo << 'REPO'
+[local-build]
+name=Local Build Repo
+baseurl=file:///local-repo
+enabled=1
+gpgcheck=0
+priority=1
+module_hotfixes=1
+REPO
+
+            # EPEL 10
+            dnf install -y --quiet \
+                https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm \
+                2>/dev/null || true
+
+            # Install build dependencies
+            dnf builddep -y --quiet /builddir/SPECS/${spec_basename}
+
+            # Build
+            rpmbuild -bb /builddir/SPECS/${spec_basename} \
+                --define '_topdir /builddir' \
+                --define 'dist .el10'
+        "
+
+    # Collect RPMs
+    local rpm_count=0
+    while IFS= read -r -d '' rpm; do
+        cp "$rpm" "${LOCAL_REPO}/"
+        echo "==> [${pkg_name}] -> $(basename "$rpm")"
+        rpm_count=$(( rpm_count + 1 ))
+    done < <(find "${builddir}/RPMS" -name "*.rpm" -print0)
+
+    if [[ $rpm_count -eq 0 ]]; then
+        echo "ERROR: No RPMs produced for ${pkg_name}" >&2
+        return 1
+    fi
+
+    echo "==> [${pkg_name}] Built ${rpm_count} RPM(s)"
+}
+
+# --- Mock backend ---
+build_package_mock() {
+    local pkg_dir="$1"
+    local spec_override="$2"
+
+    local spec pkg_name abs_pkg_dir builddir
+    spec="$(find_spec "$pkg_dir" "$spec_override")"
+    pkg_name="$(basename "$spec" .spec)"
+    abs_pkg_dir="${REPO_ROOT}/${pkg_dir}"
+
+    echo "==> [${pkg_name}] Building (mock) from ${pkg_dir}"
+
+    builddir="$(mktemp -d)"
+    trap "rm -rf '${builddir}'" RETURN
+
+    prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
+
+    local spec_basename
+    spec_basename="$(basename "$spec")"
+
+    # Build SRPM
     echo "==> [${pkg_name}] Building SRPM..."
     rpmbuild -bs "${builddir}/SPECS/${spec_basename}" \
         --define "_topdir ${builddir}" \
@@ -169,12 +250,8 @@ build_package() {
         echo "ERROR: No SRPM produced for ${pkg_name}" >&2
         return 1
     fi
-    echo "==> [${pkg_name}] SRPM: $(basename "$srpm")"
 
-    # Build RPM with mock — each invocation gets its own unique root name
-    # to avoid chroot collisions when running in parallel
-    local mock_root="${MOCK_CONFIG}-${pkg_name}"
-    echo "==> [${pkg_name}] Building RPMs with mock (root: ${mock_root})..."
+    echo "==> [${pkg_name}] Rebuilding with mock (uniqueext=${pkg_name})..."
     local resultdir="${builddir}/results"
     mkdir -p "$resultdir"
 
@@ -186,7 +263,6 @@ build_package() {
         --no-clean \
         --no-cleanup-after
 
-    # Copy results to local repo (atomic per-file cp — safe for parallel callers)
     local rpm_count=0
     while IFS= read -r -d '' rpm; do
         cp "$rpm" "${LOCAL_REPO}/"
@@ -202,24 +278,43 @@ build_package() {
     echo "==> [${pkg_name}] Built ${rpm_count} RPM(s)"
 }
 
+# Dispatch to the selected backend
+build_package() {
+    local pkg_dir="$1"
+    local spec_override="$2"
+
+    if $DRY_RUN; then
+        local spec
+        spec="$(find_spec "$pkg_dir" "$spec_override")"
+        echo "==> [$(basename "$spec" .spec)] [dry-run] Would build: ${spec}"
+        return 0
+    fi
+
+    case "$BACKEND" in
+        podman) build_package_podman "$pkg_dir" "$spec_override" ;;
+        mock)   build_package_mock   "$pkg_dir" "$spec_override" ;;
+        *)
+            err "Unknown backend '${BACKEND}' — use 'podman' or 'mock'"
+            return 1
+            ;;
+    esac
+}
+
 # Run all packages in a tier with up to $JOBS parallel workers.
-# Streams each package's log to stdout as it completes.
 build_tier() {
     local tier_name="$1"
-    local -n _tier_pkg_total="$2"   # nameref to accumulate count
-    local -n _tier_failed="$3"      # nameref to accumulate failures
+    local -n _tier_pkg_total="$2"
+    local -n _tier_failed="$3"
 
     local logdir
     logdir="$(mktemp -d)"
     trap "rm -rf '${logdir}'" RETURN
 
-    # Arrays for tracking in-flight jobs
     local pids=()
     local pkg_paths=()
     local active=0
 
     wait_one() {
-        # Wait for any one job to finish; print its log; record failure if needed
         for i in "${!pids[@]}"; do
             local pid="${pids[$i]}"
             local path="${pkg_paths[$i]}"
@@ -237,7 +332,6 @@ build_tier() {
                 return
             fi
         done
-        # Nothing finished yet — sleep briefly and retry
         sleep 0.5
         wait_one
     }
@@ -254,7 +348,6 @@ build_tier() {
             continue
         fi
 
-        # Throttle to $JOBS concurrent workers
         while [[ $active -ge $JOBS ]]; do
             wait_one
         done
@@ -264,11 +357,10 @@ build_tier() {
         pids+=($!)
         pkg_paths+=("$pkg_path")
         active=$(( active + 1 ))
-        log "  Started ${pkg_path} (pid $!)"
+        log "  Queued ${pkg_path} (pid $!)"
 
     done < <(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --tier "$tier_name")
 
-    # Drain remaining jobs
     while [[ $active -gt 0 ]]; do
         wait_one
     done
@@ -278,15 +370,19 @@ build_tier() {
 main() {
     log "Build chain starting"
     log "  Manifest:   ${MANIFEST}"
-    log "  Mock:       ${MOCK_CONFIG}"
+    log "  Backend:    ${BACKEND}"
+    [[ "$BACKEND" == "podman" ]] && log "  Image:      ${BUILD_IMAGE}"
+    [[ "$BACKEND" == "mock"   ]] && log "  Mock cfg:   ${MOCK_CONFIG}"
     log "  Local repo: ${LOCAL_REPO}"
     log "  Jobs:       ${JOBS}"
     [[ -n "$FILTER_TIER" ]]    && log "  Tier filter: ${FILTER_TIER}"
     [[ -n "$FILTER_PACKAGE" ]] && log "  Pkg filter:  ${FILTER_PACKAGE}"
 
-    if ! $DRY_RUN && ! command -v mock &>/dev/null; then
-        err "mock is not installed"
-        exit 1
+    if ! $DRY_RUN; then
+        case "$BACKEND" in
+            podman) command -v podman &>/dev/null || { err "podman not found"; exit 1; } ;;
+            mock)   command -v mock   &>/dev/null || { err "mock not found";   exit 1; } ;;
+        esac
     fi
 
     ensure_local_repo
@@ -305,7 +401,7 @@ main() {
 
         tier_count=$(( tier_count + 1 ))
         log ""
-        log "===== Tier: ${tier_name} (jobs=${JOBS}) ====="
+        log "===== Tier: ${tier_name} (backend=${BACKEND}, jobs=${JOBS}) ====="
 
         build_tier "$tier_name" pkg_total failed
 

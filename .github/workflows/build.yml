@@ -15,29 +15,33 @@ on:
         description: 'Parallel builds within a tier (default: nproc/2)'
         required: false
         default: ''
+      image:
+        description: 'Container image for builds'
+        required: false
+        default: 'quay.io/centos/centos:stream10'
 
 env:
   R2_BUCKET: bluefin
-  LOCAL_REPO: /local-repo
-  MOCK_CONFIG: centos-stream-10-ci
+  LOCAL_REPO: ${{ github.workspace }}/local-repo
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    container:
-      image: fedora:43
-      options: --privileged
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install host dependencies
         run: |
-          dnf install -y \
-            mock createrepo_c rpm-sign rpm-build rclone \
-            rpmdevtools python3-pyyaml
+          sudo apt-get update -q
+          sudo apt-get install -y -q \
+            podman createrepo-c rpm rpmdevtools python3-yaml \
+            gpg gpgconf
+
+          # rclone
+          curl -fsSL https://rclone.org/install.sh | sudo bash
 
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
@@ -59,6 +63,9 @@ jobs:
           endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
           EOF
 
+      - name: Pull build image
+        run: podman pull "${{ github.event.inputs.image || 'quay.io/centos/centos:stream10' }}"
+
       - name: Seed local repo from R2
         run: |
           mkdir -p "${LOCAL_REPO}"
@@ -68,19 +75,12 @@ jobs:
           echo "Initializing local repo metadata..."
           createrepo_c "${LOCAL_REPO}"
 
-      - name: Install mock config
-        run: |
-          # Update the mock config to point to the actual local repo path
-          sed "s|file:///local-repo/|file://${LOCAL_REPO}/|g" \
-            mock/centos-stream-10-ci.cfg > /etc/mock/centos-stream-10-ci.cfg
-          # Also fix the bind mount path
-          sed -i "s|('/local-repo', '/local-repo')|('${LOCAL_REPO}', '/local-repo')|g" \
-            /etc/mock/centos-stream-10-ci.cfg
-
       - name: Build packages
         run: |
+          IMAGE="${{ github.event.inputs.image || 'quay.io/centos/centos:stream10' }}"
           ARGS=(
-            --mock-config "${MOCK_CONFIG}"
+            --backend podman
+            --image   "${IMAGE}"
             --local-repo "${LOCAL_REPO}"
           )
           if [[ -n "${{ github.event.inputs.tier }}" ]]; then
@@ -98,13 +98,10 @@ jobs:
         run: |
           find "${LOCAL_REPO}" -name "*.rpm" -newer "${LOCAL_REPO}/repodata/repomd.xml" \
             -exec rpmsign --addsign {} \;
-          # Regenerate metadata after signing
           createrepo_c --update "${LOCAL_REPO}"
 
       - name: Upload to R2
         run: |
-          # Upload to both paths for CentOS Stream 10 ($releasever=10-stream)
-          # and AlmaLinux 10 ($releasever=10)
           echo "Uploading to 10-stream-x86_64 (CentOS Stream 10)..."
           rclone sync "${LOCAL_REPO}/" "r2:${R2_BUCKET}/repo/10-stream-x86_64/"
 
@@ -112,8 +109,7 @@ jobs:
           rclone sync "${LOCAL_REPO}/" "r2:${R2_BUCKET}/repo/10-x86_64/"
 
       - name: Upload GPG public key
-        run: |
-          rclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"
+        run: rclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
