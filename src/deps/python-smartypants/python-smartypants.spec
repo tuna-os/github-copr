@@ -16,7 +16,7 @@ It allows you to use your favorite text editor to write, and then translates
 plain ASCII punctuation characters into smart HTML entities.
 
 %prep
-%autosetup -n smartypants.py-%{version}
+%autosetup -n smartypants-%{version}
 
 %build
 %py3_build
