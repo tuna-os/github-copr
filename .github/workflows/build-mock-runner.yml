@@ -45,9 +45,4 @@ jobs:
           podman push "${IMAGE}:${TAG}-${{ github.sha }}"
 
       - name: Inspect
-        run: podman inspect "${IMAGE}:${TAG}" | python3 -c "
-import json, sys
-data = json.load(sys.stdin)[0]
-print('Size:  ', round(data['Size'] / 1024**2, 1), 'MiB')
-print('Layers:', len(data['RootFS']['Layers']))
-"
+        run: podman images "${IMAGE}:${TAG}" --format "{{.Repository}}:{{.Tag}}  {{.Size}}"
