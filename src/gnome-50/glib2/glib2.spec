@@ -1,6 +1,6 @@
 Name:           glib2
 Version:        2.87.3
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        A library of handy utility functions
 
 License:        LGPL-2.1-or-later
@@ -88,6 +88,18 @@ sed -i 's|gio_querymodules=.*|gio_querymodules=${bindir}/gio-querymodules-64|' \
 
 %find_lang glib20
 
+%transfiletriggerin -- %{_datadir}/glib-2.0/schemas
+glib-compile-schemas %{_datadir}/glib-2.0/schemas &> /dev/null || :
+
+%transfiletriggerpostun -- %{_datadir}/glib-2.0/schemas
+glib-compile-schemas %{_datadir}/glib-2.0/schemas &> /dev/null || :
+
+%transfiletriggerin -- %{_libdir}/gio/modules
+gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
+
+%transfiletriggerpostun -- %{_libdir}/gio/modules
+gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
+
 %files -f glib20.lang
 %{_bindir}/gapplication
 %{_bindir}/gdbus
@@ -138,5 +150,9 @@ sed -i 's|gio_querymodules=.*|gio_querymodules=${bindir}/gio-querymodules-64|' \
 %{_libdir}/*.a
 
 %changelog
+* Fri Mar 13 2026 Conductor <james@conductor.local> - 2.87.3-2
+- Add transfiletrigger scriptlets for glib-compile-schemas and gio-querymodules
+  to match Rawhide and fix missing schema compilation on EL10
+
 * Thu Mar 12 2026 Conductor <james@conductor.local> - 2.87.3-1
 - Final clean build with introspection enabled and missing files included
