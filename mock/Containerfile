@@ -46,3 +46,4 @@ RUN mock --init -r centos-stream-10-ci \
 
 LABEL org.opencontainers.image.description="Fedora + mock with CentOS Stream 10 chroot pre-bootstrapped"
 LABEL org.opencontainers.image.source="https://github.com/tuna-os/github-copr"
+# Fri Mar 13 06:47:58 AM IST 2026
