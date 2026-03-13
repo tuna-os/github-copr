@@ -4,7 +4,7 @@ Release:        1%{?dist}
 Summary:        Filters to enhance web typography
 License:        BSD-3-Clause
 URL:            https://github.com/mintcha/typogrify
-Source0:        typogrify-%{version}.tar.gz
+Source0:        https://files.pythonhosted.org/packages/source/t/typogrify/typogrify-%{version}.tar.gz
 BuildArch:      noarch
 
 BuildRequires:  python3-devel
