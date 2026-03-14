@@ -14,7 +14,7 @@
 
 Name:           gnome-settings-daemon
 Version:        50~rc
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        The daemon sharing settings from GNOME to GTK+/KDE applications
 
 License:        GPL-2.0-or-later AND LGPL-2.1-or-later
@@ -47,7 +47,11 @@ BuildRequires:  pkgconfig(gtk4) >= %{gtk4_version}
 BuildRequires:  pkgconfig(gudev-1.0)
 BuildRequires:  pkgconfig(gweather4)
 BuildRequires:  pkgconfig(lcms2) >= 2.2
+# libcanberra-gtk3 requires gtk3 (removed from EL10); gate on non-RHEL
+# sound plugin will be disabled at build time if libcanberra-gtk3 is absent
+%if !0%{?rhel}
 BuildRequires:  pkgconfig(libcanberra-gtk3)
+%endif
 BuildRequires:  pkgconfig(libgeoclue-2.0)
 BuildRequires:  pkgconfig(libnm)
 BuildRequires:  pkgconfig(libnotify) >= 0.8.6
@@ -154,7 +158,9 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 
 %{_libexecdir}/gsd-smartcard
 
+%if !0%{?rhel}
 %{_libexecdir}/gsd-sound
+%endif
 
 %{_libexecdir}/gsd-usb-protection
 
@@ -201,4 +207,9 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 %endif
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-2
+- EL10: gate libcanberra-gtk3 BuildRequires behind %%if !0%%{?rhel} (requires
+  gtk3 which is removed from EL10); also gate gsd-sound from %%files since
+  the sound plugin is disabled when libcanberra-gtk3 is absent
+
 %autochangelog
