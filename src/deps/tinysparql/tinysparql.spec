@@ -114,9 +114,9 @@ This package contains the documentation for %{name}.
   -Dunicode_support=icu \
   -Dsystemd_user_services_dir=%{_userunitdir} \
 %if !0%{?rhel}
-  -Dman-pages=enabled \
+  -Dman=true \
 %else
-  -Dman-pages=disabled \
+  -Dman=false \
 %endif
 %if %{without libstemmer}
   -Dstemmer=disabled \
