@@ -1,6 +1,6 @@
 Name:           libcanberra
 Version:        0.30
-Release:        100%{?dist}
+Release:        101%{?dist}
 Summary:        Portable sound event library
 
 License:        LGPL-2.1-or-later
@@ -39,6 +39,8 @@ Provides:       libcanberra-gtk3.so.0()(64bit)
 # Force replacement of system package
 Obsoletes:      libcanberra-gtk3 < %{version}-%{release}
 Conflicts:      libcanberra-gtk3 < %{version}-%{release}
+Obsoletes:      libcanberra-gtk2 < %{version}-%{release}
+Conflicts:      libcanberra-gtk2 < %{version}-%{release}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 
 %description    gtk3

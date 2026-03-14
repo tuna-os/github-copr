@@ -18,12 +18,14 @@
 
 Name:           gnome-control-center
 Version:        50~rc
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
 URL:            https://gitlab.gnome.org/GNOME/gnome-control-center/
 Source0:        https://download.gnome.org/sources/%{name}/50/%{name}-%{tarball_version}.tar.xz
+
+Patch1:         no-tecla-subproject.patch
 
 BuildRequires:  blueprint-compiler >= %{blueprint_compiler_version}
 BuildRequires:  desktop-file-utils
@@ -72,8 +74,6 @@ BuildRequires:  pkgconfig(mm-glib)
 BuildRequires:  pkgconfig(polkit-gobject-1)
 BuildRequires:  pkgconfig(pwquality)
 BuildRequires:  pkgconfig(smbclient)
-# tecla is pre-installed via chroot_additional_packages from local repo (50.1)
-# to avoid dnf-3 picking the base EL10 45.0 version
 BuildRequires:  pkgconfig(udisks2)
 BuildRequires:  pkgconfig(upower-glib) >= %{upower_version}
 BuildRequires:  pkgconfig(x11)
@@ -127,16 +127,7 @@ Recommends: rygel
 # For the info/details panel
 Recommends: switcheroo-control
 # For the keyboard panel
-Requires: /usr/bin/tecla
-%if 0%{?fedora} >= 35 || 0%{?rhel} >= 9
-# For the power panel
-Recommends: ppd-service
-%if 0%{?fedora} && 0%{?fedora} < 41
-Suggests: power-profiles-daemon
-%else
-Suggests: tuned-ppd
-%endif
-%endif
+# Requires: /usr/bin/tecla
 
 # Renamed in F28
 Provides: control-center = 1:%{version}-%{release}
@@ -166,8 +157,11 @@ utilities.
 
 %prep
 %autosetup -p1 -n %{name}-%{tarball_version}
-# Disable tecla subproject fallback - tecla will be optional (system version too old)
-sed -i '/# Needs to be a subproject since tecla does not declare dependencies/,/^endif$/c\# tecla subproject disabled for EL10 bootstrap\ntecla_is_subproject = false' meson.build
+# Disable tecla subproject fallback - tecla will be optional
+sed -i '/tecla_dep =/c\tecla_dep = dependency("tecla", required: false)' meson.build
+sed -i '/# Needs to be a subproject since tecla does not declare dependencies/,/^endif$/c\tecla_is_subproject = false' meson.build
+# Final safety check for tecla panel
+sed -i 's/dependency('\''tecla'\'',/dependency('\''tecla'\'', required: false,/' panels/keyboard/meson.build
 
 %build
 export PKG_CONFIG_PATH=/usr/share/pkgconfig:/usr/lib64/pkgconfig
@@ -191,6 +185,9 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/autostart
 rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 
 %find_lang %{name} --all-name --with-gnome
+
+%check
+desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Extensions.desktop
 
 %files -f %{name}.lang
 %license COPYING
@@ -225,9 +222,9 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-3
+- Disable tecla subproject and make tecla dependency optional
+- Re-add epoxy build dependency
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-2
 - EL10: gate gdk-wayland-3.0 (gtk3) and gsound (pulls libcanberra→gtk3)
-  BuildRequires behind %%if !0%%{?rhel}
-
-* Fri Mar 13 2026 Bootstrap Build <bootstrap@localhost> - 50~rc-1
-- Bootstrap build for EL10
+  BuildRequires behind %if !0%?rhel
