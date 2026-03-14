@@ -18,7 +18,7 @@
 
 Name:           gnome-control-center
 Version:        50~rc
-Release:        6%{?dist}
+Release:        7%{?dist}
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
@@ -157,12 +157,11 @@ utilities.
 
 %prep
 %autosetup -p1 -n %{name}-%{tarball_version}
-# Disable tecla subproject fallback - tecla will be optional
-# Meson single quotes
-sed -i "s/dependency('tecla')/dependency('tecla', required: false)/" meson.build
+# Force-disable tecla dependency everywhere
+find . -name "meson.build" -exec sed -i "s/dependency('tecla')/dependency('', required: false)/g" {} +
+find . -name "meson.build" -exec sed -i "s/dependency('tecla',/dependency('', required: false, /g" {} +
+# Disable subproject fallback
 sed -i '/# Needs to be a subproject since tecla does not declare dependencies/,/^endif$/c\tecla_is_subproject = false' meson.build
-# Make tecla optional in the keyboard panel to avoid build failure when not found
-sed -i "s/tecla_dep = dependency('tecla',/tecla_dep = dependency('tecla', required: false,/" panels/keyboard/meson.build
 
 %build
 export PKG_CONFIG_PATH=/usr/share/pkgconfig:/usr/lib64/pkgconfig
@@ -223,6 +222,8 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Exten
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-7
+- Brute-force disable tecla dependency in all meson.build files
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-6
 - Refine tecla optional dependency fix in panels/keyboard
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-5
