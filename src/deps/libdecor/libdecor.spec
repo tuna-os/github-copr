@@ -11,6 +11,7 @@ BuildRequires:  gcc
 BuildRequires:  meson
 BuildRequires:  pkgconfig(cairo)
 BuildRequires:  pkgconfig(pango)
+BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  pkgconfig(wayland-client)
 BuildRequires:  pkgconfig(wayland-protocols) >= 1.18
 BuildRequires:  pkgconfig(wayland-server)
