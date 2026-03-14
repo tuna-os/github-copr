@@ -1,6 +1,6 @@
 Name:           libcanberra
 Version:        0.30
-Release:        102%{?dist}
+Release:        103%{?dist}
 Summary:        Portable sound event library
 
 License:        LGPL-2.1-or-later
@@ -35,22 +35,16 @@ Provides:       pkgconfig(tecla) = 50.1
 Development files (headers, pkg-config file) for libcanberra.
 
 %package        gtk3
-Summary:        Virtual compatibility package for libcanberra-gtk3
-Provides:       libcanberra-gtk3 = %{version}-%{release}
-Provides:       libcanberra-gtk3%{?_isa} = %{version}-%{release}
-# Fake the library provide to satisfy hard links in base packages like EDS
-Provides:       libcanberra-gtk3.so.0()(64bit)
+Summary:        Gtk+ 3.x Bindings for libcanberra
+Requires:       %{name}%{?_isa} = %{version}-%{release}
 # Force replacement of system package
 Obsoletes:      libcanberra-gtk3 < %{version}-%{release}
 Conflicts:      libcanberra-gtk3 < %{version}-%{release}
 Obsoletes:      libcanberra-gtk2 < %{version}-%{release}
 Conflicts:      libcanberra-gtk2 < %{version}-%{release}
-Requires:       %{name}%{?_isa} = %{version}-%{release}
 
 %description    gtk3
-This is a virtual compatibility package to satisfy dependencies on libcanberra-gtk3
-without actually installing GTK3 libraries. Note that applications attempting
-to use GTK3 sound hooks may fail to find the expected symbols.
+Gtk+ 3.x Bindings for libcanberra
 
 %prep
 %autosetup -p1
@@ -68,10 +62,6 @@ to use GTK3 sound hooks may fail to find the expected symbols.
 %install
 %make_install
 find %{buildroot} -name '*.la' -delete
-
-# Create a symlink so that apps looking for the gtk3 version at least find the base library
-# This is the "Option C" hack
-ln -s libcanberra.so.0.2.5 %{buildroot}%{_libdir}/libcanberra-gtk3.so.0
 
 # Create fake tecla.pc
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
@@ -101,9 +91,15 @@ EOF
 %{_datadir}/vala/vapi/libcanberra.vapi
 
 %files gtk3
-%{_libdir}/libcanberra-gtk3.so.0
+%{_libdir}/libcanberra-gtk3.so.*
+%{_libdir}/pkgconfig/libcanberra-gtk3.pc
+%{_libdir}/gtk-3.0/modules/libcanberra-gtk-module.so
+%{_libdir}/gtk-3.0/modules/libcanberra-gtk3-module.so
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-103
+- Re-enable REAL libcanberra-gtk3 now that we have confirmed GTK3 is in EL10
+- Providing fake tecla.pc in devel to satisfy gnome-control-center
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-102
 - Provide fake tecla.pc in devel to satisfy gnome-control-center
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-101
