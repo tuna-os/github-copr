@@ -18,7 +18,7 @@
 
 Name:           gnome-control-center
 Version:        50~rc
-Release:        9%{?dist}
+Release:        10%{?dist}
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
@@ -35,7 +35,7 @@ BuildRequires:  pkgconfig(accountsservice)
 BuildRequires:  pkgconfig(colord)
 BuildRequires:  pkgconfig(colord-gtk4)
 BuildRequires:  pkgconfig(libcanberra)
-BuildRequires:  pkgconfig(tecla)
+BuildRequires:  pkgconfig(tecla) >= 47.0
 BuildRequires:  pkgconfig(epoxy)
 BuildRequires:  pkgconfig(cups)
 BuildRequires:  pkgconfig(gcr-4) >= %{gcr_version}
@@ -126,7 +126,7 @@ Recommends: rygel
 # For the info/details panel
 Recommends: switcheroo-control
 # For the keyboard panel
-# Requires: /usr/bin/tecla
+Requires: /usr/bin/tecla
 
 # Renamed in F28
 Provides: control-center = 1:%{version}-%{release}
@@ -216,6 +216,8 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Exten
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-10
+- Revert hacks and use real tecla >= 47.0 dependency
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-9
 - Revert tecla hacks and use pkgconfig(tecla) provided by libcanberra-devel
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-8
