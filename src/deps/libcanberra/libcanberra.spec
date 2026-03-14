@@ -66,6 +66,7 @@ rm -f %{buildroot}%{_libdir}/gtk-*/modules/libcanberra-gtk-module.so
 %{_includedir}/canberra.h
 %{_libdir}/libcanberra.so
 %{_libdir}/pkgconfig/libcanberra.pc
+%{_datadir}/gtk-doc/html/libcanberra/
 
 %changelog
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-1
