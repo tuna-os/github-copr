@@ -18,7 +18,7 @@
 
 Name:           gnome-control-center
 Version:        50~rc
-Release:        4%{?dist}
+Release:        5%{?dist}
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
@@ -158,7 +158,8 @@ utilities.
 %prep
 %autosetup -p1 -n %{name}-%{tarball_version}
 # Disable tecla subproject fallback - tecla will be optional
-sed -i "/tecla_dep =/c\tecla_dep = dependency('tecla', required: false)" meson.build
+# We use single quotes for Meson compatibility
+sed -i "s/dependency('tecla')/dependency('tecla', required: false)/" meson.build
 sed -i '/# Needs to be a subproject since tecla does not declare dependencies/,/^endif$/c\tecla_is_subproject = false' meson.build
 # Final safety check for tecla panel
 sed -i "s/dependency('tecla',/dependency('tecla', required: false,/" panels/keyboard/meson.build
@@ -222,6 +223,8 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Exten
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-5
+- Fix meson sed command for tecla optional dependency
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-4
 - Fix meson syntax error (double quotes not supported in dependency call)
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-3
