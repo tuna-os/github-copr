@@ -154,7 +154,7 @@ copr-build package project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x86
 copr-scm-build path project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x86_64':
     #!/usr/bin/env bash
     set -euo pipefail
-    SPEC=$(ls {{path}}/*.spec | head -n 1)
+    SPEC=$(ls {{path}}/*.spec | grep -v bootstrap | head -n 1)
     NAME=$(rpmspec -q --qf "%{name}\n" "$SPEC" 2>/dev/null | head -n 1)
     REPO_ROOT=$(git rev-parse --show-toplevel)
     REMOTE_URL=$(git remote get-url origin)
