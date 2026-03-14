@@ -1,6 +1,6 @@
 Name:           colord-gtk
 Version:        0.3.1
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        GTK4 support library for colord
 
 License:        LGPL-2.1-or-later
@@ -52,10 +52,11 @@ This package does not require colord-gtk (GTK3) or gtk3-devel.
 
 %install
 %meson_install
+%find_lang colord-gtk
 
 %ldconfig_scriptlets -n colord-gtk4
 
-%files -n colord-gtk4
+%files -n colord-gtk4 -f colord-gtk.lang
 %license COPYING
 %doc README
 %{_libdir}/libcolord-gtk4.so.1{,.*}
