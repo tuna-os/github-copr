@@ -1,6 +1,6 @@
 Name:           libcanberra
 Version:        0.30
-Release:        105%{?dist}
+Release:        106%{?dist}
 Summary:        Portable sound event library
 
 License:        LGPL-2.1-or-later
@@ -28,9 +28,6 @@ Conflicts:      libcanberra < %{version}-%{release}
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
-# Provide a fake tecla.pc to satisfy gnome-control-center
-# Bump version to 100 to ensure it's higher than any system version
-Provides:       pkgconfig(tecla) = 100.0
 
 %description    devel
 Development files (headers, pkg-config file) for libcanberra.
@@ -64,16 +61,6 @@ Gtk+ 3.x Bindings for libcanberra
 %make_install
 find %{buildroot} -name '*.la' -delete
 
-# Create fake tecla.pc
-mkdir -p %{buildroot}%{_libdir}/pkgconfig
-cat <<EOF > %{buildroot}%{_libdir}/pkgconfig/tecla.pc
-Name: tecla
-Description: Fake tecla for GNOME 50 bootstrap
-Version: 100.0
-Libs:
-Cflags:
-EOF
-
 %ldconfig_scriptlets
 
 %files
@@ -90,7 +77,6 @@ EOF
 %{_libdir}/libcanberra-gtk3.so
 %{_libdir}/pkgconfig/libcanberra.pc
 %{_libdir}/pkgconfig/libcanberra-gtk3.pc
-%{_libdir}/pkgconfig/tecla.pc
 %{_datadir}/gtk-doc/html/libcanberra/
 %{_datadir}/vala/vapi/libcanberra.vapi
 %{_datadir}/vala/vapi/libcanberra-gtk.vapi
@@ -106,15 +92,14 @@ EOF
 %{_datadir}/gnome/shutdown/libcanberra-logout-sound.sh
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-106
+- Revert fake tecla hack, using real tecla package
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-105
 - Bump fake tecla version to 100.0
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-104
 - Fix missing files in libcanberra-gtk3 and devel subpackages
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-103
 - Re-enable REAL libcanberra-gtk3 now that we have confirmed GTK3 is in EL10
-- Providing fake tecla.pc in devel to satisfy gnome-control-center
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-102
-- Provide fake tecla.pc in devel to satisfy gnome-control-center
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-101
 - Obsolete libcanberra-gtk2 as well
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-100
