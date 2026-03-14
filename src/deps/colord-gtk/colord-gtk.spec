@@ -1,6 +1,6 @@
 Name:           colord-gtk
 Version:        0.3.1
-Release:        2%{?dist}
+Release:        100%{?dist}
 Summary:        GTK4 support library for colord
 
 License:        LGPL-2.1-or-later

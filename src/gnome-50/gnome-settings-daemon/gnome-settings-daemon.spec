@@ -47,6 +47,7 @@ BuildRequires:  pkgconfig(gtk4) >= %{gtk4_version}
 BuildRequires:  pkgconfig(gudev-1.0)
 BuildRequires:  pkgconfig(gweather4)
 BuildRequires:  pkgconfig(lcms2) >= 2.2
+BuildRequires:  pkgconfig(libcanberra)
 # libcanberra-gtk3 requires gtk3 (removed from EL10); gate on non-RHEL
 # sound plugin will be disabled at build time if libcanberra-gtk3 is absent
 %if !0%{?rhel}

@@ -9,7 +9,7 @@
 
 Name:           gnome-shell
 Version:        50~rc
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Window management and application launching for GNOME
 
 License:        GPL-2.0-or-later
@@ -30,7 +30,7 @@ Patch: 0001-gdm-Work-around-failing-fingerprint-auth.patch
 %define gjs_version 1.85.90
 %define gtk4_version 4.0.0
 %define adwaita_version 1.5.0
-%define mutter_version 50~alpha
+%define mutter_version 50~rc
 %define polkit_version 0.100
 %define gsettings_desktop_schemas_version 50~alpha
 %define ibus_version 1.5.2
@@ -71,6 +71,8 @@ BuildRequires:  libXfixes-devel >= 5.0
 BuildRequires:  librsvg2-devel
 BuildRequires:  mutter-devel >= %{mutter_version}
 BuildRequires:  pkgconfig(libpulse)
+BuildRequires:  pkgconfig(atk)
+BuildRequires:  pkgconfig(libcanberra)
 %ifnarch s390 s390x ppc ppc64 ppc64p7
 BuildRequires:  gnome-bluetooth-libs-devel >= %{gnome_bluetooth_version}
 %endif

@@ -19,7 +19,7 @@
 
 Name:          mutter
 Version:       50~rc
-Release:       2%{?dist}
+Release:       3%{?dist}
 Summary:       Window and compositing manager based on Clutter
 
 # Automatically converted from old format: GPLv2+ - review is highly recommended.
@@ -55,9 +55,7 @@ BuildRequires: python3-docutils
 # Bootstrap requirements
 BuildRequires: gettext-devel git-core
 # libcanberra-devel on EL10 pulls in libcanberra-gtk3 which requires gtk3 (removed)
-%if !0%{?rhel}
 BuildRequires: pkgconfig(libcanberra)
-%endif
 BuildRequires: pkgconfig(gsettings-desktop-schemas) >= %{gsettings_desktop_schemas_version}
 BuildRequires: pkgconfig(gtk4) >= %{gtk4_version}
 BuildRequires: pkgconfig(gnome-settings-daemon)
@@ -77,6 +75,8 @@ BuildRequires: sysprof-devel
 BuildRequires: pkgconfig(libinput) >= %{libinput_version}
 BuildRequires: pkgconfig(pixman-1) >= %{pixman_version}
 BuildRequires: pkgconfig(xwayland)
+BuildRequires: pkgconfig(libdecor-0)
+BuildRequires: pkgconfig(atk)
 
 BuildRequires: python3-dbusmock
 
@@ -213,8 +213,9 @@ DESTDIR=%{buildroot} meson install -C build
 %{_libexecdir}/mutter-devkit
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-3
+- Add missing atk and libdecor BuildRequires
+- Enable libcanberra BuildRequires (now GTK3-free)
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-2
-- Fix: move meson setup/compile from %%prep to %%build
-- EL10: gate libcanberra BuildRequires behind %%if !0%%{?rhel} (pulls in gtk3)
-
-%autochangelog
+- Fix: move meson setup/compile from %prep to %build
+- EL10: gate libcanberra BuildRequires behind %if !0%?rhel (pulls in gtk3)

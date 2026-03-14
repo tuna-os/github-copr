@@ -1,6 +1,6 @@
 Name:           libdecor
 Version:        0.2.2
-Release:        1%{?dist}
+Release:        100%{?dist}
 Summary:        Client-side decorations library for Wayland clients
 
 License:        MIT
@@ -34,7 +34,7 @@ Development files for libdecor.
 
 %build
 %meson \
-    -Dgtk=false \
+    -Dgtk=disabled \
     -Ddemo=false
 %meson_build
 

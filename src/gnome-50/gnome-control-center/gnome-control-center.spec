@@ -34,6 +34,7 @@ BuildRequires:  meson
 BuildRequires:  pkgconfig(accountsservice)
 BuildRequires:  pkgconfig(colord)
 BuildRequires:  pkgconfig(colord-gtk4)
+BuildRequires:  pkgconfig(libcanberra)
 BuildRequires:  pkgconfig(cups)
 BuildRequires:  pkgconfig(gcr-4) >= %{gcr_version}
 BuildRequires:  pkgconfig(gdk-pixbuf-2.0)

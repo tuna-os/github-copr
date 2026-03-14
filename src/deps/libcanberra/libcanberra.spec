@@ -1,6 +1,6 @@
 Name:           libcanberra
 Version:        0.30
-Release:        2%{?dist}
+Release:        100%{?dist}
 Summary:        Portable sound event library
 
 License:        LGPL-2.1-or-later
@@ -59,7 +59,9 @@ rm -f %{buildroot}%{_libdir}/gtk-*/modules/libcanberra-gtk-module.so
 %license LGPL
 %doc README
 %{_libdir}/libcanberra.so.0{,.*}
-%{_libdir}/libcanberra/
+# Note: no plugin dir - built without gtk/gstreamer/null/pulse plugins
+# (--with-builtin=dso builds plugins but --disable-gtk means no gtk plugin)
+%ghost %dir %{_libdir}/libcanberra/
 
 %files devel
 %{_includedir}/canberra.h
