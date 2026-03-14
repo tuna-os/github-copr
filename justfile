@@ -141,6 +141,81 @@ publish-static:
     echo "Uploading install.sh..."
     rclone --s3-no-check-bucket copyto contrib/install.sh "r2:${R2_BUCKET}/install.sh"
 
+# Build a package in COPR from Fedora Rawhide dist-git (for unmodified packages)
+copr-build package project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x86_64':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    copr-cli add-package-distgit {{project}} --name {{package}} --distgit fedora --commit rawhide 2>/dev/null || \
+    copr-cli edit-package-distgit {{project}} --name {{package}} --distgit fedora --commit rawhide
+    copr-cli build-package {{project}} --name {{package}} --chroot {{chroot}} --nowait
+
+# Build a modified package in COPR from our git repo (preferred over copr-srpm-build)
+# Usage: just copr-scm-build src/deps/gnome-autoar
+copr-scm-build path project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x86_64':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    SPEC=$(ls {{path}}/*.spec | head -n 1)
+    NAME=$(rpmspec -q --qf "%{name}\n" "$SPEC" 2>/dev/null | head -n 1)
+    REPO_ROOT=$(git rev-parse --show-toplevel)
+    REMOTE_URL=$(git remote get-url origin)
+    BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    SUBDIR=$(realpath --relative-to="$REPO_ROOT" "{{path}}")
+    SPECFILE=$(basename "$SPEC")
+    echo "Setting up SCM source: $NAME from $REMOTE_URL ($BRANCH) subdir=$SUBDIR spec=$SPECFILE"
+    copr-cli edit-package-scm {{project}} \
+        --name "$NAME" \
+        --clone-url "$REMOTE_URL" \
+        --commit "$BRANCH" \
+        --subdir "$SUBDIR" \
+        --spec "$SPECFILE" \
+        --method rpkg 2>/dev/null || \
+    copr-cli add-package-scm {{project}} \
+        --name "$NAME" \
+        --clone-url "$REMOTE_URL" \
+        --commit "$BRANCH" \
+        --subdir "$SUBDIR" \
+        --spec "$SPECFILE" \
+        --method rpkg
+    copr-cli build-package {{project}} --name "$NAME" --chroot {{chroot}} --nowait
+
+# Build a local package in COPR by generating an SRPM first (avoid — use copr-scm-build instead)
+copr-srpm-build path project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x86_64':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "WARNING: copr-srpm-build uploads a local SRPM. Prefer 'just copr-scm-build {{path}}' for modified specs."
+    # Determine spec file (use exact name match to avoid bootstrap specs)
+    SPEC=$(ls {{path}}/*.spec | grep -v bootstrap | head -n 1)
+    NAME=$(rpmspec -q --qf "%{name}\n" $SPEC | head -n 1)
+    echo "Building $NAME from $SPEC..."
+
+    mkdir -p build/{SOURCES,SPECS,SRPMS}
+    cp {{path}}/* build/SOURCES/ 2>/dev/null || true
+    cp $SPEC build/SPECS/
+
+    rpmbuild -bs $SPEC --define "_topdir $PWD/build" --define "dist .el10"
+    SRPM=$(ls build/SRPMS/${NAME}-*.src.rpm | head -n 1)
+
+    copr-cli build {{project}} $SRPM --chroot {{chroot}} --nowait
+
+# Check status of builds in the COPR project
+copr-status project='jreilly1821/c10s-gnome-50-fresh':
+    copr-cli list-builds {{project}} | head -n 20
+
+# Download and open logs for a specific build ID
+copr-logs build_id:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    DIR="build-logs/{{build_id}}"
+    mkdir -p $DIR
+    copr-cli download-build --logs {{build_id}} --dest $DIR
+    # Find build.log (might be gzipped)
+    LOG=$(find $DIR -name "builder-live.log*" | head -n 1)
+    if [[ "$LOG" == *.gz ]]; then
+        zless "$LOG"
+    else
+        less "$LOG"
+    fi
+
 # Clean build artifacts
 clean:
     rm -rf output/ repodata/ build/
@@ -174,3 +249,140 @@ verify-gpg:
     fi
     echo "GPG key found:"
     gpg --list-secret-keys "RPM Signing"
+
+# Run a VM for testing (type: iso or qcow2)
+run-vm type variant='centos-stream-10' flavor='gnome' iso_file='':
+    @just _run-vm {{type}} {{variant}} {{flavor}} {{iso_file}}
+
+# Download the latest CentOS Stream 10 GNOME Live ISO
+download-iso:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    URL="https://mirror.stream.centos.org/SIGs/10-stream/altimages/images/live/x86_64/CentOS-Stream-Image-GNOME-Live.x86_64-10-202601110111.iso"
+    DEST="centos-stream-10.iso"
+    if [ ! -f "$DEST" ]; then
+        echo "Downloading CentOS Stream 10 GNOME Live ISO..."
+        curl -Lo "$DEST" "$URL"
+    else
+        echo "ISO already exists: $DEST"
+    fi
+
+[private]
+_run-vm type variant flavor='gnome' iso_file='':
+    #!/usr/bin/env bash
+    set -eoux pipefail
+
+    # Determine the image file based on the type and project conventions
+    if [[ -n "{{ iso_file }}" ]]; then
+        image_file="{{ iso_file }}"
+    elif [[ "{{ type }}" == "iso" ]]; then
+        # Check for titanoboa output first
+        TITANOBOA_ISO=".build/{{ variant }}-{{ flavor }}/output/install.iso"
+        # Check for bootc-image-builder output
+        BIB_ISO="{{ variant }}.iso"
+        if [[ -f "$TITANOBOA_ISO" ]]; then
+            image_file="$TITANOBOA_ISO"
+        elif [[ -f "$BIB_ISO" ]]; then
+            image_file="$BIB_ISO"
+        else
+            image_file="{{ variant }}.iso"
+        fi
+    else
+        # QCow2 follows variant[-flavor].qcow2
+        if [[ -f "{{ variant }}-{{ flavor }}.qcow2" ]]; then
+            image_file="{{ variant }}-{{ flavor }}.qcow2"
+        else
+            image_file="{{ variant }}.qcow2"
+        fi
+    fi
+
+    # Build or download the image if it does not exist
+    if [[ ! -f "${image_file}" ]]; then
+        if [[ -n "{{ iso_file }}" ]]; then
+            echo "ISO not found at {{ iso_file }}. Please build it first or specify a valid ISO path."
+            exit 1
+        fi
+        
+        # If it's the default centos-stream-10 ISO, offer to download it
+        if [[ "{{ type }}" == "iso" && "{{ variant }}" == "centos-stream-10" ]]; then
+            echo "Image ${image_file} not found. Downloading latest version..."
+            {{ just_executable() }} download-iso
+        else
+            echo "Image ${image_file} not found. Please ensure the ISO exists or specify a path."
+            exit 1
+        fi
+    fi
+
+    # Determine an available port to use for Web VNC
+    port=8006
+    while ss -tln | grep -q ":${port} "; do
+        port=$(( port + 1 ))
+    done
+    echo "Using Web Port: ${port}"
+    echo "Connect via Web: http://localhost:${port}"
+
+    # Set up the arguments for running the VM
+    run_args=()
+    run_args+=(--rm --privileged)
+    run_args+=(--pull=newer)
+    run_args+=(--publish "127.0.0.1:${port}:8006")
+    run_args+=(--env "CPU_CORES=4")
+    run_args+=(--env "RAM_SIZE=4G")
+    run_args+=(--env "DISK_SIZE=64G")
+    run_args+=(--env "TPM=Y")
+    run_args+=(--env "GPU=Y")
+    run_args+=(--device=/dev/kvm)
+
+    # Add SSH port forwarding
+    ssh_port=$(( port + 1 ))
+    while ss -tln | grep -q ":${ssh_port} "; do
+        ssh_port=$(( ssh_port + 1 ))
+    done
+    echo "Using SSH Port: ${ssh_port}"
+    echo "Connect via SSH: ssh centos@localhost -p ${ssh_port}"
+    run_args+=(--publish "127.0.0.1:${ssh_port}:22")
+    run_args+=(--env "USER_PORTS=22")
+    run_args+=(--env "NETWORK=user")
+
+    run_args+=(--volume "${PWD}/${image_file}":"/boot.{{ type }}")
+    run_args+=(ghcr.io/qemus/qemu)
+
+    # Run the VM and open the browser to connect
+    (sleep 5 && xdg-open "http://localhost:${port}") &
+    podman run "${run_args[@]}"
+
+# Test the repository on a remote CentOS 10 machine
+test-remote target='root@192.168.122.135':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "=== Testing Tuna OS Repo on {{ target }} ==="
+    
+    # Upload and run the installation script
+    scp contrib/install.sh {{ target }}:/tmp/install-tunaos.sh
+    ssh {{ target }} "bash /tmp/install-tunaos.sh"
+    
+    # Force a refresh and upgrade from the tuna-os repo
+    echo "=== Upgrading GNOME components from Tuna OS ==="
+    ssh {{ target }} "dnf clean all && dnf makecache && dnf upgrade -y --repo=tuna-os"
+    
+    echo "=== Upgrade complete. Please reboot the remote machine to apply changes. ==="
+
+# Rsync the local repo to a remote machine and test
+rsync-test target='root@192.168.122.135':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "=== Syncing local repo to {{ target }} ==="
+    
+    # Ensure rsync is installed on target
+    ssh {{ target }} "dnf install -y rsync"
+    
+    # Sync the repo
+    rsync -avz --delete local-repo/ {{ target }}:/root/tuna-os-local/
+    
+    # Create a local repo file on the target
+    ssh {{ target }} "printf '[tuna-os-local]\nname=Tuna OS Local\nbaseurl=file:///root/tuna-os-local/\nenabled=1\ngpgcheck=0\npriority=1\n' > /etc/yum.repos.d/tuna-os-local.repo"
+    
+    echo "=== Upgrading from local rsync repo ==="
+    ssh {{ target }} "dnf clean all && dnf upgrade -y --repo=tuna-os-local --allowerasing"
+    
+    echo "=== Local upgrade complete. Please reboot. ==="
