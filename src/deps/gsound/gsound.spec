@@ -5,7 +5,7 @@ Summary:        Small gobject library for playing system sounds
 
 License:        LGPL-2.1-or-later
 URL:            https://wiki.gnome.org/Projects/GSound
-Source0:        http://download.gnome.org/sources/gsound/1.0/gsound-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/gsound/1.0/gsound-%{version}.tar.xz
 
 BuildRequires:  gcc
 BuildRequires:  pkgconfig(gobject-introspection-1.0)
