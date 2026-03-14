@@ -60,7 +60,7 @@ rm -f %{buildroot}%{_libdir}/gtk-*/modules/libcanberra-gtk-module.so
 %doc README
 %{_libdir}/libcanberra.so.0{,.*}
 # Plugins built with --with-builtin=dso
-%{_libdir}/libcanberra-%{version}/
+%{_libdir}/libcanberra-0.30/
 
 %files devel
 %{_includedir}/canberra.h
