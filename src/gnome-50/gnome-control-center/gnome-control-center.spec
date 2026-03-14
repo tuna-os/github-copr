@@ -18,14 +18,12 @@
 
 Name:           gnome-control-center
 Version:        50~rc
-Release:        8%{?dist}
+Release:        9%{?dist}
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
 URL:            https://gitlab.gnome.org/GNOME/gnome-control-center/
 Source0:        https://download.gnome.org/sources/%{name}/50/%{name}-%{tarball_version}.tar.xz
-
-Patch1:         no-tecla-subproject.patch
 
 BuildRequires:  blueprint-compiler >= %{blueprint_compiler_version}
 BuildRequires:  desktop-file-utils
@@ -37,6 +35,7 @@ BuildRequires:  pkgconfig(accountsservice)
 BuildRequires:  pkgconfig(colord)
 BuildRequires:  pkgconfig(colord-gtk4)
 BuildRequires:  pkgconfig(libcanberra)
+BuildRequires:  pkgconfig(tecla)
 BuildRequires:  pkgconfig(epoxy)
 BuildRequires:  pkgconfig(cups)
 BuildRequires:  pkgconfig(gcr-4) >= %{gcr_version}
@@ -157,13 +156,6 @@ utilities.
 
 %prep
 %autosetup -p1 -n %{name}-%{tarball_version}
-# Force-disable tecla dependency everywhere
-find . -name "meson.build" -exec sed -i "s/dependency('tecla')/dependency('', required: false)/g" {} +
-find . -name "meson.build" -exec sed -i "s/dependency('tecla',/dependency('', required: false, /g" {} +
-# Disable subproject fallback
-sed -i '/# Needs to be a subproject since tecla does not declare dependencies/,/^endif$/c\tecla_is_subproject = false' meson.build
-# Brute force panels/keyboard/meson.build to skip tecla check
-sed -i "s/tecla_dep.found()/false/g" panels/keyboard/meson.build
 
 %build
 export PKG_CONFIG_PATH=/usr/share/pkgconfig:/usr/lib64/pkgconfig
@@ -224,18 +216,10 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Exten
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-9
+- Revert tecla hacks and use pkgconfig(tecla) provided by libcanberra-devel
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-8
 - Brute-force skip tecla check in panels/keyboard/meson.build
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-7
-- Brute-force disable tecla dependency in all meson.build files
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-6
-- Refine tecla optional dependency fix in panels/keyboard
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-5
-- Fix meson sed command for tecla optional dependency
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-4
-- Fix meson syntax error (double quotes not supported in dependency call)
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-3
-- Disable tecla subproject and make tecla dependency optional
 - Re-add epoxy build dependency
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-2
 - EL10: gate gdk-wayland-3.0 (gtk3) and gsound (pulls libcanberra→gtk3)
