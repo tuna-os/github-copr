@@ -18,7 +18,7 @@
 
 Name:           gnome-control-center
 Version:        50~rc
-Release:        7%{?dist}
+Release:        8%{?dist}
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
@@ -162,6 +162,8 @@ find . -name "meson.build" -exec sed -i "s/dependency('tecla')/dependency('', re
 find . -name "meson.build" -exec sed -i "s/dependency('tecla',/dependency('', required: false, /g" {} +
 # Disable subproject fallback
 sed -i '/# Needs to be a subproject since tecla does not declare dependencies/,/^endif$/c\tecla_is_subproject = false' meson.build
+# Brute force panels/keyboard/meson.build to skip tecla check
+sed -i "s/tecla_dep.found()/false/g" panels/keyboard/meson.build
 
 %build
 export PKG_CONFIG_PATH=/usr/share/pkgconfig:/usr/lib64/pkgconfig
@@ -222,6 +224,8 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Exten
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-8
+- Brute-force skip tecla check in panels/keyboard/meson.build
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-7
 - Brute-force disable tecla dependency in all meson.build files
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-6
