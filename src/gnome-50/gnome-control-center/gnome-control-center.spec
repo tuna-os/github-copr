@@ -50,10 +50,7 @@ BuildRequires:  pkgconfig(gnome-settings-daemon) >= %{gsd_version}
 BuildRequires:  pkgconfig(goa-1.0) >= %{gnome_online_accounts_version}
 BuildRequires:  pkgconfig(goa-backend-1.0)
 BuildRequires:  pkgconfig(gsettings-desktop-schemas) >= %{gsettings_desktop_schemas_version}
-# gsound-devel → libcanberra-devel → libcanberra-gtk3 → gtk3; not available on EL10
-%if !0%{?rhel}
 BuildRequires:  pkgconfig(gsound)
-%endif
 BuildRequires:  pkgconfig(gtk4) >= %{gtk4_version}
 BuildRequires:  pkgconfig(gudev-1.0)
 BuildRequires:  pkgconfig(ibus-1.0)
