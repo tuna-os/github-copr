@@ -18,7 +18,7 @@
 
 Name:           gnome-control-center
 Version:        50~rc
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
@@ -37,14 +37,20 @@ BuildRequires:  pkgconfig(colord-gtk4)
 BuildRequires:  pkgconfig(cups)
 BuildRequires:  pkgconfig(gcr-4) >= %{gcr_version}
 BuildRequires:  pkgconfig(gdk-pixbuf-2.0)
+# gdk-wayland-3.0 is gtk3; not available on EL10
+%if !0%{?rhel}
 BuildRequires:  pkgconfig(gdk-wayland-3.0)
+%endif
 BuildRequires:  pkgconfig(gio-2.0) >= %{glib2_version}
 BuildRequires:  pkgconfig(gnome-desktop-4) >= %{gnome_desktop_version}
 BuildRequires:  pkgconfig(gnome-settings-daemon) >= %{gsd_version}
 BuildRequires:  pkgconfig(goa-1.0) >= %{gnome_online_accounts_version}
 BuildRequires:  pkgconfig(goa-backend-1.0)
 BuildRequires:  pkgconfig(gsettings-desktop-schemas) >= %{gsettings_desktop_schemas_version}
+# gsound-devel → libcanberra-devel → libcanberra-gtk3 → gtk3; not available on EL10
+%if !0%{?rhel}
 BuildRequires:  pkgconfig(gsound)
+%endif
 BuildRequires:  pkgconfig(gtk4) >= %{gtk4_version}
 BuildRequires:  pkgconfig(gudev-1.0)
 BuildRequires:  pkgconfig(ibus-1.0)
@@ -217,5 +223,9 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-2
+- EL10: gate gdk-wayland-3.0 (gtk3) and gsound (pulls libcanberra→gtk3)
+  BuildRequires behind %%if !0%%{?rhel}
+
 * Fri Mar 13 2026 Bootstrap Build <bootstrap@localhost> - 50~rc-1
 - Bootstrap build for EL10
