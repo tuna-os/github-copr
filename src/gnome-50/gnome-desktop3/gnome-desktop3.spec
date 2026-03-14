@@ -129,7 +129,10 @@ DESTDIR=%{buildroot} ninja -C redhat-linux-build install
 %files -f %{po_package}.lang
 %doc AUTHORS NEWS README.md
 %license COPYING COPYING.LIB
+# gnome-desktop-debug is only installed when legacy_library=true (gtk3); disabled on EL10
+%if !0%{?rhel}
 %{_libexecdir}/gnome-desktop-debug/
+%endif
 
 %files devel
 %dir %{_datadir}/gtk-doc/
