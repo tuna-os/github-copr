@@ -1,0 +1,4 @@
+/selinux-policy-*.tar.gz
+/container-selinux.tgz
+/macro-expander
+*.rpm

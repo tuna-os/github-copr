@@ -1,0 +1,191 @@
+From 9f55717cf653fa481ccd140401bae9168363c749 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Wed, 18 Feb 2026 09:24:43 +0100
+Subject: [PATCH 1/2] build: Disable google provider Files feature
+
+Google backend in gvfs was disabled. Let's disable Files feature for
+the Google provider. Bump the credentials generation so that users
+are required to re-authenticate without files access.
+
+Co-Authored-By: Cursor <cursoragent@cursor.com>
+
+Related: https://gitlab.gnome.org/GNOME/gvfs/-/issues/838
+---
+ meson.build                        |  4 ++++
+ meson_options.txt                  |  1 +
+ src/goabackend/goagoogleprovider.c | 23 +++++++++++++++++++----
+ 3 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/meson.build b/meson.build
+index d71fd707..d64cb562 100644
+--- a/meson.build
++++ b/meson.build
+@@ -173,6 +173,9 @@ config_h.set_quoted('GOA_GOOGLE_CLIENT_SECRET', google_client_secret)
+ enable_google = get_option('google')
+ config_h.set('GOA_GOOGLE_ENABLED', enable_google)
+ 
++enable_google_files = get_option('google_files')
++config_h.set('GOA_GOOGLE_FILES_ENABLED', enable_google_files)
++
+ # IMAP/SMTP
+ config_h.set_quoted('GOA_IMAP_SMTP_NAME', 'imap_smtp')
+ 
+@@ -290,6 +293,7 @@ if enable_google
+   summary({
+       'id': google_client_id,
+       'secret': google_client_secret,
++      'Files': enable_google_files,
+     },
+     section: 'Google Provider OAuth 2.0',
+   )
+diff --git a/meson_options.txt b/meson_options.txt
+index ce5a4e2d..2cbd941d 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -5,6 +5,7 @@ option('exchange', type: 'boolean', value: true, description: 'Enable Microsoft
+ option('fedora', type: 'boolean', value: false, description: 'Enable Fedora Account System provider')
+ 
+ option('google', type: 'boolean', value: true, description: 'Enable Google provider')
++option('google_files', type: 'boolean', value: false, description: 'Enable Google provider Files feature')
+ option('google_client_id', type: 'string', value: '44438659992-7kgjeitenc16ssihbtdjbgguch7ju55s.apps.googleusercontent.com', description: 'Google OAuth 2.0 client id')
+ option('google_client_secret', type: 'string', value: '-gMLuQyDiI0XrQS_vx_mhuYF', description: 'Google OAuth 2.0 client secret')
+ 
+diff --git a/src/goabackend/goagoogleprovider.c b/src/goabackend/goagoogleprovider.c
+index abb233b8..6def55f9 100644
+--- a/src/goabackend/goagoogleprovider.c
++++ b/src/goabackend/goagoogleprovider.c
+@@ -70,7 +70,10 @@ get_provider_features (GoaProvider *provider)
+          GOA_PROVIDER_FEATURE_MAIL |
+          GOA_PROVIDER_FEATURE_CALENDAR |
+          GOA_PROVIDER_FEATURE_CONTACTS |
+-         GOA_PROVIDER_FEATURE_FILES;
++#if GOA_GOOGLE_FILES_ENABLED
++         GOA_PROVIDER_FEATURE_FILES |
++#endif
++         GOA_PROVIDER_FEATURE_INVALID;
+ }
+ 
+ static const gchar *
+@@ -140,8 +143,10 @@ get_scope (GoaOAuth2Provider *oauth2_provider)
+          /* Google Contacts API (CardDAV) - undocumented */
+          "https://www.googleapis.com/auth/carddav "
+ 
++#if GOA_GOOGLE_FILES_ENABLED
+          /* Google Drive API */
+          "https://www.googleapis.com/auth/drive "
++#endif
+ 
+          /* Google Documents List Data API */
+          "https://docs.googleusercontent.com/ "
+@@ -157,7 +162,7 @@ get_scope (GoaOAuth2Provider *oauth2_provider)
+ static guint
+ get_credentials_generation (GoaProvider *provider)
+ {
+-  return 12;
++  return 13;
+ }
+ 
+ static const gchar *
+@@ -274,13 +279,15 @@ build_object (GoaProvider         *provider,
+   GKeyFile *goa_conf;
+   const gchar *provider_type;
+   gchar *uri_caldav;
+-  gchar *uri_drive;
+   gboolean ret = FALSE;
+   gboolean mail_enabled;
+   gboolean calendar_enabled;
+   gboolean contacts_enabled;
+-  gboolean files_enabled;
+   const gchar *email_address;
++#if GOA_GOOGLE_FILES_ENABLED
++  gchar *uri_drive;
++  gboolean files_enabled;
++#endif
+ 
+   /* Chain up */
+   if (!GOA_PROVIDER_CLASS (goa_google_provider_parent_class)->build_object (provider,
+@@ -345,11 +352,13 @@ build_object (GoaProvider         *provider,
+                                        FALSE);
+ 
+   /* Files */
++#if GOA_GOOGLE_FILES_ENABLED
+   files_enabled = goa_util_provider_feature_is_enabled (goa_conf, provider_type, GOA_PROVIDER_FEATURE_FILES) &&
+                   g_key_file_get_boolean (key_file, group, "FilesEnabled", NULL);
+   uri_drive = g_strconcat ("google-drive://", email_address, "/", NULL);
+   goa_object_skeleton_attach_files (object, uri_drive, files_enabled, FALSE);
+   g_free (uri_drive);
++#endif
+ 
+   g_clear_pointer (&goa_conf, g_key_file_free);
+ 
+@@ -358,7 +367,9 @@ build_object (GoaProvider         *provider,
+       goa_account_set_mail_disabled (account, !mail_enabled);
+       goa_account_set_calendar_disabled (account, !calendar_enabled);
+       goa_account_set_contacts_disabled (account, !contacts_enabled);
++#if GOA_GOOGLE_FILES_ENABLED
+       goa_account_set_files_disabled (account, !files_enabled);
++#endif
+ 
+       g_signal_connect (account,
+                         "notify::mail-disabled",
+@@ -372,10 +383,12 @@ build_object (GoaProvider         *provider,
+                         "notify::contacts-disabled",
+                         G_CALLBACK (goa_util_account_notify_property_cb),
+                         (gpointer) "ContactsEnabled");
++#if GOA_GOOGLE_FILES_ENABLED
+       g_signal_connect (account,
+                         "notify::files-disabled",
+                         G_CALLBACK (goa_util_account_notify_property_cb),
+                         (gpointer) "FilesEnabled");
++#endif
+     }
+ 
+   ret = TRUE;
+@@ -395,7 +408,9 @@ add_account_key_values (GoaOAuth2Provider  *oauth2_provider,
+   g_variant_builder_add (builder, "{ss}", "MailEnabled", "true");
+   g_variant_builder_add (builder, "{ss}", "CalendarEnabled", "true");
+   g_variant_builder_add (builder, "{ss}", "ContactsEnabled", "true");
++#if GOA_GOOGLE_FILES_ENABLED
+   g_variant_builder_add (builder, "{ss}", "FilesEnabled", "true");
++#endif
+ }
+ 
+ /* ---------------------------------------------------------------------------------------------------- */
+-- 
+GitLab
+
+
+From 7b1a589d8e55eec2cf23999b67ea8ef9e27e4811 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Thu, 19 Feb 2026 05:25:20 +0100
+Subject: [PATCH 2/2] google: Remove documents/spreadsheets oauth scopes
+
+Currently, the docs.googleusercontent.com and spreadsheets.google.com
+scopes are requested. These were added in 2011 for the Documents feature,
+but was not removed when Documents feature was removed (commit 32f35cc0).
+They are unused, but trigger Drive-related text on Google's consent screen.
+Let's remove them.
+
+Co-Authored-By: Cursor <cursor@cursor.com>
+---
+ src/goabackend/goagoogleprovider.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/src/goabackend/goagoogleprovider.c b/src/goabackend/goagoogleprovider.c
+index 6def55f9..6219ea5c 100644
+--- a/src/goabackend/goagoogleprovider.c
++++ b/src/goabackend/goagoogleprovider.c
+@@ -148,10 +148,6 @@ get_scope (GoaOAuth2Provider *oauth2_provider)
+          "https://www.googleapis.com/auth/drive "
+ #endif
+ 
+-         /* Google Documents List Data API */
+-         "https://docs.googleusercontent.com/ "
+-         "https://spreadsheets.google.com/feeds/ "
+-
+          /* GMail IMAP and SMTP access */
+          "https://mail.google.com/ "
+ 
+-- 
+GitLab
+
