@@ -12,7 +12,7 @@ Summary:        The GNOME Display Manager
 
 License:        GPL-2.0-or-later
 URL:            https://wiki.gnome.org/Projects/GDM
-Source0:        https://download.gnome.org/sources/gdm/48/gdm-%{tarball_version}.tar.xz
+Source0:        https://download.gnome.org/sources/gdm/%{major_version}/gdm-%{tarball_version}.tar.xz
 Source1:        org.gnome.login-screen.gschema.override
 
 # moved here from pulseaudio-gdm-hooks-11.1-16
@@ -57,6 +57,7 @@ BuildRequires:  yelp-tools
 
 Provides: service(graphical-login) = %{name}
 
+Requires: gnome49-el10-compat
 Requires: accountsservice
 Requires: dbus-common
 Requires: dconf
