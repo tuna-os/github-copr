@@ -20,16 +20,25 @@ BuildRequires:  pkgconfig(tdb)
 libcanberra is a simple abstract interface for playing event sounds.
 It implements the XDG Sound Theme and Name Specifications.
 
-This package is built without GTK2/GTK3 modules to avoid the gtk3
-dependency chain on EL10 where gtk3 has been removed.
-
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 
 %description    devel
 Development files (headers, pkg-config file) for libcanberra.
-This package does not require libcanberra-gtk3.
+
+%package        gtk3
+Summary:        Virtual compatibility package for libcanberra-gtk3
+Provides:       libcanberra-gtk3 = %{version}-%{release}
+Provides:       libcanberra-gtk3%{?_isa} = %{version}-%{release}
+# Fake the library provide to satisfy hard links in base packages like EDS
+Provides:       libcanberra-gtk3.so.0()(64bit)
+Requires:       %{name}%{?_isa} = %{version}-%{release}
+
+%description    gtk3
+This is a virtual compatibility package to satisfy dependencies on libcanberra-gtk3
+without actually installing GTK3 libraries. Note that applications attempting
+to use GTK3 sound hooks may fail to find the expected symbols.
 
 %prep
 %autosetup -p1
@@ -48,10 +57,9 @@ This package does not require libcanberra-gtk3.
 %make_install
 find %{buildroot} -name '*.la' -delete
 
-# Remove the gtk2/gtk3 modules (not built, but just in case)
-rm -f %{buildroot}%{_libdir}/libcanberra-gtk*.so*
-rm -f %{buildroot}%{_libdir}/pkgconfig/libcanberra-gtk*.pc
-rm -f %{buildroot}%{_libdir}/gtk-*/modules/libcanberra-gtk-module.so
+# Create a symlink so that apps looking for the gtk3 version at least find the base library
+# This is the "Option C" hack
+ln -s libcanberra.so.0.2.5 %{buildroot}%{_libdir}/libcanberra-gtk3.so.0
 
 %ldconfig_scriptlets
 
@@ -69,7 +77,11 @@ rm -f %{buildroot}%{_libdir}/gtk-*/modules/libcanberra-gtk-module.so
 %{_datadir}/gtk-doc/html/libcanberra/
 %{_datadir}/vala/vapi/libcanberra.vapi
 
+%files gtk3
+%{_libdir}/libcanberra-gtk3.so.0
+
 %changelog
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-1
-- Build without gtk2/gtk3 modules for EL10 compatibility
-  (EL10 libcanberra-devel has broken dep on libcanberra-gtk3 which needs gtk3)
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-100
+- Option C: Virtual provides for libcanberra-gtk3 to satisfy system deps
+- Fake libcanberra-gtk3.so.0 with a symlink to base libcanberra
+- Bump release to 100 to override system package
