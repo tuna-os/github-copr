@@ -19,7 +19,7 @@
 
 Name:          mutter
 Version:       50~rc
-Release:       1%{?dist}
+Release:       2%{?dist}
 Summary:       Window and compositing manager based on Clutter
 
 # Automatically converted from old format: GPLv2+ - review is highly recommended.
@@ -54,7 +54,10 @@ BuildRequires: python3-argcomplete
 BuildRequires: python3-docutils
 # Bootstrap requirements
 BuildRequires: gettext-devel git-core
+# libcanberra-devel on EL10 pulls in libcanberra-gtk3 which requires gtk3 (removed)
+%if !0%{?rhel}
 BuildRequires: pkgconfig(libcanberra)
+%endif
 BuildRequires: pkgconfig(gsettings-desktop-schemas) >= %{gsettings_desktop_schemas_version}
 BuildRequires: pkgconfig(gtk4) >= %{gtk4_version}
 BuildRequires: pkgconfig(gnome-settings-daemon)
@@ -159,6 +162,7 @@ Viewer for nested mutter instances.
 %prep
 %autosetup -n mutter-50.rc -p1
 
+%build
 meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build -Degl_device=true
 meson compile -C build
 
@@ -209,4 +213,8 @@ DESTDIR=%{buildroot} meson install -C build
 %{_libexecdir}/mutter-devkit
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-2
+- Fix: move meson setup/compile from %%prep to %%build
+- EL10: gate libcanberra BuildRequires behind %%if !0%%{?rhel} (pulls in gtk3)
+
 %autochangelog
