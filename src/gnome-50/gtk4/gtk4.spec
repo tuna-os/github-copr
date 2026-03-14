@@ -27,7 +27,7 @@
 
 Name:           gtk4
 Version:        4.21.6
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        GTK graphical user interface library
 
 # Most files are either LGPL-2.0-or-later or LGPL-2.1-or-later.
@@ -106,7 +106,10 @@ BuildRequires:  pkgconfig(librsvg-2.0)
 BuildRequires:  pkgconfig(libtiff-4)
 BuildRequires:  pkgconfig(pango) >= %{pango_version}
 BuildRequires:  pkgconfig(sysprof-capture-4)
+# tracker3/tinysparql not available on EL10; disable file search integration
+%if !0%{?rhel}
 BuildRequires:  pkgconfig(tracker-sparql-3.0)
+%endif
 BuildRequires:  pkgconfig(vulkan)
 BuildRequires:  pkgconfig(wayland-client) >= %{wayland_version}
 BuildRequires:  pkgconfig(wayland-cursor) >= %{wayland_version}
@@ -197,8 +200,10 @@ meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain --wrap-mode=nodo
         -Dsysprof=enabled \
 %if 0%{?rhel}
         -Dmedia-gstreamer=disabled \
-%endif
+        -Dtracker=disabled \
+%else
         -Dtracker=enabled \
+%endif
         -Dcolord=enabled \
         -Ddocumentation=true \
         -Dman-pages=true \
@@ -312,6 +317,10 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_mandir}/man1/gtk4-widget-factory.1*
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-3
+- EL10: disable tracker/tinysparql integration (not available on EL10); gate
+  tracker-sparql-3.0 BuildRequires and -Dtracker=enabled behind %%if !0%%{?rhel}
+
 * Sat Mar 15 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-2
 - EL10: gate gstreamer1-plugins-bad-free-devel BR and gstreamer1-plugins-bad-free-libs
   runtime Requires behind %%if !0%%{?rhel} to fix buildroot on EL10 (gtk3 was removed
