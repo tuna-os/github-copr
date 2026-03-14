@@ -20,6 +20,10 @@ BuildRequires:  pkgconfig(tdb)
 libcanberra is a simple abstract interface for playing event sounds.
 It implements the XDG Sound Theme and Name Specifications.
 
+# Force replacement of system package
+Obsoletes:      libcanberra < %{version}-%{release}
+Conflicts:      libcanberra < %{version}-%{release}
+
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
@@ -31,8 +35,10 @@ Development files (headers, pkg-config file) for libcanberra.
 Summary:        Virtual compatibility package for libcanberra-gtk3
 Provides:       libcanberra-gtk3 = %{version}-%{release}
 Provides:       libcanberra-gtk3%{?_isa} = %{version}-%{release}
-# Fake the library provide to satisfy hard links in base packages like EDS
 Provides:       libcanberra-gtk3.so.0()(64bit)
+# Force replacement of system package
+Obsoletes:      libcanberra-gtk3 < %{version}-%{release}
+Conflicts:      libcanberra-gtk3 < %{version}-%{release}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 
 %description    gtk3
