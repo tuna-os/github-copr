@@ -168,14 +168,14 @@ copr-scm-build path project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x8
         --commit "$BRANCH" \
         --subdir "$SUBDIR" \
         --spec "$SPECFILE" \
-        --method rpkg 2>/dev/null || \
+        --method make_srpm 2>/dev/null || \
     copr-cli add-package-scm {{project}} \
         --name "$NAME" \
         --clone-url "$REMOTE_URL" \
         --commit "$BRANCH" \
         --subdir "$SUBDIR" \
         --spec "$SPECFILE" \
-        --method rpkg
+        --method make_srpm
     copr-cli build-package {{project}} --name "$NAME" --chroot {{chroot}} --nowait
 
 # Build a local package in COPR by generating an SRPM first (avoid — use copr-scm-build instead)
