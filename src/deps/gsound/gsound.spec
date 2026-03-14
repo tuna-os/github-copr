@@ -1,6 +1,6 @@
 Name:           gsound
 Version:        1.0.3
-Release:        100%{?dist}
+Release:        101%{?dist}
 Summary:        Small gobject library for playing system sounds
 
 License:        LGPL-2.1-or-later
@@ -45,7 +45,6 @@ developing applications that use %{name}.
 %{_libdir}/*.so.*
 %dir %{_libdir}/girepository-1.0
 %{_libdir}/girepository-1.0/GSound-1.0.typelib
-%{_mandir}/man1/gsound-play.*
 
 %files devel
 %{_includedir}/*
@@ -58,5 +57,7 @@ developing applications that use %{name}.
 %{_datadir}/vala/vapi/gsound.*
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 1.0.3-101
+- Remove missing man page from files section
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 1.0.3-100
 - Initial build for GNOME 50 bootstrap on EL10
