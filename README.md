@@ -125,11 +125,12 @@ Changes from rawhide required for EL10:
 Changes from rawhide required for EL10 (all gated behind `%if !0%{?rhel}`):
 
 - **Gated `BuildRequires: pkgconfig(gstreamer-player-1.0)`** — `gstreamer1-plugins-bad-free-devel`
-  depends on `libgtk-3.so.0`, which is not available in EL10. The gstreamer media backend
-  for GTK4 is therefore disabled on RHEL/EL10. Video playback in GTK4 apps is unaffected
-  since the Paintable/GstPlayer integration is optional.
-- **Gated `Requires: gstreamer1-plugins-bad-free-libs`** — same reason; the runtime
-  dependency on the gstreamer bad-free libs package is dropped on EL10.
+  depends on `libgtk-3.so.0`, which is not available in EL10.
+- **Added `-Dmedia-gstreamer=disabled`** — the gstreamer media backend uses a `gstreamer-full`
+  meson wrap that isn't available in the EL10 COPR buildroot. With `--wrap-mode=nodownload`
+  enforced, meson would error out trying to fetch it. Gated behind `%if 0%{?rhel}`.
+- **Gated `Requires: gstreamer1-plugins-bad-free-libs`** — runtime dep dropped on EL10
+  since the gstreamer backend is disabled.
 
 ---
 
