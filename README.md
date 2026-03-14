@@ -1,216 +1,214 @@
-# GitHub Copr-like RPM Repository
+# GNOME 50 for CentOS Stream 10
 
-A consultant-grade RPM build and hosting system using GitHub Actions and Cloudflare R2.
+RPM packages bringing GNOME 50 to CentOS Stream 10 (EL10), hosted on
+[COPR](https://copr.fedorainfracloud.org/coprs/jreilly1821/c10s-gnome-50-fresh/).
 
-## Features
+Packages are built in COPR (`jreilly1821/c10s-gnome-50-fresh`) targeting `epel-10-x86_64`.
+Most packages build directly from Fedora Rawhide dist-git. A small set require local spec
+modifications to work on EL10 — those are documented below.
 
-- **Multi-distribution builds**: Fedora, AlmaLinux, CentOS Stream
-- **Multi-architecture**: x86_64, x86_64_v2, aarch64
-- **GPG signing**: Dedicated signing key for RPMs
-- **Cloudflare R2**: Zero egress fees storage
-- **Automatic retention**: Keeps only latest 3 versions
+## Quick Install
+
+```bash
+dnf -y install dnf-plugins-core
+dnf copr enable -y jreilly1821/c10s-gnome-50-fresh
+dnf -y install gnome-shell gdm mutter gnome-session nautilus gnome50-el10-compat
+```
 
 ## Architecture
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   GitHub Actions│────▶│  Mock Container  │────▶│  Cloudflare R2  │
-│   (Builds RPMs) │     │  (Isolated chroot)    │  (Host repo)    │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-                                │                         │
-                                ▼                         ▼
-                         ┌──────────────────┐     ┌─────────────────┐
-                         │  GPG Signing     │     │  Cloudflare     │
-                         │  (RPMs signed)   │     │  Worker (dnf)   │
-                         └──────────────────┘     └─────────────────┘
+Fedora Rawhide dist-git  ──▶┐
+                             ├──▶  COPR (epel-10-x86_64)  ──▶  repo.tunaos.org
+Our GitHub repo (main)   ──▶┘
 ```
 
-## Prerequisites
+- **~50 packages** pull directly from Fedora Rawhide dist-git — no local spec needed.
+- **6 packages** require a modified spec checked into this repo (see below).
+- **1 package** (`gnome50-el10-compat`) is EL10-specific, not in Fedora at all.
 
-- GitHub repository
-- Cloudflare account with R2
-- GPG key for signing
+Build method per package is tracked in [`COPR-AUDIT.md`](COPR-AUDIT.md).
 
-## Step 1: Cloudflare R2 Setup
+## Modified Specs (Diverge from Rawhide)
 
-1. **Create R2 Bucket**
-   - Go to Cloudflare Dashboard → R2
-   - Create bucket: `repo-james-rc` (or your preferred name)
-   - Enable "Public Access" or use Worker for access
+These packages cannot use Fedora Rawhide dist-git directly and must be built from the
+specs in this repository. Each entry documents exactly what was changed and why.
 
-2. **Create API Token**
-   - R2 → Manage API Tokens
-   - Create token with:
-     - `Read` and `Write` permissions for the bucket
-   - Note the Access Key ID and Secret Key
+---
 
-3. **Get Account ID**
-   - Found in Cloudflare Dashboard URL: `https://dash.cloudflare.com/<ACCOUNT_ID>/...`
+### `glib2` — `src/gnome-50/glib2/`
 
-## Step 2: GPG Key Setup
+**Build method:** SRPM upload
+**Our version:** 2.87.3 · **Rawhide:** 2.87.5
 
-Generate a dedicated signing key (NOT your personal key):
+Changes from rawhide required for EL10:
 
-```bash
-# Generate key
-gpg --full-generate-key
-# RSA 4096, name: "RPM Signing", email: rpm-signing@yourdomain.com
+- **Manual meson invocation** — replaced `%meson` / `%meson_build` / `%meson_install`
+  macros with explicit `meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain`
+  calls. The `BuildSystem: meson` macro had EL10 compatibility issues.
+- **Simplified BuildRequires** — removed `pkgconfig(gi-docgen)`, `/usr/bin/rst2man`,
+  `shared-mime-info`, `dbus-daemon`, `update-desktop-database` (not available or needed
+  on EL10 at build time). Added `BuildRequires: gobject-introspection-devel` in their place.
+- **Added `%transfiletriggerin` scriptlets** — runs `glib-compile-schemas` when schemas
+  are installed. EL10's stock `%post` scriptlets from mock-installed RPMs may not fire;
+  this ensures schemas are always compiled.
+- **Removed `Conflicts: gobject-introspection < 1.79.1`** — avoids complications with
+  EL10's stock gobject-introspection version.
+- **Version lag** — currently at 2.87.3; rawhide is at 2.87.5. Needs rebasing.
 
-# Create subkey for signing
-gpg --edit-key <KEYID>
-gpg> addkey
-# RSA 4096, sign only
-gpg> save
+---
 
-# Export keys
-gpg --armor --export-secret-keys <KEYID> > private.key
-gpg --armor --export <KEYID> > public.gpg
+### `gdm` — `src/gnome-50/gdm/`
+
+**Build method:** SCM (`just copr-scm-build src/gnome-50/gdm`)
+**Our version:** 50~rc · **Rawhide:** 50~rc (same)
+
+Changes from rawhide required for EL10:
+
+- **Added `Requires: gnome50-el10-compat`** — pulls in the PAM fix for GDM's dynamic
+  greeter user allocation on EL10. GDM 50 allocates greeter users (`gdm-greeter-N`)
+  dynamically via systemd's Varlink userdb API. EL10's `pam_unix.so` calls `unix_chkpwd`
+  which cannot resolve these dynamic users, returning `PAM_AUTHINFO_UNAVAIL` and
+  preventing the greeter session from launching. `gnome50-el10-compat` overrides
+  `/etc/pam.d/systemd-user` with `account required pam_permit.so` to work around this.
+
+> This is the only change from rawhide. All patches, build flags, and install sections
+> are identical to Fedora's GDM spec.
+
+---
+
+### `gjs` — `src/gnome-50/gjs/`
+
+**Build method:** SCM (`just copr-scm-build src/gnome-50/gjs`)
+**Our version:** 1.87.90 · **Rawhide:** 1.87.90 (same)
+
+Changes from rawhide required for EL10:
+
+- **Tests disabled** (`%bcond_with tests`) — rawhide unconditionally runs the gjs test
+  suite via `xwfb-run`, which requires `xwayland-run`, `dbus-x11`, `mesa-dri-drivers`,
+  and `mutter` at build time. None of these are available in the EL10 COPR buildroot.
+  All test BuildRequires and the `%meson_test` call are gated behind `%{with tests}`,
+  which defaults to off.
+- **Manual meson invocation** — same pattern as glib2: explicit `meson setup` instead
+  of `%meson` macro, for EL10 compat.
+
+> `gjs-bootstrap.spec` also exists in the same directory for breaking the circular dep
+> with mutter during initial bootstrapping. `just copr-scm-build` automatically selects
+> `gjs.spec` (non-bootstrap).
+
+---
+
+### `gnome-desktop3` — `src/gnome-50/gnome-desktop3/`
+
+**Build method:** SCM (`just copr-scm-build src/gnome-50/gnome-desktop3`)
+**Our version:** 44.5 · **Rawhide:** 44.5 (same)
+
+Changes from rawhide required for EL10:
+
+- **Removed `BuildRequires: pkgconfig(gtk+-3.0)`** — gtk3 is not available in EL10's
+  COPR build environment.
+- **Added `-Dlegacy_library=false`** to meson options — disables `libgnome-desktop-3`
+  (the legacy gtk3 library). Without this, the build fails trying to link against gtk3.
+  The gtk4 library (`libgnome-desktop-4`) is still built normally and is what GNOME 50
+  packages actually use.
+- **Removed `Requires: gnome-desktop3` from gnome-desktop4 subpackage** — since the
+  base package no longer ships a runtime library.
+- **Removed `%files` entries for `libgnome-desktop-3*`** — not built.
+
+---
+
+### `gnome-autoar` — `src/deps/gnome-autoar/`
+
+**Build method:** SCM (`just copr-scm-build src/deps/gnome-autoar`)
+**Our version:** 0.4.5-4 · **Rawhide:** 0.4.5 (same upstream)
+
+Changes from rawhide required for EL10:
+
+- **Added `-Dgtk=false`** — disables the `gnome-autoar-gtk` widget subpackage, which
+  requires `gtk+-3.0`. gtk3 is not in EL10.
+- **Added `-Dvapi=false`** — disables Vala bindings (tied to the gtk widget).
+- **Added `-Dgtk_doc=false` and `-Dtests=false`** — removes unnecessary gtk-doc and
+  test dependencies.
+- **Removed `BuildRequires: pkgconfig(gtk+-3.0)` and `vala`**.
+- **Removed `%files` entries** for `libgnome-autoar-gtk-0*`, `GnomeAutoarGtk-0.1.*`,
+  vala bindings, and gtk-doc.
+
+> nautilus uses `gnome-autoar-0` (the core archive library), not the gtk widget.
+> Disabling gtk has no functional impact.
+
+---
+
+### `gnome50-el10-compat` — `src/deps/gnome50-el10-compat/`
+
+**Build method:** SRPM upload
+**Not in Fedora** — EL10-specific workaround package
+
+This package ships runtime fixes required to run GNOME 50 on EL10 that do not apply
+to Fedora:
+
+- **`/etc/pam.d/systemd-user` override** — replaces the account phase with
+  `account required pam_permit.so`. EL10's `pam_unix` calls `unix_chkpwd` which cannot
+  resolve GDM 50's dynamically-allocated greeter users (`gdm-greeter-N`), causing
+  `PAM_AUTHINFO_UNAVAIL` and a broken greeter session.
+
+- **SELinux policy modules** installed via `semodule -X 300`:
+  - `gdm-gnome50.pp` — allows `xdm_t` to create/unlink sockets in
+    `systemd_userdbd_runtime_t` directories, write `passwd_file_t`, create `etc_t`
+    files. EL10's stock `xdm_t` policy does not permit GDM 50's Varlink userdb socket.
+  - `gdm-userdb-connect.pp` — allows `systemd_userdbd_t`, `chkpwd_t`, and related
+    domains to connect to `xdm_t` unix sockets.
+
+> Install `gnome50-el10-compat` whenever you install `gdm`. It is automatically pulled
+> in as a dependency of the COPR-built `gdm` package.
+
+---
+
+## Package Source Quick Reference
+
+```
+# Must use local spec (SCM or SRPM upload):
+glib2               → SRPM   src/gnome-50/glib2/
+gdm                 → SCM    src/gnome-50/gdm/
+gjs                 → SCM    src/gnome-50/gjs/
+gnome-desktop3      → SCM    src/gnome-50/gnome-desktop3/
+gnome-autoar        → SCM    src/deps/gnome-autoar/
+gnome50-el10-compat → SRPM   src/deps/gnome50-el10-compat/
+
+# Everything else uses Fedora Rawhide dist-git directly:
+mutter, gnome-shell, gtk4, libadwaita, pipewire, pango, fontconfig,
+xdg-desktop-portal, xdg-desktop-portal-gnome, gobject-introspection,
+gsettings-desktop-schemas, gnome-session, gnome-control-center,
+gnome-settings-daemon, nautilus, meson, glycin, mozjs140, gi-docgen,
+localsearch, tinysparql, libnotify, avahi, cairo, blueprint-compiler, …
 ```
 
-## Step 3: GitHub Secrets
-
-Add these in Repository → Settings → Secrets and variables → Actions:
-
-| Secret | Value |
-|--------|-------|
-| `R2_ACCESS_KEY_ID` | R2 Access Key ID |
-| `R2_SECRET_ACCESS_KEY` | R2 Secret Key |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID |
-| `GPG_PRIVATE_KEY` | Contents of `private.key` |
-| `GPG_PASSPHRASE` | GPG key passphrase (if any) |
-
-## Step 4: GitHub Actions Settings
-
-Enable ARM64 runners:
-1. Go to Settings → Actions → General
-2. Enable "Allow all actions and reusable workflows"
-3. For ARM64: no additional setup needed (free on public repos)
-
-## Step 5: Configure Repository
-
-Edit `justfile` and `.github/workflows/build.yml` to set your bucket name:
-
-```yaml
-# .github/workflows/build.yml
-env:
-  R2_BUCKET: your-bucket-name
-```
-
-## Build Targets
-
-| Target | Architecture | Distribution |
-|--------|---------------|---------------|
-| `fedora-43-x86_64` | x86_64 | Fedora 43 |
-| `fedora-43-aarch64` | ARM64 | Fedora 43 |
-| `almalinux-10-x86_64` | x86_64 | AlmaLinux 10 |
-| `almalinux-10-x86_64_v2` | x86_64 (SSE4.2+) | AlmaLinux 10 |
-| `almalinux-10-aarch64` | ARM64 | AlmaLinux 10 |
-| `centos-stream-10-x86_64` | x86_64 | CentOS Stream 10 |
-| `centos-stream-10-aarch64` | ARM64 | CentOS Stream 10 |
-
-## Adding Packages
-
-1. Create spec file in `src/` directory:
-   ```
-   src/
-   ├── hello-world.spec
-   └── hello-world-1.0.0/
-       ├── hello.c
-       └── Makefile
-   ```
-
-2. Build locally:
-   ```bash
-   ./scripts/build-local.sh hello-world fedora-43-x86_64
-   ```
-
-3. Or push to trigger CI:
-   ```bash
-   git add .
-   git commit -m "Add hello-world package"
-   git push
-   ```
-
-## Installing from Your Repository
-
-### Option 1: Manual repo file
-
-Create `/etc/yum.repos.d/james-rc.repo`:
-
-```ini
-[james-rc]
-name=James Reilly Consulting - $releasever
-baseurl=https://your-domain.com/repo/$releasever/$basearch/
-enabled=1
-gpgcheck=1
-gpgkey=https://your-domain.com/public.gpg
-repo_gpgcheck=0
-```
-
-### Option 2: Auto-install script
-
-```bash
-curl -sSL https://your-domain.com/install.sh | sudo bash
-```
-
-## Cloudflare Worker (Optional)
-
-For custom domain and extra security:
-
-1. Install Wrangler: `npm install -g wrangler`
-2. Configure `wrangler.toml` with your domain
-3. Deploy: `wrangler deploy`
-
-The worker handles:
-- dnf/yum metadata requests
-- Security headers
-- Request logging
-- Path rewriting
+Full per-package audit with exact diffs: [`COPR-AUDIT.md`](COPR-AUDIT.md)
 
 ## Local Development
 
 ```bash
-# Install dependencies
-dnf install -y mock createrepo_c rpm-sign
+just copr-build <package>                      # Build from Fedora Rawhide dist-git
+just copr-scm-build src/gnome-50/<package>     # Build from our modified spec
+just copr-scm-build src/deps/<package>         # Build from our modified spec
 
-# Build package
-just build fedora-43-x86_64
-
-# Build all targets
-just build-all
-
-# Publish to R2
-just publish fedora-43-x86_64
+just copr-status                               # Check recent build status
+just copr-logs <build-id>                      # Download and view build logs
 ```
 
-## Troubleshooting
+See [`CLAUDE.md`](CLAUDE.md) for the full build workflow, known EL10 quirks, and
+debugging tips.
 
-### Mock fails with permission errors
-Ensure you're running with appropriate permissions or use the container approach.
+## Known EL10 Runtime Issues
 
-### R2 upload fails
-Check that your AWS CLI credentials are correct and R2 endpoint is set properly.
+All addressed by installing `gnome50-el10-compat`. See [`workarounds/README.md`](workarounds/README.md)
+for details.
 
-### GPG signing fails
-Ensure GPG_AGENT_INFO is set and key is imported in the workflow.
-
-## File Structure
-
-```
-.
-├── .github/workflows/build.yml   # CI/CD pipeline
-├── Dockerfile                    # Mock builder container
-├── justfile                     # Local build commands
-├── scripts/
-│   ├── build-local.sh          # Container-based build
-│   ├── upload-sources.sh      # Upload sources to R2
-│   └── cleanup.py              # Retention policy
-├── workers/repo-proxy.ts       # Cloudflare Worker
-├── contrib/
-│   ├── james-rc.repo          # Repo file template
-│   └── install.sh             # Auto-install script
-└── src/                       # Package sources and specs
-```
+| Issue | Fix |
+|-------|-----|
+| SELinux: `xdm_t` policy blocks GDM 50's Varlink socket | Custom policy modules in `gnome50-el10-compat` |
+| PAM: `pam_unix` can't resolve dynamic greeter users | `/etc/pam.d/systemd-user` override |
+| GLib schemas not compiled after install | `%transfiletriggerin` in our `glib2` spec |
+| No Wayland by default | Set `WaylandEnable=true` in `/etc/gdm/custom.conf` |
 
 ## License
 
