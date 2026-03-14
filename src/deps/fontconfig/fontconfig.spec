@@ -12,7 +12,7 @@ Release:	4%{?dist}
 # fc-case/CaseFolding.txt is in the UCD
 # otherwise MIT
 License:	HPND AND LicenseRef-Fedora-Public-Domain AND Unicode-DFS-2016
-Source:		http://fontconfig.org/release/%{name}-%{version}.tar.gz
+Source:		https://www.freedesktop.org/software/fontconfig/release/%{name}-%{version}.tar.gz
 URL:		http://fontconfig.org
 Source1:	25-no-bitmap-fedora.conf
 Source2:	fc-cache
