@@ -1,6 +1,6 @@
 Name:           libcanberra
 Version:        0.30
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Portable sound event library
 
 License:        LGPL-2.1-or-later
@@ -9,6 +9,7 @@ Source0:        https://0pointer.de/lennart/projects/libcanberra/libcanberra-%{v
 
 BuildRequires:  gcc
 BuildRequires:  libtool
+BuildRequires:  libtool-ltdl-devel
 BuildRequires:  gettext-devel
 BuildRequires:  pkgconfig(alsa)
 BuildRequires:  pkgconfig(libpulse)
