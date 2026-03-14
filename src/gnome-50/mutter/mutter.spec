@@ -25,7 +25,7 @@ Summary:       Window and compositing manager based on Clutter
 # Automatically converted from old format: GPLv2+ - review is highly recommended.
 License:       GPL-2.0-or-later
 URL:           http://www.gnome.org
-Source0:        mutter-50.rc.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
 
 BuildRequires: cvt
 BuildRequires: desktop-file-utils
