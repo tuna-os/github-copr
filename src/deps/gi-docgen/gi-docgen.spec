@@ -1,6 +1,6 @@
 Name:           gi-docgen
 Version:        2026.1
-Release:        1%{?dist}
+Release:        100%{?dist}
 Summary:        A documentation generator for GObject-based libraries
 License:        Apache-2.0 OR GPL-3.0-or-later
 URL:            https://gnome.pages.gitlab.gnome.org/gi-docgen/
