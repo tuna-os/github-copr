@@ -2,7 +2,7 @@
 
 Name:    libzip
 Version: 1.11.4
-Release: 3%{?dist}
+Release: 100%{?dist}
 Summary: C library for reading, creating, and modifying zip archives
 
 License: BSD-3-Clause
@@ -16,7 +16,7 @@ BuildRequires:  openssl-devel
 BuildRequires:  xz-devel
 BuildRequires:  libzstd-devel >= 1.3.6
 BuildRequires:  cmake >= 3.10
-BuildRequires:  mandoc
+BuildRequires:  man-db
 %if %{with tests}
 BuildRequires:  nihtest
 %endif
