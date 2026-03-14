@@ -159,9 +159,7 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 
 %{_libexecdir}/gsd-smartcard
 
-%if !0%{?rhel}
 %{_libexecdir}/gsd-sound
-%endif
 
 %{_libexecdir}/gsd-usb-protection
 
