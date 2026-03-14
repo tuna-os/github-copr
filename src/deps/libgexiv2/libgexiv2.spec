@@ -1,4 +1,4 @@
-%global major_version %(echo %{version} | cut -d. -f1,2)
+%global major_version %%(echo %{version} | cut -d. -f1,2)
 
 Name:           libgexiv2
 Version:        0.16.0
