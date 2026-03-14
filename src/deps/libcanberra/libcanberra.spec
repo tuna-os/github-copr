@@ -59,9 +59,8 @@ rm -f %{buildroot}%{_libdir}/gtk-*/modules/libcanberra-gtk-module.so
 %license LGPL
 %doc README
 %{_libdir}/libcanberra.so.0{,.*}
-# Note: no plugin dir - built without gtk/gstreamer/null/pulse plugins
-# (--with-builtin=dso builds plugins but --disable-gtk means no gtk plugin)
-%ghost %dir %{_libdir}/libcanberra/
+# Plugins built with --with-builtin=dso
+%{_libdir}/libcanberra-%{version}/
 
 %files devel
 %{_includedir}/canberra.h
