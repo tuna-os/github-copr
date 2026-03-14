@@ -1,119 +1,38 @@
-# AGENTS.md - GNOME 50 Bootstrap on CentOS 10 (EL10)
+# GNOME 50 Bootstrap on CS10 - Status Report
 
-## Overview
-The goal is to bootstrap GNOME 50 on CentOS Stream 10. Since EL10 is currently in development and GNOME 50 is cutting-edge (Fedora 42/43 territory), many dependencies are missing or outdated in the official repos.
+## Current Status: Implementation Phase (Successes & Blockers)
 
-## Build Environment
-- **Host OS:** Linux
-- **Chroot Engine:** `mock`
-- **Configuration:** `mock/centos-stream-10-local.cfg`
-- **Local Repository:** `mock/repo/`
-  - All successfully built RPMs are added here.
-  - This repo is prioritized in the mock config to break circular dependencies.
+### 1. Core Infrastructure Successes
+*   **COPR Project Established**: `jreilly1821/c10s-gnome-50-fresh` is the active testing ground.
+*   **Compatibility Package**: `gnome50-el10-compat` successfully built and integrated. It provides the critical `systemd-user` PAM fix for GDM 50 greeter users.
+*   **GDM Integration**: `gdm` has been rebuilt with a hard requirement on `gnome50-el10-compat`.
+*   **Successes (Built from Rawhide/Modified)**:
+    *   `mutter`, `gnome-shell`, `gnome-session`, `gdm`, `nautilus`, `gtk4`, `glib2`, `selinux-policy`.
+    *   **New Backports**: `libgexiv2`, `tinysparql`, `localsearch`, `libical`, `evolution-data-server`, `libebur128`, `libzip`, `lzo`.
+    *   **Custom Fixes**: `gi-docgen` (spec patched), `gnome-user-share` (vendored Rust deps).
 
-## End Goal
-A functional GNOME 50 environment on EL10, verified by building:
-1. `mutter` (The compositor)
-2. `gnome-shell` (The shell)
-3. `gnome-session` (The session manager)
-4. `gdm` (The display manager)
+### 2. Immediate Blockers (Work in Progress)
+*   **`glycin` Version Conflict**: COPR's `distgit` builder pulled a version (2.0.8-3) that incorrectly obsoletes `gdk-pixbuf2`, breaking Bluefin/CS10 system integrity. Our local fix (2.0.8-100) is building but hasn't yet overridden the bad version.
+*   **Validation**: Full `dnf upgrade` on `bluefin:lts` is 95% there but currently stuck on the `glycin` conflict.
 
-## Current Status (2026-03-13)
-**Status:** GNOME 50 greeter and user session are running successfully on the test VM.
+### 3. Documentation
+*   **`SRPM-CHANGES.md`**: Tracks all manual spec/source modifications (PAM fixes, Rust vendoring, dependency injections).
+*   **`COPR-REPORT.md`**: Categorizes all 40+ packages by origin (Custom vs Modified vs Unmodified Rawhide).
+*   **GitHub Issue #1**: Documented the `systemd-user` PAM regression for upstream/community visibility.
 
-Previous blockers resolved:
-- `gtk4` `gio-querymodules` path mismatch — fixed in spec
-- GDM dynamic userdb SELinux policy — fixed with custom SELinux modules
-- `user@UID.service` PAM failure for dynamic greeter users — fixed by overriding `/etc/pam.d/systemd-user`
-- Missing glib schemas — fixed by running `glib-compile-schemas`
+## Work Items / TODOs
 
-See CLAUDE.md "VM: EL10 Runtime Fixes Applied" for details on the runtime workarounds.
+- [ ] **Force `glycin` Override**: Delete the `distgit` package from COPR if necessary once Build 10224151 finishes, and ensure 2.0.8-100 is the only version served.
+- [ ] **Final Container Validation**: Perform a clean `dnf upgrade` on `ghcr.io/ublue-os/bluefin:lts` and verify that `gnome-shell` 50 and `gdm` 50 install alongside the compat package.
+- [ ] **VM Testing**: Move from container testing to a full CentOS Stream 10 VM to verify the GDM login flow and SELinux policy enforcement.
+- [ ] **Pagure Forking**: Once stable, the local modified specs need to be properly forked into the project's Pagure/Dist-git infrastructure.
 
-## Package-Specific Workarounds (The "Dirty" Log)
-To get the bootstrap moving, we have cut corners. These MUST be revisited after the initial bootstrap:
-
-### 1. `glib2`
-- **Workarounds:**
-  - Removed `BuildSystem: meson` (unsupported by EL10 rpmbuild).
-  - Manually expanded `%meson` macros.
-  - Disabled `frexp` float check (known EL10 compilation quirk).
-  - Forcefully renamed `gio-querymodules` to `-64` and tried to patch `.pc` file.
-
-### 2. `glycin`
-- **Workarounds:**
-  - Switched to a strictly offline Rust build using a manual `vendor.tar.xz`.
-  - Removed `tests` from `Cargo.toml` to reduce dependency bloat.
-  - Stripped `Obsoletes: gdk-pixbuf2 < 2.43.5-1` to avoid repository-wide transaction conflicts with system libs.
-
-### 3. `mozjs140` / `gjs`
-- **Workarounds:**
-  - Built a standalone `libicu77` (bootstrap version) to satisfy `mozjs140` without breaking the system `libicu74`.
-
-### 4. `fontconfig` & `pango`
-- **Workarounds:**
-  - Stripped `docbook-utils` and man pages to bypass complex documentation toolchain issues.
-  - Used very broad wildcards in `%files` to capture generated files quickly.
-  - Explicitly disabled subproject bundling (especially `fontconfig` inside `pango`).
-
-### 5. `pipewire` (1.6.1)
-- **Workarounds:**
-  - Bumped version from 1.4.x to 1.6.1 using CentOS Stream 10 spec as a base.
-  - Disabled `ldac`, `spandsp`, and `bluez5-codec-ldac` to avoid missing optional dependencies.
-
-## Command Playbook
-
-### Update Local Repository
-Whenever a package builds successfully:
-```bash
-cp /tmp/results/*.rpm mock/repo/
-createrepo_c mock/repo/
-```
-
-### Run a Mock Build
-```bash
-mock -r $(pwd)/mock/centos-stream-10-local.cfg --rebuild path/to/srpm
-```
-
-### Install missing deps into chroot (Force)
-```bash
-mock -r $(pwd)/mock/centos-stream-10-local.cfg --dnf-cmd install -y <package>-devel
-```
-
-### Enter Chroot for Debugging
-```bash
-mock -r $(pwd)/mock/centos-stream-10-local.cfg --shell
-```
-
-## Specialized Scripts Playbook
-
-The `scripts/` directory contains automation for fetching and managing backports:
-
-### 1. Fetching Fedora Rawhide Specs
-Use this to pull the latest specification and git history from Fedora Dist-Git:
-```bash
-# Fetch specs for packages listed in a manifest
-python3 scripts/fetch_rawhide_specs.py src/gnome-50/packages.txt src/gnome-50/
-```
-
-### 2. Identifying Upstream Sources
-Parses a `.spec` file to find the URL of the upstream source tarball:
-```bash
-python3 scripts/identify_upstream_sources.py src/gnome-50/mutter/mutter.spec
-```
-
-### 3. Downloading Upstream Sources
-Downloads the source tarballs for a list of URLs (often generated by the identifier script):
-```bash
-python3 scripts/download_upstream_sources.py sources.txt src/gnome-50/sources/
-```
-
-### 4. Distributed Workflow Generator
-Regenerates the GitHub Actions distributed build workflow based on `build-order.yml`:
-```bash
-python3 scripts/generate-distributed-workflow.py
-```
-
-## Immediate Next Steps
-1. Package the EL10 runtime workarounds (SELinux modules, PAM override, schema compilation trigger) into RPM `%post` scriptlets or a dedicated `gnome50-compat` package.
-2. Harden the SELinux policy modules and get them upstreamed or at minimum documented for the Tuna OS repo.
-3. Test a cold install (reinstall VM from ISO, install repo packages, verify GNOME 50 comes up without manual fixes).
+## Modified Packages Summary
+| Package | Primary Change |
+| :--- | :--- |
+| `gnome50-el10-compat` | New: PAM `systemd-user` workaround |
+| `gdm` | Added `Requires: gnome50-el10-compat` |
+| `gnome-user-share` | Vendored Rust crates + added missing `glib2` BR |
+| `gi-docgen` | Removed `BuildSystem: pyproject` for EL10 compatibility |
+| `glib2` | Retained EL10 schema compilation triggers |
+| `glycin` | Modified to prevent `gdk-pixbuf2` obsolescence |

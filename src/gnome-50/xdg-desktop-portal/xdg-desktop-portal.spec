@@ -79,12 +79,31 @@ The pkg-config file for %{name}.
 
 
 %build
-%meson %{!?with_docs:-Ddocumentation=disabled}
-%meson_build
+mkdir -p redhat-linux-build
+meson setup \
+    --prefix=%{_prefix} \
+    --libdir=%{_libdir} \
+    --libexecdir=%{_libexecdir} \
+    --bindir=%{_bindir} \
+    --sbindir=%{_sbin} \
+    --includedir=%{_includedir} \
+    --datadir=%{_datadir} \
+    --mandir=%{_mandir} \
+    --infodir=%{_infodir} \
+    --localedir=%{_datadir}/locale \
+    --sysconfdir=%{_sysconfdir} \
+    --localstatedir=%{_localstatedir} \
+    --sharedstatedir=%{_sharedstatedir} \
+    --wrap-mode=nodownload \
+    --auto-features=enabled \
+    --buildtype=plain \
+    %{!?with_docs:-Ddocumentation=disabled} \
+    redhat-linux-build
 
+ninja -C redhat-linux-build %{?_smp_mflags} -v
 
 %install
-%meson_install
+DESTDIR=%{buildroot} ninja -C redhat-linux-build install
 install -dm 755 %{buildroot}/%{_pkgdocdir}
 install -pm 644 README.md %{buildroot}/%{_pkgdocdir}
 # This directory is used by implementations such as xdg-desktop-portal-gtk.

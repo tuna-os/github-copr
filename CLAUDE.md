@@ -115,8 +115,24 @@ GDM 50 no longer uses a static `gdm` user for greeters. It dynamically allocates
 **Known spec workarounds already applied** (must be revisited post-bootstrap):
 - `glib2`: Removed `BuildSystem: meson`, manually expanded macros, patched `.pc` file
 - `glycin`: Offline Rust vendor build, removed tests, stripped conflicting `Obsoletes`
-- `mozjs140`/`gjs`: Bootstrap `libicu77` to avoid breaking system `libicu74`
+- `mozjs140`/`gjs`: Built with `--with-system-icu` — links against **whatever libicu-devel is in the COPR build environment at build time**. Do NOT add `libicu-77` as a system-replacement package in COPR; it upgrades away libicu-74 and breaks gtk3/pango/everything else compiled against it. If mozjs140 was mistakenly built against libicu-77, delete the icu build from COPR and rebuild mozjs140, gjs, and any other affected packages.
+- `libical`/`evolution-data-server`: Intentionally **not** in COPR — they required libicu-77 which caused system-wide conflicts. Drop them unless a future resolution (e.g. parallel libicu packaging) is found.
 - `fontconfig`/`pango`: Stripped doc toolchain, broad file globs
 - `pipewire`: Bumped to 1.6.1, disabled optional ldac/spandsp
 
 When adding new packages or modifying existing specs, check AGENTS.md for known EL10 quirks before attempting standard Fedora spec approaches.
+
+## COPR Debugging Workflow
+
+Test installs from COPR using a throwaway container — do not use `--skip-broken` initially, read the actual errors:
+```bash
+podman run --rm quay.io/centos/centos:stream10 bash -c "
+  dnf -y install dnf-plugins-core &&
+  dnf copr enable -y jreilly1821/c10s-gnome-50-fresh &&
+  dnf -y install <packages>
+"
+```
+
+`just copr-srpm-build <dir>` — pass the **directory**, not the spec path (justfile globs for `*.spec` internally).
+
+`copr-cli delete-build <id>` — deletes build and its RPMs; COPR metadata takes ~30s to regenerate after deletion.

@@ -77,10 +77,10 @@ being available. It should be documented as a known incompatibility for anyone r
 GDM 50 on EL10 before systemd is updated.
 
 **Proper fix — `gnome50-el10-compat` RPM:**
-Ship a standalone compat package that owns `/etc/pam.d/systemd-user` (as
-`%config(noreplace)`) and restores the upstream `pam_permit.so` behavior. It should
-`Conflicts: systemd < (version that ships pam_systemd_home.so or reverts Patch0254)`.
-We do **not** want to fork or patch the `systemd` package.
+We ship a standalone compat package (`src/deps/gnome50-el10-compat/`) that owns
+`/etc/pam.d/systemd-user` (as `%config(noreplace)`) and restores the upstream
+`pam_permit.so` behavior. This package serves as a temporary bridge until
+systemd is updated in EL10.
 
 ---
 

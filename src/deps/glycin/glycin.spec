@@ -8,7 +8,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        %autorelease
+Release:        100%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later

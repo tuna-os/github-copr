@@ -44,12 +44,31 @@ org.gnome.SessionManager D-Bus interfaces.
 
 
 %build
-%meson -Dsystemduserunitdir=%{_userunitdir}
-%meson_build
+mkdir -p redhat-linux-build
+meson setup \
+    --prefix=%{_prefix} \
+    --libdir=%{_libdir} \
+    --libexecdir=%{_libexecdir} \
+    --bindir=%{_bindir} \
+    --sbindir=%{_sbin} \
+    --includedir=%{_includedir} \
+    --datadir=%{_datadir} \
+    --mandir=%{_mandir} \
+    --infodir=%{_infodir} \
+    --localedir=%{_datadir}/locale \
+    --sysconfdir=%{_sysconfdir} \
+    --localstatedir=%{_localstatedir} \
+    --sharedstatedir=%{_sharedstatedir} \
+    --wrap-mode=nodownload \
+    --auto-features=enabled \
+    --buildtype=plain \
+    -Dsystemduserunitdir=%{_userunitdir} \
+    redhat-linux-build
 
+ninja -C redhat-linux-build %{?_smp_mflags} -v
 
 %install
-%meson_install
+DESTDIR=%{buildroot} ninja -C redhat-linux-build install
 desktop-file-validate %{buildroot}/%{_datadir}/applications/%{name}.desktop
 %find_lang %{name}
 
