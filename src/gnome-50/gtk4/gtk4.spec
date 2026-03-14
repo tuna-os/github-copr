@@ -27,7 +27,7 @@
 
 Name:           gtk4
 Version:        4.21.6
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        GTK graphical user interface library
 
 # Most files are either LGPL-2.0-or-later or LGPL-2.1-or-later.
@@ -93,7 +93,10 @@ BuildRequires:  pkgconfig(gdk-pixbuf-2.0) >= %{gdk_pixbuf_version}
 BuildRequires:  pkgconfig(glib-2.0) >= %{glib2_version}
 BuildRequires:  pkgconfig(gobject-introspection-1.0)
 BuildRequires:  pkgconfig(graphene-gobject-1.0)
+# gstreamer1-plugins-bad-free-devel pulls in libgtk-3 on EL10 (gtk3 removed); skip on RHEL
+%if !0%{?rhel}
 BuildRequires:  pkgconfig(gstreamer-player-1.0) >= %{gstreamer_version}
+%endif
 BuildRequires:  pkgconfig(harfbuzz) >= %{harfbuzz_version}
 BuildRequires:  pkgconfig(json-glib-1.0)
 BuildRequires:  pkgconfig(libjpeg)
@@ -134,7 +137,10 @@ Requires: cairo-gobject%{?_isa} >= %{cairo_version}
 Requires: glib2%{?_isa} >= %{glib2_version}
 Requires: harfbuzz%{?_isa} >= %{harfbuzz_version}
 Requires: libepoxy%{?_isa} >= %{epoxy_version}
+# gstreamer1-plugins-bad-free-libs depends on gtk3 on EL10; skip on RHEL
+%if !0%{?rhel}
 Requires: gstreamer1-plugins-bad-free-libs%{?_isa} >= %{gstreamer_version}
+%endif
 Requires: libwayland-client%{?_isa} >= %{wayland_version}
 Requires: libwayland-cursor%{?_isa} >= %{wayland_version}
 Requires: pango%{?_isa} >= %{pango_version}
@@ -302,4 +308,10 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_mandir}/man1/gtk4-widget-factory.1*
 
 %changelog
-%autochangelog
+* Sat Mar 15 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-2
+- EL10: gate gstreamer1-plugins-bad-free-devel BR and gstreamer1-plugins-bad-free-libs
+  runtime Requires behind %%if !0%%{?rhel} to fix buildroot on EL10 (gtk3 was removed
+  and gstreamer1-plugins-bad-free-devel still depends on libgtk-3.so.0)
+
+* Fri Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-1
+- Initial local spec based on Fedora rawhide gtk4 4.21.6
