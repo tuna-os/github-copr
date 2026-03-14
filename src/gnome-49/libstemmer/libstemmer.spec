@@ -15,8 +15,8 @@
     <link href="/theme/static/theme.css?version=5.14.1"
         type="text/css" rel="stylesheet" />
 
-    <link type="text/css" rel="stylesheet" nonce="MjcBQ0ItTeQq0TF0NIF0TPO11" href="/static/vendor/font-awesome/font-awesome.css?version=5.14.1"/>
-    <link type="text/css" rel="stylesheet" nonce="MjcBQ0ItTeQq0TF0NIF0TPO11" href="/static/pagure.css?version=5.14.1"/>
+    <link type="text/css" rel="stylesheet" nonce="l7xsJLX87Z1RLk2S4Eo3X5GNm" href="/static/vendor/font-awesome/font-awesome.css?version=5.14.1"/>
+    <link type="text/css" rel="stylesheet" nonce="l7xsJLX87Z1RLk2S4Eo3X5GNm" href="/static/pagure.css?version=5.14.1"/>
   </head>
   <body id="error">
     
@@ -32,7 +32,7 @@
           
 
           <li class="nav-item">
-            <a class="btn btn-primary" href="/login/?next=https://src.fedoraproject.org/rpms/libstemmer/raw/f43/f/libstemmer.spec">Log In</a>
+            <a class="btn btn-primary" href="/login/?next=https://src.fedoraproject.org/rpms/libstemmer/raw/rawhide/f/libstemmer.spec">Log In</a>
           </li>
         </ul>
       </div>
@@ -48,7 +48,7 @@
       <h2>Page not found (404)</h2>
       <p>With the message:</p>
       <div class="card-block">
-      <p>Branch not found</p>
+      <p>File not found</p>
       </div>
       <p>You have either entered a bad URL or the page has moved, removed, or otherwise rendered unavailable.<br/>
       Please use the main navigation menu to get (re)started.</p>
@@ -77,11 +77,11 @@
     </div>
 
 
-    <script type="text/javascript" nonce="MjcBQ0ItTeQq0TF0NIF0TPO11" src="/static/vendor/jquery/jquery.min.js?version=5.14.1"></script>
+    <script type="text/javascript" nonce="l7xsJLX87Z1RLk2S4Eo3X5GNm" src="/static/vendor/jquery/jquery.min.js?version=5.14.1"></script>
 
     <script src="/static/vendor/bootstrap/bootstrap.bundle.min.js?version=5.14.1"></script>
 
-    <script type="text/javascript" nonce="MjcBQ0ItTeQq0TF0NIF0TPO11">
+    <script type="text/javascript" nonce="l7xsJLX87Z1RLk2S4Eo3X5GNm">
       $('[data-toggle="tooltip"]').tooltip({placement : 'bottom'});
       $(".cancel_btn").click(function() {
         history.back();
