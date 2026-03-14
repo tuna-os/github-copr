@@ -8,3 +8,4 @@ gnome-settings-daemon
 gsettings-desktop-schemas
 libadwaita
 gtk4
+gnome-desktop3

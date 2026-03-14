@@ -1,0 +1,22 @@
+vmType: qemu
+arch: x86_64
+cpus: 4
+memory: 4GiB
+disk: 20GiB
+
+images:
+  - location: "https://cloud.centos.org/centos/10-stream/x86_64/images/CentOS-Stream-GenericCloud-x86_64-10-latest.x86_64.qcow2"
+    arch: x86_64
+
+mounts: []
+
+ssh:
+  localPort: 0
+  loadDotSSHPubKeys: true
+
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      dnf -y install dnf-plugins-core
+      dnf copr enable -y jreilly1821/c10s-gnome-50-fresh

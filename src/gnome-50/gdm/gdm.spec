@@ -70,6 +70,7 @@ Requires: gnome-session >= 50~alpha
 Requires: gnome-session-wayland-session >= 50~alpha
 Requires: gnome-settings-daemon >= 3.27.90
 Requires: gnome-shell
+Requires:       gnome50-el10-compat
 Requires: iso-codes
 # We need 1.0.4-5 since it lets us use "localhost" in auth cookies
 Requires: libXau >= 1.0.4-4

@@ -30,7 +30,7 @@ multiple languages. gi-docgen uses the GObject Introspection data to
 generate documentation for these libraries.
 
 %prep
-%autosetup -n gi-docgen-%{version}
+%autosetup -n gi_docgen-%{version}
 
 %build
 python3 setup.py bdist_wheel

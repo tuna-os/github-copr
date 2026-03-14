@@ -26,7 +26,7 @@
 
 Name:           mozjs%{major}
 Version:        140.6.0
-Release:        %autorelease -b3
+Release:        %autorelease -b4
 Summary:        SpiderMonkey JavaScript library
 
 License:        MPL-2.0 AND Apache-2.0 AND BSD-3-Clause AND BSD-2-Clause AND MIT AND GPL-3.0-or-later
@@ -71,7 +71,6 @@ BuildRequires:  make
 %if !0%{?rhel}
 BuildRequires:  nasm
 %endif
-BuildRequires:  libicu-devel
 BuildRequires:  llvm
 BuildRequires:  rust
 BuildRequires:  rustfmt
@@ -127,7 +126,6 @@ export AC_MACRODIR=./build/autoconf/
 
 pushd js/src/
 %configure \
-  --with-system-icu \
   --with-system-zlib \
   --disable-tests \
   --disable-strip \

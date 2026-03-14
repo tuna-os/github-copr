@@ -17,6 +17,8 @@ tiers:
       - path: src/deps/libldac
       - path: src/deps/python-smartypants
       - path: src/deps/python-typogrify
+      - path: src/deps/gnome50-el10-compat
+      - path: src/deps/selinux-policy
 
   # Tier 1: packages that need meson or autoconf from tier 0.
   - name: build-tools
@@ -70,6 +72,7 @@ tiers:
   - name: gtk-layer
     packages:
       - path: src/gnome-50/gsettings-desktop-schemas
+      - path: src/gnome-50/gnome-desktop3
       - path: src/deps/gtk4
       - path: src/deps/glycin
 
@@ -88,9 +91,11 @@ tiers:
     packages:
       - path: src/gnome-50/gnome-shell
       - path: src/gnome-50/gnome-settings-daemon
+      - path: src/gnome-50/xdg-desktop-portal
 
   - name: session
     packages:
       - path: src/gnome-50/gnome-session
       - path: src/gnome-50/gnome-control-center
       - path: src/gnome-50/gdm
+      - path: src/gnome-50/xdg-desktop-portal-gnome

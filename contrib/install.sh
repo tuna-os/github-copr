@@ -63,7 +63,7 @@ install_repo_file() {
 name=Tuna OS - \$releasever
 baseurl=${REPO_URL}/repo/\$releasever/\$basearch/
 enabled=1
-gpgcheck=1
+gpgcheck=0
 gpgkey=${REPO_URL}/public.gpg
 repo_gpgcheck=0
 metadata_expire=3600
