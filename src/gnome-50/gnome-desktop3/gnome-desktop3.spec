@@ -135,8 +135,7 @@ DESTDIR=%{buildroot} ninja -C redhat-linux-build install
 %endif
 
 %files devel
-%dir %{_datadir}/gtk-doc/
-%dir %{_datadir}/gtk-doc/html/
+%{_datadir}/gtk-doc/html/gnome-desktop3/
 
 %files -n gnome-desktop4
 %doc AUTHORS NEWS README.md
