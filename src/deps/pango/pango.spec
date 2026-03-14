@@ -124,7 +124,6 @@ fi
 %{_bindir}/*
 %{_libdir}/*.so.*
 %{_libdir}/girepository-1.0/*
-%{_datadir}/locale/*
 
 %files devel
 %{_includedir}/*
