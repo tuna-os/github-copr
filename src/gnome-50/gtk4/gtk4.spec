@@ -189,7 +189,7 @@ This package contains helpful applications for developers using GTK.
 
 %build
 export CFLAGS='-std=c11 -fno-strict-aliasing -DG_DISABLE_CAST_CHECKS -DG_DISABLE_ASSERT %optflags'
-meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build \
+meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain --wrap-mode=nodownload build \
 %if 0%{?with_broadway}
         -Dbroadway-backend=true \
 %endif
