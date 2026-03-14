@@ -24,7 +24,7 @@ Our GitHub repo (main)   ──▶┘
 ```
 
 - **~50 packages** pull directly from Fedora Rawhide dist-git — no local spec needed.
-- **6 packages** require a modified spec checked into this repo (see below).
+- **8 packages** require a modified spec checked into this repo (see below).
 - **1 package** (`gnome50-el10-compat`) is EL10-specific, not in Fedora at all.
 
 Build method per package is tracked in [`COPR-AUDIT.md`](COPR-AUDIT.md).
@@ -117,6 +117,38 @@ Changes from rawhide required for EL10:
 
 ---
 
+### `gtk4` — `src/gnome-50/gtk4/`
+
+**Build method:** SCM (`just copr-scm-build src/gnome-50/gtk4`)
+**Our version:** 4.21.6-2 · **Rawhide:** 4.21.6 (same upstream)
+
+Changes from rawhide required for EL10 (all gated behind `%if !0%{?rhel}`):
+
+- **Gated `BuildRequires: pkgconfig(gstreamer-player-1.0)`** — `gstreamer1-plugins-bad-free-devel`
+  depends on `libgtk-3.so.0`, which is not available in EL10. The gstreamer media backend
+  for GTK4 is therefore disabled on RHEL/EL10. Video playback in GTK4 apps is unaffected
+  since the Paintable/GstPlayer integration is optional.
+- **Gated `Requires: gstreamer1-plugins-bad-free-libs`** — same reason; the runtime
+  dependency on the gstreamer bad-free libs package is dropped on EL10.
+
+---
+
+### `tinysparql` — `src/deps/tinysparql/`
+
+**Build method:** SCM (`just copr-scm-build src/deps/tinysparql`)
+**Our version:** 3.11~rc · **Rawhide:** 3.11~rc (same)
+
+Changes from rawhide required for EL10 (all gated behind `%if !0%{?rhel}`):
+
+- **Gated `BuildRequires: asciidoc`** — `asciidoc` requires `source-highlight`, which
+  requires `libboost_regex.so.1.83.0`. EL10 ships boost with an ABI-incompatible version
+  and `source-highlight` has not been rebuilt against it, so the dep chain is broken.
+- **Gated `-Dman-pages` meson option** — man page generation requires `asciidoc`.
+  On EL10 the option is set to `disabled`; on Fedora it uses `auto`.
+- **Gated `%files` entries for `tinysparql*.1` man pages** — not generated on EL10.
+
+---
+
 ### `gnome-autoar` — `src/deps/gnome-autoar/`
 
 **Build method:** SCM (`just copr-scm-build src/deps/gnome-autoar`)
@@ -170,8 +202,10 @@ to Fedora:
 glib2               → SRPM   src/gnome-50/glib2/
 gdm                 → SCM    src/gnome-50/gdm/
 gjs                 → SCM    src/gnome-50/gjs/
+gtk4                → SCM    src/gnome-50/gtk4/
 gnome-desktop3      → SCM    src/gnome-50/gnome-desktop3/
 gnome-autoar        → SCM    src/deps/gnome-autoar/
+tinysparql          → SCM    src/deps/tinysparql/
 gnome50-el10-compat → SRPM   src/deps/gnome50-el10-compat/
 
 # Everything else uses Fedora Rawhide dist-git directly:
