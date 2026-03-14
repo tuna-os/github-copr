@@ -1,6 +1,6 @@
 Name:           libcanberra
 Version:        0.30
-Release:        103%{?dist}
+Release:        104%{?dist}
 Summary:        Portable sound event library
 
 License:        LGPL-2.1-or-later
@@ -84,19 +84,29 @@ EOF
 
 %files devel
 %{_includedir}/canberra.h
+%{_includedir}/canberra-gtk.h
 %{_libdir}/libcanberra.so
+%{_libdir}/libcanberra-gtk3.so
 %{_libdir}/pkgconfig/libcanberra.pc
+%{_libdir}/pkgconfig/libcanberra-gtk3.pc
 %{_libdir}/pkgconfig/tecla.pc
 %{_datadir}/gtk-doc/html/libcanberra/
 %{_datadir}/vala/vapi/libcanberra.vapi
+%{_datadir}/vala/vapi/libcanberra-gtk.vapi
 
 %files gtk3
+%{_bindir}/canberra-gtk-play
 %{_libdir}/libcanberra-gtk3.so.*
-%{_libdir}/pkgconfig/libcanberra-gtk3.pc
 %{_libdir}/gtk-3.0/modules/libcanberra-gtk-module.so
 %{_libdir}/gtk-3.0/modules/libcanberra-gtk3-module.so
+%{_libdir}/gnome-settings-daemon-3.0/gtk-modules/canberra-gtk-module.desktop
+%{_datadir}/gdm/autostart/LoginWindow/libcanberra-ready-sound.desktop
+%{_datadir}/gnome/autostart/libcanberra-login-sound.desktop
+%{_datadir}/gnome/shutdown/libcanberra-logout-sound.sh
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-104
+- Fix missing files in libcanberra-gtk3 and devel subpackages
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-103
 - Re-enable REAL libcanberra-gtk3 now that we have confirmed GTK3 is in EL10
 - Providing fake tecla.pc in devel to satisfy gnome-control-center
