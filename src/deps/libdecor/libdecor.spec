@@ -49,8 +49,8 @@ Development files for libdecor.
 %license LICENSE
 %doc README.md
 %{_libdir}/libdecor-0.so.0{,.*}
-%dir %{_libdir}/libdecor-0/
-%{_libdir}/libdecor-0/plugins-1/
+%dir %{_libdir}/libdecor/
+%{_libdir}/libdecor/plugins-1/
 
 %files devel
 %{_includedir}/libdecor-0/
