@@ -12,7 +12,7 @@
 
 Name:           tinysparql
 Version:        3.11~rc
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Desktop-neutral metadata database and search tool
 
 License:        GPL-2.0-or-later
@@ -78,6 +78,7 @@ Recommends:     %{name}%{?_isa} = %{version}-%{release}
 Obsoletes:      libtracker-sparql < %{tracker_obsoletes_version}
 Provides:       libtracker-sparql = %{version}-%{release}
 Provides:       libtracker-sparql%{?_isa} = %{version}-%{release}
+Provides:       libtracker-sparql-3.0.so.0()(64bit)
 
 %description -n libtinysparql
 This package contains the libtinysparql library.
