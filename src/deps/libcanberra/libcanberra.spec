@@ -1,6 +1,6 @@
 Name:           libcanberra
 Version:        0.30
-Release:        104%{?dist}
+Release:        105%{?dist}
 Summary:        Portable sound event library
 
 License:        LGPL-2.1-or-later
@@ -29,7 +29,8 @@ Conflicts:      libcanberra < %{version}-%{release}
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 # Provide a fake tecla.pc to satisfy gnome-control-center
-Provides:       pkgconfig(tecla) = 50.1
+# Bump version to 100 to ensure it's higher than any system version
+Provides:       pkgconfig(tecla) = 100.0
 
 %description    devel
 Development files (headers, pkg-config file) for libcanberra.
@@ -68,7 +69,7 @@ mkdir -p %{buildroot}%{_libdir}/pkgconfig
 cat <<EOF > %{buildroot}%{_libdir}/pkgconfig/tecla.pc
 Name: tecla
 Description: Fake tecla for GNOME 50 bootstrap
-Version: 50.1
+Version: 100.0
 Libs:
 Cflags:
 EOF
@@ -105,6 +106,8 @@ EOF
 %{_datadir}/gnome/shutdown/libcanberra-logout-sound.sh
 
 %changelog
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-105
+- Bump fake tecla version to 100.0
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-104
 - Fix missing files in libcanberra-gtk3 and devel subpackages
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 0.30-103
