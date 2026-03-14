@@ -194,6 +194,9 @@ meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain --wrap-mode=nodo
         -Dbroadway-backend=true \
 %endif
         -Dsysprof=enabled \
+%if 0%{?rhel}
+        -Dmedia-gstreamer=disabled \
+%endif
         -Dtracker=enabled \
         -Dcolord=enabled \
         -Ddocumentation=true \
