@@ -69,7 +69,6 @@ jobs:
         - src/gnome-49/gnome49-el10-compat
         - src/gnome-49/blueprint-compiler
         - src/gnome-49/libei
-        - src/gnome-49/freerdp
         - src/gnome-49/avahi
     steps:
     - name: Checkout
