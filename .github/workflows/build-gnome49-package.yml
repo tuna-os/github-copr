@@ -60,8 +60,6 @@ jobs:
         package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install host dependencies
         run: |

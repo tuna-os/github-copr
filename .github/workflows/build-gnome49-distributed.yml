@@ -74,8 +74,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -148,8 +146,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -221,8 +217,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -294,8 +288,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -367,8 +359,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -440,8 +430,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -516,8 +504,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -593,8 +579,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -671,8 +655,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -745,8 +727,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -820,8 +800,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -897,8 +875,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image

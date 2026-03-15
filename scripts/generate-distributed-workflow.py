@@ -5,7 +5,8 @@ import os
 
 def generate_workflow(manifest_path, output_path, workflow_name='Distributed Build and Publish RPMs',
                       r2_path='repo/10-stream-x86_64', secondary_r2_path='repo/10-x86_64',
-                      install_script='contrib/install.sh', install_r2_dest='install.sh'):
+                      install_script='contrib/install.sh', install_r2_dest='install.sh',
+                      submodules=True):
     with open(manifest_path, 'r') as f:
         manifest = yaml.safe_load(f)
 
@@ -77,7 +78,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                 }
             },
             'steps': [
-                {'name': 'Checkout', 'uses': 'actions/checkout@v4', 'with': {'submodules': 'recursive'}},
+                {'name': 'Checkout', 'uses': 'actions/checkout@v4', **({'with': {'submodules': 'recursive'}} if submodules else {})},
                 {'name': 'Install host dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm'},
                 {'name': 'Cache CentOS Stream 10 image', 'uses': 'actions/cache@v4', 'with': {'path': '/tmp/cs10-image.tar', 'key': "cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}"}},
                 {'name': 'Load or pull image', 'run': 'if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n'},
@@ -158,6 +159,8 @@ if __name__ == '__main__':
                         help='Install script to upload to R2')
     parser.add_argument('--install-r2-dest', default='install.sh',
                         help='R2 destination key for install script')
+    parser.add_argument('--no-submodules', action='store_true',
+                        help='Skip submodules: recursive in checkout steps')
     args = parser.parse_args()
     secondary = args.secondary_r2_path if args.secondary_r2_path else None
     generate_workflow(args.manifest, args.output,
@@ -165,5 +168,6 @@ if __name__ == '__main__':
                       r2_path=args.r2_path,
                       secondary_r2_path=secondary,
                       install_script=args.install_script,
-                      install_r2_dest=args.install_r2_dest)
+                      install_r2_dest=args.install_r2_dest,
+                      submodules=not args.no_submodules)
     print(f"Generated {args.output}")
