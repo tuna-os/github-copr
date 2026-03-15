@@ -62,7 +62,6 @@ fi
 
 %files
 %license COPYING
-%doc AUTHORS README
 %config %{_sysconfdir}/fonts/
 %{_datadir}/fontconfig/
 %{_libdir}/libfontconfig.so.*
