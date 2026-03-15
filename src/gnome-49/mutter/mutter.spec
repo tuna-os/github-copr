@@ -34,6 +34,8 @@ Source1:       org.gnome.mutter.fedora.gschema.override
 # https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/4786
 Patch:         mutter-42.alpha-disable-tegra.patch
 
+BuildRequires: gcc
+BuildRequires: gcc-c++
 BuildRequires: cvt
 BuildRequires: desktop-file-utils
 BuildRequires: mesa-libEGL-devel
