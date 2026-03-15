@@ -75,7 +75,13 @@ ensure_local_repo() {
 
 update_local_repo() {
     log "Updating local repo metadata"
-    createrepo_c --update "${LOCAL_REPO}"
+    # Attempt to update existing metadata first (faster)
+    if ! createrepo_c --update "${LOCAL_REPO}"; then
+        warn "createrepo_c --update failed, attempting full re-index"
+        rm -rf "${LOCAL_REPO}/repodata"
+        createrepo_c "${LOCAL_REPO}"
+    fi
+
     if [[ "$BACKEND" == "native" ]] && command -v dnf &>/dev/null; then
         dnf makecache --repo local-build 2>/dev/null || true
     fi
