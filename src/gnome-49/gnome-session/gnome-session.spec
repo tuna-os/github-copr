@@ -11,6 +11,10 @@ License:        GPL-2.0-or-later
 URL:            https://gitlab.gnome.org/GNOME/gnome-session
 Source:         https://download.gnome.org/sources/gnome-session/%{major_version}/%{name}-%{tarball_version}.tar.xz
 
+# For https://fedoraproject.org/w/index.php?title=Changes/HiddenGrubMenu
+# This should go upstream once systemd has a generic interface for this
+Patch:          0001-Fedora-Set-grub-boot-flags-on-shutdown-reboot.patch
+
 BuildRequires:  meson
 BuildRequires:  gcc
 BuildRequires:  pkgconfig(egl)
