@@ -1,31 +1,108 @@
-# GNOME 50 Bootstrap on CS10 - Status Report
+# GNOME Bootstrap on CS10 - Status Report
 
-## Current Status: Implementation Phase (Successes & Blockers)
+## 1. Project Branches & Versions
+*   **GNOME 50**: Tracks Fedora **Rawhide** Dist-Git.
+*   **GNOME 49**: Tracks Fedora **F43** Dist-Git.
 
-### 1. Core Infrastructure Successes
-*   **COPR Project Established**: `jreilly1821/c10s-gnome-50-fresh` is the active testing ground.
-*   **Compatibility Package**: `gnome50-el10-compat` successfully built and integrated. It provides the critical `systemd-user` PAM fix for GDM 50 greeter users.
-*   **GDM Integration**: `gdm` has been rebuilt with a hard requirement on `gnome50-el10-compat`.
-*   **Successes (Built from Rawhide/Modified)**:
-    *   `mutter`, `gnome-shell`, `gnome-session`, `gdm`, `nautilus`, `gtk4`, `glib2`, `selinux-policy`.
-    *   **New Backports**: `libgexiv2`, `tinysparql`, `localsearch`, `libical`, `evolution-data-server`, `libebur128`, `libzip`, `lzo`.
-    *   **Custom Fixes**: `gi-docgen` (spec patched), `gnome-user-share` (vendored Rust deps).
+## 2. Package Source Priorities
+When adding or updating packages, adhere to the following priority list:
+1.  **Fedora Dist-Git** (`just copr-build <name>`): Use for unmodified packages. Use `rawhide` for GNOME 50 and `f43` for GNOME 49.
+2.  **GitHub SCM** (`just copr-scm-build <path>`): Use for modified specs (patches, EL10-specific fixes).
+3.  **Local SRPM** (`just copr-srpm-build <path>`): Use only as a last resort.
 
-### 2. Immediate Blockers (Work in Progress)
-*   **`glycin` Version Conflict**: COPR's `distgit` builder pulled a version (2.0.8-3) that incorrectly obsoletes `gdk-pixbuf2`, breaking Bluefin/CS10 system integrity. Our local fix (2.0.8-100) is building but hasn't yet overridden the bad version.
-*   **Validation**: Full `dnf upgrade` on `bluefin:lts` is 95% there but currently stuck on the `glycin` conflict.
+## 3. ICU 77 Dependency Isolation
+ICU 77 is bundled with packages that require it (e.g., `mozjs140`, `tinysparql`) instead of using a standalone package. This prevents "repo poisoning" and conflicts with EL10's base ICU 74.
+
+## Current Projects
+*   **`jreilly1821/c10s-gnome-50-fresh`**: GNOME 50 development.
+*   **`jreilly1821/c10s-gnome-49`**: GNOME 49 development (forked from GNOME 50).
+
+## Current Status: COPR Build Cycle 1 (2026-03-14)
+...
+### 1. Build Successes
+*   **Secondary Repo (`icu77-el10`)**: 
+    *   `meson`, `autoconf`, `python-smartypants`, `python-typogrify` (Build tools).
+    *   `wayland-protocols`, `shaderc`, `gi-docgen`, `icu`.
+*   **Main Repo (`c10s-gnome-50-fresh`)**:
+    *   `libldac`, `gnome50-el10-compat`, `selinux-policy`, `libei`.
+    *   `gobject-introspection` (Bootstrap variant).
+
+### 2. Immediate Blockers (Failed Builds)
+*   **Core Graphics/Foundations**: 
+    *   `glib2` (Failed in bootstrap and full variants).
+    *   `harfbuzz`, `pango`, `fontconfig`.
+    *   `libzip`, `libxcvt`.
+*   **Desktop Layer**:
+    *   `gtk4`, `glycin` (Conflict/Build issues).
+    *   `localsearch`, `mutter`.
+*   **System Tools**:
+    *   `umockdev` (Failed in secondary repo).
+
+### 3. Analysis of Failures
+*   **`glib2`**: Investigating if `icu77` headers are missing from the build environment despite the repo being linked.
+*   **`harfbuzz`**: Likely failing due to the `glib2` failure (missing dependency).
+*   **`libzip`**: Initial look suggests a potential missing build dependency in EL10/EPEL10.
+*   **`glycin` Version Conflict**: COPR's `distgit` builder pulled a version (2.0.8-3) that incorrectly obsoletes `gdk-pixbuf2`. Our local fix (2.0.8-100) is pending success.
 
 ### 3. Documentation
 *   **`SRPM-CHANGES.md`**: Tracks all manual spec/source modifications (PAM fixes, Rust vendoring, dependency injections).
 *   **`COPR-REPORT.md`**: Categorizes all 40+ packages by origin (Custom vs Modified vs Unmodified Rawhide).
 *   **GitHub Issue #1**: Documented the `systemd-user` PAM regression for upstream/community visibility.
 
+## Self-Hosted GitHub Actions Pipeline (GNOME 49)
+
+As of 2026-03-15, a parallel self-hosted build pipeline has been implemented alongside COPR in the `gnome-49-pipeline` branch. **The COPR projects are untouched — this is additive.**
+
+### Architecture
+```
+src/gnome-49/ specs
+   → GitHub Actions (mock/podman per-package matrix jobs)
+   → GPG sign (secrets.GPG_PRIVATE_KEY)
+   → Cloudflare R2 (r2:bluefin/gnome49/10-stream-x86_64/)
+   → repo.tunaos.org/gnome49/10-stream-x86_64/ (Cloudflare Worker, no changes needed)
+   → DNF repo usable by end users
+```
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `build-order-gnome49.yml` | GNOME 49 tier manifest (12 tiers, separate from GNOME 50) |
+| `.github/workflows/build-gnome49-distributed.yml` | Full bootstrap: builds all tiers in sequence, per-package parallel matrix |
+| `.github/workflows/build-gnome49-package.yml` | Incremental: triggered by Renovate PRs or manual dispatch for single package |
+| `.github/workflows/build-gnome49-verify.yml` | Post-publish: verifies repo.tunaos.org is serving packages correctly |
+| `scripts/watch-pipeline.sh` | Local script to trigger/watch GHA runs via `gh` CLI |
+| `contrib/install-gnome49.sh` | User install script (gpgcheck=1, hardcoded baseurl) |
+| `renovate.json` | Tracks spec Version: fields against Fedora F43 dist-git |
+| `gnome49-repo-test.yaml` | Lima VM config: end-to-end test using repo.tunaos.org (not COPR) |
+
+### R2 Path Layout
+- GNOME 49: `r2:bluefin/gnome49/10-stream-x86_64/` → `https://repo.tunaos.org/gnome49/10-stream-x86_64/`
+- GNOME 50: `r2:bluefin/repo/10-x86_64/` → `https://repo.tunaos.org/repo/10/x86_64/` (unchanged)
+
+The Cloudflare Worker's `transformPath()` only touches `/repo/...` paths. `/gnome49/...` paths are served directly with no transform.
+
+### Pipeline Commands
+```bash
+scripts/watch-pipeline.sh run          # trigger full bootstrap + watch
+scripts/watch-pipeline.sh watch        # watch latest run
+scripts/watch-pipeline.sh package src/gnome-49/gdm   # rebuild one package
+scripts/watch-pipeline.sh status       # show recent runs
+```
+
+### GNOME 49 COPR Status (2026-03-15)
+- **`jreilly1821/c10s-gnome-49`**: All packages green across all 3 chroots (epel-10-x86_64, epel-10-aarch64, alma-kitten+epel-10-x86_64_v2) as of this date.
+- Key fix: GDM 49.2 patch `0001-el10-force-varlink-mode-0666.patch` — EL10 libsystemd 257 rejects `SD_VARLINK_SERVER_MODE_MKDIR_0755 = 0x40000000`. The patch forces `#undef` + `#define 0` so the varlink socket at `/run/systemd/userdb/org.gnome.DisplayManager` is created correctly.
+
 ## Work Items / TODOs
 
-- [ ] **Force `glycin` Override**: Delete the `distgit` package from COPR if necessary once Build 10224151 finishes, and ensure 2.0.8-100 is the only version served.
-- [ ] **Final Container Validation**: Perform a clean `dnf upgrade` on `ghcr.io/ublue-os/bluefin:lts` and verify that `gnome-shell` 50 and `gdm` 50 install alongside the compat package.
-- [ ] **VM Testing**: Move from container testing to a full CentOS Stream 10 VM to verify the GDM login flow and SELinux policy enforcement.
-- [ ] **Pagure Forking**: Once stable, the local modified specs need to be properly forked into the project's Pagure/Dist-git infrastructure.
+- [x] **GNOME 49 COPR all-green**: All packages across all 3 chroots succeeded (2026-03-15)
+- [x] **GDM varlink socket fix**: Patched `gdm-dynamic-user-store.c` — socket now created correctly
+- [ ] **First GHA bootstrap run**: Trigger `build-gnome49-distributed.yml` and verify all 12 tiers build
+- [ ] **repo.tunaos.org/gnome49/ live**: After first successful run, verify HTTP 200 for repomd.xml
+- [ ] **VM verification**: `limactl start gnome49-repo-test.yaml` and verify GDM socket exists
+- [ ] **Renovate**: Enable Renovate app on repo and verify it finds spec version fields
+- [ ] **Merge to main**: After pipeline is stable, PR `gnome-49-pipeline` → `main`
+- [ ] **GNOME 50 GHA pipeline**: Same treatment for `build-order.yml` packages (future)
 
 ## Modified Packages Summary
 | Package | Primary Change |
