@@ -300,18 +300,18 @@ MOCKCFG
             # because they share /local-repo and mock chroot initialization.
             flock /local-repo/repo.lock -c \"
                 createrepo_c /local-repo/
-                mock -r centos-stream-10-ci \
-                    --uniqueext='${pkg_name}' \
-                    --rebuild /builddir/SRPMS/*.src.rpm \
-                    --resultdir=/builddir/results \
-                    --define 'dist .el10' \
-                    --no-clean \
+                mock -r centos-stream-10-ci \\
+                    --uniqueext='${pkg_name}' \\
+                    --rebuild /builddir/SRPMS/*.src.rpm \\
+                    --resultdir=/builddir/results \\
+                    --define 'dist .el10' \\
+                    --no-clean \\
                     --no-cleanup-after || {
-                        echo "ERROR: mock failed. Printing build.log:"
-                        cat /builddir/results/build.log || true
-                        echo "ERROR: Printing root.log:"
-                        cat /builddir/results/root.log || true
-                        exit 1
+                        echo 'ERROR: mock failed. Printing build.log:';
+                        cat /builddir/results/build.log || true;
+                        echo 'ERROR: Printing root.log:';
+                        cat /builddir/results/root.log || true;
+                        exit 1;
                     }
             \"
         "
@@ -378,18 +378,18 @@ build_package_mock() {
 
     flock "${LOCAL_REPO}/repo.lock" -c "
         createrepo_c \"${LOCAL_REPO}\"
-        mock -r "${MOCK_CONFIG}" \
-            --uniqueext="${pkg_name}" \
-            --rebuild "$srpm" \
-            --resultdir="$resultdir" \
-            --define "dist .el10" \
-            --no-clean \
+        mock -r \"${MOCK_CONFIG}\" \\
+            --uniqueext=\"${pkg_name}\" \\
+            --rebuild \"$srpm\" \\
+            --resultdir=\"$resultdir\" \\
+            --define 'dist .el10' \\
+            --no-clean \\
             --no-cleanup-after || {
-                echo "ERROR: mock failed. Printing build.log:"
-                cat "$resultdir/build.log" || true
-                echo "ERROR: Printing root.log:"
-                cat "$resultdir/root.log" || true
-                exit 1
+                echo 'ERROR: mock failed. Printing build.log:';
+                cat \"$resultdir/build.log\" || true;
+                echo 'ERROR: Printing root.log:';
+                cat \"$resultdir/root.log\" || true;
+                exit 1;
             }
         "
 
