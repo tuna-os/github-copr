@@ -67,6 +67,10 @@ jobs:
         - src/gnome-49/ninja-build
         - src/gnome-49/snowball
         - src/gnome-49/gnome49-el10-compat
+        - src/gnome-49/blueprint-compiler
+        - src/gnome-49/libei
+        - src/gnome-49/freerdp
+        - src/gnome-49/avahi
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -584,6 +588,8 @@ jobs:
         - src/gnome-49/gtk4
         - src/gnome-49/gsettings-desktop-schemas
         - src/gnome-49/gnome-desktop3
+        - src/gnome-49/gsound
+        - src/gnome-49/colord-gtk
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -660,6 +666,8 @@ jobs:
         - src/gnome-49/libadwaita
         - src/gnome-49/xdg-desktop-portal
         - src/gnome-49/localsearch
+        - src/gnome-49/gnome-online-accounts
+        - src/gnome-49/tecla
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -808,6 +816,7 @@ jobs:
         package:
         - src/gnome-49/gnome-shell
         - src/gnome-49/nautilus
+        - src/gnome-49/xdg-desktop-portal-gnome
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -884,6 +893,7 @@ jobs:
         - src/gnome-49/gnome-control-center
         - src/gnome-49/gdm
         - src/gnome-49/gnome-remote-desktop
+        - src/gnome-49/gnome-initial-setup
     steps:
     - name: Checkout
       uses: actions/checkout@v4
