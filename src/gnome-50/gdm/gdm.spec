@@ -30,6 +30,7 @@ Patch:          0001-Honor-initial-setup-being-disabled-by-distro-install.patch
 Patch:          0001-data-add-system-dconf-databases-to-gdm-profile.patch
 Patch:          0001-Add-headless-session-files.patch
 
+BuildRequires:  gcc
 BuildRequires:  dconf
 BuildRequires:  desktop-file-utils
 BuildRequires:  gettext-devel

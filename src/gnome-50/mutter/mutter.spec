@@ -27,6 +27,8 @@ License:       GPL-2.0-or-later
 URL:           http://www.gnome.org
 Source0:        https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
 
+BuildRequires: gcc
+BuildRequires: gcc-c++
 BuildRequires: cvt
 BuildRequires: desktop-file-utils
 BuildRequires: mesa-libEGL-devel
