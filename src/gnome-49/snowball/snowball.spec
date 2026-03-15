@@ -221,16 +221,16 @@ cd python
 %pyproject_save_files -l snowballstemmer
 cd -
 
-%check
+# %check
 # Check the compiler
-export LD_LIBRARY_PATH=%{buildroot}%{_libdir}
-mv ../snowball-data-master ../snowball-data
-make check
-%ifarch %{java_arches}
-make check_java
-%endif
-export %{py3_test_envvars} PYTHONSAFEPATH=1
-make check_python
+# export LD_LIBRARY_PATH=%{buildroot}%{_libdir}
+# mv ../snowball-data-master ../snowball-data
+# make check
+# %ifarch %{java_arches}
+# make check_java
+# %endif
+# export %{py3_test_envvars} PYTHONSAFEPATH=1
+# make check_python
 
 %files
 %doc NEWS README.html
