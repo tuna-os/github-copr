@@ -216,8 +216,8 @@ install -p %{SOURCE1} %{buildroot}%{_datadir}/glib-2.0/schemas
 %files tests
 %{_datadir}/installed-tests/mutter-%{mutter_api_version}
 %{_datadir}/mutter-%{mutter_api_version}/tests
-%endif
 %{_libexecdir}/installed-tests/mutter-%{mutter_api_version}
+%endif
 
 %changelog
 %autochangelog
