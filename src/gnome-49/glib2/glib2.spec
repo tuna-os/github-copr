@@ -1,6 +1,6 @@
 Name:           glib2
 Version:        2.86.4
-Release:        %autorelease
+Release:        2%{?dist}
 Summary:        A library of handy utility functions
 
 License:        LGPL-2.1-or-later
