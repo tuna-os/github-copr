@@ -1,9 +1,9 @@
 # GNOME 50 for CentOS Stream 10
 
 RPM packages bringing GNOME 50 to CentOS Stream 10 (EL10), hosted on
-[COPR](https://copr.fedorainfracloud.org/coprs/jreilly1821/c10s-gnome-50-fresh/).
+[COPR](https://copr.fedorainfracloud.org/coprs/jreilly1821/c10s-gnome-50/).
 
-Packages are built in COPR (`jreilly1821/c10s-gnome-50-fresh`) targeting `epel-10-x86_64`.
+Packages are built in COPR (`jreilly1821/c10s-gnome-50`) targeting `epel-10-x86_64`.
 Most packages build directly from Fedora Rawhide dist-git. A small set require local spec
 modifications to work on EL10 — those are documented below.
 
@@ -11,7 +11,7 @@ modifications to work on EL10 — those are documented below.
 
 ```bash
 dnf -y install dnf-plugins-core
-dnf copr enable -y jreilly1821/c10s-gnome-50-fresh
+dnf copr enable -y jreilly1821/c10s-gnome-50
 dnf -y install gnome-shell gdm mutter gnome-session nautilus gnome50-el10-compat
 ```
 

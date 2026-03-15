@@ -1,4 +1,4 @@
-# GNOME 50 COPR Project Report: `jreilly1821/c10s-gnome-50-fresh`
+# GNOME 50 COPR Project Report: `jreilly1821/c10s-gnome-50`
 
 This report details the origin and status of all packages currently tracked in the COPR project.
 
@@ -68,6 +68,6 @@ This report details the origin and status of all packages currently tracked in t
 * `wayland-protocols`
 
 ## Summary of Infrastructure
-* **Project**: [jreilly1821/c10s-gnome-50-fresh](https://copr.fedorainfracloud.org/coprs/jreilly1821/c10s-gnome-50-fresh/)
+* **Project**: [jreilly1821/c10s-gnome-50](https://copr.fedorainfracloud.org/coprs/jreilly1821/c10s-gnome-50/)
 * **Chroot**: `epel-10-x86_64`
 * **Strategy**: Use Rawhide `distgit` for speed and simplicity where possible; override with local SRPMs only for EL10-specific fixes or dependency resolution issues.
