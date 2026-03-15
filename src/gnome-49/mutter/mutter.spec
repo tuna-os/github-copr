@@ -36,7 +36,9 @@ Patch:         mutter-42.alpha-disable-tegra.patch
 
 BuildRequires: gcc
 BuildRequires: gcc-c++
+%ifnarch aarch64
 BuildRequires: cvt
+%endif
 BuildRequires: desktop-file-utils
 BuildRequires: mesa-libEGL-devel
 BuildRequires: mesa-libGLES-devel
@@ -58,7 +60,9 @@ BuildRequires: pkgconfig(libdisplay-info)
 BuildRequires: pkgconfig(libpipewire-0.3) >= %{pipewire_version}
 BuildRequires: pkgconfig(sysprof-capture-4)
 BuildRequires: pkgconfig(libsystemd)
+%ifnarch aarch64
 BuildRequires: pkgconfig(umockdev-1.0)
+%endif
 BuildRequires: python3-argcomplete
 BuildRequires: python3-docutils
 # Bootstrap requirements
@@ -162,7 +166,11 @@ the functionality of the installed %{name} package.
 %autosetup -S git -n %{name}-%{tarball_version}
 
 %build
-%meson -Degl_device=true
+%meson -Degl_device=true \
+%ifarch aarch64
+  -Dtests=false \
+%endif
+  %{nil}
 %meson_build
 
 %install
@@ -206,9 +214,11 @@ install -p %{SOURCE1} %{buildroot}%{_datadir}/glib-2.0/schemas
 %{_libdir}/pkgconfig/*
 %{_libexecdir}/mutter-devkit
 
+%ifnarch aarch64
 %files tests
 %{_datadir}/installed-tests/mutter-%{mutter_api_version}
 %{_datadir}/mutter-%{mutter_api_version}/tests
+%endif
 %{_libexecdir}/installed-tests/mutter-%{mutter_api_version}
 
 %changelog
