@@ -4,26 +4,21 @@
 
 %global tracker_obsoletes_version 3.8
 
-%if 0%{?rhel}
-%bcond libstemmer 0
-%else
-%bcond libstemmer 1
-%endif
-
 Name:           tinysparql
-Version:        3.11~rc
-Release:        %autorelease
+Version:        3.9.2
+Release:        1%{?dist}
 Summary:        Desktop-neutral metadata database and search tool
 
 License:        GPL-2.0-or-later
 URL:            https://gnome.pages.gitlab.gnome.org/tinysparql/
-Source0:        https://download.gnome.org/sources/tinysparql/3.11/tinysparql-%{tarball_version}.tar.xz
+Source0:        https://download.gnome.org/sources/tinysparql/3.9/tinysparql-%{tarball_version}.tar.xz
 
 BuildRequires:  asciidoc
-BuildRequires:  gcc
+BuildRequires:	gcc
 BuildRequires:  gettext
 BuildRequires:  gi-docgen
-%if %{with libstemmer}
+%if ! 0%{?rhel} || 0%{?rhel} < 10
+# libstemmer is not part of RHEL 10
 BuildRequires:  libstemmer-devel
 %endif
 BuildRequires:  meson
@@ -109,7 +104,7 @@ This package contains the documentation for %{name}.
 %meson \
   -Dunicode_support=icu \
   -Dsystemd_user_services_dir=%{_userunitdir} \
-%if %{without libstemmer}
+%if ! 0%{?rhel} || 0%{?rhel} >= 10
   -Dstemmer=disabled \
 %endif
   %{nil}
@@ -151,6 +146,7 @@ This package contains the documentation for %{name}.
 %{_libdir}/libtinysparql-3.0.so.0*
 %{_libdir}/libtracker-sparql-3.0.so.0*
 %{_libdir}/tinysparql-3.0/
+%{_datadir}/gir-1.0/Tracker-3.0.gir
 
 %files devel
 %license COPYING COPYING.LGPL
@@ -161,7 +157,6 @@ This package contains the documentation for %{name}.
 %{_libdir}/pkgconfig/tracker-sparql-3.0.pc
 %{_datadir}/vala/vapi/tinysparql-3.0.deps
 %{_datadir}/vala/vapi/tinysparql-3.0.vapi
-%{_datadir}/gir-1.0/Tracker-3.0.gir
 %{_datadir}/gir-1.0/Tsparql-3.0.gir
 %{_datadir}/vala/vapi/tracker-sparql-3.0.deps
 %{_datadir}/vala/vapi/tracker-sparql-3.0.vapi
@@ -172,4 +167,35 @@ This package contains the documentation for %{name}.
 
 
 %changelog
-%autochangelog
+* Mon Apr 21 2025 nmontero <nmontero@redhat.com> - 3.9.2-1
+- Update to 3.9.2
+
+* Fri Mar 21 2025 nmontero <nmontero@redhat.com> - 3.9.1-2
+- Add Obsoletes line to devel package
+
+* Wed Mar 19 2025 nmontero <nmontero@redhat.com> - 3.9.1-1
+- Update to 3.9.1
+
+* Mon Mar 03 2025 nmontero <nmontero@redhat.com> - 3.9~rc-1
+- Update to 3.9.rc
+
+* Mon Feb 24 2025 Nieves Montero <nmontero@redhat.com> - 3.8.rc-6
+- Release bump for rebuilding
+
+* Mon Feb 24 2025 Nieves Montero <nmontero@redhat.com> - 3.8.rc-5
+- Move the libtracker-sparql devel library to the devel package.
+- Move Obsoletes and Provides line before the description
+
+* Fri Jan 31 2025 Nieves Montero <nmontero@redhat.com> - 3.8.rc-4
+- Version bump
+
+* Thu Jan 23 2025 Nieves Montero <nmontero@redhat.com> - 3.8.rc-3
+- Minor change in %files
+
+* Sun Jan 19 2025 Fedora Release Engineering <releng@fedoraproject.org> - 3.8~rc-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_42_Mass_Rebuild
+
+* Thu Oct 03 2024 Nieves Montero <nmontero@redhat.com> - 3.8.rc-1
+- Rename tracker to tinysparql
+- Rename libtracker-sparql to libtinysparql
+- Update to 3.8~rc
