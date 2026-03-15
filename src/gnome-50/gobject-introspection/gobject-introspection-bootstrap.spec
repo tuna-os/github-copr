@@ -19,6 +19,10 @@ BuildRequires:  python3-mako
 BuildRequires:  python3-markdown
 BuildRequires:  gtk-doc
 
+Requires:       python3-mako
+Requires:       python3-markdown
+Requires:       python3-setuptools
+
 %description
 GObject Introspection is a project that aims to describe the APIs of
 GObject-based libraries.
