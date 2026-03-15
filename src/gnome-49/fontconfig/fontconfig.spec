@@ -11,7 +11,6 @@ Source1:	25-no-bitmap-fedora.conf
 Patch0:		%{name}-sleep-less.patch
 Patch4:		%{name}-drop-lang-from-pkgkit-format.patch
 Patch5:		%{name}-disable-network-required-test.patch
-Patch6:		%{name}-lower-nonlatin-conf.patch
 Patch7:		%{name}-fix-crash.patch
 
 BuildRequires:	libxml2-devel
