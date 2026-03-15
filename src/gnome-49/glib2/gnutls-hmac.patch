@@ -1,4 +1,4 @@
-From 9ef5cacbf93640434b4d4ac425f87efb79aacc5d Mon Sep 17 00:00:00 2001
+From c5c7cd05fe62d7bef7d7de96a60913bb1ee3eb36 Mon Sep 17 00:00:00 2001
 From: Colin Walters <walters@verbum.org>
 Date: Fri, 7 Jun 2019 18:44:43 +0000
 Subject: [PATCH 1/4] ghmac: Split off wrapper functions into ghmac-utils.c
@@ -14,7 +14,7 @@ utility functions that call the "core" API.
 
 diff --git a/glib/ghmac-utils.c b/glib/ghmac-utils.c
 new file mode 100644
-index 000000000..a17359ff1
+index 000000000000..a17359ff1505
 --- /dev/null
 +++ b/glib/ghmac-utils.c
 @@ -0,0 +1,145 @@
@@ -164,7 +164,7 @@ index 000000000..a17359ff1
 +                                  (const guchar *) str, length);
 +}
 diff --git a/glib/ghmac.c b/glib/ghmac.c
-index 97e2fff90..de89d826d 100644
+index 97e2fff90994..de89d826d548 100644
 --- a/glib/ghmac.c
 +++ b/glib/ghmac.c
 @@ -356,115 +356,3 @@ g_hmac_get_digest (GHmac  *hmac,
@@ -284,10 +284,10 @@ index 97e2fff90..de89d826d 100644
 -                                  (const guchar *) str, length);
 -}
 diff --git a/glib/meson.build b/glib/meson.build
-index b5545b63b..c631a8a0a 100644
+index 209bcbfd119b..98e4533e3fb8 100644
 --- a/glib/meson.build
 +++ b/glib/meson.build
-@@ -289,6 +289,7 @@ glib_sources += files(
+@@ -285,6 +285,7 @@ glib_sources += files(
    'ggettext.c',
    'ghash.c',
    'ghmac.c',
@@ -296,10 +296,10 @@ index b5545b63b..c631a8a0a 100644
    'ghostutils.c',
    'giochannel.c',
 -- 
-2.45.2
+2.51.1
 
 
-From 3ef71255bb2ff257830643b7de6e257174b0898d Mon Sep 17 00:00:00 2001
+From b8adbcabb18e524fedcf53be2fc4c577c8a43609 Mon Sep 17 00:00:00 2001
 From: Colin Walters <walters@verbum.org>
 Date: Fri, 7 Jun 2019 19:36:54 +0000
 Subject: [PATCH 2/4] Add a gnutls backend for GHmac
@@ -361,7 +361,7 @@ https://gitlab.gnome.org/GNOME/glib/-/merge_requests/903
  create mode 100644 glib/ghmac-gnutls.c
 
 diff --git a/glib/gchecksum.c b/glib/gchecksum.c
-index 28de99d68..d38c6b069 100644
+index 196fda24a58b..fb9d4ff33777 100644
 --- a/glib/gchecksum.c
 +++ b/glib/gchecksum.c
 @@ -22,7 +22,7 @@
@@ -396,7 +396,7 @@ index 28de99d68..d38c6b069 100644
   * MD5 Checksum
 diff --git a/glib/gchecksumprivate.h b/glib/gchecksumprivate.h
 new file mode 100644
-index 000000000..86c7a3b61
+index 000000000000..86c7a3b61a18
 --- /dev/null
 +++ b/glib/gchecksumprivate.h
 @@ -0,0 +1,32 @@
@@ -435,7 +435,7 @@ index 000000000..86c7a3b61
 \ No newline at end of file
 diff --git a/glib/ghmac-gnutls.c b/glib/ghmac-gnutls.c
 new file mode 100644
-index 000000000..9fb775f89
+index 000000000000..9fb775f89aaf
 --- /dev/null
 +++ b/glib/ghmac-gnutls.c
 @@ -0,0 +1,187 @@
@@ -627,7 +627,7 @@ index 000000000..9fb775f89
 +  *digest_len = g_checksum_type_get_length (hmac->digest_type);
 +}
 diff --git a/glib/ghmac.c b/glib/ghmac.c
-index de89d826d..616e167e7 100644
+index de89d826d548..616e167e7ff2 100644
 --- a/glib/ghmac.c
 +++ b/glib/ghmac.c
 @@ -35,6 +35,9 @@
@@ -660,10 +660,10 @@ index de89d826d..616e167e7 100644
   *   Use g_hmac_unref() to free the memory allocated by it.
   *
 diff --git a/glib/meson.build b/glib/meson.build
-index c631a8a0a..c5f6c1680 100644
+index 98e4533e3fb8..39b37310e810 100644
 --- a/glib/meson.build
 +++ b/glib/meson.build
-@@ -288,7 +288,6 @@ glib_sources += files(
+@@ -284,7 +284,6 @@ glib_sources += files(
    'gfileutils.c',
    'ggettext.c',
    'ghash.c',
@@ -671,7 +671,7 @@ index c631a8a0a..c5f6c1680 100644
    'ghmac-utils.c',
    'ghook.c',
    'ghostutils.c',
-@@ -342,6 +341,8 @@ glib_sources += files(
+@@ -339,6 +338,8 @@ glib_sources += files(
    'gunidecomp.c',
    'guri.c',
    'gutils.c',
@@ -680,7 +680,7 @@ index c631a8a0a..c5f6c1680 100644
    'guuid.c',
    'gvariant.c',
    'gvariant-core.c',
-@@ -401,6 +402,12 @@ else
+@@ -397,6 +398,12 @@ else
    glib_dtrace_hdr = []
  endif
  
@@ -693,7 +693,7 @@ index c631a8a0a..c5f6c1680 100644
  pcre2_static_args = []
  
  if use_pcre2_static_flag
-@@ -422,6 +429,7 @@ libglib = library('glib-2.0',
+@@ -418,6 +425,7 @@ libglib = library('glib-2.0',
    dependencies : [
      atomic_dep,
      gnulib_libm_dependency,
@@ -702,10 +702,10 @@ index c631a8a0a..c5f6c1680 100644
      libintl_deps,
      libm,
 diff --git a/meson.build b/meson.build
-index 29b61fc40..f11f3737b 100644
+index 9aa931903927..2184790b3399 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -2324,6 +2324,13 @@ if host_system == 'linux'
+@@ -2370,6 +2370,13 @@ if host_system == 'linux'
    endif
  endif
  
@@ -718,9 +718,9 @@ index 29b61fc40..f11f3737b 100644
 +
  if host_system == 'windows'
    winsock2 = cc.find_library('ws2_32')
- else
+   # Used for g_win32_clear_com() tests...
 diff --git a/meson.options b/meson.options
-index 14ece1039..7f607cd89 100644
+index 5ebbe4d87bbe..b6faedd3f606 100644
 --- a/meson.options
 +++ b/meson.options
 @@ -37,6 +37,11 @@ option('libmount',
@@ -736,10 +736,10 @@ index 14ece1039..7f607cd89 100644
         type : 'boolean',
         value : false,
 -- 
-2.45.2
+2.51.1
 
 
-From 780c2e18fcb0747cd87d2d6c373781cb63761e7f Mon Sep 17 00:00:00 2001
+From 00dd9e5dc3627e8598fdb2644484a6b02b14de1e Mon Sep 17 00:00:00 2001
 From: Michael Catanzaro <mcatanzaro@redhat.com>
 Date: Wed, 16 Jun 2021 20:35:00 -0500
 Subject: [PATCH 3/4] dlopen GnuTLS instead of linking directly
@@ -763,11 +763,11 @@ for our purposes.
  glib/ghmac-gnutls.c | 101 ++++++++++++++++++++++++++++++++++++++++++--
  glib/ghmac.c        |   2 +-
  glib/meson.build    |   1 -
- meson.build         |   6 +--
- 4 files changed, 101 insertions(+), 9 deletions(-)
+ meson.build         |  10 ++---
+ 4 files changed, 103 insertions(+), 11 deletions(-)
 
 diff --git a/glib/ghmac-gnutls.c b/glib/ghmac-gnutls.c
-index 9fb775f89..1800fc2e0 100644
+index 9fb775f89aaf..1800fc2e059e 100644
 --- a/glib/ghmac-gnutls.c
 +++ b/glib/ghmac-gnutls.c
 @@ -19,8 +19,8 @@
@@ -908,7 +908,7 @@ index 9fb775f89..1800fc2e0 100644
    hmac->digest_type = digest_type;
  
 diff --git a/glib/ghmac.c b/glib/ghmac.c
-index 616e167e7..ddb163557 100644
+index 616e167e7ff2..ddb1635578db 100644
 --- a/glib/ghmac.c
 +++ b/glib/ghmac.c
 @@ -35,7 +35,7 @@
@@ -921,10 +921,10 @@ index 616e167e7..ddb163557 100644
  #endif
  
 diff --git a/glib/meson.build b/glib/meson.build
-index c5f6c1680..eca58df81 100644
+index 39b37310e810..57a7d3efb7f2 100644
 --- a/glib/meson.build
 +++ b/glib/meson.build
-@@ -429,7 +429,6 @@ libglib = library('glib-2.0',
+@@ -425,7 +425,6 @@ libglib = library('glib-2.0',
    dependencies : [
      atomic_dep,
      gnulib_libm_dependency,
@@ -933,48 +933,43 @@ index c5f6c1680..eca58df81 100644
      libintl_deps,
      libm,
 diff --git a/meson.build b/meson.build
-index f11f3737b..988ae5ade 100644
+index 2184790b3399..a83ac15224d4 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -2324,11 +2324,9 @@ if host_system == 'linux'
+@@ -2370,12 +2370,10 @@ if host_system == 'linux'
    endif
  endif
  
 -# gnutls is used optionally by ghmac
 -libgnutls_dep = []
-+# gnutls is used optionally by GHmac
- if get_option('gnutls')
+-if get_option('gnutls')
 -  libgnutls_dep = [dependency('gnutls', version : '>=3.6.9', required : true)]
 -  glib_conf.set('HAVE_GNUTLS', 1)
+-endif
++# gnutls is used optionally by GHmac
++ if get_option('gnutls')
 +  glib_conf.set('USE_GNUTLS', 1)
- endif
++ endif
  
  if host_system == 'windows'
+   winsock2 = cc.find_library('ws2_32')
 -- 
-2.45.2
+2.51.1
 
 
-From 267152754263fa9a0f67b8f5313ada392a87793c Mon Sep 17 00:00:00 2001
+From b823c32d8fe939ffc3d9f774514b01a8d249cfb8 Mon Sep 17 00:00:00 2001
 From: Michael Catanzaro <mcatanzaro@redhat.com>
 Date: Wed, 16 Jun 2021 20:46:24 -0500
-Subject: [PATCH 4/4] Add test for GHmac in FIPS mode
+Subject: [PATCH 4/4] Disable MD5 and SHA-1 HMac tests
 
-This will test a few problems that we hit recently:
-
-g_hmac_copy() is broken, https://bugzilla.redhat.com/show_bug.cgi?id=1786538
-
-Crash in g_hmac_update() in FIPS mode, https://bugzilla.redhat.com/show_bug.cgi?id=1971533
-
-Crash when passing -1 length to g_hmac_update() (discovered in #1971533)
-
-We'll also test to ensure MD5 fails, and stop compiling the other MD5
-tests.
+These are expected to be broken, depending on system crypto policy,
+which may disable the algorithms.
 ---
- glib/tests/hmac.c | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 46 insertions(+)
+ glib/tests/hmac.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
 diff --git a/glib/tests/hmac.c b/glib/tests/hmac.c
-index 3ac3206df..352d18a09 100644
+index 3ac3206df3eb..e7f3fdf089b8 100644
 --- a/glib/tests/hmac.c
 +++ b/glib/tests/hmac.c
 @@ -1,7 +1,10 @@
@@ -1004,61 +999,34 @@ index 3ac3206df..352d18a09 100644
  HmacCase hmac_md5_tests[] = {
    { G_CHECKSUM_MD5, key_md5_test1, 16, "Hi There", 8, result_md5_test1 },
    { G_CHECKSUM_MD5, "Jefe", 4, "what do ya want for nothing?", 28,
-@@ -317,6 +322,7 @@ HmacCase hmac_md5_tests[] = {
-       73, result_md5_test7 },
+@@ -336,6 +341,7 @@ HmacCase hmac_sha1_tests[] = {
+                " Than One Block-Size Data", 73, result_sha1_test7, },
    { -1, NULL, 0, NULL, 0, NULL },
  };
 +#endif
  
- HmacCase hmac_sha1_tests[] = {
-   { G_CHECKSUM_SHA1, key_sha_test1, 20, "Hi There", 8, result_sha1_test1 },
-@@ -493,11 +499,45 @@ test_hmac_for_bytes (void)
-   g_bytes_unref (data);
- }
- 
-+#ifdef USE_GNUTLS
-+static void
-+test_gnutls_fips_mode (void)
-+{
-+  GHmac *hmac;
-+  GHmac *copy;
-+
-+  /* No MD5 in FIPS mode. */
-+  hmac = g_hmac_new (G_CHECKSUM_MD5, (guchar*)"abc123", sizeof ("abc123"));
-+  g_assert_null (hmac);
-+
-+  /* SHA-256 should be good. */
-+  hmac = g_hmac_new (G_CHECKSUM_SHA256, (guchar*)"abc123", sizeof ("abc123"));
-+  g_assert_nonnull (hmac);
-+
-+  /* Ensure g_hmac_update() does not crash when called with -1. */
-+  g_hmac_update (hmac, (guchar*)"You win again, gravity!", -1);
-+
-+  /* Ensure g_hmac_copy() does not crash. */
-+  copy = g_hmac_copy (hmac);
-+  g_assert_nonnull (hmac);
-+  g_hmac_unref (hmac);
-+
-+  g_assert_cmpstr (g_hmac_get_string (copy), ==, "795ba6900bcb22e8ce65c2ec02db4e85697da921deb960ee3143bf88a4a60f83");
-+  g_hmac_unref (copy);
-+}
-+#endif
-+
- int
- main (int argc,
+ HmacCase hmac_sha256_tests[] = {
+   { G_CHECKSUM_SHA256, key_sha_test1, 20, "Hi There", 8, result_sha256_test1 },
+@@ -498,8 +504,10 @@ main (int argc,
      char **argv)
  {
    int i;
 +
-+#ifdef USE_GNUTLS
-+  /* This has to happen before GnuTLS is dlopened. */
-+  g_setenv ("GNUTLS_FORCE_FIPS_MODE", "1", FALSE);
-+#endif
-+
    g_test_init (&argc, &argv, NULL);
  
++#ifndef USE_GNUTLS
    for (i = 0 ; hmac_sha1_tests[i].key_len > 0 ; i++)
-@@ -532,6 +572,7 @@ main (int argc,
+     {
+       gchar *name = g_strdup_printf ("/hmac/sha1-%d", i + 1);
+@@ -507,6 +515,7 @@ main (int argc,
+         (void (*)(const void *)) test_hmac);
+       g_free (name);
+     }
++#endif
+ 
+   for (i = 0 ; hmac_sha256_tests[i].key_len > 0 ; i++)
+     {
+@@ -532,6 +541,7 @@ main (int argc,
        g_free (name);
      }
  
@@ -1066,7 +1034,7 @@ index 3ac3206df..352d18a09 100644
    for (i = 0 ; hmac_md5_tests[i].key_len > 0 ; i++)
      {
        gchar *name = g_strdup_printf ("/hmac/md5-%d", i + 1);
-@@ -539,6 +580,7 @@ main (int argc,
+@@ -539,6 +549,7 @@ main (int argc,
          (void (*)(const void *)) test_hmac);
        g_free (name);
      }
@@ -1074,16 +1042,6 @@ index 3ac3206df..352d18a09 100644
  
    g_test_add_func ("/hmac/ref-unref", test_hmac_ref_unref);
    g_test_add_func ("/hmac/copy", test_hmac_copy);
-@@ -546,5 +588,9 @@ main (int argc,
-   g_test_add_func ("/hmac/for-string", test_hmac_for_string);
-   g_test_add_func ("/hmac/for-bytes", test_hmac_for_bytes);
- 
-+#ifdef USE_GNUTLS
-+  g_test_add_func ("/hmac/gnutls-fips-mode", test_gnutls_fips_mode);
-+#endif
-+
-   return g_test_run ();
- }
 -- 
-2.45.2
+2.51.1
 

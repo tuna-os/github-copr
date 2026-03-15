@@ -1,10 +1,10 @@
 Name:           gobject-introspection
-Version:        1.82.0
+Version:        1.84.0
 Release:        1%{?dist}
 Summary:        Introspection system for GObject-based libraries
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later AND MIT
 URL:            https://wiki.gnome.org/Projects/GObjectIntrospection
-Source0:        https://download.gnome.org/sources/gobject-introspection/1.82/gobject-introspection-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/gobject-introspection/1.84/gobject-introspection-%{version}.tar.xz
 
 BuildRequires:  meson
 BuildRequires:  gcc
@@ -71,5 +71,5 @@ DESTDIR=%{buildroot} meson install -C build
 %{_datadir}/gtk-doc/html/gi/
 
 %changelog
-* Sat Mar 14 2026 James <james@example.com> - 1.82.0-1
-- Bootstrap build for GNOME 49 project
+* Sun Mar 15 2026 James <james@example.com> - 1.84.0-1
+- Bootstrap build for GNOME 49 project (F43 version)
