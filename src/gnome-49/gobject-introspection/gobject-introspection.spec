@@ -48,7 +48,7 @@ Requires:       python3-markdown
 Requires:       (python(abi) = %{python3_version} if python3)
 # The package uses distutils which is no longer part of Python 3.12+ standard library
 # https://bugzilla.redhat.com/show_bug.cgi?id=2135406
-Requires:       (python3-setuptools if python3 >= 3.12)
+Requires:       python3-setuptools
 
 %description devel
 Libraries and headers for gobject-introspection
