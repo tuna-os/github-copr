@@ -57,6 +57,11 @@ tiers:
     packages:
       - path: src/gnome-49/gobject-introspection
 
+  # Tier 6.5: fontconfig 2.17 (EL10 has 2.15; pango 1.57 needs >= 2.17).
+  - name: fontconfig
+    packages:
+      - path: src/gnome-49/fontconfig
+
   # Tier 7: Core libraries requiring full GLib + GI.
   - name: core-libraries
     packages:
