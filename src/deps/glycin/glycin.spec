@@ -73,6 +73,7 @@ BuildRequires:  rust-toolset
 BuildRequires:  cargo-rpm-macros
 %endif
 
+BuildRequires:  gettext
 BuildRequires:  git-core
 BuildRequires:  meson
 BuildRequires:  vala
