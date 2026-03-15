@@ -26,6 +26,7 @@ BuildRequires: pkgconfig(libthai) >= %{libthai_version}
 BuildRequires: pkgconfig(xft) >= %{libXft_version}
 BuildRequires: pkgconfig(fribidi) >= %{fribidi_version}
 BuildRequires: pkgconfig(gobject-introspection-1.0)
+BuildRequires: docbook-utils
 BuildRequires: help2man
 BuildRequires: meson
 BuildRequires: gcc gcc-c++

@@ -1,0 +1,102 @@
+# Build Order Manifest for GNOME 49 on CentOS Stream 10 (EL10)
+#
+# Source priority:
+#   src/gnome-49/  — locally patched specs (SCM builds)
+#   f43-specs/     — Fedora 43 spec snapshots (SCM builds, avoid distgit drift)
+#
+# Packages within a tier build in parallel; tiers are sequential.
+# The bootstrap sequence (glib2 ↔ gobject-introspection circular dep) must
+# run before the main glib2/GI full builds.
+
+target: centos-stream-10-x86_64
+
+tiers:
+  # Tier 0: Pure build tools with no internal deps.
+  - name: base-tools
+    packages:
+      - path: src/gnome-49/meson
+        build_tool: true
+      - path: src/gnome-49/ninja-build
+        build_tool: true
+      - path: src/gnome-49/snowball
+      - path: src/gnome-49/gnome49-el10-compat
+
+  # Tier 1: Depends on tools from Tier 0.
+  - name: build-tools
+    packages:
+      - path: src/gnome-49/harfbuzz
+        build_tool: true
+      - path: f43-specs/gi-docgen
+        build_tool: true
+
+  # Tier 2: Bootstrap GLib (introspection disabled to break circular dep).
+  - name: glib2-bootstrap
+    packages:
+      - path: src/gnome-49/glib2
+        spec_override: glib2-bootstrap.spec
+
+  # Tier 3: mozjs140 and libei (no GI needed).
+  - name: bootstrap-libs
+    packages:
+      - path: f43-specs/mozjs140
+      - path: f43-specs/libei
+
+  # Tier 4: GI Bootstrap (needs cairo from EL10 base + bootstrap glib2).
+  - name: gi-bootstrap
+    packages:
+      - path: src/gnome-49/gobject-introspection
+        spec_override: gobject-introspection-bootstrap.spec
+
+  # Tier 5: Full GLib (needs GI bootstrap for g-ir-scanner).
+  - name: glib2-full
+    packages:
+      - path: src/gnome-49/glib2
+
+  # Tier 6: Full GI (needs full glib2).
+  - name: gi-full
+    packages:
+      - path: src/gnome-49/gobject-introspection
+
+  # Tier 7: Core libraries requiring full GLib + GI.
+  - name: core-libraries
+    packages:
+      - path: src/gnome-49/pango
+      - path: src/gnome-49/tinysparql
+      - path: src/gnome-49/libcloudproviders
+      - path: src/gnome-49/libgexiv2
+
+  # Tier 8: GTK Core (needs pango + GI).
+  - name: gtk-core
+    packages:
+      - path: src/gnome-49/gtk4
+      - path: f43-specs/gsettings-desktop-schemas
+      - path: f43-specs/gnome-desktop3
+      - path: f43-specs/glycin
+
+  # Tier 9: GJS + higher-level libraries (needs gtk4 + mozjs140 + GI).
+  - name: gjs-layer
+    packages:
+      - path: src/gnome-49/gjs
+      - path: src/gnome-49/libadwaita
+      - path: f43-specs/xdg-desktop-portal
+      - path: src/gnome-49/localsearch
+
+  # Tier 10: Compositor & Shell foundations.
+  - name: shell-foundations
+    packages:
+      - path: src/gnome-49/gnome-settings-daemon
+      - path: src/gnome-49/mutter
+
+  # Tier 11: The Shell.
+  - name: gnome-shell
+    packages:
+      - path: src/gnome-49/gnome-shell
+      - path: f43-specs/xdg-desktop-portal-gnome
+      - path: src/gnome-49/nautilus
+
+  # Tier 12: Session & Control Center.
+  - name: session-layer
+    packages:
+      - path: src/gnome-49/gnome-session
+      - path: src/gnome-49/gnome-control-center
+      - path: src/gnome-49/gdm
