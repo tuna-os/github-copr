@@ -24,7 +24,8 @@ tiers:
       - path: src/gnome-49/blueprint-compiler
         build_tool: true
       - path: src/gnome-49/libei
-      - path: src/gnome-49/freerdp
+      # freerdp requires a custom repack tarball (freerdp_download_and_repack.sh) not fetchable by spectool;
+      # keep as COPR-only SCM build, not in GHA pipeline
       - path: src/gnome-49/avahi
 
   # Tier 1: Font/text foundations (harfbuzz needs meson but no GLib yet).
