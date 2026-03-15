@@ -73,8 +73,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -83,14 +81,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-0
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier base-tools --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier base-tools --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -150,8 +154,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -160,14 +162,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-1
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier build-tools --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier build-tools --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -223,8 +231,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -233,14 +239,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-2
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier glib2-bootstrap --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier glib2-bootstrap --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -299,8 +311,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -309,14 +319,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-3
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier bootstrap-libs --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier bootstrap-libs --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -372,8 +388,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -382,14 +396,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-4
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier cairo-layer --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier cairo-layer --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -445,8 +465,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -455,14 +473,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-5
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gi-bootstrap --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier gi-bootstrap --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -518,8 +542,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -528,14 +550,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-6
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier glib2-full --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier glib2-full --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -591,8 +619,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -601,14 +627,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-7
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gi-full --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier gi-full --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -666,8 +698,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -676,14 +706,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-8
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier core-libraries --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier core-libraries --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -742,8 +778,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -752,14 +786,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-9
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier system-tools --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier system-tools --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -818,8 +858,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -828,14 +866,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-10
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gtk-core --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier gtk-core --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -893,8 +937,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -903,14 +945,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-11
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier desktop-foundations --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier desktop-foundations\
+        \ --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force\
+        \ }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh\
+        \ \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -967,8 +1015,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -977,14 +1023,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-12
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier shell-foundations --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier shell-foundations\
+        \ --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force\
+        \ }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh\
+        \ \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -1042,8 +1094,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -1052,14 +1102,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-13
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gnome-shell --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier gnome-shell --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -1117,8 +1173,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install host dependencies
       run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
     - name: Cache CentOS Stream 10 image
@@ -1127,14 +1181,20 @@ jobs:
         path: /tmp/cs10-image.tar
         key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
     - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
+        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
+        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
+        \ }}\n"
     - name: Download previous repo
       uses: actions/download-artifact@v4
       with:
         name: repo-14
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier session-layer --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier session-layer --package\
+        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
+        \n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
