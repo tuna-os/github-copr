@@ -173,7 +173,7 @@ check_package_exists() {
         --pull=missing \
         -v "$(dirname "$spec"):/specdir:Z" \
         "${BUILD_IMAGE}" \
-        rpm -q --specquery "/specdir/${spec_basename}" \
+        rpmspec -q "/specdir/${spec_basename}" \
             --define "dist .el10" \
             --queryformat "%{NAME}-%{VERSION}-%{RELEASE}\n" | head -1)
 
@@ -254,12 +254,33 @@ gpgcheck=0
 priority=1
 module_hotfixes=1
 
+[baseos]
+name=CentOS Stream 10 - BaseOS
+baseurl=https://mirror.stream.centos.org/10-stream/BaseOS/x86_64/os/
+enabled=1
+gpgcheck=0
+priority=10
+
+[appstream]
+name=CentOS Stream 10 - AppStream
+baseurl=https://mirror.stream.centos.org/10-stream/AppStream/x86_64/os/
+enabled=1
+gpgcheck=0
+priority=10
+
+[crb]
+name=CentOS Stream 10 - CRB
+baseurl=https://mirror.stream.centos.org/10-stream/CRB/x86_64/os/
+enabled=1
+gpgcheck=0
+priority=10
+
 [epel]
 name=Extra Packages for Enterprise Linux 10 - x86_64
 baseurl=https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64
 enabled=1
 gpgcheck=0
-priority=10
+priority=20
 """
 config_opts['plugin_conf']['bind_mount_enable'] = True
 config_opts['plugin_conf']['bind_mount_opts']['dirs'].append(
@@ -285,7 +306,13 @@ MOCKCFG
                     --resultdir=/builddir/results \
                     --define 'dist .el10' \
                     --no-clean \
-                    --no-cleanup-after
+                    --no-cleanup-after || {
+                        echo "ERROR: mock failed. Printing build.log:"
+                        cat /builddir/results/build.log || true
+                        echo "ERROR: Printing root.log:"
+                        cat /builddir/results/root.log || true
+                        exit 1
+                    }
             \"
         "
 
@@ -351,14 +378,20 @@ build_package_mock() {
 
     flock "${LOCAL_REPO}/repo.lock" -c "
         createrepo_c \"${LOCAL_REPO}\"
-        mock -r \"${MOCK_CONFIG}\" \
-            --uniqueext=\"${pkg_name}\" \
-            --rebuild \"$srpm\" \
-            --resultdir=\"$resultdir\" \
-            --define \"dist .el10\" \
+        mock -r "${MOCK_CONFIG}" \
+            --uniqueext="${pkg_name}" \
+            --rebuild "$srpm" \
+            --resultdir="$resultdir" \
+            --define "dist .el10" \
             --no-clean \
-            --no-cleanup-after
-    "
+            --no-cleanup-after || {
+                echo "ERROR: mock failed. Printing build.log:"
+                cat "$resultdir/build.log" || true
+                echo "ERROR: Printing root.log:"
+                cat "$resultdir/root.log" || true
+                exit 1
+            }
+        "
 
     local rpm_count=0
     while IFS= read -r -d '' rpm; do
