@@ -4,7 +4,7 @@ Release:        1%{?dist}
 Summary:        A library of handy utility functions
 License:        LGPL-2.1-or-later
 URL:            https://www.gtk.org
-Source0:        glib-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/glib/2.87/glib-%{version}.tar.xz
 
 BuildRequires:  meson
 BuildRequires:  gcc
