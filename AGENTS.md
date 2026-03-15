@@ -14,7 +14,7 @@ When adding or updating packages, adhere to the following priority list:
 ICU 77 is bundled with packages that require it (e.g., `mozjs140`, `tinysparql`) instead of using a standalone package. This prevents "repo poisoning" and conflicts with EL10's base ICU 74.
 
 ## Current Projects
-*   **`jreilly1821/c10s-gnome-50-fresh`**: GNOME 50 development.
+*   **`jreilly1821/c10s-gnome-50`**: GNOME 50 development.
 *   **`jreilly1821/c10s-gnome-49`**: GNOME 49 development (forked from GNOME 50).
 
 ## Current Status: COPR Build Cycle 1 (2026-03-14)
@@ -23,7 +23,7 @@ ICU 77 is bundled with packages that require it (e.g., `mozjs140`, `tinysparql`)
 *   **Secondary Repo (`icu77-el10`)**: 
     *   `meson`, `autoconf`, `python-smartypants`, `python-typogrify` (Build tools).
     *   `wayland-protocols`, `shaderc`, `gi-docgen`, `icu`.
-*   **Main Repo (`c10s-gnome-50-fresh`)**:
+*   **Main Repo (`c10s-gnome-50`)**:
     *   `libldac`, `gnome50-el10-compat`, `selinux-policy`, `libei`.
     *   `gobject-introspection` (Bootstrap variant).
 

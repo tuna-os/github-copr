@@ -1,14 +1,20 @@
 vmType: qemu
 arch: x86_64
 cpus: 4
-memory: 4GiB
-disk: 20GiB
+memory: 8GiB
+disk: 40GiB
+
+video:
+  display: "vnc"
+  vga: "std"
 
 images:
   - location: "https://cloud.centos.org/centos/10-stream/x86_64/images/CentOS-Stream-GenericCloud-x86_64-10-latest.x86_64.qcow2"
     arch: x86_64
 
-mounts: []
+mounts:
+  - location: "~"
+    writable: true
 
 ssh:
   localPort: 0
@@ -18,5 +24,29 @@ provision:
   - mode: system
     script: |
       #!/bin/bash
+      set -euxo pipefail
+      
+      # Enable our COPR
       dnf -y install dnf-plugins-core
-      dnf copr enable -y jreilly1821/c10s-gnome-50-fresh
+      dnf copr enable -y jreilly1821/c10s-gnome-50
+      
+      # Install GNOME 50 core components
+      # We install these first to ensure our versions are picked up
+      dnf -y install \
+        gnome-shell \
+        gnome-control-center \
+        mutter \
+        gdm \
+        gnome-session-wayland-session \
+        gnome-terminal \
+        nautilus \
+        glib2
+      
+      # Install a minimal graphical environment
+      dnf -y group install "BaseOS" "Fonts"
+      
+      # Enable GDM and set graphical boot
+      systemctl enable gdm
+      systemctl set-default graphical.target
+
+      echo "GNOME 50 installation complete. Please reboot if necessary."

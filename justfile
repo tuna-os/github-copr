@@ -142,7 +142,7 @@ publish-static:
     rclone --s3-no-check-bucket copyto contrib/install.sh "r2:${R2_BUCKET}/install.sh"
 
 # Build a package in COPR from Fedora Rawhide dist-git (for unmodified packages)
-copr-build package project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x86_64':
+copr-build package project='jreilly1821/c10s-gnome-50' chroot='epel-10-x86_64':
     #!/usr/bin/env bash
     set -euo pipefail
     copr-cli add-package-distgit {{project}} --name {{package}} --distgit fedora --commit rawhide 2>/dev/null || \
@@ -151,7 +151,7 @@ copr-build package project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x86
 
 # Build a modified package in COPR from our git repo (preferred over copr-srpm-build)
 # Usage: just copr-scm-build src/deps/gnome-autoar
-copr-scm-build path project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x86_64':
+copr-scm-build path project='jreilly1821/c10s-gnome-50' chroot='epel-10-x86_64':
     #!/usr/bin/env bash
     set -euo pipefail
     SPEC=$(ls {{path}}/*.spec | grep -v bootstrap | head -n 1)
@@ -179,7 +179,7 @@ copr-scm-build path project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x8
     copr-cli build-package {{project}} --name "$NAME" --chroot {{chroot}} --nowait
 
 # Build a local package in COPR by generating an SRPM first (avoid — use copr-scm-build instead)
-copr-srpm-build path project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x86_64':
+copr-srpm-build path project='jreilly1821/c10s-gnome-50' chroot='epel-10-x86_64':
     #!/usr/bin/env bash
     set -euo pipefail
     echo "WARNING: copr-srpm-build uploads a local SRPM. Prefer 'just copr-scm-build {{path}}' for modified specs."
@@ -198,8 +198,12 @@ copr-srpm-build path project='jreilly1821/c10s-gnome-50-fresh' chroot='epel-10-x
     copr-cli build {{project}} $SRPM --chroot {{chroot}} --nowait
 
 # Check status of builds in the COPR project
-copr-status project='jreilly1821/c10s-gnome-50-fresh':
+copr-status project='jreilly1821/c10s-gnome-50':
     copr-cli list-builds {{project}} | head -n 20
+
+# Watch the COPR project builds in real-time
+watch-copr project='jreilly1821/c10s-gnome-49':
+    copr-cli monitor {{project}} --fields name,chroot,state,url_build_log
 
 # Download and open logs for a specific build ID
 copr-logs build_id:

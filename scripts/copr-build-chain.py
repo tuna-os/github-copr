@@ -207,7 +207,7 @@ def wait_for_builds(build_ids, project, poll_interval=30):
 def main():
     parser = argparse.ArgumentParser(description="COPR Build Chain Engine")
     parser.add_argument("--manifest", default="build-order.yml")
-    parser.add_argument("--project", default="jreilly1821/c10s-gnome-50-fresh")
+    parser.add_argument("--project", default="jreilly1821/c10s-gnome-50")
     parser.add_argument("--chroot", action="append", dest="chroots",
                         default=[], help="Chroot(s) to build for (repeatable)")
     parser.add_argument("--dry-run", action="store_true")
