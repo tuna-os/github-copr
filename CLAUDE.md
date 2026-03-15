@@ -32,7 +32,28 @@ just rsync-test root@<ip>          # Sync local-repo/ to remote and test upgrade
 
 The main build script (used by CI):
 ```bash
-./scripts/build-chain.sh --help    # Tiered build orchestration
+./scripts/build-chain.sh --help    # Tiered build orchestration (local/CI, podman/mock/native)
+```
+
+Triggering COPR builds in tier order (e.g. to fill a new chroot):
+```bash
+# Dry run — shows what would be triggered without submitting
+python3 scripts/copr-build-chain.py --dry-run \
+  --chroot epel-10-aarch64 \
+  --chroot "alma-kitten+epel-10-x86_64_v2"
+
+# Live run — submits builds tier-by-tier, waits between tiers
+python3 scripts/copr-build-chain.py \
+  --chroot epel-10-aarch64 \
+  --chroot "alma-kitten+epel-10-x86_64_v2"
+
+# Single tier (useful for re-running a failed tier)
+python3 scripts/copr-build-chain.py --tier glib2-bootstrap \
+  --chroot epel-10-aarch64
+
+# Don't stop on failure (submit all tiers regardless)
+python3 scripts/copr-build-chain.py --continue-on-error \
+  --chroot epel-10-aarch64
 ```
 
 ## Architecture
@@ -47,12 +68,34 @@ GitHub Actions → build-chain.sh (reads build-order.yml)
 
 CI seeds the local repo from R2 at the start, adds new builds, re-signs, and pushes back—incremental updates only.
 
+#### COPR Bootstrap Chain
+
+Adding a new chroot (e.g. `epel-10-aarch64`) requires a bootstrap chain because glib2 and gobject-introspection have a circular build dependency:
+
+```
+glib2 (full)  needs  gobject-introspection-devel  (for GI annotations)
+gobject-introspection  needs  glib2
+```
+
+The COPR additional repos are x86_64-only, so aarch64/x86_64_v2 can't get gobject-introspection from there. `copr-build-chain.py` handles this automatically:
+
+1. Tiers 0–2: base tools (meson, autoconf, harfbuzz, …)
+2. **Tier 3 `glib2-bootstrap`**: creates COPR package `glib2-bootstrap` from `glib2-bootstrap.spec` (no GI dep) — separate from the production `glib2` package
+3. Tiers 4–5: bootstrap-libs + cairo
+4. **Tier 6 `gi-bootstrap`**: creates COPR package `gobject-introspection-bootstrap` from `gobject-introspection-bootstrap.spec` — now g-ir-scanner exists in the buildroot
+5. **Tier 7 `glib2-full`**: production `glib2` package now builds (GI available)
+6. **Tier 8 `gi-full`**: production `gobject-introspection` package rebuilt against full glib2
+7. Tiers 9–15: full desktop stack
+
+The bootstrap packages (`glib2-bootstrap`, `gobject-introspection-bootstrap`) are COPR-package-name aliases — they produce the same RPM names but live as separate entries so the production package definitions are never clobbered.
+
 ### Key Files
 
 | File | Purpose |
 |------|---------|
 | `build-order.yml` | Single source of truth: defines ~80 packages across 13+ dependency tiers |
 | `scripts/build-chain.sh` | Main build engine; parses build-order.yml; supports podman/mock/native backends |
+| `scripts/copr-build-chain.py` | Triggers COPR builds tier-by-tier for one or more chroots; handles bootstrap chain |
 | `justfile` | Local convenience wrappers (requires `just`) |
 | `.github/workflows/build.yml` | Primary CI/CD pipeline |
 | `.github/workflows/build-distributed.yml` | Auto-generated per-tier parallel workflow |
@@ -60,12 +103,22 @@ CI seeds the local repo from R2 at the start, adds new builds, re-signs, and pus
 | `workers/repo-proxy.ts` | Cloudflare Worker for custom domain routing |
 | `contrib/install.sh` | User-facing install script (detects distro/version) |
 
-### Package Sources
+## Package Sources and Priorities
 
+When adding or updating packages, adhere to the following priority list:
+1.  **Fedora Rawhide Dist-Git** (`just copr-build <name>`): Use for unmodified packages.
+2.  **GitHub SCM** (`just copr-scm-build <path>`): Use for modified specs. This is the **preferred method for modified packages** as it tracks changes in this repository.
+3.  **Local SRPM** (`just copr-srpm-build <path>`): Use only as a last resort.
+
+### GNOME 50 Package Strategy
 - `src/gnome-50/` — GNOME 50 packages (glib2, gtk4, mutter, gnome-shell, gdm, etc.)
 - `src/deps/` — Build dependencies not in EL10 repos (meson, mozjs140, pipewire, cairo, etc.)
 
-Each package directory contains a `.spec` file and sources. Some packages have bootstrap variants (e.g., `glib2-bootstrap.spec`, `gobject-introspection-bootstrap.spec`) to break circular dependencies—these build first without certain features, then the full build follows.
+## ICU 77 Build-Only Strategy
+ICU 77 is a required build-time dependency for several GNOME 50 components but is "poisonous" to the main user repository.
+- **Secondary COPR**: `jreilly1821/icu77-el10` contains ICU 77 and its specific build requirements (e.g., `autoconf` 2.72).
+- **Configuration**: This repo is added as an **Additional repo** to the main `c10s-gnome-50` project for build-time resolution only.
+- **Isolation**: ICU 77 packages should **NOT** be built in or added to the main project's package list.
 
 ### Build Targets
 
@@ -128,7 +181,7 @@ Test installs from COPR using a throwaway container — do not use `--skip-broke
 ```bash
 podman run --rm quay.io/centos/centos:stream10 bash -c "
   dnf -y install dnf-plugins-core &&
-  dnf copr enable -y jreilly1821/c10s-gnome-50-fresh &&
+  dnf copr enable -y jreilly1821/c10s-gnome-50 &&
   dnf -y install <packages>
 "
 ```
