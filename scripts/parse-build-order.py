@@ -35,6 +35,8 @@ def main():
         for tier in data["tiers"]:
             if tier["name"] == args.tier:
                 for pkg in tier.get("packages", []):
+                    if "path" not in pkg:
+                        continue  # skip copr_name-only entries
                     spec = pkg.get("spec_override", "")
                     print(f"{pkg['path']}\t{spec}")
                 return
@@ -45,6 +47,8 @@ def main():
     for tier in data["tiers"]:
         print(f"=== {tier['name']} ===")
         for pkg in tier.get("packages", []):
+            if "path" not in pkg:
+                continue  # skip copr_name-only entries
             spec = pkg.get("spec_override", "")
             line = pkg["path"]
             if spec:
