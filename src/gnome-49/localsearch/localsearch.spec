@@ -84,7 +84,9 @@ BuildRequires:  pkgconfig(totem-plparser)
 BuildRequires:  pkgconfig(tinysparql-3.0) >= %{tinysparql_version}
 BuildRequires:  pkgconfig(vorbisfile)
 %if !0%{?flatpak}
+%if !0%{?rhel}
 BuildRequires:  pkgconfig(libosinfo-1.0)
+%endif
 BuildRequires:  pkgconfig(libnm)
 BuildRequires:  pkgconfig(upower-glib)
 %endif
@@ -123,6 +125,9 @@ This package contains various miners and metadata extractors for tinysparql.
 %endif
 %if ! 0%{?flatpak}
   -Dsystemd_user_services_dir=%{_userunitdir} \
+%endif
+%if 0%{?rhel}
+  -Diso=disabled \
 %endif
 %if ! 0%{?with_totem_pl_parser}
   -Dplaylist=disabled \
