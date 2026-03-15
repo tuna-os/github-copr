@@ -1,8 +1,8 @@
 # Build Order Manifest for GNOME 49 on CentOS Stream 10 (EL10)
 #
 # Source priority:
-#   src/gnome-49/  — locally patched specs (SCM builds)
-#   f43-specs/     — Fedora 43 spec snapshots (SCM builds, avoid distgit drift)
+#   src/gnome-49/  — locally patched specs (SCM builds from this repo)
+#   copr_name      — package already registered in COPR; just trigger build-package
 #
 # Packages within a tier build in parallel; tiers are sequential.
 # The bootstrap sequence (glib2 ↔ gobject-introspection circular dep) must
@@ -26,7 +26,7 @@ tiers:
     packages:
       - path: src/gnome-49/harfbuzz
         build_tool: true
-      - path: f43-specs/gi-docgen
+      - copr_name: gi-docgen
         build_tool: true
 
   # Tier 2: Bootstrap GLib (introspection disabled to break circular dep).
@@ -38,8 +38,8 @@ tiers:
   # Tier 3: mozjs140 and libei (no GI needed).
   - name: bootstrap-libs
     packages:
-      - path: f43-specs/mozjs140
-      - path: f43-specs/libei
+      - copr_name: mozjs140
+      - copr_name: libei
 
   # Tier 4: GI Bootstrap (needs cairo from EL10 base + bootstrap glib2).
   - name: gi-bootstrap
@@ -69,16 +69,16 @@ tiers:
   - name: gtk-core
     packages:
       - path: src/gnome-49/gtk4
-      - path: f43-specs/gsettings-desktop-schemas
-      - path: f43-specs/gnome-desktop3
-      - path: f43-specs/glycin
+      - path: src/gnome-49/gsettings-desktop-schemas
+      - path: src/gnome-49/gnome-desktop3
+      - copr_name: glycin
 
-  # Tier 9: GJS + higher-level libraries (needs gtk4 + mozjs140 + GI).
+  # Tier 9: GJS + higher-level libs (needs gtk4 + mozjs140 + GI).
   - name: gjs-layer
     packages:
       - path: src/gnome-49/gjs
       - path: src/gnome-49/libadwaita
-      - path: f43-specs/xdg-desktop-portal
+      - copr_name: xdg-desktop-portal
       - path: src/gnome-49/localsearch
 
   # Tier 10: Compositor & Shell foundations.
@@ -91,7 +91,7 @@ tiers:
   - name: gnome-shell
     packages:
       - path: src/gnome-49/gnome-shell
-      - path: f43-specs/xdg-desktop-portal-gnome
+      - copr_name: xdg-desktop-portal-gnome
       - path: src/gnome-49/nautilus
 
   # Tier 12: Session & Control Center.
