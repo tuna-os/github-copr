@@ -13,6 +13,7 @@ URL:            https://gitlab.gnome.org/GNOME/gsettings-desktop-schemas
 Source0:        https://download.gnome.org/sources/%{name}/50/%{name}-%{tarball_version}.tar.xz
 Source1:        org.gnome.desktop.interface.rhel.gschema.override
 
+BuildRequires:  gcc
 BuildRequires:  gettext
 BuildRequires:  glib2-devel >= 2.31.0
 BuildRequires:  gobject-introspection-devel
