@@ -46,6 +46,7 @@ Source0:        https://download.gnome.org/sources/%{name}/3.10/%{name}-%{tarbal
 
 BuildRequires:  asciidoc
 BuildRequires:  gcc
+BuildRequires:  gettext
 BuildRequires:  giflib-devel
 BuildRequires:  meson
 BuildRequires:  systemd-rpm-macros
