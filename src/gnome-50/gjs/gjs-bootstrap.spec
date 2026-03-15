@@ -4,7 +4,7 @@ Release:        1%{?dist}
 Summary:        Javascript bindings for GNOME
 License:        MIT AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later)
 URL:            https://wiki.gnome.org/Projects/Gjs
-Source0:        gjs-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/1.83/%{name}-%{version}.tar.xz
 
 BuildRequires:  meson
 BuildRequires:  gcc-c++
