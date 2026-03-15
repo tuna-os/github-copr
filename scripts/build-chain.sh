@@ -288,6 +288,10 @@ config_opts['plugin_conf']['bind_mount_opts']['dirs'].append(
 )
 MOCKCFG
 
+    # Ensure the local repo metadata is up-to-date before mock starts,
+    # locked to prevent parallel jobs from corrupting it.
+    flock "${LOCAL_REPO}/repo.lock" -c "createrepo_c --update \"${LOCAL_REPO}\""
+
     echo "==> [${pkg_name}] Running mock inside podman (${BUILD_IMAGE})..."
 
     podman run --rm --privileged \
@@ -296,10 +300,9 @@ MOCKCFG
         -v "${LOCAL_REPO}:/local-repo:Z" \
         "${BUILD_IMAGE}" \
         bash -exc "
-            # Use flock to ensure only one process updates the repo and runs mock at a time
-            # because they share /local-repo and mock chroot initialization.
+            # Use flock to ensure only one process runs mock at a time
+            # because they share mock chroot initialization.
             flock /local-repo/repo.lock -c \"
-                createrepo_c /local-repo/
                 mock -r centos-stream-10-ci \\
                     --uniqueext='${pkg_name}' \\
                     --rebuild /builddir/SRPMS/*.src.rpm \\
@@ -376,8 +379,11 @@ build_package_mock() {
     local resultdir="${builddir}/results"
     mkdir -p "$resultdir"
 
+    # Ensure the local repo metadata is up-to-date before mock starts,
+    # locked to prevent parallel jobs from corrupting it.
+    flock "${LOCAL_REPO}/repo.lock" -c "createrepo_c --update \"${LOCAL_REPO}\""
+
     flock "${LOCAL_REPO}/repo.lock" -c "
-        createrepo_c \"${LOCAL_REPO}\"
         mock -r \"${MOCK_CONFIG}\" \\
             --uniqueext=\"${pkg_name}\" \\
             --rebuild \"$srpm\" \\
