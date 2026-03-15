@@ -4,7 +4,7 @@ Release:        1%{?dist}
 Summary:        Introspection system for GObject-based libraries
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later AND MIT
 URL:            https://wiki.gnome.org/Projects/GObjectIntrospection
-Source0:        gobject-introspection-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/1.86/%{name}-%{version}.tar.xz
 
 BuildRequires:  meson
 BuildRequires:  gcc
