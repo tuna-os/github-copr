@@ -36,9 +36,7 @@ Patch:         mutter-42.alpha-disable-tegra.patch
 
 BuildRequires: gcc
 BuildRequires: gcc-c++
-%ifnarch aarch64
 BuildRequires: cvt
-%endif
 BuildRequires: desktop-file-utils
 BuildRequires: mesa-libEGL-devel
 BuildRequires: mesa-libGLES-devel
