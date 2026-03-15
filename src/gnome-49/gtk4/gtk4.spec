@@ -102,7 +102,9 @@ BuildRequires:  pkgconfig(librsvg-2.0)
 BuildRequires:  pkgconfig(libtiff-4)
 BuildRequires:  pkgconfig(pango) >= %{pango_version}
 BuildRequires:  pkgconfig(sysprof-capture-4)
+%if !0%{?rhel}
 BuildRequires:  pkgconfig(tracker-sparql-3.0)
+%endif
 BuildRequires:  pkgconfig(vulkan)
 BuildRequires:  pkgconfig(wayland-client) >= %{wayland_version}
 BuildRequires:  pkgconfig(wayland-cursor) >= %{wayland_version}
@@ -186,7 +188,11 @@ export CFLAGS='-std=c11 -fno-strict-aliasing -DG_DISABLE_CAST_CHECKS -DG_DISABLE
         -Dbroadway-backend=true \
 %endif
         -Dsysprof=enabled \
+%if 0%{?rhel}
+        -Dtracker=disabled \
+%else
         -Dtracker=enabled \
+%endif
         -Dcolord=enabled \
         -Ddocumentation=true \
         -Dman-pages=true \
