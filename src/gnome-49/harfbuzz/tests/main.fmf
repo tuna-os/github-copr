@@ -1,0 +1,16 @@
+test: ./runtests.sh
+duration: 10m
+framework: beakerlib
+require:
+  - harfbuzz
+  - harfbuzz-devel
+  - rpm-build
+  - meson
+  - gcc-c++
+  - make
+  - python3-devel
+  - graphite2-devel
+  - libtool
+  - gtk-doc
+  - cairo-devel
+  - fontconfig-devel
