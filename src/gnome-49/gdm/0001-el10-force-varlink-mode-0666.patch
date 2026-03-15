@@ -1,4 +1,6 @@
-From: EL10 Compatibility Patch
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: EL10 Compatibility Patch <noreply@example.com>
+Date: Sun, 15 Mar 2026 00:00:00 +0000
 Subject: [PATCH] el10: Force sd_varlink_server_listen_address mode to 0666
 
 EL10's libsystemd 257 implements sd_varlink_server_listen_address() with
@@ -8,15 +10,25 @@ headers define SD_VARLINK_SERVER_MODE_MKDIR_0755 with a high bit set
 
 Force the mode to 0666 directly to ensure compatibility with EL10's
 runtime libsystemd regardless of the systemd-devel version used to compile.
+---
+ daemon/gdm-dynamic-user-store.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/daemon/gdm-dynamic-user-store.c b/daemon/gdm-dynamic-user-store.c
+index 0000000..0000001 100644
 --- a/daemon/gdm-dynamic-user-store.c
 +++ b/daemon/gdm-dynamic-user-store.c
-@@ -39,10 +39,9 @@
+@@ -39,9 +39,9 @@
+
+ #define USERDB_SOCKET_DIR "/run/systemd/userdb"
 
 -#ifndef SD_VARLINK_SERVER_MODE_MKDIR_0755
--#define SD_VARLINK_SERVER_MODE_MKDIR_0755 0
--#endif
 +/* Force 0666: EL10 libsystemd 257 rejects any mode bits outside 0777 */
 +#undef SD_VARLINK_SERVER_MODE_MKDIR_0755
-+#define SD_VARLINK_SERVER_MODE_MKDIR_0755 0
+ #define SD_VARLINK_SERVER_MODE_MKDIR_0755 0
+-#endif
+
+ struct _GdmDynamicUserStore
+ {
+--
+2.43.0
