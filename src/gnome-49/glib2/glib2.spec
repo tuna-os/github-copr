@@ -33,6 +33,7 @@ BuildRequires:  pkgconfig(mount)
 BuildRequires:  pkgconfig(sysprof-capture-4)
 BuildRequires:  pkgconfig(zlib)
 BuildRequires:  python3-devel
+BuildRequires:  python3-setuptools
 BuildRequires:  /usr/bin/g-ir-scanner
 BuildRequires:  /usr/bin/rst2man
 
