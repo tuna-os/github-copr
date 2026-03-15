@@ -8,6 +8,7 @@ URL:              https://github.com/martinpitt/%{name}
 Source0:          https://github.com/martinpitt/%{name}/releases/download/%{version}/%{name}-%{version}.tar.xz
 
 BuildRequires:    git
+BuildRequires:    gcc
 BuildRequires:    meson
 BuildRequires:    gtk-doc
 BuildRequires:    gobject-introspection-devel
