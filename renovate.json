@@ -2,9 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "TunaOS GNOME 49 package version tracking against Fedora F43",
   "extends": [
-    "config:base"
+    "config:base",
+    ":enableHelp"
   ],
   "enabled": true,
+  "github-actions": {
+    "enabled": true
+  },
   "labels": ["renovate", "package-update"],
   "prHourlyLimit": 5,
   "prConcurrentLimit": 10,
