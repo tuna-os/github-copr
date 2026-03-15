@@ -86,7 +86,7 @@ The pkg-config file for %{name}.
 %meson \
   %{!?with_docs:-Ddocumentation=disabled} \
 %if 0%{?rhel}
-  -Dtests=false \
+  -Dtests=disabled \
 %endif
   %{nil}
 %meson_build
