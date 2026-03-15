@@ -1,0 +1,142 @@
+name: GNOME 49 Package Build (Incremental)
+
+on:
+  pull_request:
+    paths:
+      - 'src/gnome-49/**'
+  push:
+    branches:
+      - gnome-49-pipeline
+      - main
+    paths:
+      - 'src/gnome-49/**'
+  workflow_dispatch:
+    inputs:
+      package_path:
+        description: 'Package path (e.g. src/gnome-49/gdm)'
+        required: true
+
+env:
+  R2_BUCKET: bluefin
+  R2_REPO_PATH: gnome49/10-stream-x86_64
+  MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.detect.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed packages
+        id: detect
+        run: |
+          if [[ -n "${{ github.event.inputs.package_path }}" ]]; then
+            # Manual dispatch: use explicit path
+            PACKAGES='["${{ github.event.inputs.package_path }}"]'
+          else
+            # Detect from changed files
+            BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
+            HEAD="${{ github.sha }}"
+            CHANGED=$(git diff --name-only "${BASE}" "${HEAD}" | \
+              grep '^src/gnome-49/' | \
+              sed 's|/[^/]*$||' | sort -u | \
+              python3 -c "import sys,json; dirs=sys.stdin.read().splitlines(); print(json.dumps(dirs))")
+            PACKAGES="${CHANGED}"
+          fi
+          echo "packages=${PACKAGES}" >> $GITHUB_OUTPUT
+          echo "Will build: ${PACKAGES}"
+
+  build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.packages != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q podman createrepo-c rpm gpg gpgconf
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+
+      - name: Load or pull container image
+        run: |
+          if [[ -f /tmp/cs10-image.tar ]]; then
+            podman load -i /tmp/cs10-image.tar
+          else
+            podman pull quay.io/centos/centos:stream10
+            podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10
+          fi
+          podman pull ${{ env.MOCK_RUNNER_IMAGE }}
+
+      - name: Configure rclone
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          EOF
+
+      - name: Seed local repo from R2 (current published state)
+        run: |
+          mkdir -p local-repo
+          rclone sync "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo/ --exclude "repodata/**" || true
+          createrepo_c local-repo
+
+      - name: Build package
+        run: |
+          ./scripts/build-chain.sh \
+            --backend podman \
+            --local-repo local-repo \
+            --manifest build-order-gnome49.yml \
+            --package "${{ matrix.package }}" \
+            --force
+
+      - name: Import GPG key and sign
+        if: github.event_name != 'pull_request'
+        uses: crazy-max/ghaction-import-gpg@v6
+        id: import-gpg
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Sign new RPMs
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "%_signature gpg" > ~/.rpmmacros
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          find local-repo -name "*.rpm" -exec rpmsign --addsign {} \;
+          createrepo_c --update local-repo
+
+      - name: Upload updated package to R2
+        if: github.event_name != 'pull_request'
+        run: |
+          rclone sync local-repo/ "r2:${R2_BUCKET}/${R2_REPO_PATH}/"
+
+      - name: Upload RPMs as artifact (PR builds)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-${{ strategy.job-index }}
+          path: local-repo/*.rpm
+          retention-days: 3
