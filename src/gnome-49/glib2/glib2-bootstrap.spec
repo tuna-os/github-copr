@@ -1,10 +1,10 @@
 Name:           glib2
-Version:        2.82.5
+Version:        2.86.4
 Release:        1%{?dist}
 Summary:        A library of handy utility functions
 License:        LGPL-2.1-or-later
 URL:            https://www.gtk.org
-Source0:        https://download.gnome.org/sources/glib/2.82/glib-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/glib/2.86/glib-%{version}.tar.xz
 
 BuildRequires:  meson
 BuildRequires:  gcc
@@ -65,5 +65,5 @@ DESTDIR=%{buildroot} meson install -C build
 # Combined for bootstrap
 
 %changelog
-* Sat Mar 14 2026 James <james@example.com> - 2.82.5-1
-- Bootstrap build for GNOME 49 project
+* Sun Mar 15 2026 James <james@example.com> - 2.86.4-1
+- Bootstrap build for GNOME 49 project (F43 version)
