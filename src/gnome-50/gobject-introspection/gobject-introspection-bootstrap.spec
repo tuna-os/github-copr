@@ -14,6 +14,7 @@ BuildRequires:  pkgconfig(glib-2.0) >= 2.80.0
 BuildRequires:  pkgconfig(cairo)
 BuildRequires:  pkgconfig(cairo-gobject)
 BuildRequires:  python3-devel
+BuildRequires:  python3-setuptools
 BuildRequires:  python3-mako
 BuildRequires:  python3-markdown
 BuildRequires:  gtk-doc
