@@ -1,0 +1,15 @@
+PURPOSE of /CoreOS/avahi/Sanity/Basic-sanity-test
+Description: Tests basic functionality of avahi.
+Author: Martin Cermak <mcermak@redhat.com>
+
+My objective was to write a very basic sanity test for avahi. 
+As I'm the avahi newbie, I browsed avahi.org, experimented
+a little with RHEL avahi packages and pinged Lennart, which 
+did not respond.
+
+My result is a simple test for the avahi domain name resolver.
+It requires the avahi-daemon running. As the RHTS/Beaker is/will
+shortly be a closed system without the possibility to reach the 
+outside network, this test contains its own nameserver.
+
+
