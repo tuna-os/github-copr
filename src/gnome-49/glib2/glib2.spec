@@ -35,6 +35,7 @@ BuildRequires:  pkgconfig(zlib)
 BuildRequires:  python3-devel
 BuildRequires:  python3-setuptools
 BuildRequires:  /usr/bin/g-ir-scanner
+BuildRequires:  pkgconfig(gobject-introspection-1.0)
 BuildRequires:  /usr/bin/rst2man
 
 # Dependencies for tests
