@@ -468,7 +468,7 @@ These directories exist in `src/` but the corresponding COPR package is already 
 
 ### Medium Priority
 
-- [ ] **Switch libgexiv2 from upload to distgit**: The spec is nearly identical to rawhide. Run `copr-cli modify-package --source-type distgit --distgit fedora --committish rawhide jreilly1821/c10s-gnome-50-fresh libgexiv2` (but confirm package name is `libgexiv2` not `gexiv2` in Fedora dist-git).
+- [ ] **Switch libgexiv2 from upload to distgit**: The spec is nearly identical to rawhide. Run `copr-cli modify-package --source-type distgit --distgit fedora --committish rawhide jreilly1821/c10s-gnome-50 libgexiv2` (but confirm package name is `libgexiv2` not `gexiv2` in Fedora dist-git).
 
 - [ ] **Evaluate mozjs140 release bump**: Our local spec uses `-b4` vs rawhide's `-b3` to ensure version precedence. Document why or switch to a simple `Epoch: 1` approach if needed.
 
