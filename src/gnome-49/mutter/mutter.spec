@@ -168,7 +168,7 @@ the functionality of the installed %{name} package.
 %build
 %meson -Degl_device=true \
 %ifarch aarch64
-  -Dtests=false \
+  -Dtests=disabled \
 %endif
   %{nil}
 %meson_build
