@@ -51,7 +51,7 @@ ICU 77 is bundled with packages that require it (e.g., `mozjs140`, `tinysparql`)
 
 ## Self-Hosted GitHub Actions Pipeline (GNOME 49)
 
-As of 2026-03-15, a parallel self-hosted build pipeline is being set up alongside COPR. **The COPR projects are untouched — this is additive.**
+As of 2026-03-15, a parallel self-hosted build pipeline has been implemented alongside COPR in the `gnome-49-pipeline` branch. **The COPR projects are untouched — this is additive.**
 
 ### Architecture
 ```
@@ -66,7 +66,7 @@ src/gnome-49/ specs
 ### Key Files
 | File | Purpose |
 |------|---------|
-| `build-order-gnome49.yml` | GNOME 49 tier manifest (11 tiers, separate from GNOME 50) |
+| `build-order-gnome49.yml` | GNOME 49 tier manifest (12 tiers, separate from GNOME 50) |
 | `.github/workflows/build-gnome49-distributed.yml` | Full bootstrap: builds all tiers in sequence, per-package parallel matrix |
 | `.github/workflows/build-gnome49-package.yml` | Incremental: triggered by Renovate PRs or manual dispatch for single package |
 | `.github/workflows/build-gnome49-verify.yml` | Post-publish: verifies repo.tunaos.org is serving packages correctly |
@@ -97,7 +97,7 @@ scripts/watch-pipeline.sh status       # show recent runs
 
 - [x] **GNOME 49 COPR all-green**: All packages across all 3 chroots succeeded (2026-03-15)
 - [x] **GDM varlink socket fix**: Patched `gdm-dynamic-user-store.c` — socket now created correctly
-- [ ] **First GHA bootstrap run**: Trigger `build-gnome49-distributed.yml` and verify all 11 tiers build
+- [ ] **First GHA bootstrap run**: Trigger `build-gnome49-distributed.yml` and verify all 12 tiers build
 - [ ] **repo.tunaos.org/gnome49/ live**: After first successful run, verify HTTP 200 for repomd.xml
 - [ ] **VM verification**: `limactl start gnome49-repo-test.yaml` and verify GDM socket exists
 - [ ] **Renovate**: Enable Renovate app on repo and verify it finds spec version fields
