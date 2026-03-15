@@ -64,6 +64,9 @@ fi
 %license COPYING
 %config %{_sysconfdir}/fonts/
 %{_datadir}/fontconfig/
+%{_datadir}/gettext/its/fontconfig.*
+%{_datadir}/locale/*/LC_MESSAGES/fontconfig*.mo
+%{_datadir}/xml/fontconfig/
 %{_libdir}/libfontconfig.so.*
 %{_bindir}/fc-*
 
