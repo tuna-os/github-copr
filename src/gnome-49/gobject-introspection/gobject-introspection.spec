@@ -20,6 +20,7 @@ BuildRequires:  gettext
 BuildRequires:  gtk-doc
 BuildRequires:  meson
 BuildRequires:  python3-devel
+BuildRequires:  python3-setuptools
 BuildRequires:  python3-mako
 BuildRequires:  python3-markdown
 BuildRequires:  pkgconfig(cairo-gobject)
