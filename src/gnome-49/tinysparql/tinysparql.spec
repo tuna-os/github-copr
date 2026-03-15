@@ -21,6 +21,7 @@ Source0:        https://download.gnome.org/sources/tinysparql/3.10/tinysparql-%{
 
 BuildRequires:  asciidoc
 BuildRequires:  gcc
+BuildRequires:  gcc-c++
 BuildRequires:  gettext
 BuildRequires:  gi-docgen
 %if %{with libstemmer}

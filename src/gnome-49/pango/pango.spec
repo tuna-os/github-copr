@@ -87,6 +87,7 @@ The pango-doc package contains developer documentation for the pango package.
 %build
 export CFLAGS='-std=c11 %optflags'
 %meson \
+  --wrap-mode=nofallback \
   -Dbuild-testsuite=true \
   -Dbuild-examples=true \
   -Ddocumentation=true
