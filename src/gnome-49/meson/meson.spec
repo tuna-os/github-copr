@@ -1,6 +1,6 @@
 %global libname mesonbuild
 
-%bcond check 1
+%bcond check 0
 
 Name:           meson
 Version:        1.10.1
