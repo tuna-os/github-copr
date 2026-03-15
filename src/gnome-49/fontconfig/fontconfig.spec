@@ -5,7 +5,7 @@ Name:		fontconfig
 Version:	2.17.0
 Release:	1%{?dist}
 License:	HPND AND LicenseRef-Fedora-Public-Domain AND Unicode-DFS-2016
-Source0:	http://fontconfig.org/release/%{name}-%{version}.tar.xz
+Source0:	https://src.fedoraproject.org/repo/pkgs/fontconfig/fontconfig-2.17.0.tar.xz/sha512/dd64905c3e0e5c5881df505b8f0bea594bbac5ce145f57aedcd7130978cd285491497198d8f2d6ed26f7b2abb31268dc3ff97aa75ce998b8e57f2d5c75b240b4/fontconfig-2.17.0.tar.xz
 Source1:	25-no-bitmap-fedora.conf
 
 Patch0:		%{name}-sleep-less.patch
