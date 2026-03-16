@@ -26,16 +26,16 @@ jobs:
 
       - name: Promote dev → prod
         run: |
-          echo "Syncing tunaosdev → bluefin (10-stream-x86_64)..."
-          rclone sync "r2:tunaosdev/repo/10-stream-x86_64/" "r2:bluefin/repo/10-stream-x86_64/"
-          echo "Syncing tunaosdev → bluefin (10-x86_64)..."
-          rclone sync "r2:tunaosdev/repo/10-x86_64/" "r2:bluefin/repo/10-x86_64/"
+          echo "Syncing tunaosdev/gnome50 → bluefin/gnome50 (10-stream-x86_64)..."
+          rclone sync "r2:tunaosdev/gnome50/10-stream-x86_64/" "r2:bluefin/gnome50/10-stream-x86_64/"
+          echo "Syncing tunaosdev/gnome50 → bluefin/gnome50 (10-x86_64)..."
+          rclone sync "r2:tunaosdev/gnome50/10-x86_64/" "r2:bluefin/gnome50/10-x86_64/"
           echo "Promotion complete."
 
       - name: Verify production is live
         run: |
           sleep 5
-          STATUS=$(curl -sI https://repo.tunaos.org/repo/10-stream-x86_64/repodata/repomd.xml | awk 'NR==1{print $2}')
+          STATUS=$(curl -sI https://repo.tunaos.org/gnome50/10-stream-x86_64/repodata/repomd.xml | awk 'NR==1{print $2}')
           echo "Production repomd.xml HTTP status: ${STATUS}"
           [[ "${STATUS}" == "200" ]] || (echo "ERROR: Production repo not accessible after promotion!" && exit 1)
           echo "Production promotion verified."
