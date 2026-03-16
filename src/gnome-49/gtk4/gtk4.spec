@@ -188,11 +188,7 @@ export CFLAGS='-std=c11 -fno-strict-aliasing -DG_DISABLE_CAST_CHECKS -DG_DISABLE
         -Dbroadway-backend=true \
 %endif
         -Dsysprof=enabled \
-%if 0%{?rhel}
-        -Dtracker=disabled \
-%else
-        -Dtracker=enabled \
-%endif
+        -Dtracker=auto \
         -Dcolord=enabled \
         -Ddocumentation=true \
         -Dman-pages=true \
