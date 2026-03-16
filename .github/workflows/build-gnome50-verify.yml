@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Check repomd.xml is accessible
         run: |
-          STATUS=$(curl -sI https://repo.tunaos.org/repo/10-stream-x86_64/repodata/repomd.xml | head -1 | grep -o '[0-9]*' | head -1)
+          STATUS=$(curl -sI https://repo.tunaos.org/repo/10-stream-x86_64/repodata/repomd.xml | awk 'NR==1{print $2}')
           echo "HTTP status: ${STATUS}"
           [[ "${STATUS}" == "200" ]] || (echo "ERROR: Repo not accessible!" && exit 1)
 
