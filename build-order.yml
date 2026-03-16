@@ -1,101 +1,123 @@
 # Build Order Manifest for GNOME 50 on CentOS Stream 10
 #
 # Packages within a tier build in parallel; tiers are sequential.
-# Each package entry is a path relative to the repo root (directory containing
-# the spec file and sources). Use `spec_override` to pick a non-default spec
-# (e.g. bootstrap variants).
+# Each package entry is a path relative to the repo root.
 
 target: centos-stream-10-x86_64
 
 tiers:
-  # Tier 0: packages that only need base CentOS Stream 10 + EPEL to build.
-  # Nothing here may depend on a package from this repo.
+  # Tier 0: Pure build tools with zero internal dependencies.
   - name: base-tools
     packages:
       - path: src/deps/meson
+        build_tool: true
       - path: src/deps/autoconf
+        build_tool: true
       - path: src/deps/libldac
       - path: src/deps/python-smartypants
+        build_tool: true
       - path: src/deps/python-typogrify
+        build_tool: true
       - path: src/deps/gnome50-el10-compat
       - path: src/deps/selinux-policy
 
-  # Tier 1: packages that need meson or autoconf from tier 0.
+  # Tier 1: Needs tools from Tier 0.
   - name: build-tools
     packages:
       - path: src/deps/wayland-protocols
-      - path: src/deps/icu
-        spec_override: libicu77-bootstrap.spec
+        build_tool: true
+      - path: src/deps/harfbuzz
+        build_tool: true
       - path: src/deps/libxcvt
+        build_tool: true
       - path: src/deps/shaderc
-      - path: src/deps/umockdev
-      - path: src/deps/python-dbusmock
+        build_tool: true
       - path: src/deps/gi-docgen
-      - path: src/deps/avahi
+        build_tool: true
 
-  - name: icu-full
-    packages:
-      - path: src/deps/icu
-        spec_override: libicu77.spec
-
+  # Tier 3: Bootstrap GLib.
   - name: glib2-bootstrap
     packages:
       - path: src/gnome-50/glib2
         spec_override: glib2-bootstrap.spec
 
+  # Tier 4: Base libraries needing GLib bootstrap.
+  - name: bootstrap-libs
+    packages:
+      - path: src/deps/libei
+      - path: src/deps/mozjs140
+      - path: src/deps/libzip
+      - path: src/deps/fontconfig
+
+  # Tier 5: Cairo (Needs GLib bootstrap).
+  - name: cairo-layer
+    packages:
+      - path: src/deps/cairo
+
+  # Tier 6: GI Bootstrap (Needs Cairo).
   - name: gi-bootstrap
     packages:
       - path: src/gnome-50/gobject-introspection
         spec_override: gobject-introspection-bootstrap.spec
 
+  # Tier 7: Full GLib (Needs GI Bootstrap).
   - name: glib2-full
     packages:
       - path: src/gnome-50/glib2
 
+  # Tier 8: Full GI (Needs Full GLib).
   - name: gi-full
     packages:
       - path: src/gnome-50/gobject-introspection
 
-  - name: low-level-libs
+  # Tier 9: High-level libraries/tools needing GI/GLib full.
+  - name: core-libraries
     packages:
-      - path: src/deps/fontconfig
-      - path: src/deps/cairo
       - path: src/deps/pango
-      - path: src/deps/libei
-      - path: src/deps/mozjs140
+      - path: src/deps/tinysparql
       - path: src/deps/pipewire
 
-  - name: gjs
+  # Tier 10: System Tools & GJS.
+  - name: system-tools
     packages:
+      - path: src/deps/umockdev
+        build_tool: true
+      - path: src/deps/python-dbusmock
+        build_tool: true
+      - path: src/deps/avahi
       - path: src/gnome-50/gjs
 
-  - name: gtk-layer
+  # Tier 11: GTK Core.
+  - name: gtk-core
     packages:
       - path: src/gnome-50/gsettings-desktop-schemas
       - path: src/gnome-50/gnome-desktop3
       - path: src/deps/gtk4
       - path: src/deps/glycin
 
-  - name: libadwaita
+  # Tier 12: Desktop Foundations.
+  - name: desktop-foundations
     packages:
       - path: src/gnome-50/libadwaita
       - path: src/gnome-50/xdg-desktop-portal
-      - path: src/gnome-50/nautilus
+      - path: src/deps/localsearch
 
-  - name: compositor
+  # Tier 13: Compositor & Shell.
+  - name: shell-foundations
     packages:
+      - path: src/gnome-50/gnome-settings-daemon
       - path: src/gnome-50/mutter
-      - path: src/gnome-50/xdg-desktop-portal-gnome
 
-  - name: shell
+  # Tier 14: The Shell and Portal integration.
+  - name: gnome-shell
     packages:
       - path: src/gnome-50/gnome-shell
-      - path: src/gnome-50/gnome-settings-daemon
-      - path: src/gnome-50/xdg-desktop-portal
+      - path: src/gnome-50/xdg-desktop-portal-gnome
+      - path: src/gnome-50/nautilus
 
-  - name: session
+  # Tier 15: Session & Control Center.
+  - name: session-layer
     packages:
       - path: src/gnome-50/gnome-session
       - path: src/gnome-50/gnome-control-center
       - path: src/gnome-50/gdm
-      - path: src/gnome-50/xdg-desktop-portal-gnome
