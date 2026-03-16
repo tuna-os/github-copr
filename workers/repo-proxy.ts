@@ -82,8 +82,11 @@ export default {
 
 function transformPath(path) {
   // /repo/fedora-40/x86_64/ -> /repo/fedora-40-x86_64/
+  // Only rewrite when the second segment is a known CPU architecture
+  // (avoids mangling paths that already have arch baked in, e.g. /repo/10-stream-x86_64/)
+  const ARCH_RE = /^(x86_64|x86_64_v[23]|aarch64|i686|ppc64le|s390x|armhfp)$/;
   const match = path.match(/^\/repo\/([^\/]+)\/([^\/]+)\/(.*)$/);
-  if (match) {
+  if (match && ARCH_RE.test(match[2])) {
     return `/repo/${match[1]}-${match[2]}/${match[3]}`;
   }
   return path;
