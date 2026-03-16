@@ -7,27 +7,147 @@ on:
   workflow_dispatch:
 
 jobs:
-  verify:
+  verify-repo:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - name: Check repomd.xml is accessible
+      - name: Check repomd.xml is accessible (dev)
         run: |
-          STATUS=$(curl -sI https://repo.tunaos.org/gnome49/10-stream-x86_64/repodata/repomd.xml | head -1 | grep -o '[0-9]*' | head -1)
+          STATUS=$(curl -sI https://dev.repo.tunaos.org/gnome49/10-stream-x86_64/repodata/repomd.xml | awk 'NR==1{print $2}')
           echo "HTTP status: ${STATUS}"
-          [[ "${STATUS}" == "200" ]] || (echo "ERROR: Repo not accessible!" && exit 1)
+          [[ "${STATUS}" == "200" ]] || (echo "ERROR: Dev repo not accessible!" && exit 1)
 
-      - name: Verify in CentOS Stream 10 container
+      - name: Verify packages installable in CentOS Stream 10 container
         run: |
           cat > /tmp/verify.sh << 'EOF'
           #!/bin/bash
           set -e
-          dnf -y install dnf-plugins-core curl
-          curl -sSL https://repo.tunaos.org/gnome49/install.sh | bash
-          dnf -y --nogpgcheck install gnome49-el10-compat gdm
-          rpm -q gnome49-el10-compat gdm
-          echo "VERIFICATION PASSED"
+          dnf config-manager --add-repo https://dev.repo.tunaos.org/gnome49/10-stream-x86_64/
+          dnf -y --nogpgcheck install gnome49-el10-compat glib2 gnome-shell gdm
+          rpm -q gnome49-el10-compat glib2 gnome-shell gdm
+          echo "PACKAGE VERIFICATION PASSED"
           EOF
           chmod +x /tmp/verify.sh
           podman run --rm -v /tmp/verify.sh:/verify.sh:ro \
             quay.io/centos/centos:stream10 bash /verify.sh
+
+  verify-gdm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - name: Install QEMU and Lima
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-system-x86 qemu-utils ovmf
+          LIMA_VERSION=$(curl -s https://api.github.com/repos/lima-vm/lima/releases/latest | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
+          echo "Installing Lima ${LIMA_VERSION}"
+          curl -fsSL "https://github.com/lima-vm/lima/releases/download/${LIMA_VERSION}/lima-${LIMA_VERSION#v}-linux-amd64.tar.gz" | sudo tar xz -C /usr/local
+          limactl --version
+
+      - name: Install vncdotool
+        run: pip install vncdotool
+
+      - name: Create Lima VM config
+        run: |
+          cat > /tmp/gnome49-verify.yaml << 'EOF'
+          vmType: qemu
+          arch: x86_64
+          cpus: 2
+          memory: 4GiB
+          disk: 20GiB
+
+          video:
+            display: "vnc"
+            vga: "std"
+
+          images:
+            - location: "https://cloud.centos.org/centos/10-stream/x86_64/images/CentOS-Stream-GenericCloud-x86_64-10-latest.x86_64.qcow2"
+              arch: x86_64
+
+          mounts: []
+
+          ssh:
+            localPort: 0
+            loadDotSSHPubKeys: false
+
+          provision:
+            - mode: system
+              script: |
+                #!/bin/bash
+                set -euxo pipefail
+                dnf -y install dnf-plugins-core
+                dnf config-manager --add-repo https://dev.repo.tunaos.org/gnome49/10-stream-x86_64/
+                dnf config-manager --save --setopt='dev.repo.tunaos.org_gnome49_10-stream-x86_64_.gpgcheck=0'
+                dnf -y install \
+                  gnome-shell \
+                  gnome-control-center \
+                  mutter \
+                  gdm \
+                  gnome-session-wayland-session \
+                  glib2
+                glib-compile-schemas /usr/share/glib-2.0/schemas/
+                printf '[daemon]\nWaylandEnable=true\n' > /etc/gdm/custom.conf
+                systemctl enable gdm
+                systemctl set-default graphical.target
+          EOF
+
+      - name: Start Lima VM
+        run: |
+          limactl start --name=gnome49-verify /tmp/gnome49-verify.yaml --timeout=25m
+          echo "VM started"
+
+      - name: Wait for GDM to become active
+        run: |
+          echo "Waiting for GDM to start (up to 5 minutes)..."
+          for i in $(seq 1 30); do
+            STATUS=$(limactl shell gnome49-verify -- systemctl is-active gdm 2>/dev/null || echo "inactive")
+            echo "Attempt $i/30: gdm is ${STATUS}"
+            [[ "${STATUS}" == "active" ]] && break
+            sleep 10
+          done
+          if [[ "${STATUS}" != "active" ]]; then
+            echo "ERROR: GDM failed to become active"
+            limactl shell gnome49-verify -- journalctl -u gdm --no-pager -n 50 || true
+            exit 1
+          fi
+
+      - name: Check GDM and GNOME Shell status
+        run: |
+          limactl shell gnome49-verify -- systemctl status gdm --no-pager
+          limactl shell gnome49-verify -- rpm -q gdm gnome-shell mutter glib2
+          limactl shell gnome49-verify -- gdm --version
+
+      - name: Take login screen screenshot via VNC
+        run: |
+          VNC_DISPLAY=$(cat /proc/$(pgrep -f 'qemu.*gnome49-verify' | head -1)/cmdline \
+            | tr '\0' '\n' | grep -oP '(?<=vnc=127\.0\.0\.1:)\d+' || echo "0")
+          VNC_PORT=$((5900 + ${VNC_DISPLAY:-0}))
+          echo "VNC port: ${VNC_PORT}"
+          sleep 5
+          python3 - <<PYEOF
+          from vncdotool import api
+          client = api.connect('127.0.0.1', password='', port=${VNC_PORT})
+          client.captureScreen('gdm-login-screen.png')
+          client.disconnect()
+          print("Screenshot captured")
+          PYEOF
+
+      - name: Upload login screen screenshot
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gdm-login-screen-gnome49
+          path: gdm-login-screen.png
+          retention-days: 7
+
+      - name: Stop Lima VM
+        if: always()
+        run: limactl stop gnome49-verify --force || true
