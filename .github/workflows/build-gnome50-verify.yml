@@ -1,0 +1,33 @@
+name: Verify GNOME 50 Repo
+
+on:
+  workflow_run:
+    workflows: ["GNOME 50 Distributed Build and Publish"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Check repomd.xml is accessible
+        run: |
+          STATUS=$(curl -sI https://repo.tunaos.org/repo/10-stream-x86_64/repodata/repomd.xml | head -1 | grep -o '[0-9]*' | head -1)
+          echo "HTTP status: ${STATUS}"
+          [[ "${STATUS}" == "200" ]] || (echo "ERROR: Repo not accessible!" && exit 1)
+
+      - name: Verify in CentOS Stream 10 container
+        run: |
+          cat > /tmp/verify.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          dnf -y install dnf-plugins-core curl
+          curl -sSL https://repo.tunaos.org/install.sh | bash
+          dnf -y --nogpgcheck install gnome50-el10-compat glib2
+          rpm -q gnome50-el10-compat glib2
+          echo "VERIFICATION PASSED"
+          EOF
+          chmod +x /tmp/verify.sh
+          podman run --rm -v /tmp/verify.sh:/verify.sh:ro \
+            quay.io/centos/centos:stream10 bash /verify.sh
