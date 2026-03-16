@@ -15,6 +15,7 @@ FROM fedora:latest
 
 RUN dnf install -y \
         mock \
+        mock-core-configs \
         rpm-build \
         rpm-sign \
         createrepo_c \
