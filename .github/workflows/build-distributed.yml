@@ -7,7 +7,7 @@ name: GNOME 50 Distributed Build and Publish
         type: boolean
         default: false
 env:
-  R2_BUCKET: bluefin
+  R2_BUCKET: tunaosdev
   LOCAL_REPO: ${{ github.workspace }}/local-repo
   MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
 jobs:
