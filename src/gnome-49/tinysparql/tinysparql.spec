@@ -12,7 +12,7 @@
 
 Name:           tinysparql
 Version:        3.10.1
-Release:        %autorelease
+Release:        2%{?dist}
 Summary:        Desktop-neutral metadata database and search tool
 
 License:        GPL-2.0-or-later
@@ -29,6 +29,7 @@ BuildRequires:  libstemmer-devel
 %endif
 BuildRequires:  meson
 BuildRequires:  python3-gobject
+BuildRequires:  python3-setuptools
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  vala
 BuildRequires:  pkgconfig(avahi-glib)
@@ -173,4 +174,5 @@ This package contains the documentation for %{name}.
 
 
 %changelog
-%autochangelog
+* Mon Mar 16 2026 James Reilly <jreilly1821@gmail.com> - 3.10.1-2
+- Add BuildRequires: python3-setuptools to fix distutils error

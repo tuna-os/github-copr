@@ -9,7 +9,7 @@
 
 Name:    pango
 Version: 1.57.0
-Release: %autorelease
+Release: 2%{?dist}
 Summary: System for layout and rendering of internationalized text
 
 License: LGPL-2.0-or-later
@@ -32,6 +32,7 @@ BuildRequires: meson
 BuildRequires: gcc gcc-c++
 BuildRequires: gi-docgen
 BuildRequires: python3-docutils
+BuildRequires: python3-setuptools
 
 Requires: glib2%{?_isa} >= %{glib2_version}
 Requires: freetype%{?_isa} >= %{freetype_version}
@@ -140,4 +141,5 @@ fi
 
 
 %changelog
-%autochangelog
+* Mon Mar 16 2026 James Reilly <jreilly1821@gmail.com> - 1.57.0-2
+- Add BuildRequires: python3-setuptools to fix distutils error

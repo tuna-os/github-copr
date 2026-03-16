@@ -1,6 +1,6 @@
 Name:           libgexiv2
 Version:        0.14.6
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Gexiv2 is a GObject-based wrapper around the Exiv2 library
 
 License:        GPL-2.0-or-later
@@ -11,6 +11,7 @@ BuildRequires:  pkgconfig(exiv2)
 BuildRequires:  gcc-c++
 BuildRequires:  meson
 BuildRequires:  vala
+BuildRequires:  python3-setuptools
 
 %description
 libgexiv2 is a GObject-based wrapper around the Exiv2 library. 
@@ -55,6 +56,9 @@ developing applications that use %{name}.
 %{_datadir}/vala/vapi/gexiv2.vapi
 
 %changelog
+* Mon Mar 16 2026 James Reilly <jreilly1821@gmail.com> - 0.14.6-3
+- Add BuildRequires: python3-setuptools to fix distutils error
+
 * Fri Sep 19 2025 Python Maint <python-maint@redhat.com> - 0.14.6-2
 - Rebuilt for Python 3.14.0rc3 bytecode
 
