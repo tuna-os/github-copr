@@ -1,0 +1,12 @@
+name = "repo-proxy"
+main = "repo-proxy.ts"
+compatibility_date = "2024-09-23"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "bluefin"
+
+[env.production]
+routes = [
+  { pattern = "repo.tunaos.org/*", zone_name = "tunaos.org" }
+]
