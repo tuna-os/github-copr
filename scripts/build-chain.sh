@@ -246,53 +246,9 @@ build_package_podman() {
     local resultdir="${builddir}/results"
     mkdir -p "$resultdir"
 
-    # Write the mock config for use inside the container
-    local mock_cfg="${builddir}/centos-stream-10-ci.cfg"
-    cat > "$mock_cfg" << 'MOCKCFG'
-include('/etc/mock/centos-stream-10-x86_64.cfg')
-config_opts['root'] = 'centos-stream-10-ci'
-config_opts['yum.conf'] += """
-[local-build]
-name=Local Build Repo
-baseurl=file:///local-repo
-enabled=1
-gpgcheck=0
-priority=1
-module_hotfixes=1
-
-[baseos]
-name=CentOS Stream 10 - BaseOS
-baseurl=https://mirror.stream.centos.org/10-stream/BaseOS/x86_64/os/
-enabled=1
-gpgcheck=0
-priority=10
-
-[appstream]
-name=CentOS Stream 10 - AppStream
-baseurl=https://mirror.stream.centos.org/10-stream/AppStream/x86_64/os/
-enabled=1
-gpgcheck=0
-priority=10
-
-[crb]
-name=CentOS Stream 10 - CRB
-baseurl=https://mirror.stream.centos.org/10-stream/CRB/x86_64/os/
-enabled=1
-gpgcheck=0
-priority=10
-
-[epel]
-name=Extra Packages for Enterprise Linux 10 - x86_64
-baseurl=https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64
-enabled=1
-gpgcheck=0
-priority=20
-"""
-config_opts['plugin_conf']['bind_mount_enable'] = True
-config_opts['plugin_conf']['bind_mount_opts']['dirs'].append(
-    ('/local-repo', '/local-repo')
-)
-MOCKCFG
+    # The mock config is baked into the mock-runner image at /etc/mock/centos-stream-10-ci.cfg
+    # (see mock/centos-stream-10-ci.cfg and mock/Containerfile). It mirrors the COPR
+    # epel-10-x86_64 environment exactly — same base config, same additional repos, same options.
 
     # Ensure the local repo metadata is up-to-date before mock starts,
     # locked to prevent parallel jobs from corrupting it.
