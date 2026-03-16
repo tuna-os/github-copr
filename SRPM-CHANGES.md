@@ -41,6 +41,10 @@ This document tracks all manual modifications made to SRPM specifications and so
 *The following were built as local SRPMs to resolve dependency conflicts or provide newer versions than what COPR's `distgit` fetcher was pulling.*
 
 *   **`libgexiv2`**: Backported to version 0.16.0 to resolve Nautilus dependencies.
+*   **`pango` (GNOME 49)**: Added `BuildRequires: python3-setuptools` to fix `ModuleNotFoundError: No module named distutils` in `g-ir-scanner` during build. Bumped release to 2.
+*   **`tinysparql` (GNOME 49)**: Added `BuildRequires: python3-setuptools` to fix `ModuleNotFoundError: No module named distutils` in `g-ir-scanner` during build. Bumped release to 2.
+*   **`libgexiv2` (GNOME 49)**: Added `BuildRequires: python3-setuptools` to fix `ModuleNotFoundError: No module named distutils` in `g-ir-scanner` during build. Bumped release to 3.
+*   **`libcloudproviders` (GNOME 49)**: Added `BuildRequires: python3-setuptools` to fix `ModuleNotFoundError: No module named distutils` in `g-ir-scanner` during build. Bumped release to 3.
 *   **`tinysparql`**: Backported to version 3.11~rc to resolve GNOME 50 dependencies.
 *   **`localsearch`**: Backported to version 3.11~rc to resolve GNOME 50 dependencies.
 *   **`libical`**: Rebuilt against ICU 77 to fix `evolution-data-server` dependency chain.

@@ -3,7 +3,7 @@
 Name:           libcloudproviders
 Summary:        Library for integration of cloud storage providers
 Version:        0.3.6
-Release:        2%{?dist}
+Release:        3%{?dist}
 License:        LGPL-3.0-or-later
 
 URL:            https://gitlab.gnome.org/World/libcloudproviders
@@ -13,6 +13,7 @@ BuildRequires:  gcc
 BuildRequires:  gtk-doc
 BuildRequires:  meson
 BuildRequires:  vala
+BuildRequires:  python3-setuptools
 
 BuildRequires:  pkgconfig(gio-2.0)
 BuildRequires:  pkgconfig(glib-2.0)
@@ -65,6 +66,9 @@ developing applications that use %{name}.
 
 
 %changelog
+* Mon Mar 16 2026 James Reilly <jreilly1821@gmail.com> - 0.3.6-3
+- Add BuildRequires: python3-setuptools to fix distutils error
+
 * Thu Jul 24 2025 Fedora Release Engineering <releng@fedoraproject.org> - 0.3.6-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_43_Mass_Rebuild
 
