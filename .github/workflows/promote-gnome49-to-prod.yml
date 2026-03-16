@@ -1,0 +1,39 @@
+name: Promote GNOME 49 to Production
+
+on:
+  workflow_run:
+    workflows: ["Verify GNOME 49 Repo"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Configure rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          EOF
+
+      - name: Promote dev → prod
+        run: |
+          echo "Syncing tunaosdev/gnome49 → bluefin/gnome49 (10-stream-x86_64)..."
+          rclone sync "r2:tunaosdev/gnome49/10-stream-x86_64/" "r2:bluefin/gnome49/10-stream-x86_64/"
+          echo "Promotion complete."
+
+      - name: Verify production is live
+        run: |
+          sleep 5
+          STATUS=$(curl -sI https://repo.tunaos.org/gnome49/10-stream-x86_64/repodata/repomd.xml | awk 'NR==1{print $2}')
+          echo "Production repomd.xml HTTP status: ${STATUS}"
+          [[ "${STATUS}" == "200" ]] || (echo "ERROR: Production repo not accessible after promotion!" && exit 1)
+          echo "Production promotion verified."
