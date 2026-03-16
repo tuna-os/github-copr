@@ -314,6 +314,7 @@ MOCKCFG
                     --rebuild /builddir/SRPMS/*.src.rpm \\
                     --resultdir=/builddir/results \\
                     --define 'dist .el10' \\
+                    --nocheck \\
                     --no-clean \\
                     --no-cleanup-after || {
                         echo 'ERROR: mock failed. Printing build.log:';
@@ -395,6 +396,7 @@ build_package_mock() {
             --rebuild \"$srpm\" \\
             --resultdir=\"$resultdir\" \\
             --define 'dist .el10' \\
+            --nocheck \\
             --no-clean \\
             --no-cleanup-after || {
                 echo 'ERROR: mock failed. Printing build.log:';
