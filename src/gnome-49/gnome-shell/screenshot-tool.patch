@@ -1,0 +1,453 @@
+From 83a585f075bacf766e4cf40429fc41c217cf2e29 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Florian=20M=C3=BCllner?= <fmuellner@gnome.org>
+Date: Thu, 6 Nov 2025 15:17:41 +0100
+Subject: [PATCH 1/2] Revert "screenshot: Remove gnome-screenshot from allowed
+ senders"
+
+The following commit will add a CLI screenshot tool that reuses
+the D-Bus name from gnome-screenshot, so re-allow the caller.
+
+This reverts commit c9944dbf9bd47a972eb4f3908fefe5878d315d6e.
+---
+ js/ui/screenshot.js | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/js/ui/screenshot.js b/js/ui/screenshot.js
+index 209207710b..328080235c 100644
+--- a/js/ui/screenshot.js
++++ b/js/ui/screenshot.js
+@@ -2450,6 +2450,7 @@ export class ScreenshotService {
+         this._senderChecker = new DBusSenderChecker([
+             'org.gnome.SettingsDaemon.MediaKeys',
+             'org.freedesktop.impl.portal.desktop.gnome',
++            'org.gnome.Screenshot',
+         ]);
+ 
+         this._lockdownSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.lockdown'});
+-- 
+2.51.1
+
+
+From 525260b46f147fd5272e9c5047a8263f4db1634f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Florian=20M=C3=BCllner?= <fmuellner@gnome.org>
+Date: Fri, 18 Jul 2025 21:34:36 +0200
+Subject: [PATCH 2/2] Add screenshot CLI tool
+
+The tool provides the same API as gnome-screenshot, but leverages
+GNOME's built-in screenshot UI instead of implementing its own
+interactive dialog.
+---
+ man/gnome-screenshot-tool.rst |  49 +++++++
+ man/meson.build               |  23 ++-
+ meson.build                   |   2 +
+ src/gnome-screenshot-tool     | 266 ++++++++++++++++++++++++++++++++++
+ src/meson.build               |  26 ++++
+ 5 files changed, 358 insertions(+), 8 deletions(-)
+ create mode 100644 man/gnome-screenshot-tool.rst
+ create mode 100755 src/gnome-screenshot-tool
+
+diff --git a/man/gnome-screenshot-tool.rst b/man/gnome-screenshot-tool.rst
+new file mode 100644
+index 0000000000..a471738394
+--- /dev/null
++++ b/man/gnome-screenshot-tool.rst
+@@ -0,0 +1,49 @@
++=====================
++gnome-screenshot-tool
++=====================
++
++-----------------------------------------
++Screenshot CLI tool for the GNOME desktop
++-----------------------------------------
++
++:Manual section: 1
++:Manual group: User Commands
++
++SYNOPSIS
++--------
++**gnome-screenshot-tool** [*OPTION*...]
++
++DESCRIPTION
++-----------
++**gnome-screenshot-tool** is a GNOME utility for taking screenshots of
++the entire screen, a window or a user-defined area of the screen.
++
++OPTIONS
++-------
++``-w``, ``--window``
++
++  Grab the currently active window instead of the entire screen
++
++``-a``, ``--area``
++
++  Grab an area of the screen instead of the entire screen
++
++``-i``, ``--interactive``
++
++  Bring up GNOME's native screenshot dialog
++
++``-p``, ``--include-pointer``
++
++  Include the pointer with the screenshot
++
++``-d``, ``--delay``\ =\ *SECONDS*
++
++  Take the screenshot after the specified delay [in seconds]
++
++``-f``, ``--file``\ =\ *FILENAME*
++
++  Save the screenshot directly to this file
++
++``-h``, ``--help``
++
++  Show a summary of the available options
+diff --git a/man/meson.build b/man/meson.build
+index c61bf51513..cfb9c8e07f 100644
+--- a/man/meson.build
++++ b/man/meson.build
+@@ -1,8 +1,15 @@
+-custom_target('man page',
+-  input: 'gnome-shell.rst',
+-  output: 'gnome-shell.1',
+-  command: [rst2man, '--syntax-highlight=none', '@INPUT@'],
+-  capture: true,
+-  install_dir: mandir + '/man1',
+-  install: true
+-)
++man_pages = [
++  'gnome-shell.rst',
++  'gnome-screenshot-tool.rst',
++]
++
++foreach page : man_pages
++  custom_target(f'@page@ man page',
++    input: page,
++    output: '@BASENAME@.1',
++    command: [rst2man, '--syntax-highlight=none', '@INPUT@'],
++    capture: true,
++    install_dir: mandir + '/man1',
++    install: true
++  )
++endforeach
+diff --git a/meson.build b/meson.build
+index ddd7d2c6e4..327e5f0b7e 100644
+--- a/meson.build
++++ b/meson.build
+@@ -141,6 +141,8 @@ if get_option('man')
+   subdir('man')
+ endif
+ 
++bash_completion = dependency('bash-completion', required: false)
++
+ mutter_typelibdir = mutter_dep.get_variable('typelibdir')
+ python = find_program('python3')
+ gjs = find_program('gjs')
+diff --git a/src/gnome-screenshot-tool b/src/gnome-screenshot-tool
+new file mode 100755
+index 0000000000..e29650abfe
+--- /dev/null
++++ b/src/gnome-screenshot-tool
+@@ -0,0 +1,266 @@
++#!/usr/bin/env python3
++
++import argparse
++import os
++import gi
++
++gi.require_version('Gdk', '4.0')
++gi.require_version('Gtk', '4.0')
++gi.require_version('GdkPixbuf', '2.0')
++from gi.repository import GLib, Gio, GdkPixbuf, Gdk, Gtk  # type: ignore
++
++try:
++    import argcomplete
++except ModuleNotFoundError:
++    pass
++
++NAME = "org.gnome.Shell.Screenshot"
++OBJECT_PATH = "/org/gnome/Shell/Screenshot"
++INTERFACE = "org.gnome.Shell.Screenshot"
++
++class Screenshot:
++    def __init__(self):
++        self._proxy = Gio.DBusProxy.new_for_bus_sync(
++            bus_type = Gio.BusType.SESSION,
++            flags = Gio.DBusProxyFlags.NONE,
++            info = None,
++            name = NAME,
++            object_path = OBJECT_PATH,
++            interface_name = INTERFACE,
++            cancellable = None,
++        )
++
++    def screenshot(self, include_cursor) -> GdkPixbuf.Pixbuf:
++        variant = self._proxy.call_sync(
++            method_name = "Screenshot",
++            parameters = GLib.Variant(
++                "(bbs)",
++                (
++                    include_cursor,
++                    True,
++                    self._get_tmp_filename(),
++                ),
++            ),
++            flags = Gio.DBusCallFlags.NO_AUTO_START,
++            timeout_msec = -1,
++            cancellable = None,
++        )
++        return self._get_screenshot_from_result(variant)
++
++    def screenshot_window(self, include_cursor) -> GdkPixbuf.Pixbuf:
++        variant = self._proxy.call_sync(
++            method_name = "ScreenshotWindow",
++            parameters = GLib.Variant(
++                "(bbbs)",
++                (
++                    True,
++                    include_cursor,
++                    True,
++                    self._get_tmp_filename(),
++                ),
++            ),
++            flags = Gio.DBusCallFlags.NO_AUTO_START,
++            timeout_msec = -1,
++            cancellable = None,
++        )
++        return self._get_screenshot_from_result(variant)
++
++    def screenshot_area(self, x, y, width, height) -> GdkPixbuf.Pixbuf:
++        variant = self._proxy.call_sync(
++            method_name = "ScreenshotArea",
++            parameters = GLib.Variant(
++                "(iiiibs)",
++                (
++                    x,
++                    y,
++                    width,
++                    height,
++                    True,
++                    self._get_tmp_filename(),
++                ),
++            ),
++            flags = Gio.DBusCallFlags.NO_AUTO_START,
++            timeout_msec = -1,
++            cancellable = None,
++        )
++        return self._get_screenshot_from_result(variant)
++
++    def interactive_screenshot(self) -> GdkPixbuf.Pixbuf:
++        variant = self._proxy.call_sync(
++            method_name = "InteractiveScreenshot",
++            parameters = None,
++            flags = Gio.DBusCallFlags.NO_AUTO_START,
++            timeout_msec = GLib.MAXINT,
++            cancellable = None,
++        )
++        [success, uri] = variant
++        file = Gio.File.new_for_uri(uri)
++        return self._get_screenshot_from_result((success, file.get_path()))
++
++    def select_area(self) -> tuple[int, int, int, int]:
++        variant = self._proxy.call_sync(
++            method_name = "SelectArea",
++            parameters = None,
++            flags = Gio.DBusCallFlags.NO_AUTO_START,
++            timeout_msec = -1,
++            cancellable = None,
++        )
++        [x, y, width, height] = variant
++        return (x, y, width, height)
++
++    def _get_screenshot_from_result(self, variant):
++        [success, filename] = variant
++        assert success
++        screenshot = GdkPixbuf.Pixbuf.new_from_file(filename)
++        GLib.unlink(filename)
++        return screenshot
++
++    def _get_tmp_filename(self):
++        path = GLib.build_filenamev([
++            GLib.get_user_cache_dir(),
++            "gnome-screenshot-tool",
++        ])
++        GLib.mkdir_with_parents(path, 0o700)
++        return GLib.build_filenamev([path, f'scr-{GLib.random_int()}'])
++
++class ScreenshotApp(Gtk.Application):
++    def __init__(self, config):
++        super().__init__(application_id="org.gnome.Screenshot")
++
++        self._config = config
++
++    def do_startup(self):
++        Gtk.Application.do_startup(self)
++        self._proxy = Screenshot()
++
++    def do_activate(self):
++        self.hold()
++        if self._config.area:
++            self._selected_area = self._proxy.select_area()
++        self._start_screenshot_timeout()
++
++    def _start_screenshot_timeout(self):
++        GLib.timeout_add_seconds(self._config.delay, self._take_screenshot)
++
++    def _take_screenshot(self):
++        include_pointer = self._config.include_pointer
++
++        try:
++            if self._config.interactive:
++                screenshot = self._proxy.interactive_screenshot()
++            elif self._config.area:
++                [x, y, width, height] = self._selected_area
++                screenshot = self._proxy.screenshot_area(x, y, width, height)
++            elif self._config.window:
++                screenshot = self._proxy.screenshot_window(include_pointer)
++            else:
++                screenshot = self._proxy.screenshot(include_pointer)
++
++            # if self._config.clipboard:
++                # self._save_screenshot_to_clipboard(screenshot)
++
++            if self._config.file:
++                target_file = Gio.File.new_for_commandline_arg(self._config.file)
++                override = True
++            else:
++                target_file = self._get_default_target_file()
++                override = False
++
++            self._save_screenshot_to_file(screenshot, target_file, override)
++        except Exception as e:
++            print(f'Failed to take screenshot: {e}')
++        finally:
++            self.release()
++
++        return GLib.SOURCE_REMOVE
++
++    def _save_screenshot_to_clipboard(self, screenshot):
++        dpy = Gdk.Display.get_default()
++        clipboard = dpy.get_clipboard()
++        clipboard.set(screenshot)
++
++    def _save_screenshot_to_file(self, screenshot, file, override):
++        if override:
++            ostream = file.replace(None, False, Gio.FileCreateFlags.NONE, None)
++        else:
++            ostream = file.create(Gio.FileCreateFlags.NONE, None)
++
++        [_, ext] = os.path.splitext(file.get_basename())
++        if not ext:
++            ext = 'png'
++        else:
++            ext = ext[1:]
++
++        def find_writable_format(formats, ext):
++            for f in formats:
++                for e in f.get_extensions():
++                    if e == ext and f.is_writable():
++                        return f.get_name()
++            return None
++
++        formats = GdkPixbuf.Pixbuf.get_formats()
++        format = find_writable_format(formats, ext)
++
++        if format == 'png':
++            keys = ["tEXt::Software"]
++            values = ["gnome-screenshot-tool"]
++        else:
++            keys = None
++            values = None
++
++        screenshot.save_to_streamv(ostream, format, keys, values, None)
++
++    def _get_default_target_file(self):
++        path = GLib.build_filenamev([
++            GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES) or GLib.get_home_dir(),
++            "Screenshots",
++        ])
++        dir = Gio.File.new_for_path(path)
++        try:
++            dir.make_directory_with_parents(None)
++        except GLib.Error as e:
++            if not e.matches(Gio.io_error_quark(), Gio.IOErrorEnum.EXISTS):
++                raise e
++
++        timestamp = GLib.DateTime.new_now_local().format('%Y-%m-%d %H-%M-%S')
++        name = "Screenshot From %s" % (timestamp)
++
++        def suffixes() -> str:
++            yield ''
++
++            i = 1
++            while True:
++                yield f'-{i}'
++                i = i + 1
++
++        for suffix in suffixes():
++            file = dir.get_child(f'{name}{suffix}.png')
++            if not file.query_exists(None):
++                return file
++
++def main():
++    parser = argparse.ArgumentParser()
++
++    group = parser.add_mutually_exclusive_group()
++    group.add_argument("-w", "--window", action="store_true", help="Grab a window instead of the entire screen")
++    group.add_argument("-a", "--area", action="store_true", help="Grab an area of the screen instead of the entire screen")
++    group.add_argument("-i", "--interactive", action="store_true", help="Interactively set options")
++
++    # parser.add_argument("-c", "--clipboard", action="store_true", help="Send the grab directly to the clipboard")
++    parser.add_argument("-p", "--include-pointer", action="store_true", help="Include the pointer with the screenshot")
++    parser.add_argument("-d", "--delay", type=int, default=0, help="Take a screenshot after the specified delay (in seconds)")
++    parser.add_argument("-f", "--file", type=str, help="Save screenshot directly to this file")
++
++    if argcomplete:
++        argcomplete.autocomplete(parser)
++    args = parser.parse_args()
++
++    if args.interactive:
++        if args.include_pointer:
++            print("Option --include-pointer is ignored in interactive mode.")
++
++    app = ScreenshotApp(args)
++    app.run(None)
++
++if __name__ == "__main__":
++    main()
+diff --git a/src/meson.build b/src/meson.build
+index a4ce889eac..d83d84a5e9 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -315,3 +315,29 @@ run_test = executable('run-js-test', 'run-js-test.c',
+   include_directories: [conf_inc],
+   build_rpath: mutter_typelibdir,
+ )
++
++install_data(
++  'gnome-screenshot-tool',
++  install_dir: bindir
++)
++
++if bash_completion.found()
++  bash_completion_dir = bash_completion.get_variable(
++      pkgconfig: 'completionsdir',
++      pkgconfig_define: ['datadir', datadir],
++    )
++
++  register_python_argcomplete = find_program('register-python-argcomplete')
++
++  custom_target(
++    'screenshot-tool-bash-completion',
++    output: 'gnome-screenshot-tool',
++    command: [
++      register_python_argcomplete,
++      'gnome-screenshot-tool',
++    ],
++    capture: true,
++    install_dir: bash_completion_dir,
++    install: true,
++  )
++endif
+-- 
+2.51.1
+

@@ -1,0 +1,51 @@
+From 755bd786c49c0b37c06aac781d2a7ec34357b49a Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Florian=20M=C3=BCllner?= <fmuellner@gnome.org>
+Date: Wed, 22 May 2024 18:42:06 +0200
+Subject: [PATCH] panel: Use branding in activities button
+
+Replace the upstream workspace dots with a red hat.
+---
+ data/theme/gnome-shell-sass/widgets/_panel.scss |  5 +++++
+ js/ui/panel.js                                  | 10 +++++++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/data/theme/gnome-shell-sass/widgets/_panel.scss b/data/theme/gnome-shell-sass/widgets/_panel.scss
+index 1b84dc201f..1514d3ead2 100644
+--- a/data/theme/gnome-shell-sass/widgets/_panel.scss
++++ b/data/theme/gnome-shell-sass/widgets/_panel.scss
+@@ -56,6 +56,11 @@ $panel_transition_duration: 250ms; // same as the overview transition duration
+         min-height: $scalable_icon_size * 0.5;
+         background-color: $panel_fg_color;
+       }
++
++      & .activities-logo {
++        icon-size: $scalable_icon_size * 1.25;
++        padding: 0 $base_padding;
++      }
+     }
+ 
+     // screen activity indicators
+diff --git a/js/ui/panel.js b/js/ui/panel.js
+index bdb6f7b197..5be0c477c6 100644
+--- a/js/ui/panel.js
++++ b/js/ui/panel.js
+@@ -208,7 +208,15 @@ class ActivitiesButton extends PanelMenu.Button {
+             accessible_name: _('Activities'),
+         });
+ 
+-        this.add_child(new WorkspaceIndicators());
++        if (GLib.get_os_info('ID') === 'rhel') {
++            const logoIcon = new St.Icon({
++                icon_name: 'fedora-logo-icon',
++                style_class: 'activities-logo',
++            });
++            this.add_child(logoIcon);
++        } else {
++            this.add_child(new WorkspaceIndicators());
++        }
+ 
+         Main.overview.connectObject('showing',
+             () => this.add_style_pseudo_class('checked'),
+-- 
+2.51.1
+

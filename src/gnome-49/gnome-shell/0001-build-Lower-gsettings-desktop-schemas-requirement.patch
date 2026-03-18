@@ -1,0 +1,27 @@
+From 196fce5906753d6dad766dac4494038ff89599c8 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Florian=20M=C3=BCllner?= <fmuellner@gnome.org>
+Date: Mon, 10 Nov 2025 12:43:12 +0100
+Subject: [PATCH] build: Lower gsettings-desktop-schemas requirement
+
+The module won't be rebased to 49.x, instead the required schema
+additions have been backported.
+---
+ meson.build | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meson.build b/meson.build
+index f1df40f702..decb2ba136 100644
+--- a/meson.build
++++ b/meson.build
+@@ -27,7 +27,7 @@ gjs_req = '>= 1.73.1'
+ gtk_req = '>= 4.0'
+ mutter_req = '>= 49.0'
+ polkit_req = '>= 0.100'
+-schemas_req = '>= 49.alpha'
++schemas_req = '>= 47.0'
+ systemd_req = '>= 246'
+ gnome_desktop_req = '>= 40'
+ pipewire_req = '>= 0.3.49'
+-- 
+2.51.1
+

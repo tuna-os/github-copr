@@ -1,0 +1,27 @@
+From 67bb91b741b5a30624c02cbc65c9f2a1bfe4ac6f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Florian=20M=C3=BCllner?= <fmuellner@gnome.org>
+Date: Wed, 27 Aug 2025 13:25:01 +0200
+Subject: [PATCH] Revert "Require gjs >= 1.81.2 for build because
+ Intl.Segmenter is needed"
+
+This reverts commit 9ce0cf036e4b22b6933e5425a0604fd0135d8b31.
+---
+ meson.build | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meson.build b/meson.build
+index 327e5f0b7e..f1df40f702 100644
+--- a/meson.build
++++ b/meson.build
+@@ -23,7 +23,7 @@ eds_req = '>= 3.33.1'
+ gcr_req = '>= 3.90.0'
+ gio_req = '>= 2.79.2'
+ gi_req = '>= 1.49.1'
+-gjs_req = '>= 1.81.2'
++gjs_req = '>= 1.73.1'
+ gtk_req = '>= 4.0'
+ mutter_req = '>= 49.0'
+ polkit_req = '>= 0.100'
+-- 
+2.51.1
+

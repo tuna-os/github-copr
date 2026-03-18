@@ -1,0 +1,45 @@
+From 29f77afc6d76cadf3f0cac7b0e741049af21e86d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Florian=20M=C3=BCllner?= <fmuellner@gnome.org>
+Date: Tue, 14 Mar 2017 17:04:36 +0100
+Subject: [PATCH] windowMenu: Bring back workspaces submenu for static
+ workspaces
+
+When the titlebar context menu was moved to the shell, the submenu for
+moving to a specific workspace was intentionally left out; some people
+are quite attached to it though, so bring it back when static workspaces
+are used.
+---
+ js/ui/windowMenu.js | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/js/ui/windowMenu.js b/js/ui/windowMenu.js
+index c140dee4dd..6e28244723 100644
+--- a/js/ui/windowMenu.js
++++ b/js/ui/windowMenu.js
+@@ -138,6 +138,23 @@ export class WindowMenu extends PopupMenu.PopupMenu {
+                         window.change_workspace(workspace.get_neighbor(dir));
+                     });
+                 }
++
++                let { workspaceManager } = global;
++                let nWorkspaces = workspaceManager.n_workspaces;
++                if (nWorkspaces > 1 && !Meta.prefs_get_dynamic_workspaces()) {
++                    item = new PopupMenu.PopupSubMenuMenuItem(_("Move to another workspace"));
++                    this.addMenuItem(item);
++
++                    let currentIndex = workspaceManager.get_active_workspace_index();
++                    for (let i = 0; i < nWorkspaces; i++) {
++                        let index = i;
++                        let name = Meta.prefs_get_workspace_name(i);
++                        let subitem = item.menu.addAction(name, () => {
++                            window.change_workspace_by_index(index, false);
++                        });
++                        subitem.setSensitive(currentIndex != i);
++                    }
++                }
+             }
+         }
+ 
+-- 
+2.51.1
+

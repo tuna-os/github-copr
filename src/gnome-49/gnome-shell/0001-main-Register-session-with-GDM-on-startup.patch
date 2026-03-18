@@ -1,0 +1,46 @@
+From 32a013304f8c507cb72a5419c7f4b7c553253520 Mon Sep 17 00:00:00 2001
+From: Adrian Vovk <adrianvovk@gmail.com>
+Date: Thu, 1 May 2025 18:34:52 -0400
+Subject: [PATCH] main: Register session with GDM on startup
+
+When no monitor is connected, gnome-shell starts but never emits
+`startup-prepared` nor `startup-complete`. As a result, GDM never
+detects that the shell has launched and plymouthd remains running,
+preventing the system from reaching graphical.target.
+
+Ensure that registerSessionWithGDM() is called even when no monitor
+is connected, so GDM can terminate plymouthd and allow the system to
+reach graphical.target properly.
+
+Part of https://gitlab.gnome.org/GNOME/gdm/-/merge_requests/285
+
+Part-of: <https://gitlab.gnome.org/GNOME/gnome-shell/-/merge_requests/3708>
+---
+ js/ui/main.js | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/js/ui/main.js b/js/ui/main.js
+index ae7a805..1679b3f 100644
+--- a/js/ui/main.js
++++ b/js/ui/main.js
+@@ -336,6 +336,8 @@ async function _initializeUI() {
+     extensionManager = new ExtensionSystem.ExtensionManager();
+     extensionManager.init();
+ 
++    LoginManager.registerSessionWithGDM();
++
+     if (sessionMode.isGreeter && screenShield) {
+         layoutManager.connect('startup-prepared', () => {
+             screenShield.showDialog();
+@@ -382,8 +384,6 @@ async function _initializeUI() {
+             sessionMode.currentMode !== 'initial-setup')
+             _handleLockScreenWarning();
+ 
+-        LoginManager.registerSessionWithGDM();
+-
+         if (perfModule) {
+             let perfOutput = GLib.getenv('SHELL_PERF_OUTPUT');
+             Scripting.runPerfScript(perfModule, perfOutput);
+-- 
+2.51.0
+

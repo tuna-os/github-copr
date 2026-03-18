@@ -1,0 +1,105 @@
+From 54a9bed1caa83ee00ca95f3431a3ee2a15a1ee82 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Mon, 28 Sep 2015 10:57:02 -0400
+Subject: [PATCH 1/3] smartcardManager: add way to detect if user logged using
+ (any) token
+
+If a user uses a token at login time, we need to make sure they continue
+to use the token at unlock time.
+
+As a prerequisite for addressing that problem we need to know up front
+if a user logged in with a token at all.
+
+This commit adds the necessary api to detect that case.
+---
+ js/misc/smartcardManager.js | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/js/misc/smartcardManager.js b/js/misc/smartcardManager.js
+index b886110d91..51471e51d4 100644
+--- a/js/misc/smartcardManager.js
++++ b/js/misc/smartcardManager.js
+@@ -116,4 +116,11 @@ class SmartcardManager extends Signals.EventEmitter {
+ 
+         return true;
+     }
++
++    loggedInWithToken() {
++        if (this._loginToken)
++            return true;
++
++        return false;
++    }
+ }
+-- 
+2.51.1
+
+
+From bdbed658d7a2fa48b9e7195691f0db3c8f4868e3 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Mon, 28 Sep 2015 19:56:53 -0400
+Subject: [PATCH 2/3] gdm: only unlock with smartcard, if smartcard used for
+ login
+
+If a smartcard is used for login, we need to make sure the smartcard
+gets used for unlock, too.
+---
+ js/gdm/util.js | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/js/gdm/util.js b/js/gdm/util.js
+index aced46e78c..28190660e8 100644
+--- a/js/gdm/util.js
++++ b/js/gdm/util.js
+@@ -465,6 +465,8 @@ export class ShellUserVerifier extends Signals.EventEmitter {
+         this.smartcardDetected = false;
+         this._checkForSmartcard();
+ 
++        this._updateDefaultService();
++
+         this._smartcardManager.connectObject(
+             'smartcard-inserted', () => this._checkForSmartcard(),
+             'smartcard-removed', () => this._checkForSmartcard(), this);
+@@ -643,7 +645,9 @@ export class ShellUserVerifier extends Signals.EventEmitter {
+     }
+ 
+     _getDetectedDefaultService() {
+-        if (this._settings.get_boolean(PASSWORD_AUTHENTICATION_KEY))
++        if (this._smartcardManager?.loggedInWithToken())
++            return SMARTCARD_SERVICE_NAME;
++        else if (this._settings.get_boolean(PASSWORD_AUTHENTICATION_KEY))
+             return PASSWORD_SERVICE_NAME;
+         else if (this._smartcardManager)
+             return SMARTCARD_SERVICE_NAME;
+-- 
+2.51.1
+
+
+From 2cae726f8e9887c5f49254f9af39bada00e81ca7 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Mon, 28 Sep 2015 19:57:36 -0400
+Subject: [PATCH 3/3] gdm: update default service when smartcard inserted
+
+Early on at start up we may not know if a smartcard is
+available.  Make sure we reupdate the default service
+after we get a smartcard insertion event.
+---
+ js/gdm/util.js | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/js/gdm/util.js b/js/gdm/util.js
+index 28190660e8..c87690f859 100644
+--- a/js/gdm/util.js
++++ b/js/gdm/util.js
+@@ -490,6 +490,8 @@ export class ShellUserVerifier extends Signals.EventEmitter {
+             else if (this._preemptingService === SMARTCARD_SERVICE_NAME)
+                 this._preemptingService = null;
+ 
++            this._updateDefaultService();
++
+             this.emit('smartcard-status-changed');
+         }
+     }
+-- 
+2.51.1
+
