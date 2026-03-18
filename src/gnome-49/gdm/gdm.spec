@@ -16,7 +16,7 @@
 Name:           gdm
 Epoch:          1
 Version:        49.2
-Release:        %autorelease
+Release:        %autorelease -e el10varlink
 Summary:        The GNOME Display Manager
 
 License:        GPL-2.0-or-later
