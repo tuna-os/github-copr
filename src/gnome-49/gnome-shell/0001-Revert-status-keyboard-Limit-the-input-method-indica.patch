@@ -1,0 +1,45 @@
+From df7e3d8e4e4f5d6d875d1c1a48d23475dc98dc80 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Florian=20M=C3=BCllner?= <fmuellner@gnome.org>
+Date: Fri, 7 Nov 2025 19:57:25 +0100
+Subject: [PATCH] Revert "status/keyboard: Limit the input method indicator to
+ < 3 grapheme clusters"
+
+The change requires support for Intl.Segmenter that was introduced
+in mozjs-125. RHEL still includes an older gjs release based on
+mozjs-115, so revert the change.
+
+This reverts commit f2246442a0ade263a1f9e775f02818bbd2862ae8.
+---
+ js/ui/status/keyboard.js | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/js/ui/status/keyboard.js b/js/ui/status/keyboard.js
+index 62f1e731db..7f00e289e3 100644
+--- a/js/ui/status/keyboard.js
++++ b/js/ui/status/keyboard.js
+@@ -1005,12 +1005,6 @@ class InputSourceIndicator extends PanelMenu.Button {
+         }
+     }
+ 
+-    _getGraphemeClusters(text = '') {
+-        const segmenter = new Intl.Segmenter(undefined, {granularity: 'grapheme'});
+-        const segments = [...segmenter.segment(text)].map(o => o.segment);
+-        return segments;
+-    }
+-
+     _buildPropSubMenu(menu, props) {
+         if (!props)
+             return;
+@@ -1034,8 +1028,7 @@ class InputSourceIndicator extends PanelMenu.Button {
+                 let currentSource = this._inputSourceManager.currentSource;
+                 if (currentSource) {
+                     let indicatorLabel = this._indicatorLabels[currentSource.index];
+-                    const graphemeClusters = this._getGraphemeClusters(text);
+-                    if (graphemeClusters.length > 0 && graphemeClusters.length < 3)
++                    if (text && text.length > 0 && text.length < 3)
+                         indicatorLabel.set_text(text);
+                 }
+             }
+-- 
+2.51.1
+

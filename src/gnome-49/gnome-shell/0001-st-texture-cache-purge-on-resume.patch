@@ -1,0 +1,66 @@
+From b434e61f95b1bb63b8f5e027a718091482be232a Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Tue, 15 Jan 2019 12:54:32 -0500
+Subject: [PATCH] st-texture-cache: purge on resume
+
+With the proprietary nvidia driver, textures get garbled on suspend,
+so the texture cache needs to evict all textures in that situation.
+---
+ js/ui/main.js             |  6 +++++-
+ src/st/st-texture-cache.c | 10 ++++++++++
+ src/st/st-texture-cache.h |  1 +
+ 3 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/js/ui/main.js b/js/ui/main.js
+index 40898e15c2..bb6d8f6723 100644
+--- a/js/ui/main.js
++++ b/js/ui/main.js
+@@ -298,7 +298,11 @@ async function _initializeUI() {
+         return true;
+     });
+ 
+-    global.display.connect('gl-video-memory-purged', loadTheme);
++    global.display.connect('gl-video-memory-purged', () => {
++        let cache = St.TextureCache.get_default();
++        cache.clear();
++        loadTheme();
++    });
+ 
+     global.context.connect('notify::unsafe-mode', () => {
+         if (!global.context.unsafe_mode)
+diff --git a/src/st/st-texture-cache.c b/src/st/st-texture-cache.c
+index 2c7601da1a..0df930ad43 100644
+--- a/src/st/st-texture-cache.c
++++ b/src/st/st-texture-cache.c
+@@ -131,6 +131,16 @@ st_texture_cache_class_init (StTextureCacheClass *klass)
+                   G_TYPE_NONE, 1, G_TYPE_FILE);
+ }
+ 
++/* Evicts all cached textures */
++void
++st_texture_cache_clear (StTextureCache *cache)
++{
++  g_return_if_fail (ST_IS_TEXTURE_CACHE (cache));
++
++  g_hash_table_remove_all (cache->keyed_cache);
++  g_signal_emit (cache, signals[ICON_THEME_CHANGED], 0);
++}
++
+ /* Evicts all cached textures for named icons */
+ static void
+ st_texture_cache_evict_icons (StTextureCache *cache)
+diff --git a/src/st/st-texture-cache.h b/src/st/st-texture-cache.h
+index 4158298042..5a77165813 100644
+--- a/src/st/st-texture-cache.h
++++ b/src/st/st-texture-cache.h
+@@ -43,6 +43,7 @@ typedef enum {
+ } StTextureCachePolicy;
+ 
+ StTextureCache* st_texture_cache_get_default (void);
++void st_texture_cache_clear (StTextureCache *cache);
+ 
+ ClutterActor *st_texture_cache_load_gicon (StTextureCache *cache,
+                                            StThemeNode    *theme_node,
+-- 
+2.51.1
+

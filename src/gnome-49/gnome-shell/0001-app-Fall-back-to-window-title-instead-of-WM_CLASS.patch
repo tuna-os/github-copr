@@ -1,0 +1,28 @@
+From 9529c76492722852802aa7aa8d351e98610487ff Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Florian=20M=C3=BCllner?= <fmuellner@gnome.org>
+Date: Wed, 20 May 2015 16:44:00 +0200
+Subject: [PATCH] app: Fall back to window title instead of WM_CLASS
+
+It's a bad fallback as it's clearly window-specific (rather than
+app-specific), but it likely looks prettier when we fail to associate
+a .desktop file ...
+---
+ src/shell-app.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/shell-app.c b/src/shell-app.c
+index 916783a597..9a90daa1dc 100644
+--- a/src/shell-app.c
++++ b/src/shell-app.c
+@@ -262,7 +262,7 @@ shell_app_get_name (ShellApp *app)
+       const char *name = NULL;
+ 
+       if (window)
+-        name = meta_window_get_wm_class (window);
++        name = meta_window_get_title (window);
+       if (!name)
+         name = C_("program", "Unknown");
+       return name;
+-- 
+2.51.1
+

@@ -1,0 +1,29 @@
+From f8340bf01c7520af83a3098e7c574c67facbde1e Mon Sep 17 00:00:00 2001
+From: rpm-build <rpm-build>
+Date: Mon, 28 Feb 2022 10:27:09 -0500
+Subject: [PATCH] data: Enable logo extension out of the box
+
+Our brand team would like the logo extension to be used on new
+installs.
+
+This commit makes sure it gets enabled out of the box.
+---
+ data/org.gnome.shell.gschema.xml.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/data/org.gnome.shell.gschema.xml.in b/data/org.gnome.shell.gschema.xml.in
+index 9a55ee71db..1f9862a779 100644
+--- a/data/org.gnome.shell.gschema.xml.in
++++ b/data/org.gnome.shell.gschema.xml.in
+@@ -12,7 +12,7 @@
+       </description>
+     </key>
+     <key name="enabled-extensions" type="as">
+-      <default>[]</default>
++      <default>['background-logo@fedorahosted.org']</default>
+       <summary>UUIDs of extensions to enable</summary>
+       <description>
+         GNOME Shell extensions have a UUID property; this key lists extensions
+-- 
+2.51.1
+

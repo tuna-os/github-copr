@@ -1,4 +1,4 @@
-From 33fc4214bcb2f813cf762fda99ef7f1f1755749b Mon Sep 17 00:00:00 2001
+From 5293ee585f876169e31f3b6af737a42d30302f71 Mon Sep 17 00:00:00 2001
 From: Benjamin Berg <bberg@redhat.com>
 Date: Wed, 28 Apr 2021 16:50:03 +0200
 Subject: [PATCH] gdm: Work around failing fingerprint auth
@@ -9,44 +9,70 @@ the PAM configuration has not been updated and no prints are enrolled.
 So, consider a verification failure within one second to be a service
 failure instead.
 ---
- js/gdm/util.js | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ js/gdm/authServicesLegacy.js | 44 +++++++++++++++++++++++++-----------
+ 1 file changed, 31 insertions(+), 13 deletions(-)
 
-diff --git a/js/gdm/util.js b/js/gdm/util.js
-index c45579a22b2b..387a468b64b6 100644
---- a/js/gdm/util.js
-+++ b/js/gdm/util.js
-@@ -110,6 +110,7 @@ export class ShellUserVerifier extends Signals.EventEmitter {
-         this._defaultService = null;
-         this._preemptingService = null;
-         this._fingerprintReaderType = FingerprintReaderType.NONE;
-+        this._fprintStartTime = -1;
+diff --git a/js/gdm/authServicesLegacy.js b/js/gdm/authServicesLegacy.js
+index 0813622a01..c85a9572f5 100644
+--- a/js/gdm/authServicesLegacy.js
++++ b/js/gdm/authServicesLegacy.js
+@@ -58,6 +58,7 @@ export class AuthServicesLegacy extends AuthServices {
+         this._addCredentialManager(Vmware.SERVICE_NAME, Vmware.getVmwareCredentialsManager());
  
-         this._messageQueue = [];
-         this._messageQueueTimeoutId = 0;
-@@ -670,6 +671,10 @@ export class ShellUserVerifier extends Signals.EventEmitter {
-         this._hold.acquire();
-         try {
-             this._activeServices.add(serviceName);
+         this._fingerprintReadyTimeoutId = 0;
++        this._fprintStartTime = -1;
+     }
+ 
+     _handleSelectChoice(serviceName, key) {
+@@ -117,16 +118,20 @@ export class AuthServicesLegacy extends AuthServices {
+     }
+ 
+     _handleOnConversationStarted(serviceName) {
+-        if (serviceName === Const.FINGERPRINT_SERVICE_NAME &&
+-            this._fingerprintReadyTimeoutId === 0) {
+-            this._fingerprintReadyTimeoutId = GLib.timeout_add(
+-                GLib.PRIORITY_DEFAULT,
+-                FINGERPRINT_READY_TIMEOUT_MS,
+-                () => {
+-                    this._fingerprintReadyTimeoutId = 0;
+-                    this._setFingerprintReady();
+-                    return GLib.SOURCE_REMOVE;
+-                });
++        if (serviceName === Const.FINGERPRINT_SERVICE_NAME) {
++            this._fprintStartTime = GLib.get_monotonic_time();
 +
-+            if (serviceName == FINGERPRINT_SERVICE_NAME)
-+                this._fprintStartTime = GLib.get_monotonic_time();
 +
-             if (this._userName) {
-                 await this._userVerifier.call_begin_verification_for_user(
-                     serviceName, this._userName, this._cancellable);
-@@ -764,6 +769,7 @@ export class ShellUserVerifier extends Signals.EventEmitter {
-                 const cancellable = this._cancellable;
-                 this._fingerprintFailedId = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
-                     FINGERPRINT_ERROR_TIMEOUT_WAIT, () => {
-+                        log("Generating _verificationFailed!");
-                         this._fingerprintFailedId = 0;
-                         if (!cancellable.is_cancelled())
-                             this._verificationFailed(serviceName, false);
-@@ -837,6 +843,18 @@ export class ShellUserVerifier extends Signals.EventEmitter {
-         if (serviceName === FINGERPRINT_SERVICE_NAME) {
-             if (this._fingerprintFailedId)
-                 GLib.source_remove(this._fingerprintFailedId);
++            if (this._fingerprintReadyTimeoutId === 0) {
++                this._fingerprintReadyTimeoutId = GLib.timeout_add(
++                    GLib.PRIORITY_DEFAULT,
++                    FINGERPRINT_READY_TIMEOUT_MS,
++                    () => {
++                        this._fingerprintReadyTimeoutId = 0;
++                        this._setFingerprintReady();
++                        return GLib.SOURCE_REMOVE;
++                    });
++            }
+         }
+     }
+ 
+@@ -234,6 +239,7 @@ export class AuthServicesLegacy extends AuthServices {
+ 
+             this._fingerprintFailedId = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
+                 FINGERPRINT_ERROR_TIMEOUT_WAIT, () => {
++                    log("Generating _verificationFailed!");
+                     this._fingerprintFailedId = 0;
+                     if (!this._cancellable.is_cancelled())
+                         this._verificationFailed(serviceName, false);
+@@ -314,9 +320,21 @@ export class AuthServicesLegacy extends AuthServices {
+ 
+     _handleVerificationFailed(serviceName) {
+         if (serviceName === Const.FINGERPRINT_SERVICE_NAME &&
+-            this._enabledMechanisms.some(m => m.serviceName === serviceName) &&
+-            this._fingerprintFailedId)
+-            GLib.source_remove(this._fingerprintFailedId);
++            this._enabledMechanisms.some(m => m.serviceName === serviceName)) {
++            if (this._fingerprintFailedId)
++                GLib.source_remove(this._fingerprintFailedId);
 +
 +            // On Fedora we have the problem that fingerprint auth fails
 +            // immediately if the PAM configuration has not been updated and no
@@ -56,12 +82,12 @@ index c45579a22b2b..387a468b64b6 100644
 +            if (this._fprintStartTime > GLib.get_monotonic_time() - GLib.USEC_PER_SEC) {
 +                log("Fingerprint service failed almost immediately, considering it unavailable.");
 +                log("Please fix your configuration by running: authselect select --force sssd with-fingerprint with-silent-lastlog");
-+                this._onServiceUnavailable(this._client, serviceName, null);
-+                return;
++                this._onServiceUnavailable(serviceName, null);
 +            }
-         }
++        }
+     }
  
-         // For Not Listed / enterprise logins, immediately reset
+     _handleOnVerificationComplete(serviceName) {
 -- 
-2.51.1
+2.53.0
 

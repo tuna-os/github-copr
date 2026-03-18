@@ -1,0 +1,62 @@
+From cbb32cb80221d04121d4942bf41a23dd44ada9a9 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Florian=20M=C3=BCllner?= <fmuellner@gnome.org>
+Date: Tue, 9 Jun 2020 19:42:21 +0200
+Subject: [PATCH 1/2] popupMenu: Guard against non-menu-item children
+
+This avoid a harmless but annoying warning.
+---
+ js/ui/popupMenu.js | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/js/ui/popupMenu.js b/js/ui/popupMenu.js
+index 0426ce5452..2c882c1067 100644
+--- a/js/ui/popupMenu.js
++++ b/js/ui/popupMenu.js
+@@ -967,7 +967,8 @@ export class PopupMenuBase extends Signals.EventEmitter {
+     }
+ 
+     _getMenuItems() {
+-        return this.box.get_children().map(a => a._delegate).filter(item => {
++        const children = this.box.get_children().filter(a => a._delegate !== undefined);
++        return children.map(a => a._delegate).filter(item => {
+             return item instanceof PopupBaseMenuItem || item instanceof PopupMenuSection;
+         });
+     }
+-- 
+2.51.1
+
+
+From 406c67ea0877384d85e5dcb5be644acf491cbd4d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Florian=20M=C3=BCllner?= <fmuellner@gnome.org>
+Date: Tue, 9 Jun 2020 19:48:06 +0200
+Subject: [PATCH 2/2] st/shadow: Check pipeline when painting
+
+We shouldn't simply assume that st_shadow_helper_update() has been
+called before paint() or that the pipeline was created successfully.
+---
+ src/st/st-shadow.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/st/st-shadow.c b/src/st/st-shadow.c
+index 0e7908ac1d..280562b5b7 100644
+--- a/src/st/st-shadow.c
++++ b/src/st/st-shadow.c
+@@ -288,9 +288,10 @@ st_shadow_helper_paint (StShadowHelper   *helper,
+                         ClutterActorBox  *actor_box,
+                         uint8_t           paint_opacity)
+ {
+-  _st_paint_shadow_with_opacity (helper->shadow,
+-                                 node,
+-                                 helper->pipeline,
+-                                 actor_box,
+-                                 paint_opacity);
++  if (helper->pipeline != NULL)
++    _st_paint_shadow_with_opacity (helper->shadow,
++                                   node,
++                                   helper->pipeline,
++                                   actor_box,
++                                   paint_opacity);
+ }
+-- 
+2.51.1
+
