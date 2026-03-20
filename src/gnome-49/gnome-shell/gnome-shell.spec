@@ -65,7 +65,6 @@ Patch: 0001-data-Update-generated-stylesheets.patch
 Patch: 0001-theme-Welcome-Illustration.patch
 Patch: screenshot-tool.patch
 Patch: 0001-Revert-status-keyboard-Limit-the-input-method-indica.patch
-Patch: 0001-Revert-Require-gjs-1.81.2-for-build-because-Intl.Seg.patch
 
 # EL10: stub out GnomeQR (typelib not available on EL10/EPEL10)
 Patch: 0001-el10-stub-gnome-qr.patch
