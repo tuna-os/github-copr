@@ -93,10 +93,40 @@ scripts/watch-pipeline.sh status       # show recent runs
 - **`jreilly1821/c10s-gnome-49`**: All packages green across all 3 chroots (epel-10-x86_64, epel-10-aarch64, alma-kitten+epel-10-x86_64_v2) as of this date.
 - Key fix: GDM 49.2 patch `0001-el10-force-varlink-mode-0666.patch` — EL10 libsystemd 257 rejects `SD_VARLINK_SERVER_MODE_MKDIR_0755 = 0x40000000`. The patch forces `#undef` + `#define 0` so the varlink socket at `/run/systemd/userdb/org.gnome.DisplayManager` is created correctly.
 
+## GNOME 50 on bootc (tunaOS skipjack) — Runtime Findings (2026-03-20)
+
+Testing `ghcr.io/tuna-os/skipjack:gnome50` (based on `quay.io/centos-bootc/centos-bootc:stream10`) in a Lima QEMU VM revealed three blockers that do NOT affect a plain CentOS cloud image install:
+
+### Root Cause Chain
+
+| # | Symptom | Root Cause | Fix |
+|---|---------|-----------|-----|
+| 1 | `symbol lookup error: libpangoft2-1.0.so.0: undefined symbol: FcConfigSetDefaultSubstitute` | COPR pango 1.57.0 built against fontconfig 2.17.0; bootc base has 2.15.0 (symbol absent) | Upgrade `fontconfig` from COPR before installing GNOME stack |
+| 2 | `gdm-wayland-session: Unable to run session message bus` (exit 64) | `dbus-daemon` not installed — it is a `Recommends:` of gdm, not hard `Requires:`, so bootc prunes it | Explicitly install `dbus-daemon` in gnome.sh |
+| 3 | GDM userdb socket denied even in permissive SELinux | Base EL10 `selinux-policy` 42.x has no policy for GDM 50 dynamic greeter users | Allow `selinux-policy` 43.x from COPR (remove from exclude list) |
+
+### Outcome
+After applying all three fixes to a running VM (via `bootc usr-overlay`):
+- `gdm.service` reached `active (running)` and stayed stable (8+ minutes, no restart cycling)
+- `gnome-shell --mode=gdm` (PID confirmed) launched successfully using `kms_swrast` software rendering on `virtio_gpu`
+- GDM greeter session visible on VNC display
+
+### Applied Fixes in tunaOS `build_scripts/gnome.sh`
+1. **Removed `selinux-policy*` from COPR exclude** — selinux-policy 43.1 from COPR is required, not optional
+2. **Added `fontconfig` to early upgrade** — `dnf -y upgrade glib2 fontconfig` so pango's COPR build resolves correctly
+3. **Added `dbus-daemon` to EL10 package install list** — required for GDM Wayland session bus
+4. **Added `fontconfig` to versionlock list** — prevents inadvertent downgrade back to 2.15.x
+
+### Lima VM Config Reference
+`gnome50-fresh-test.yaml` (plain CentOS cloud image) is the working reference — it explicitly installs `selinux-policy` and `selinux-policy-targeted` from COPR and reaches GDM greeter. Use it to validate COPR changes before rebuilding the bootc image.
+
 ## Work Items / TODOs
 
 - [x] **GNOME 49 COPR all-green**: All packages across all 3 chroots succeeded (2026-03-15)
 - [x] **GDM varlink socket fix**: Patched `gdm-dynamic-user-store.c` — socket now created correctly
+- [x] **GNOME 50 bootc GDM root cause found**: fontconfig 2.15→2.17 mismatch, missing dbus-daemon, selinux-policy 42→43 (2026-03-20)
+- [x] **tunaOS gnome.sh fixed**: fontconfig upgrade, dbus-daemon install, selinux-policy unexcluded
+- [ ] **skipjack gnome50 image rebuild**: `just build skipjack gnome50` + `just qcow2` to validate clean boot
 - [ ] **First GHA bootstrap run**: Trigger `build-gnome49-distributed.yml` and verify all 12 tiers build
 - [ ] **repo.tunaos.org/gnome49/ live**: After first successful run, verify HTTP 200 for repomd.xml
 - [ ] **VM verification**: `limactl start gnome49-repo-test.yaml` and verify GDM socket exists
