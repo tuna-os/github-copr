@@ -1,22 +1,26 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: EL10 Compatibility <el10@compat.local>
 Date: Wed, 19 Mar 2025 00:00:00 +0000
-Subject: [PATCH] el10: remove GnomeQR eager import - typelib not in EL10
+Subject: [PATCH] el10: stub GnomeQR - typelib not packaged for EL10
 
 GnomeQR is from an unreleased gnome-desktop branch and is not packaged
-for EL10 or EPEL10. The eager version-check import in dependencies.js
-causes gnome-shell to crash at startup with:
+for EL10 or EPEL10. Two code paths pull it in at startup:
 
-  JS ERROR: Error: Requiring GnomeQR, version 4.0: Typelib file for
-  namespace 'GnomeQR', version '4.0' not found
+1. dependencies.js: eager version-check import
+2. authPrompt.js -> webLogin.js -> qrCode.js: static import chain
 
-The qrCode.js module is only loaded during active web-login sessions
-(imported by webLogin.js which is only triggered by an IDP redirect),
-so removing the eager startup check is sufficient. Users will not see
-a QR code in the web-login dialog, but gnome-shell will start normally.
+Both cause gnome-shell to crash at startup with:
+
+  JS ERROR: Gio.IOErrorEnum: Requiring GnomeQR, version none:
+  Typelib file for namespace 'GnomeQR' (any version) not found
+
+Fix: remove the eager import from dependencies.js and replace qrCode.js
+with a no-op stub that exports an empty QrCode widget. The web-login
+dialog will render without a QR code image, but gnome-shell starts.
 ---
  js/misc/dependencies.js | 1 -
- 1 file changed, 0 insertions(+), 1 deletion(-)
+ js/ui/qrCode.js         | 111 +--------------------------------------
+ 2 files changed, 1 insertion(+), 111 deletions(-)
 
 diff --git a/js/misc/dependencies.js b/js/misc/dependencies.js
 index 0000000..0000001 100644
@@ -30,5 +34,138 @@ index 0000000..0000001 100644
  import 'gi://GnomeDesktop?version=4.0';
  import 'gi://Graphene?version=1.0';
  import 'gi://GUdev?version=1.0';
+diff --git a/js/ui/qrCode.js b/js/ui/qrCode.js
+index 0000000..0000001 100644
+--- a/js/ui/qrCode.js
++++ b/js/ui/qrCode.js
+@@ -1,119 +1,8 @@
+-import Clutter from 'gi://Clutter';
+-import Cogl from 'gi://Cogl';
+-import GObject from 'gi://GObject';
+-import Gio from 'gi://Gio';
+-import GnomeQR from 'gi://GnomeQR';
+-import St from 'gi://St';
+-import {logErrorUnlessCancelled} from '../misc/errorUtils.js';
+-
+-Gio._promisify(GnomeQR, 'generate_qr_code_async');
+-
+-const QR_CODE_DEFAULT_SIZE = 150;
+-const QR_CODE_TRANSPARENT_COLOR = new GnomeQR.Color({alpha: 0});
+-
+-export class QrCode extends St.Bin {
+-    static [GObject.GTypeName] = 'QrCode';
+-    static [GObject.properties] = {
+-        'url': GObject.ParamSpec.string(
+-            'url', null, null,
+-            GObject.ParamFlags.READWRITE,
+-            null),
+-    };
+-
+-    static {
+-        GObject.registerClass(this);
+-    }
+-
+-    constructor(params) {
+-        const qrSize = Math.max(params.width ?? 0, params.height ?? 0) ||
+-            QR_CODE_DEFAULT_SIZE;
+-
+-        super({
+-            styleClass: 'qr-code',
+-            width: qrSize,
+-            height: qrSize,
+-            ...params,
+-        });
+-
+-        this.set_child(new Clutter.Actor({
+-            xExpand: true,
+-            yExpand: true,
+-            xAlign: Clutter.ActorAlign.FILL,
+-            yAlign: Clutter.ActorAlign.FILL,
+-            minificationFilter: Clutter.ScalingFilter.NEAREST,
+-            magnificationFilter: Clutter.ScalingFilter.NEAREST,
+-        }));
+-
+-        this._fgColor = null;
+-
+-        this.connect('notify::url', () =>
+-            this._update().catch(logErrorUnlessCancelled));
+-    };
+-
+-    vfunc_allocate(box) {
+-        const width = box.get_width();
+-        const height = box.get_height();
+-
+-        box.set_size(Math.min(width, height), Math.min(width, height));
+-        super.vfunc_allocate(box);
+-    }
+-
+-    vfunc_style_changed() {
+-        super.vfunc_style_changed();
+-
+-        if (!this.get_parent())
+-            return;
+-
+-        const node = this.get_theme_node();
+-        const fgColor = node.get_foreground_color();
+-
+-        if (!this._fgColor?.equal(fgColor)) {
+-            this._fgColor = fgColor;
+-            this._update().catch(logErrorUnlessCancelled);
+-        }
+-    }
+-
+-    async _update() {
+-        const fgColor = QrCode.#getGnomeQRColor(this._fgColor);
+-
+-        this._cancellable?.cancel();
+-        const cancellable = new Gio.Cancellable();
+-        this._cancellable = cancellable;
+-
+-        const [pixelData, qrSize] = await GnomeQR.generate_qr_code_async(
+-            this.url,
+-            0 /* size, are fine with the minimum value */,
+-            QR_CODE_TRANSPARENT_COLOR,
+-            fgColor,
+-            GnomeQR.PixelFormat.RGBA_8888,
+-            GnomeQR.EccLevel.LOW,
+-            cancellable);
+-
+-        const coglContext = global.stage.context.get_backend().get_cogl_context();
+-        const bpp = Cogl.pixel_format_get_bytes_per_pixel(Cogl.PixelFormat.RGBA_8888, 0);
+-        const rowStride = qrSize * bpp;
+-
+-        const content = St.ImageContent.new_with_preferred_size(qrSize, qrSize);
+-        content.set_bytes(
+-            coglContext,
+-            pixelData,
+-            Cogl.PixelFormat.RGBA_8888,
+-            qrSize,
+-            qrSize,
+-            rowStride);
+-
+-        this.child.set_content(content);
+-    }
+-
+-    static #getGnomeQRColor(color) {
+-        if (!color)
+-            return null;
+-
+-        return new GnomeQR.Color({
+-            red: color.red,
+-            green: color.green,
+-            blue: color.blue,
+-            alpha: color.alpha,
+-        });
+-    }
+-};
++// EL10 stub: GnomeQR typelib not available on EL10/EPEL10.
++// Export a no-op QrCode widget so webLogin.js loads without crashing.
++import GObject from 'gi://GObject';
++import St from 'gi://St';
++
++export class QrCode extends St.Bin {
++    static [GObject.GTypeName] = 'QrCode';
++    static { GObject.registerClass(this); }
++};
 --
 2.48.1
