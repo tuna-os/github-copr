@@ -1,0 +1,32 @@
+module gdm-gnome49 1.1;
+
+require {
+    type xdm_t;
+    type systemd_userdbd_runtime_t;
+    type passwd_file_t;
+    type systemd_userdbd_t;
+    type policykit_t;
+    type auditd_t;
+    type setroubleshootd_t;
+    type systemd_user_runtimedir_t;
+    type init_t;
+    class dir { add_name remove_name write search };
+    class file { write create getattr };
+    class sock_file { create unlink };
+    class unix_stream_socket { connectto };
+}
+
+# GDM 49: create/remove the userdb socket in systemd_userdbd_runtime_t dir
+allow xdm_t systemd_userdbd_runtime_t:dir { add_name remove_name write search };
+allow xdm_t systemd_userdbd_runtime_t:sock_file { create unlink };
+
+# GDM 49: write .pwd.lock in /etc (passwd_file_t)
+allow xdm_t passwd_file_t:file { write create getattr };
+
+# All clients that connect to the GDM userdb socket at startup
+allow systemd_userdbd_t xdm_t:unix_stream_socket connectto;
+allow policykit_t xdm_t:unix_stream_socket connectto;
+allow auditd_t xdm_t:unix_stream_socket connectto;
+allow setroubleshootd_t xdm_t:unix_stream_socket connectto;
+allow systemd_user_runtimedir_t xdm_t:unix_stream_socket connectto;
+allow init_t xdm_t:unix_stream_socket connectto;
