@@ -67,6 +67,7 @@ Provides: service(graphical-login) = %{name}
 Requires: gnome49-el10-compat
 Requires: accountsservice
 Requires: dbus-common
+Requires: dbus-daemon
 Requires: dconf
 # since we use it, and pam spams the log if the module is missing
 Requires: gnome-keyring-pam
