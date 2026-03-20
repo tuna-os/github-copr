@@ -2,7 +2,7 @@
 ## (rpmautospec version 0.6.5)
 ## RPMAUTOSPEC: autorelease, autochangelog
 %define autorelease(e:s:pb:n) %{?-p:0.}%{lua:
-    release_number = 2;
+    release_number = 3;
     base_release_number = tonumber(rpm.expand("%{?-b*}%{!?-b:1}"));
     print(release_number + base_release_number - 1);
 }%{?-e:.%{-e*}}%{?-s:.%{-s*}}%{!?-n:%{?dist}}
@@ -31,10 +31,6 @@ Source0:        https://download.gnome.org/sources/gnome-shell/%{major_version}/
 Patch: gnome-shell-favourite-apps-firefox.patch
 Patch: gnome-shell-favourite-apps-terminal.patch
 Patch: gnome-shell-enabled-extensions-background-logos.patch
-
-# girpository-2.0 port would require updates to both gjs and glib2,
-# so revert it
-Patch: revert-gir-2.0-port.patch
 
 # Required schemas have been backported
 Patch: 0001-build-Lower-gsettings-desktop-schemas-requirement.patch
@@ -76,7 +72,7 @@ Patch: 0001-el10-stub-gnome-qr.patch
 
 %define eds_version 3.45.1
 %define gnome_desktop_version 44.0-7
-%define glib2_version 2.79.2
+%define glib2_version 2.86.0
 %define gobject_introspection_version 1.49.1
 %define gjs_version 1.73.1
 %define gtk4_version 4.0.0
@@ -102,6 +98,7 @@ BuildRequires:  pkgconfig(gio-2.0) >= %{glib2_version}
 BuildRequires:  pkgconfig(gnome-autoar-0)
 BuildRequires:  pkgconfig(gnome-desktop-4) >= %{gnome_desktop_version}
 BuildRequires:  pkgconfig(gobject-introspection-1.0) >= %{gobject_introspection_version}
+BuildRequires:  pkgconfig(girepository-2.0)
 BuildRequires:  mesa-libGL-devel
 BuildRequires:  mesa-libEGL-devel
 BuildRequires:  pkgconfig(libnm)
