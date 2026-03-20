@@ -2,7 +2,7 @@
 %global fribidi_version 1.0.6
 %global libthai_version 0.1.9
 %global harfbuzz_version 8.4.0
-%global fontconfig_version 2.15.0
+%global fontconfig_version 2.17.0
 %global libXft_version 2.0.0
 %global cairo_version 1.18
 %global freetype_version 2.1.5
