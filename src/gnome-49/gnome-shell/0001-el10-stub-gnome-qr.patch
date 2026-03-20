@@ -162,10 +162,9 @@ index 0000000..0000001 100644
 +// Export a no-op QrCode widget so webLogin.js loads without crashing.
 +import GObject from 'gi://GObject';
 +import St from 'gi://St';
-+
 +export class QrCode extends St.Bin {
 +    static [GObject.GTypeName] = 'QrCode';
 +    static { GObject.registerClass(this); }
-+};
++}
 --
 2.48.1
