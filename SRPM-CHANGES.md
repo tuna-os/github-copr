@@ -37,7 +37,15 @@ This document tracks all manual modifications made to SRPM specifications and so
 *   **Modifications**:
     *   Retained EL10-specific schema compilation triggers and `gio` module query triggers.
 
-## 3. Version Overrides / Forced Backports
+### `gnome-shell` (GNOME 49)
+*   **Origin**: Backport from F43 Dist-Git (`src/gnome-49/gnome-shell/`).
+*   **Modifications**:
+    *   Removed `revert-gir-2.0-port.patch` — this patch forced gnome-shell to use the old `g_irepository_*` API (libgirepository-1.0) but gjs 1.86 links libgirepository-2.0; loading both caused `GIRepository` GType double-registration → crash.
+    *   Removed `0001-Revert-Require-gjs-1.81.2-for-build-because-Intl.Seg.patch` — obsolete now that COPR has gjs 1.86.0.
+    *   Added `BuildRequires: pkgconfig(girepository-2.0)` and updated `glib2_version` to 2.86.0.
+    *   Updated `0001-el10-stub-gnome-qr.patch` to stub out `js/ui/qrCode.js` in addition to removing the eager import from `js/misc/dependencies.js`. The full crash chain is `authPrompt.js → webLogin.js → qrCode.js → import GnomeQR`, which is a static import chain that fires at startup. The stub exports a no-op `QrCode` widget (St.Bin subclass) so the import chain resolves without GnomeQR typelib.
+
+
 *The following were built as local SRPMs to resolve dependency conflicts or provide newer versions than what COPR's `distgit` fetcher was pulling.*
 
 *   **`libgexiv2`**: Backported to version 0.16.0 to resolve Nautilus dependencies.
