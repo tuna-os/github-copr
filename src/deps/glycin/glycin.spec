@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        106%{?dist}
+Release:        107%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -272,7 +272,11 @@ meson compile -C build
 
 %install
 cd %{_builddir}/glycin-2.0.8
-DESTDIR=%{buildroot} meson install -C build
+%if %{with jpegxl} && %{with bundled_jxl}
+# %build already compiled jxl; re-export so meson install doesn't rebuild
+export PKG_CONFIG_PATH="%{_builddir}/jxl-private/lib/pkgconfig:%{_builddir}/jxl-private/lib64/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+%endif
+DESTDIR=%{buildroot} meson install --no-rebuild -C build
 
 %if %{with jpegxl} && %{with bundled_jxl}
 # Install private libjxl alongside the JXL loader binary
