@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        103%{?dist}
+Release:        104%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -221,7 +221,33 @@ cmake -GNinja -B jxl-build \
     -DJPEGXL_BUNDLE_LIBPNG=OFF \
     -DJPEGXL_BUNDLE_GFLAGS=OFF
 ninja -C jxl-build jxl jxl_threads
-cmake --install jxl-build --prefix %{_builddir}/jxl-private
+# Manually install only the shared libs + headers we need (skip cmake --install
+# which tries to install static archives that weren't built)
+mkdir -p %{_builddir}/jxl-private/{lib64/pkgconfig,include}
+cp -P jxl-build/lib/libjxl.so* jxl-build/lib/libjxl_threads.so* \
+    %{_builddir}/jxl-private/lib64/
+cp -rp lib/include/jxl %{_builddir}/jxl-private/include/
+cat > %{_builddir}/jxl-private/lib64/pkgconfig/libjxl.pc << 'EOF'
+prefix=%{_builddir}/jxl-private
+libdir=${prefix}/lib64
+includedir=${prefix}/include
+Name: libjxl
+Version: 0.11.1
+Description: JPEG XL image codec (private bundled build)
+Libs: -L${libdir} -ljxl
+Cflags: -I${includedir}
+EOF
+cat > %{_builddir}/jxl-private/lib64/pkgconfig/libjxl_threads.pc << 'EOF'
+prefix=%{_builddir}/jxl-private
+libdir=${prefix}/lib64
+includedir=${prefix}/include
+Name: libjxl_threads
+Version: 0.11.1
+Description: JPEG XL threading (private bundled build)
+Libs: -L${libdir} -ljxl_threads
+Cflags: -I${includedir}
+Requires: libjxl
+EOF
 popd
 
 export PKG_CONFIG_PATH="%{_builddir}/jxl-private/lib/pkgconfig:%{_builddir}/jxl-private/lib64/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
