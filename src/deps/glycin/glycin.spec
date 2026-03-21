@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        109%{?dist}
+Release:        110%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -194,6 +194,8 @@ EOF
 %if %{with jpegxl} && %{with bundled_jxl}
 # Extract libjxl source for private bundled build
 %setup -T -b 2 -n libjxl-0.11.1
+# Reset buildsubdir back to glycin so %%doc/%%license macros find the right files
+%setup -T -D -n glycin-2.0.8
 %endif
 
 %build
