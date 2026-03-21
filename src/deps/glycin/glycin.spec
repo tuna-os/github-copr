@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        104%{?dist}
+Release:        105%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -252,6 +252,9 @@ popd
 
 export PKG_CONFIG_PATH="%{_builddir}/jxl-private/lib/pkgconfig:%{_builddir}/jxl-private/lib64/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 %endif
+
+# Return to glycin source dir (%setup -T -b 2 in %prep leaves CWD at libjxl dir)
+cd %{_builddir}/glycin-2.0.8
 
 meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build \
     -Dloaders=%{?with_heif:glycin-heif,}glycin-image-rs,%{?with_jpegxl:glycin-jxl,}glycin-svg \
