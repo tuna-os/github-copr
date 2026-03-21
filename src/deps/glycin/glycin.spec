@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        107%{?dist}
+Release:        108%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -283,6 +283,9 @@ DESTDIR=%{buildroot} meson install --no-rebuild -C build
 install -d %{buildroot}%{jxl_private_dir}
 find %{_builddir}/jxl-private -name "libjxl.so*" -o -name "libjxl_threads.so*" | \
     xargs -I{} cp -P {} %{buildroot}%{jxl_private_dir}/
+# Remove build-dir RPATHs baked in by cmake (triggers RPM QA check-rpaths failure)
+patchelf --remove-rpath %{buildroot}%{jxl_private_dir}/libjxl.so.0.11.1
+patchelf --remove-rpath %{buildroot}%{jxl_private_dir}/libjxl_threads.so.0.11.1
 # Set RPATH on the glycin-jxl loader to find the private libjxl at runtime
 patchelf --add-rpath '$ORIGIN/private' \
     %{buildroot}%{_libexecdir}/glycin-loaders/2+/glycin-jxl
