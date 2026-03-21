@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        110%{?dist}
+Release:        111%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -120,6 +120,7 @@ Requires:       bubblewrap
 %if %{with jpegxl} && %{with bundled_jxl}
 # Private bundled libjxl (avoids ABI conflict with EPEL libjxl-0.10)
 Provides:       bundled(libjxl) = 0.11.1
+Provides:       bundled(libjxl_cms) = 0.11.1
 Requires:       highway
 %endif
 
@@ -222,11 +223,12 @@ cmake -GNinja -B jxl-build \
     -DJPEGXL_ENABLE_OPENEXR=OFF \
     -DJPEGXL_BUNDLE_LIBPNG=OFF \
     -DJPEGXL_BUNDLE_GFLAGS=OFF
-ninja -C jxl-build jxl jxl_threads
+ninja -C jxl-build jxl jxl_threads jxl_cms
 # Manually install only the shared libs + headers we need (skip cmake --install
 # which tries to install static archives that weren't built)
 mkdir -p %{_builddir}/jxl-private/{lib64/pkgconfig,include}
 cp -P jxl-build/lib/libjxl.so* jxl-build/lib/libjxl_threads.so* \
+    jxl-build/lib/libjxl_cms.so* \
     %{_builddir}/jxl-private/lib64/
 cp -rp lib/include/jxl %{_builddir}/jxl-private/include/
 cat > %{_builddir}/jxl-private/lib64/pkgconfig/libjxl.pc << 'EOF'
@@ -283,11 +285,14 @@ DESTDIR=%{buildroot} meson install -C build
 %if %{with jpegxl} && %{with bundled_jxl}
 # Install private libjxl alongside the JXL loader binary
 install -d %{buildroot}%{jxl_private_dir}
-find %{_builddir}/jxl-private -name "libjxl.so*" -o -name "libjxl_threads.so*" | \
+find %{_builddir}/jxl-private -name "libjxl.so*" -o -name "libjxl_threads.so*" -o -name "libjxl_cms.so*" | \
     xargs -I{} cp -P {} %{buildroot}%{jxl_private_dir}/
 # Remove build-dir RPATHs baked in by cmake (triggers RPM QA check-rpaths failure)
 patchelf --remove-rpath %{buildroot}%{jxl_private_dir}/libjxl.so.0.11.1
 patchelf --remove-rpath %{buildroot}%{jxl_private_dir}/libjxl_threads.so.0.11.1
+patchelf --remove-rpath %{buildroot}%{jxl_private_dir}/libjxl_cms.so.0.11.1
+# libjxl.so links against libjxl_cms.so — point it to its sibling in the same dir
+patchelf --set-rpath '$ORIGIN' %{buildroot}%{jxl_private_dir}/libjxl.so.0.11.1
 # Set RPATH on the glycin-jxl loader to find the private libjxl at runtime
 patchelf --add-rpath '$ORIGIN/private' \
     %{buildroot}%{_libexecdir}/glycin-loaders/2+/glycin-jxl
