@@ -77,4 +77,5 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Ptyxis.desk
 %{_mandir}/man1/ptyxis.1*
 
 
+%changelog
 %autochangelog
