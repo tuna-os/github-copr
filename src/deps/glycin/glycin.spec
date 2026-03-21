@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        102%{?dist}
+Release:        103%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -213,6 +213,9 @@ cmake -GNinja -B jxl-build \
     -DJPEGXL_ENABLE_TESTS=OFF \
     -DJPEGXL_ENABLE_MANPAGES=OFF \
     -DJPEGXL_FORCE_SYSTEM_HWY=ON \
+    -DJPEGXL_FORCE_SYSTEM_BROTLI=ON \
+    -DJPEGXL_FORCE_SYSTEM_LCMS2=ON \
+    -DJPEGXL_ENABLE_SKCMS=OFF \
     -DJPEGXL_ENABLE_SJPEG=OFF \
     -DJPEGXL_ENABLE_OPENEXR=OFF \
     -DJPEGXL_BUNDLE_LIBPNG=OFF \
