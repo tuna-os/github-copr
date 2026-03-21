@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        105%{?dist}
+Release:        106%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -271,6 +271,7 @@ meson compile -C build
 
 
 %install
+cd %{_builddir}/glycin-2.0.8
 DESTDIR=%{buildroot} meson install -C build
 
 %if %{with jpegxl} && %{with bundled_jxl}
@@ -286,6 +287,7 @@ patchelf --add-rpath '$ORIGIN/private' \
 
 %if %{with check}
 %check
+cd %{_builddir}/glycin-2.0.8
 # tests fail with "UnsupportedFileType" (missing nonfree plugins for libheif?)
 %meson_test || :
 %endif
