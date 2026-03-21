@@ -1,39 +1,77 @@
 Name:           gnome50-el10-compat
-Version:        1.0.1
+Version:        1.1.0
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
 License:        MIT
 Source0:        systemd-user.pam
+Source1:        gdm-gnome50.te
+Source2:        gdm-userdb-connect.te
 
 BuildArch:      noarch
-# SELinux policy backport for GDM userdb architecture support
+BuildRequires:  checkpolicy
+BuildRequires:  policycoreutils
+
 Requires:       selinux-policy >= 43.1
-# Conflicts with systemd versions that have the Patch0254 regression.
-# Based on current CS10, systemd-256.4-1.el10 has this patch.
-# We'll conflict until a fix is available.
-# Conflicts:      systemd < 256.5-1.el10
+Requires(post): policycoreutils
+Requires(preun): policycoreutils
 
 %description
 This package provides configuration overrides to restore upstream behavior
 for components that regress when using GNOME 50 on CentOS Stream 10.
-Currently, it fixes the systemd-user PAM service to support dynamic GDM
-greeter users and ensures the necessary SELinux policy is present.
+
+It provides:
+- A systemd-user PAM service override to support GDM 50's dynamically-allocated
+  greeter users (gdm-greeter-N), which EL10's pam_unix cannot resolve via
+  unix_chkpwd.
+- SELinux policy modules allowing GDM 50 to register as a systemd-userdb
+  Varlink provider, which EL10's base xdm_t policy does not permit.
 
 %prep
-# No prep needed for just a config file.
+cp %{SOURCE1} gdm-gnome50.te
+cp %{SOURCE2} gdm-userdb-connect.te
 
 %build
-# No build needed.
+checkmodule -M -m -o gdm-gnome50.mod gdm-gnome50.te
+semodule_package -o gdm-gnome50.pp -m gdm-gnome50.mod
+
+checkmodule -M -m -o gdm-userdb-connect.mod gdm-userdb-connect.te
+semodule_package -o gdm-userdb-connect.pp -m gdm-userdb-connect.mod
 
 %install
 mkdir -p %{buildroot}%{_sysconfdir}/pam.d
 cp %{SOURCE0} %{buildroot}%{_sysconfdir}/pam.d/systemd-user
 
+install -d %{buildroot}%{_datadir}/selinux/packages
+install -m 644 gdm-gnome50.pp %{buildroot}%{_datadir}/selinux/packages/
+install -m 644 gdm-userdb-connect.pp %{buildroot}%{_datadir}/selinux/packages/
+
+%post
+if [ $1 -ge 1 ]; then
+    %{_sbindir}/semodule -X 300 -i \
+        %{_datadir}/selinux/packages/gdm-gnome50.pp \
+        %{_datadir}/selinux/packages/gdm-userdb-connect.pp 2>/dev/null || :
+fi
+
+%preun
+if [ $1 -eq 0 ]; then
+    %{_sbindir}/semodule -X 300 -r gdm-gnome50 gdm-userdb-connect 2>/dev/null || :
+fi
+
 %files
 %config(noreplace) %{_sysconfdir}/pam.d/systemd-user
+%{_datadir}/selinux/packages/gdm-gnome50.pp
+%{_datadir}/selinux/packages/gdm-userdb-connect.pp
 
 %changelog
+* Sat Mar 21 2026 James <james@example.com> - 1.1.0-1
+- Bundle SELinux policy modules into the RPM.
+  The .te sources existed in workarounds/selinux/ but were never compiled
+  or installed by the package. This caused GDM 50 startup failures under
+  SELinux enforcing mode on EL10 even when gnome50-el10-compat was installed.
+  Modules are loaded at semodule priority 300 via %%post/%%preun scriptlets.
+  Add BuildRequires: checkpolicy, policycoreutils for compilation.
+
 * Mon Mar 20 2026 James <james@example.com> - 1.0.1-1
 - Add Requires: selinux-policy >= 43.1 for GDM 50 userdb socket policy.
 
