@@ -1,6 +1,6 @@
 %bcond check    1
 %bcond heif     %{undefined rhel}
-%bcond jpegxl   %{undefined rhel}
+%bcond jpegxl   1
 
 %bcond bundled_rust_deps %{defined rhel}
 
@@ -8,7 +8,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        100%{?dist}
+Release:        101%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
