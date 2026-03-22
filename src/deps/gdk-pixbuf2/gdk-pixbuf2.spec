@@ -7,7 +7,7 @@
 
 Name:           gdk-pixbuf2
 Version:        2.44.5
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        An image loading library
 
 License:        LGPL-2.1-or-later
@@ -120,6 +120,7 @@ gdk-pixbuf-query-loaders-%{__isa_bits} --update-cache
 %{_libdir}/pkgconfig/gdk-pixbuf-2.0.pc
 %{_bindir}/gdk-pixbuf-csource
 %{_bindir}/gdk-pixbuf-pixdata
+%{_datadir}/gir-1.0/
 
 %files tests
 %{_libexecdir}/installed-tests
