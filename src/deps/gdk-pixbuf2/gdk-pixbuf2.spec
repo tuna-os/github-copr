@@ -7,13 +7,15 @@
 
 Name:           gdk-pixbuf2
 Version:        2.44.5
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        An image loading library
 
 License:        LGPL-2.1-or-later
 URL:            https://gitlab.gnome.org/GNOME/gdk-pixbuf
 Source0:        https://download.gnome.org/sources/gdk-pixbuf/2.44/gdk-pixbuf-%{version}.tar.xz
 
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
 BuildRequires:  gettext
 BuildRequires:  pkgconfig(gio-2.0) >= %{glib2_version}
 BuildRequires:  pkgconfig(glycin-2) >= %{glycin_version}
