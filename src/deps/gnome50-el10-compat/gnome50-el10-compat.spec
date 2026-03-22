@@ -1,4 +1,6 @@
 %global userunitdir %{_prefix}/lib/systemd/user
+
+Name:           gnome50-el10-compat
 Version:        1.2.0
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
