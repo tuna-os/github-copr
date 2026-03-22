@@ -7,7 +7,7 @@
 
 Name:           gdk-pixbuf2
 Version:        2.44.5
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        An image loading library
 
 License:        LGPL-2.1-or-later
@@ -74,6 +74,7 @@ meson setup \
     --buildtype=plain \
     --auto-features=disabled \
     -Ddocumentation=false \
+    -Dman=false \
     -Dintrospection=enabled \
     -Dglycin=enabled \
     build
@@ -111,7 +112,6 @@ gdk-pixbuf-query-loaders-%{__isa_bits} --update-cache
 %dir %{_libdir}/gdk-pixbuf-2.0/2.10.0/loaders
 %ghost %{_libdir}/gdk-pixbuf-2.0/2.10.0/loaders.cache
 %{_bindir}/gdk-pixbuf-query-loaders-%{__isa_bits}
-%{_mandir}/man1/gdk-pixbuf-query-loaders.1*
 
 %files devel
 %dir %{_includedir}/gdk-pixbuf-2.0
