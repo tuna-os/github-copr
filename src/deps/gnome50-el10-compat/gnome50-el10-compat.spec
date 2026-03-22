@@ -1,4 +1,4 @@
-Name:           gnome50-el10-compat
+%global userunitdir %{_prefix}/lib/systemd/user
 Version:        1.2.0
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
@@ -59,8 +59,8 @@ install -d %{buildroot}%{_sysconfdir}/xdg/autostart
 install -m 644 %{SOURCE3} %{buildroot}%{_sysconfdir}/xdg/autostart/orca-autostart.desktop
 
 # Ship orca.service so gsd-a11y-settings can enable/disable Orca via systemd
-install -d %{buildroot}%{_userunitdir}
-install -m 644 %{SOURCE4} %{buildroot}%{_userunitdir}/orca.service
+install -d %{buildroot}%{userunitdir}
+install -m 644 %{SOURCE4} %{buildroot}%{userunitdir}/orca.service
 
 %post
 if [ $1 -ge 1 ]; then
@@ -79,7 +79,7 @@ fi
 %{_datadir}/selinux/packages/gdm-gnome50.pp
 %{_datadir}/selinux/packages/gdm-userdb-connect.pp
 %{_sysconfdir}/xdg/autostart/orca-autostart.desktop
-%{_userunitdir}/orca.service
+%{userunitdir}/orca.service
 
 %changelog
 * Sun Mar 22 2026 James <james@example.com> - 1.2.0-1
