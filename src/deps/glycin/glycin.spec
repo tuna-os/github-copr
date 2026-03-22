@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        111%{?dist}
+Release:        112%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -294,7 +294,7 @@ patchelf --remove-rpath %{buildroot}%{jxl_private_dir}/libjxl_cms.so.0.11.1
 # libjxl.so links against libjxl_cms.so — point it to its sibling in the same dir
 patchelf --set-rpath '$ORIGIN' %{buildroot}%{jxl_private_dir}/libjxl.so.0.11.1
 # Set RPATH on the glycin-jxl loader to find the private libjxl at runtime
-patchelf --add-rpath '$ORIGIN/private' \
+patchelf --set-rpath '$ORIGIN/private' \
     %{buildroot}%{_libexecdir}/glycin-loaders/2+/glycin-jxl
 %endif
 
