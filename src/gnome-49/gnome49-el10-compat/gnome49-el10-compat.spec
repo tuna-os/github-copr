@@ -1,7 +1,7 @@
 %global userunitdir %{_prefix}/lib/systemd/user
 
 Name:           gnome49-el10-compat
-Version:        1.2.0
+Version:        1.2.1
 Release:        1%{?dist}
 Summary:        GNOME 49 Compatibility workarounds for EL10
 
@@ -45,13 +45,23 @@ mkdir -p %{buildroot}%{_sysconfdir}/pam.d
 cp %{SOURCE0} %{buildroot}%{_sysconfdir}/pam.d/systemd-user
 mkdir -p %{buildroot}%{_datadir}/selinux/packages
 cp gdm-gnome49.pp %{buildroot}%{_datadir}/selinux/packages/
-mkdir -p %{buildroot}%{_sysconfdir}/xdg/autostart
-cp %{SOURCE2} %{buildroot}%{_sysconfdir}/xdg/autostart/orca-autostart.desktop
 mkdir -p %{buildroot}%{userunitdir}
 cp %{SOURCE3} %{buildroot}%{userunitdir}/orca.service
 
 %post
 semodule -X 300 -i %{_datadir}/selinux/packages/gdm-gnome49.pp &>/dev/null || :
+# Override orca autostart: gnome-session 49 does not evaluate AutostartCondition,
+# so orca would launch unconditionally. Write Hidden=true without owning the file
+# (orca package owns it; we overwrite after install to avoid RPM conflict).
+mkdir -p %{_sysconfdir}/xdg/autostart
+cat > %{_sysconfdir}/xdg/autostart/orca-autostart.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=Orca Screen Reader
+Exec=orca
+Hidden=true
+X-GNOME-Autostart-enabled=false
+EOF
 
 %postun
 if [ $1 -eq 0 ]; then
@@ -61,10 +71,14 @@ fi
 %files
 %config(noreplace) %{_sysconfdir}/pam.d/systemd-user
 %{_datadir}/selinux/packages/gdm-gnome49.pp
-%{_sysconfdir}/xdg/autostart/orca-autostart.desktop
 %{userunitdir}/orca.service
 
 %changelog
+* Sun Mar 23 2026 James <james@example.com> - 1.2.1-1
+- Fix orca-autostart.desktop file conflict with orca package: write the
+  Hidden=true override via %post scriptlet instead of shipping the file,
+  since orca-48.9 owns /etc/xdg/autostart/orca-autostart.desktop.
+
 * Sun Mar 23 2026 James <james@example.com> - 1.2.0-1
 - Add Orca autostart suppression: gnome-session 49 does not evaluate
   AutostartCondition=GSettings, causing Orca to launch unconditionally.
