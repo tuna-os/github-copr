@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        112%{?dist}
+Release:        113%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -296,6 +296,13 @@ patchelf --set-rpath '$ORIGIN' %{buildroot}%{jxl_private_dir}/libjxl.so.0.11.1
 # Set RPATH on the glycin-jxl loader to find the private libjxl at runtime
 patchelf --set-rpath '$ORIGIN/private' \
     %{buildroot}%{_libexecdir}/glycin-loaders/2+/glycin-jxl
+# Ship an ldconfig conf so the linker cache includes the private dir.
+# $ORIGIN RPATH resolution is blocked by glycin's bwrap seccomp filter;
+# the ld.so.cache lookup path is the reliable alternative.
+install -Dm644 /dev/stdin \
+    %{buildroot}%{_sysconfdir}/ld.so.conf.d/glycin-jxl-private.conf <<'EOF'
+%{jxl_private_dir}
+EOF
 %endif
 
 
@@ -306,6 +313,10 @@ cd %{_builddir}/glycin-2.0.8
 %meson_test || :
 %endif
 
+
+%if %{with jpegxl} && %{with bundled_jxl}
+%ldconfig_scriptlets loaders
+%endif
 
 %files loaders
 %license LICENSE
@@ -322,6 +333,7 @@ cd %{_builddir}/glycin-2.0.8
 %{_datadir}/glycin-loaders/
 %if %{with jpegxl} && %{with bundled_jxl}
 %{jxl_private_dir}/
+%{_sysconfdir}/ld.so.conf.d/glycin-jxl-private.conf
 %endif
 
 %files thumbnailer
