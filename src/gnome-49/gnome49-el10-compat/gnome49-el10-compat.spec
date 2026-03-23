@@ -1,7 +1,5 @@
-%global userunitdir %{_prefix}/lib/systemd/user
-
 Name:           gnome49-el10-compat
-Version:        1.2.2
+Version:        1.2.3
 Release:        1%{?dist}
 Summary:        GNOME 49 Compatibility workarounds for EL10
 
@@ -9,7 +7,6 @@ License:        MIT
 Source0:        systemd-user.pam
 Source1:        gdm-gnome49.te
 Source2:        orca-autostart.desktop
-Source3:        orca.service
 
 BuildArch:      noarch
 BuildRequires:  checkpolicy
@@ -30,8 +27,8 @@ Includes:
   socket in /run/systemd/userdb/ and allows system services to connect to
   it (required for GDM 49 dynamic greeter user lookup under enforcing mode)
 - orca-autostart.desktop override: suppresses unconditional Orca launch;
-  gnome-session 49 does not evaluate AutostartCondition=GSettings
-- orca.service: allows gsd-a11y-settings to manage Orca via systemd
+  gnome-session 49 does not evaluate AutostartCondition=GSettings.
+  orca.service is now shipped by orca >= 49.6 directly.
 
 %prep
 # No prep needed.
@@ -45,8 +42,6 @@ mkdir -p %{buildroot}%{_sysconfdir}/pam.d
 cp %{SOURCE0} %{buildroot}%{_sysconfdir}/pam.d/systemd-user
 mkdir -p %{buildroot}%{_datadir}/selinux/packages
 cp gdm-gnome49.pp %{buildroot}%{_datadir}/selinux/packages/
-mkdir -p %{buildroot}%{userunitdir}
-cp %{SOURCE3} %{buildroot}%{userunitdir}/orca.service
 
 %post
 semodule -X 300 -i %{_datadir}/selinux/packages/gdm-gnome49.pp &>/dev/null || :
@@ -83,9 +78,12 @@ fi
 %files
 %config(noreplace) %{_sysconfdir}/pam.d/systemd-user
 %{_datadir}/selinux/packages/gdm-gnome49.pp
-%{userunitdir}/orca.service
 
 %changelog
+* Mon Mar 23 2026 James <james@example.com> - 1.2.3-1
+- Drop orca.service: now shipped natively by orca >= 49.6, which is
+  available in c10s-gnome-49 COPR. Avoids file conflict on upgrade.
+
 * Mon Mar 23 2026 James <james@example.com> - 1.2.2-1
 - Add %filetriggerin on orca-autostart.desktop to reliably write Hidden=true
   regardless of package install order. Fixes race in image builds where orca
