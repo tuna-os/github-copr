@@ -1,11 +1,15 @@
+%global userunitdir %{_prefix}/lib/systemd/user
+
 Name:           gnome49-el10-compat
-Version:        1.1.0
+Version:        1.2.0
 Release:        1%{?dist}
 Summary:        GNOME 49 Compatibility workarounds for EL10
 
 License:        MIT
 Source0:        systemd-user.pam
 Source1:        gdm-gnome49.te
+Source2:        orca-autostart.desktop
+Source3:        orca.service
 
 BuildArch:      noarch
 BuildRequires:  checkpolicy
@@ -25,6 +29,9 @@ Includes:
 - gdm-gnome49 SELinux module: allows xdm_t to create the userdb Varlink
   socket in /run/systemd/userdb/ and allows system services to connect to
   it (required for GDM 49 dynamic greeter user lookup under enforcing mode)
+- orca-autostart.desktop override: suppresses unconditional Orca launch;
+  gnome-session 49 does not evaluate AutostartCondition=GSettings
+- orca.service: allows gsd-a11y-settings to manage Orca via systemd
 
 %prep
 # No prep needed.
@@ -38,6 +45,10 @@ mkdir -p %{buildroot}%{_sysconfdir}/pam.d
 cp %{SOURCE0} %{buildroot}%{_sysconfdir}/pam.d/systemd-user
 mkdir -p %{buildroot}%{_datadir}/selinux/packages
 cp gdm-gnome49.pp %{buildroot}%{_datadir}/selinux/packages/
+mkdir -p %{buildroot}%{_sysconfdir}/xdg/autostart
+cp %{SOURCE2} %{buildroot}%{_sysconfdir}/xdg/autostart/orca-autostart.desktop
+mkdir -p %{buildroot}%{userunitdir}
+cp %{SOURCE3} %{buildroot}%{userunitdir}/orca.service
 
 %post
 semodule -X 300 -i %{_datadir}/selinux/packages/gdm-gnome49.pp &>/dev/null || :
@@ -50,8 +61,16 @@ fi
 %files
 %config(noreplace) %{_sysconfdir}/pam.d/systemd-user
 %{_datadir}/selinux/packages/gdm-gnome49.pp
+%{_sysconfdir}/xdg/autostart/orca-autostart.desktop
+%{userunitdir}/orca.service
 
 %changelog
+* Sun Mar 23 2026 James <james@example.com> - 1.2.0-1
+- Add Orca autostart suppression: gnome-session 49 does not evaluate
+  AutostartCondition=GSettings, causing Orca to launch unconditionally.
+  Ship Hidden=true override for orca-autostart.desktop and orca.service
+  so gsd-a11y-settings can manage Orca properly.
+
 * Fri Mar 20 2026 James <james@example.com> - 1.1.0-1
 - Add gdm-gnome49 SELinux policy module for enforcing mode support.
   Allows xdm_t to create userdb socket; allows systemd_userdbd_t,
