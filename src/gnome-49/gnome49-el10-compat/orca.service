@@ -1,0 +1,21 @@
+[Unit]
+Description=Orca Screen Reader
+Documentation=man:orca(1)
+Documentation=https://orca.gnome.org/
+
+PartOf=graphical-session.target
+After=graphical-session.target
+
+Wants=at-spi-dbus-bus.service
+Wants=speech-dispatcher.socket
+After=speech-dispatcher.socket
+
+[Service]
+Type=notify-reload
+ExecStart=orca --replace
+Restart=always
+WatchdogSec=6
+Slice=session.slice
+
+[Install]
+WantedBy=graphical-session.target
