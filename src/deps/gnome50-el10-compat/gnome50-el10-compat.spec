@@ -1,7 +1,7 @@
 %global userunitdir %{_prefix}/lib/systemd/user
 
 Name:           gnome50-el10-compat
-Version:        1.2.0
+Version:        1.2.1
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
@@ -57,8 +57,7 @@ install -m 644 gdm-gnome50.pp %{buildroot}%{_datadir}/selinux/packages/
 install -m 644 gdm-userdb-connect.pp %{buildroot}%{_datadir}/selinux/packages/
 
 # Suppress unconditional Orca autostart (GNOME 50 dropped AutostartCondition evaluation)
-install -d %{buildroot}%{_sysconfdir}/xdg/autostart
-install -m 644 %{SOURCE3} %{buildroot}%{_sysconfdir}/xdg/autostart/orca-autostart.desktop
+# Written via %post to avoid file conflict with orca package.
 
 # Ship orca.service so gsd-a11y-settings can enable/disable Orca via systemd
 install -d %{buildroot}%{userunitdir}
@@ -70,6 +69,18 @@ if [ $1 -ge 1 ]; then
         %{_datadir}/selinux/packages/gdm-gnome50.pp \
         %{_datadir}/selinux/packages/gdm-userdb-connect.pp 2>/dev/null || :
 fi
+# Override orca autostart: GNOME 50 dropped AutostartCondition evaluation,
+# so orca launches unconditionally. Write Hidden=true without owning the file
+# (orca package owns it; we overwrite after install to avoid RPM conflict).
+mkdir -p %{_sysconfdir}/xdg/autostart
+cat > %{_sysconfdir}/xdg/autostart/orca-autostart.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=Orca Screen Reader
+Exec=orca
+Hidden=true
+X-GNOME-Autostart-enabled=false
+EOF
 
 %preun
 if [ $1 -eq 0 ]; then
@@ -80,10 +91,14 @@ fi
 %config(noreplace) %{_sysconfdir}/pam.d/systemd-user
 %{_datadir}/selinux/packages/gdm-gnome50.pp
 %{_datadir}/selinux/packages/gdm-userdb-connect.pp
-%{_sysconfdir}/xdg/autostart/orca-autostart.desktop
 %{userunitdir}/orca.service
 
 %changelog
+* Sun Mar 23 2026 James <james@example.com> - 1.2.1-1
+- Fix orca-autostart.desktop file conflict with orca package: write the
+  Hidden=true override via %post scriptlet instead of shipping the file,
+  since orca owns /etc/xdg/autostart/orca-autostart.desktop.
+
 * Sun Mar 22 2026 James <james@example.com> - 1.2.0-1
 - Add orca-autostart.desktop override (Hidden=true): GNOME 50 removed
   AutostartCondition=GSettings evaluation from gnome-session, causing Orca
