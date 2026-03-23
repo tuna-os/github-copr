@@ -1,5 +1,22 @@
---- gdm-49.2/data/org.gnome.login-screen.gschema.xml.orig	2026-03-23 11:18:56.184381179 +0530
-+++ gdm-49.2/data/org.gnome.login-screen.gschema.xml.new	2026-03-23 11:21:48.554047595 +0530
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: James Reilly <packager@example.com>
+Date: Sun, 23 Mar 2026 05:00:00 +0000
+Subject: [PATCH] data: add missing auth schema keys required by gnome-shell 49
+
+gnome-shell 49.4 references enable-passkey-authentication,
+enable-web-authentication, and enable-switchable-authentication from
+org.gnome.login-screen GSettings schema in gdm/util.js
+_updateAuthServices(). These keys were added to upstream GDM post-49.2
+but are absent from the 49.2 tarball, causing gnome-shell to crash at
+the GDM login screen with "GSettings key not found".
+---
+ data/org.gnome.login-screen.gschema.xml | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/data/org.gnome.login-screen.gschema.xml b/data/org.gnome.login-screen.gschema.xml
+index 1111111..2222222 100644
+--- a/data/org.gnome.login-screen.gschema.xml
++++ b/data/org.gnome.login-screen.gschema.xml
 @@ -121,5 +121,20 @@
          giving up and going back to user selection.
        </description>
