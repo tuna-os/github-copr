@@ -1,7 +1,7 @@
 %global userunitdir %{_prefix}/lib/systemd/user
 
 Name:           gnome50-el10-compat
-Version:        1.2.1
+Version:        1.2.2
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
@@ -82,6 +82,18 @@ Hidden=true
 X-GNOME-Autostart-enabled=false
 EOF
 
+# Fire whenever orca installs or updates its autostart file (handles orca
+# installing AFTER this package in a later transaction, e.g. in image builds).
+%filetriggerin -- /etc/xdg/autostart/orca-autostart.desktop
+cat > /etc/xdg/autostart/orca-autostart.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=Orca Screen Reader
+Exec=orca
+Hidden=true
+X-GNOME-Autostart-enabled=false
+EOF
+
 %preun
 if [ $1 -eq 0 ]; then
     %{_sbindir}/semodule -X 300 -r gdm-gnome50 gdm-userdb-connect 2>/dev/null || :
@@ -94,6 +106,11 @@ fi
 %{userunitdir}/orca.service
 
 %changelog
+* Mon Mar 23 2026 James <james@example.com> - 1.2.2-1
+- Add %filetriggerin on orca-autostart.desktop to reliably write Hidden=true
+  regardless of package install order. Fixes race in image builds where orca
+  installs in a later transaction after our %post already ran.
+
 * Sun Mar 23 2026 James <james@example.com> - 1.2.1-1
 - Fix orca-autostart.desktop file conflict with orca package: write the
   Hidden=true override via %post scriptlet instead of shipping the file,
