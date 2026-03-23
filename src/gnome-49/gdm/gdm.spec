@@ -31,6 +31,8 @@ Patch:          0001-data-add-system-dconf-databases-to-gdm-profile.patch
 Patch:          0001-Add-headless-session-files.patch
 # EL10 compatibility: force varlink mode to 0666 (EL10 systemd 257 rejects high mode bits)
 Patch:          0001-el10-force-varlink-mode-0666.patch
+# EL10: add schema keys required by gnome-shell 49 web/passkey auth patch
+Patch:          0002-add-missing-auth-schema-keys-for-gnome-shell-49.patch
 
 BuildRequires:  dconf
 BuildRequires:  desktop-file-utils
