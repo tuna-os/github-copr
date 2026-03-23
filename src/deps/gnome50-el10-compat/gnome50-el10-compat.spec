@@ -1,7 +1,5 @@
-%global userunitdir %{_prefix}/lib/systemd/user
-
 Name:           gnome50-el10-compat
-Version:        1.2.2
+Version:        1.2.3
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
@@ -10,7 +8,6 @@ Source0:        systemd-user.pam
 Source1:        gdm-gnome50.te
 Source2:        gdm-userdb-connect.te
 Source3:        orca-autostart.desktop
-Source4:        orca.service
 
 BuildArch:      noarch
 BuildRequires:  checkpolicy
@@ -33,9 +30,8 @@ It provides:
 - An orca-autostart.desktop override (Hidden=true) to suppress unconditional
   Orca autostart. GNOME 50 removed AutostartCondition=GSettings evaluation from
   gnome-session; EL10's orca package relies on it to respect screen-reader-enabled.
-  GNOME 50 expects Orca to be managed via systemd (orca.service).
-- An orca.service systemd user unit (from upstream GNOME) so gsd-a11y-settings
-  can enable/disable Orca correctly on EL10 where orca doesn't ship this unit.
+  GNOME 50 expects Orca to be managed via systemd (orca.service), which is
+  now shipped by orca >= 50.0.9 directly.
 
 %prep
 cp %{SOURCE1} gdm-gnome50.te
@@ -57,11 +53,7 @@ install -m 644 gdm-gnome50.pp %{buildroot}%{_datadir}/selinux/packages/
 install -m 644 gdm-userdb-connect.pp %{buildroot}%{_datadir}/selinux/packages/
 
 # Suppress unconditional Orca autostart (GNOME 50 dropped AutostartCondition evaluation)
-# Written via %post to avoid file conflict with orca package.
-
-# Ship orca.service so gsd-a11y-settings can enable/disable Orca via systemd
-install -d %{buildroot}%{userunitdir}
-install -m 644 %{SOURCE4} %{buildroot}%{userunitdir}/orca.service
+# Written via %post/%filetriggerin to avoid file conflict with orca package.
 
 %post
 if [ $1 -ge 1 ]; then
@@ -103,9 +95,12 @@ fi
 %config(noreplace) %{_sysconfdir}/pam.d/systemd-user
 %{_datadir}/selinux/packages/gdm-gnome50.pp
 %{_datadir}/selinux/packages/gdm-userdb-connect.pp
-%{userunitdir}/orca.service
 
 %changelog
+* Mon Mar 23 2026 James <james@example.com> - 1.2.3-1
+- Drop orca.service: now shipped natively by orca >= 50.0.9, which is
+  available in c10s-gnome-50 COPR. Avoids file conflict on upgrade.
+
 * Mon Mar 23 2026 James <james@example.com> - 1.2.2-1
 - Add %filetriggerin on orca-autostart.desktop to reliably write Hidden=true
   regardless of package install order. Fixes race in image builds where orca
