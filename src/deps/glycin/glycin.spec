@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        113%{?dist}
+Release:        114%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -315,7 +315,10 @@ cd %{_builddir}/glycin-2.0.8
 
 
 %if %{with jpegxl} && %{with bundled_jxl}
-%ldconfig_scriptlets loaders
+%post loaders
+/sbin/ldconfig
+%postun loaders
+/sbin/ldconfig
 %endif
 
 %files loaders
