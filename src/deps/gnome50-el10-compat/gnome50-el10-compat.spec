@@ -1,5 +1,5 @@
 Name:           gnome50-el10-compat
-Version:        1.2.3
+Version:        1.2.4
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
@@ -8,6 +8,7 @@ Source0:        systemd-user.pam
 Source1:        gdm-gnome50.te
 Source2:        gdm-userdb-connect.te
 Source3:        orca-autostart.desktop
+Source4:        tuned-ppd-logging.te
 
 BuildArch:      noarch
 BuildRequires:  checkpolicy
@@ -36,6 +37,7 @@ It provides:
 %prep
 cp %{SOURCE1} gdm-gnome50.te
 cp %{SOURCE2} gdm-userdb-connect.te
+cp %{SOURCE4} tuned-ppd-logging.te
 
 %build
 checkmodule -M -m -o gdm-gnome50.mod gdm-gnome50.te
@@ -44,6 +46,9 @@ semodule_package -o gdm-gnome50.pp -m gdm-gnome50.mod
 checkmodule -M -m -o gdm-userdb-connect.mod gdm-userdb-connect.te
 semodule_package -o gdm-userdb-connect.pp -m gdm-userdb-connect.mod
 
+checkmodule -M -m -o tuned-ppd-logging.mod tuned-ppd-logging.te
+semodule_package -o tuned-ppd-logging.pp -m tuned-ppd-logging.mod
+
 %install
 mkdir -p %{buildroot}%{_sysconfdir}/pam.d
 cp %{SOURCE0} %{buildroot}%{_sysconfdir}/pam.d/systemd-user
@@ -51,6 +56,7 @@ cp %{SOURCE0} %{buildroot}%{_sysconfdir}/pam.d/systemd-user
 install -d %{buildroot}%{_datadir}/selinux/packages
 install -m 644 gdm-gnome50.pp %{buildroot}%{_datadir}/selinux/packages/
 install -m 644 gdm-userdb-connect.pp %{buildroot}%{_datadir}/selinux/packages/
+install -m 644 tuned-ppd-logging.pp %{buildroot}%{_datadir}/selinux/packages/
 
 # Suppress unconditional Orca autostart (GNOME 50 dropped AutostartCondition evaluation)
 # Written via %post/%filetriggerin to avoid file conflict with orca package.
@@ -59,7 +65,8 @@ install -m 644 gdm-userdb-connect.pp %{buildroot}%{_datadir}/selinux/packages/
 if [ $1 -ge 1 ]; then
     %{_sbindir}/semodule -X 300 -i \
         %{_datadir}/selinux/packages/gdm-gnome50.pp \
-        %{_datadir}/selinux/packages/gdm-userdb-connect.pp 2>/dev/null || :
+        %{_datadir}/selinux/packages/gdm-userdb-connect.pp \
+        %{_datadir}/selinux/packages/tuned-ppd-logging.pp 2>/dev/null || :
 fi
 # Override orca autostart: GNOME 50 dropped AutostartCondition evaluation,
 # so orca launches unconditionally. Write Hidden=true without owning the file
@@ -88,15 +95,21 @@ EOF
 
 %preun
 if [ $1 -eq 0 ]; then
-    %{_sbindir}/semodule -X 300 -r gdm-gnome50 gdm-userdb-connect 2>/dev/null || :
+    %{_sbindir}/semodule -X 300 -r gdm-gnome50 gdm-userdb-connect tuned-ppd-logging 2>/dev/null || :
 fi
 
 %files
 %config(noreplace) %{_sysconfdir}/pam.d/systemd-user
 %{_datadir}/selinux/packages/gdm-gnome50.pp
 %{_datadir}/selinux/packages/gdm-userdb-connect.pp
+%{_datadir}/selinux/packages/tuned-ppd-logging.pp
 
 %changelog
+* Tue Mar 25 2026 James <james@example.com> - 1.2.4-1
+- Add tuned-ppd-logging SELinux module: EL10 base policy does not grant
+  tuned_ppd_t access to var_log_t; this allows tuned-ppd to write its
+  log to /var/log/tuned/tuned-ppd.log without AVC denials.
+
 * Mon Mar 23 2026 James <james@example.com> - 1.2.3-1
 - Drop orca.service: now shipped natively by orca >= 50.0.9, which is
   available in c10s-gnome-50 COPR. Avoids file conflict on upgrade.
