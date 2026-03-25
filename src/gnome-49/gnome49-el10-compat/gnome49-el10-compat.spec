@@ -1,5 +1,5 @@
 Name:           gnome49-el10-compat
-Version:        1.2.3
+Version:        1.2.4
 Release:        1%{?dist}
 Summary:        GNOME 49 Compatibility workarounds for EL10
 
@@ -7,6 +7,7 @@ License:        MIT
 Source0:        systemd-user.pam
 Source1:        gdm-gnome49.te
 Source2:        orca-autostart.desktop
+Source3:        tuned-ppd-logging.te
 
 BuildArch:      noarch
 BuildRequires:  checkpolicy
@@ -37,14 +38,20 @@ Includes:
 checkmodule -M -m -o gdm-gnome49.mod %{SOURCE1}
 semodule_package -o gdm-gnome49.pp -m gdm-gnome49.mod
 
+checkmodule -M -m -o tuned-ppd-logging.mod %{SOURCE3}
+semodule_package -o tuned-ppd-logging.pp -m tuned-ppd-logging.mod
+
 %install
 mkdir -p %{buildroot}%{_sysconfdir}/pam.d
 cp %{SOURCE0} %{buildroot}%{_sysconfdir}/pam.d/systemd-user
 mkdir -p %{buildroot}%{_datadir}/selinux/packages
 cp gdm-gnome49.pp %{buildroot}%{_datadir}/selinux/packages/
+cp tuned-ppd-logging.pp %{buildroot}%{_datadir}/selinux/packages/
 
 %post
-semodule -X 300 -i %{_datadir}/selinux/packages/gdm-gnome49.pp &>/dev/null || :
+semodule -X 300 -i \
+    %{_datadir}/selinux/packages/gdm-gnome49.pp \
+    %{_datadir}/selinux/packages/tuned-ppd-logging.pp &>/dev/null || :
 # Override orca autostart: gnome-session 49 does not evaluate AutostartCondition,
 # so orca would launch unconditionally. Write Hidden=true without owning the file
 # (orca package owns it; we overwrite after install to avoid RPM conflict).
@@ -72,14 +79,20 @@ EOF
 
 %postun
 if [ $1 -eq 0 ]; then
-    semodule -r gdm-gnome49 &>/dev/null || :
+    semodule -r gdm-gnome49 tuned-ppd-logging &>/dev/null || :
 fi
 
 %files
 %config(noreplace) %{_sysconfdir}/pam.d/systemd-user
 %{_datadir}/selinux/packages/gdm-gnome49.pp
+%{_datadir}/selinux/packages/tuned-ppd-logging.pp
 
 %changelog
+* Tue Mar 25 2026 James <james@example.com> - 1.2.4-1
+- Add tuned-ppd-logging SELinux module: EL10 base policy does not grant
+  tuned_ppd_t access to var_log_t; this allows tuned-ppd to write its
+  log to /var/log/tuned/tuned-ppd.log without AVC denials.
+
 * Mon Mar 23 2026 James <james@example.com> - 1.2.3-1
 - Drop orca.service: now shipped natively by orca >= 49.6, which is
   available in c10s-gnome-49 COPR. Avoids file conflict on upgrade.
