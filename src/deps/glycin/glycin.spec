@@ -11,7 +11,7 @@
 
 Name:           glycin
 Version:        2.0.8
-Release:        115%{?dist}
+Release:        116%{?dist}
 Summary:        Sandboxed image rendering
 
 SourceLicense:  MPL-2.0 OR LGPL-2.1-or-later
@@ -291,20 +291,21 @@ find %{_builddir}/jxl-private -name "libjxl.so*" -o -name "libjxl_threads.so*" -
 patchelf --remove-rpath %{buildroot}%{jxl_private_dir}/libjxl.so.0.11.1
 patchelf --remove-rpath %{buildroot}%{jxl_private_dir}/libjxl_threads.so.0.11.1
 patchelf --remove-rpath %{buildroot}%{jxl_private_dir}/libjxl_cms.so.0.11.1
-# libjxl.so links against libjxl_cms.so — point it to its sibling in the same dir
-patchelf --set-rpath '$ORIGIN' %{buildroot}%{jxl_private_dir}/libjxl.so.0.11.1
-# Set RPATH on the glycin-jxl loader to find the private libjxl at runtime
-patchelf --set-rpath '$ORIGIN/private' \
+# Set DT_RPATH (not DT_RUNPATH) with absolute paths on the private libs and loader.
+# DT_RPATH is checked before ld.so.cache and is inherited by transitive dependency
+# resolution. Using an absolute path avoids $ORIGIN expansion, which fails inside
+# glycin's bwrap sandbox (new mount namespace with no /proc and --clearenv set).
+# This makes the background load without any ldconfig update on bootc/ostree systems.
+patchelf --force-rpath --set-rpath '%{jxl_private_dir}' \
+    %{buildroot}%{jxl_private_dir}/libjxl.so.0.11.1
+patchelf --force-rpath --set-rpath '%{jxl_private_dir}' \
     %{buildroot}%{_libexecdir}/glycin-loaders/2+/glycin-jxl
-# Ship an ldconfig conf so the linker cache includes the private dir.
-# $ORIGIN RPATH resolution is blocked by glycin's bwrap seccomp filter;
-# the ld.so.cache lookup path is the reliable alternative.
+# Keep ldconfig conf for ldd diagnostics and non-sandboxed callers.
 install -Dm644 /dev/stdin \
     %{buildroot}%{_sysconfdir}/ld.so.conf.d/glycin-jxl-private.conf <<'EOF'
 %{jxl_private_dir}
 EOF
 %endif
-
 
 %if %{with check}
 %check
@@ -313,14 +314,6 @@ cd %{_builddir}/glycin-2.0.8
 %meson_test || :
 %endif
 
-
-%if %{with jpegxl} && %{with bundled_jxl}
-%transfiletriggerin loaders -- %{_libexecdir}/glycin-loaders/2+/private
-/sbin/ldconfig
-
-%transfiletriggerun loaders -- %{_libexecdir}/glycin-loaders/2+/private
-/sbin/ldconfig
-%endif
 
 %files loaders
 %license LICENSE
