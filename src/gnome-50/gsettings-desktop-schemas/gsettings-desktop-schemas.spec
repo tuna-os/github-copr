@@ -4,7 +4,7 @@
 
 Name:           gsettings-desktop-schemas
 Version:        50.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        A collection of GSettings schemas
 
 License:        LGPL-2.1-or-later
@@ -13,6 +13,7 @@ URL:            https://gitlab.gnome.org/GNOME/gsettings-desktop-schemas
 Source0:        https://download.gnome.org/sources/%{name}/50/%{name}-%{tarball_version}.tar.xz
 Source1:        org.gnome.desktop.interface.rhel.gschema.override
 
+BuildRequires:  gcc
 BuildRequires:  gettext
 BuildRequires:  glib2-devel >= 2.31.0
 BuildRequires:  gobject-introspection-devel
@@ -48,12 +49,27 @@ and header files for developing applications that use %{name}.
 
 
 %build
-%meson
-%meson_build
-
+meson setup _build \
+    --buildtype=plain \
+    --prefix=%{_prefix} \
+    --libdir=%{_libdir} \
+    --libexecdir=%{_libexecdir} \
+    --bindir=%{_bindir} \
+    --sbindir=%{_sbindir} \
+    --includedir=%{_includedir} \
+    --datadir=%{_datadir} \
+    --mandir=%{_mandir} \
+    --infodir=%{_infodir} \
+    --localedir=%{_datadir}/locale \
+    --sysconfdir=%{_sysconfdir} \
+    --localstatedir=%{_localstatedir} \
+    --sharedstatedir=%{_sharedstatedir} \
+    --wrap-mode=nodownload \
+    -Dintrospection=true
+ninja -C _build -j%{_smp_build_ncpus}
 
 %install
-%meson_install
+DESTDIR=%{buildroot} ninja -C _build install
 
 %if 0%{?rhel} && 0%{?rhel} >= 10
 cp %{SOURCE1} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
@@ -85,10 +101,15 @@ glib-compile-schemas --dry-run --strict %{buildroot}%{_datadir}/glib-2.0/schemas
 
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
+- Add gcc BuildRequires: meson checks for a C compiler at configure time even
+  for schema-only projects; gcc is not auto-installed in EL10 COPR buildroots.
+- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja to
+  avoid "fg: no job control" failure on COPR builders.
+- Remove %%autochangelog: Fedora-specific macro not available on EL10.
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
 - Update to 50.0 (GNOME 50 stable release)
 - Track F44 branch instead of rawhide
 - Drop gcc BuildRequires (pulled in transitively)
 - Adopt %meson build macros
-
-%autochangelog
