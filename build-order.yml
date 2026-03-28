@@ -46,6 +46,7 @@ tiers:
     packages:
       - path: src/deps/libei
       - path: src/deps/mozjs140
+        copr_name: mozjs140
       - path: src/deps/libzip
       - path: src/deps/fontconfig
 
@@ -83,6 +84,7 @@ tiers:
       - path: src/deps/umockdev
         build_tool: true
       - path: src/deps/python-dbusmock
+        copr_name: python-dbusmock
         build_tool: true
       - path: src/deps/avahi
       - path: src/gnome-50/gjs
