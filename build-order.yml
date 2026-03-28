@@ -106,7 +106,7 @@ tiers:
       - path: src/gnome-50/xdg-desktop-portal
       - path: src/deps/localsearch
       - path: src/deps/vte291
-        copr_name: vte291
+        spec_override: vte291.spec
 
   # Tier 13: Compositor & Shell.
   - name: shell-foundations
