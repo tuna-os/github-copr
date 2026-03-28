@@ -6,7 +6,7 @@
 
 Name:           gjs
 Version:        1.88.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Javascript Bindings for GNOME
 
 # The following files contain code from Mozilla which
@@ -74,11 +74,27 @@ Tests are disabled.
 %autosetup -p1
 
 %build
-%meson
-%meson_build
+meson setup _build \
+    --buildtype=plain \
+    --prefix=%{_prefix} \
+    --libdir=%{_libdir} \
+    --libexecdir=%{_libexecdir} \
+    --bindir=%{_bindir} \
+    --sbindir=%{_sbindir} \
+    --includedir=%{_includedir} \
+    --datadir=%{_datadir} \
+    --mandir=%{_mandir} \
+    --infodir=%{_infodir} \
+    --localedir=%{_datadir}/locale \
+    --sysconfdir=%{_sysconfdir} \
+    --localstatedir=%{_localstatedir} \
+    --sharedstatedir=%{_sharedstatedir} \
+    --wrap-mode=nodownload \
+    -Dinstalled_tests=false
+ninja -C _build -j%{_smp_build_ncpus}
 
 %install
-%meson_install
+DESTDIR=%{buildroot} ninja -C _build install
 
 %files
 %exclude %{_libdir}/debug/
@@ -104,11 +120,22 @@ Tests are disabled.
 %{_libdir}/pkgconfig/gjs-1.0.pc
 
 %files tests
+%if %{with tests}
 %{_libexecdir}/installed-tests/gjs/
 %{_datadir}/installed-tests/gjs/
 %{_datadir}/glib-2.0/schemas/org.gnome.GjsTest.gschema.xml
+%endif
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.88.0-2
+- Replace %%meson/%%meson_build/%%meson_install macros with explicit meson setup,
+  ninja, and DESTDIR install to avoid "fg: no job control" on COPR builders.
+- Add -Dinstalled_tests=false to meson configure: GJS meson.build requires
+  dbus-run-session at configure time even without %%bcond_with tests;
+  passing the flag skips that check entirely.
+- Guard %%files tests content with %%if %%{with tests} to avoid missing-file
+  errors when installed_tests=false.
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.88.0-1
 - Update to 1.88.0 (GNOME 50 stable release)
 - Track F44 branch instead of rawhide
