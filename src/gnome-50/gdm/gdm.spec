@@ -16,7 +16,7 @@
 Name:           gdm
 Epoch:          1
 Version:        50.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        The GNOME Display Manager
 
 License:        GPL-2.0-or-later
@@ -32,6 +32,7 @@ Patch:          0001-Add-headless-session-files.patch
 
 BuildRequires:  dconf
 BuildRequires:  desktop-file-utils
+BuildRequires:  gcc
 BuildRequires:  gettext-devel
 BuildRequires:  git-core
 BuildRequires:  meson
@@ -247,6 +248,10 @@ ln -sf ../X11/xinit/Xsession %{buildroot}%{_sysconfdir}/gdm/
 %{_libdir}/pkgconfig/gdm-pam-extensions.pc
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
+- Add explicit BuildRequires: gcc (COPR EL10 minimal buildroot does not
+  pre-install gcc unlike Fedora; meson compiler detection fails without it)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
 - Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
   to avoid "fg: no job control" on COPR builders (non-interactive bash).
