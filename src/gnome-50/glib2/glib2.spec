@@ -1,6 +1,6 @@
 Name:           glib2
 Version:        2.88.0
-Release:        1%{?dist}
+Release:        3%{?dist}
 Summary:        A library of handy utility functions
 
 License:        LGPL-2.1-or-later
@@ -41,11 +41,7 @@ Provides: bundled(xdgmime)
 Conflicts: gobject-introspection < 1.79.1
 Conflicts: gobject-introspection-devel < 1.79.1
 
-%ifarch x86_64
-Requires: libgnutls.so.30()(64bit)
-%else
-Requires: libgnutls.so.30
-%endif
+Requires: gnutls%{?_isa}
 
 %description
 GLib is the low-level core library that forms the basis for projects
@@ -80,17 +76,33 @@ with open(path, 'w') as f: f.write(content)
 "
 
 %build
-%meson \
+meson setup _build \
+    --buildtype=plain \
+    --prefix=%{_prefix} \
+    --libdir=%{_libdir} \
+    --libexecdir=%{_libexecdir} \
+    --bindir=%{_bindir} \
+    --sbindir=%{_sbindir} \
+    --includedir=%{_includedir} \
+    --datadir=%{_datadir} \
+    --mandir=%{_mandir} \
+    --infodir=%{_infodir} \
+    --localedir=%{_datadir}/locale \
+    --sysconfdir=%{_sysconfdir} \
+    --localstatedir=%{_localstatedir} \
+    --sharedstatedir=%{_sharedstatedir} \
+    --auto-features=enabled \
+    --wrap-mode=nodownload \
     -Dglib_debug=disabled \
     -Ddocumentation=false \
     -Dinstalled_tests=false \
     -Dgnutls=true \
     -Dintrospection=enabled \
     --default-library=both
-%meson_build
+ninja -C _build -j%{_smp_build_ncpus}
 
 %install
-%meson_install
+DESTDIR=%{buildroot} ninja -C _build install
 
 mv %{buildroot}%{_bindir}/gio-querymodules %{buildroot}%{_bindir}/gio-querymodules-%{__isa_bits}
 
@@ -189,6 +201,17 @@ gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 %{_libdir}/*.a
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 2.88.0-3
+- Replace %%meson/%%meson_build/%%meson_install macros with explicit meson setup,
+  ninja, and DESTDIR install to avoid "fg: no job control" failure on COPR
+  builders that run rpmbuild under --console=pipe (non-interactive bash).
+
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 2.88.0-2
+- Fix runtime Requires: use gnutls%%{?_isa} instead of arch-conditional
+  libgnutls.so.30 soname form; the bare soname without the ()(64bit) qualifier
+  is unresolvable on aarch64, causing DNF to fall back to glib2-2.87.3-1 which
+  has pkgconfig files in the main package and no glib2-devel split.
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 2.88.0-1
 - Update to 2.88.0 (GNOME 50 stable release)
 - Track F44 branch instead of rawhide
