@@ -1,5 +1,5 @@
 Name:           gnome50-el10-compat
-Version:        1.2.4
+Version:        1.2.5
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
@@ -9,6 +9,7 @@ Source1:        gdm-gnome50.te
 Source2:        gdm-userdb-connect.te
 Source3:        orca-autostart.desktop
 Source4:        tuned-ppd-logging.te
+Source5:        apply-gi-glib-compat.py
 
 BuildArch:      noarch
 BuildRequires:  checkpolicy
@@ -33,11 +34,16 @@ It provides:
   gnome-session; EL10's orca package relies on it to respect screen-reader-enabled.
   GNOME 50 expects Orca to be managed via systemd (orca.service), which is
   now shipped by orca >= 50.0.9 directly.
+- A PyGObject GLib compatibility shim: GLib 2.87+ moved g_unix_signal_add to
+  the GLibUnix-2.0 GI namespace. EL10's python3-gobject 3.46 does not know
+  this mapping, breaking GLib.unix_signal_add consumers (firewalld, etc.).
+  This patches gi/overrides/GLib.py to shim GLib.unix_signal_add from GLibUnix.
 
 %prep
 cp %{SOURCE1} gdm-gnome50.te
 cp %{SOURCE2} gdm-userdb-connect.te
 cp %{SOURCE4} tuned-ppd-logging.te
+cp %{SOURCE5} apply-gi-glib-compat.py
 
 %build
 checkmodule -M -m -o gdm-gnome50.mod gdm-gnome50.te
@@ -57,6 +63,9 @@ install -d %{buildroot}%{_datadir}/selinux/packages
 install -m 644 gdm-gnome50.pp %{buildroot}%{_datadir}/selinux/packages/
 install -m 644 gdm-userdb-connect.pp %{buildroot}%{_datadir}/selinux/packages/
 install -m 644 tuned-ppd-logging.pp %{buildroot}%{_datadir}/selinux/packages/
+
+install -d %{buildroot}%{_datadir}/gnome50-el10-compat
+install -m 755 apply-gi-glib-compat.py %{buildroot}%{_datadir}/gnome50-el10-compat/
 
 # Suppress unconditional Orca autostart (GNOME 50 dropped AutostartCondition evaluation)
 # Written via %post/%filetriggerin to avoid file conflict with orca package.
@@ -81,6 +90,10 @@ Hidden=true
 X-GNOME-Autostart-enabled=false
 EOF
 
+# Re-apply PyGObject shim whenever python3-gobject updates GLib.py.
+%filetriggerin -- /usr/lib/python3.12/site-packages/gi/overrides/GLib.py
+python3 %{_datadir}/gnome50-el10-compat/apply-gi-glib-compat.py 2>/dev/null || :
+
 # Fire whenever orca installs or updates its autostart file (handles orca
 # installing AFTER this package in a later transaction, e.g. in image builds).
 %filetriggerin -- /etc/xdg/autostart/orca-autostart.desktop
@@ -98,13 +111,32 @@ if [ $1 -eq 0 ]; then
     %{_sbindir}/semodule -X 300 -r gdm-gnome50 gdm-userdb-connect tuned-ppd-logging 2>/dev/null || :
 fi
 
+%post
+if [ $1 -ge 1 ]; then
+    %{_sbindir}/semodule -X 300 -i \
+        %{_datadir}/selinux/packages/gdm-gnome50.pp \
+        %{_datadir}/selinux/packages/gdm-userdb-connect.pp \
+        %{_datadir}/selinux/packages/tuned-ppd-logging.pp 2>/dev/null || :
+fi
+# Apply PyGObject GLib→GLibUnix shim (see Source5 for rationale)
+python3 %{_datadir}/gnome50-el10-compat/apply-gi-glib-compat.py 2>/dev/null || :
+
 %files
 %config(noreplace) %{_sysconfdir}/pam.d/systemd-user
 %{_datadir}/selinux/packages/gdm-gnome50.pp
 %{_datadir}/selinux/packages/gdm-userdb-connect.pp
 %{_datadir}/selinux/packages/tuned-ppd-logging.pp
+%dir %{_datadir}/gnome50-el10-compat
+%{_datadir}/gnome50-el10-compat/apply-gi-glib-compat.py
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.2.5-1
+- Add PyGObject GLib→GLibUnix compat shim: GLib 2.87+ moved g_unix_signal_add
+  to the GLibUnix-2.0 GI namespace; EL10's python3-gobject 3.46 does not know
+  this mapping. Patch gi/overrides/GLib.py via %post and %filetriggerin so
+  GLib.unix_signal_add works again, fixing firewalld startup crash and any
+  other Python GI consumer using GLib.unix_signal_add or unix_signal_add_full.
+
 * Tue Mar 25 2026 James <james@example.com> - 1.2.4-1
 - Add tuned-ppd-logging SELinux module: EL10 base policy does not grant
   tuned_ppd_t access to var_log_t; this allows tuned-ppd to write its
