@@ -28,7 +28,7 @@ BuildRequires:  pkgconfig(sysprof-capture-4)
 BuildRequires:  pkgconfig(zlib)
 BuildRequires:  gnutls
 BuildRequires:  python3-devel
-BuildRequires:  gobject-introspection-devel
+BuildRequires:  gobject-introspection-devel >= 1.80.0
 
 Provides: bundled(cmph)
 Provides: bundled(dirent)
