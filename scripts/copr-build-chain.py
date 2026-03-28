@@ -43,7 +43,10 @@ def run(cmd, check=True, capture=True):
 
 def get_rpm_name(spec_file):
     """Return the RPM Name: field from a spec file."""
-    res = run(["rpmspec", "-q", "--qf", "%{name}\n", spec_file], check=False)
+    try:
+        res = run(["rpmspec", "-q", "--qf", "%{name}\n", spec_file], check=False)
+    except FileNotFoundError:
+        res = None
     if res:
         return res.splitlines()[0]
     with open(spec_file, errors="ignore") as f:
