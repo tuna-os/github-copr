@@ -14,7 +14,7 @@
 
 Name:           gnome-settings-daemon
 Version:        50.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        The daemon sharing settings from GNOME to GTK+/KDE applications
 
 License:        GPL-2.0-or-later AND LGPL-2.1-or-later
@@ -173,9 +173,7 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 
 %{_libexecdir}/gsd-smartcard
 
-%if !0%{?rhel}
 %{_libexecdir}/gsd-sound
-%endif
 
 %{_libexecdir}/gsd-usb-protection
 
@@ -222,10 +220,14 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 %endif
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-4
+- Remove %%if !0%%{?rhel} guard from gsd-sound in %%files: libcanberra-gtk3
+  is actually present on EL10 (pulled in via COPR transitive deps), so the
+  sound plugin compiles and the binary must be packaged.
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
 - Add pkgconfig(libcanberra) BuildRequires unconditionally: meson.build:105
-  requires the base libcanberra regardless of gtk3 availability; on EL10
-  libcanberra-gtk3 is skipped so libcanberra was not pulled in transitively.
+  requires the base libcanberra regardless of gtk3 availability.
 
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
 - Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja

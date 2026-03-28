@@ -105,7 +105,8 @@ tiers:
       - path: src/gnome-50/libadwaita
       - path: src/gnome-50/xdg-desktop-portal
       - path: src/deps/localsearch
-      - copr_name: vte291
+      - path: src/deps/vte291
+        copr_name: vte291
 
   # Tier 13: Compositor & Shell.
   - name: shell-foundations
