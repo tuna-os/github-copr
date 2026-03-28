@@ -8,8 +8,8 @@
 %endif
 
 Name:           gnome-shell
-Version:        50~rc
-Release:        2%{?dist}
+Version:        50.0
+Release:        3%{?dist}
 Summary:        Window management and application launching for GNOME
 
 License:        GPL-2.0-or-later
@@ -30,7 +30,7 @@ Patch: 0001-gdm-Work-around-failing-fingerprint-auth.patch
 %define gjs_version 1.85.90
 %define gtk4_version 4.0.0
 %define adwaita_version 1.5.0
-%define mutter_version 50~rc
+%define mutter_version 50.0
 %define polkit_version 0.100
 %define gsettings_desktop_schemas_version 50~alpha
 %define ibus_version 1.5.2
@@ -42,7 +42,7 @@ Patch: 0001-gdm-Work-around-failing-fingerprint-auth.patch
 BuildRequires:  pkgconfig(bash-completion)
 BuildRequires:  gcc
 BuildRequires:  meson
-BuildRequires:  git
+BuildRequires:  git-core
 BuildRequires:  desktop-file-utils
 BuildRequires:  pkgconfig(libedataserver-1.2) >= %{eds_version}
 BuildRequires:  pkgconfig(gcr-4)
@@ -265,4 +265,11 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Porta
 %{_datadir}/glib-2.0/schemas/*.xml
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
+- Update to 50.0 (GNOME 50 stable release)
+- Track F44 branch instead of rawhide
+- Update mutter_version minimum to 50.0
+- git BR → git-core (align with F44)
+- EL10: preserve explicit meson setup invocations and EL10-specific BuildRequires
+
 %autochangelog

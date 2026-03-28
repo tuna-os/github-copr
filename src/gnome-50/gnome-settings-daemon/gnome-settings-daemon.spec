@@ -13,8 +13,8 @@
 %global major_version %%(echo %{version} | cut -f 1 -d '~' | cut -f 1 -d '.')
 
 Name:           gnome-settings-daemon
-Version:        50~rc
-Release:        2%{?dist}
+Version:        50.0
+Release:        1%{?dist}
 Summary:        The daemon sharing settings from GNOME to GTK+/KDE applications
 
 License:        GPL-2.0-or-later AND LGPL-2.1-or-later
@@ -47,7 +47,6 @@ BuildRequires:  pkgconfig(gtk4) >= %{gtk4_version}
 BuildRequires:  pkgconfig(gudev-1.0)
 BuildRequires:  pkgconfig(gweather4)
 BuildRequires:  pkgconfig(lcms2) >= 2.2
-BuildRequires:  pkgconfig(libcanberra)
 # libcanberra-gtk3 requires gtk3 (removed from EL10); gate on non-RHEL
 # sound plugin will be disabled at build time if libcanberra-gtk3 is absent
 %if !0%{?rhel}
@@ -55,7 +54,7 @@ BuildRequires:  pkgconfig(libcanberra-gtk3)
 %endif
 BuildRequires:  pkgconfig(libgeoclue-2.0)
 BuildRequires:  pkgconfig(libnm)
-BuildRequires:  pkgconfig(libnotify) >= 0.8.6
+BuildRequires:  pkgconfig(libnotify)
 BuildRequires:  pkgconfig(libpulse)
 BuildRequires:  pkgconfig(libpulse-mainloop-glib)
 BuildRequires:  pkgconfig(librsvg-2.0)
@@ -109,12 +108,11 @@ for the default behavior of Workstation in the Server with GUI product.
 %autosetup -p1 -n %{name}-%{tarball_version}
 
 %build
-sed -i "s/'libnotify', '>= 0.8.7'/'libnotify', '>= 0.8.6'/" meson.build
-meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build
-meson compile -C build
+%meson
+%meson_build
 
 %install
-DESTDIR=%{buildroot} meson install -C build
+%meson_install
 
 %if 0%{?rhel}
 cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
@@ -159,7 +157,9 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 
 %{_libexecdir}/gsd-smartcard
 
+%if !0%{?rhel}
 %{_libexecdir}/gsd-sound
+%endif
 
 %{_libexecdir}/gsd-usb-protection
 
@@ -206,6 +206,16 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 %endif
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
+- Update to 50.0 (GNOME 50 stable release)
+- Track F44 branch instead of rawhide
+- Drop sed libnotify version hack (50.0 upstream no longer requires >= 0.8.7)
+- Drop libnotify version pin from BuildRequires
+- Remove vestigial plain libcanberra BR (sound plugin disabled on EL10)
+- Adopt %meson build macros
+- Gate gsd-sound in %%files behind %%if !0%%{?rhel} (plugin not built without libcanberra-gtk3)
+- EL10: libcanberra-gtk3 BR remains gated (no gtk3 on EL10)
+
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-2
 - EL10: gate libcanberra-gtk3 BuildRequires behind %%if !0%%{?rhel} (requires
   gtk3 which is removed from EL10); also gate gsd-sound from %%files since

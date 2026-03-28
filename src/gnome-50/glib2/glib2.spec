@@ -1,15 +1,14 @@
 Name:           glib2
-Version:        2.87.3
-Release:        2%{?dist}
+Version:        2.88.0
+Release:        1%{?dist}
 Summary:        A library of handy utility functions
 
 License:        LGPL-2.1-or-later
 URL:            https://www.gtk.org
-Source0:        https://download.gnome.org/sources/glib/2.87/glib-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/glib/2.88/glib-%{version}.tar.xz
 
 Patch0:         gnutls-hmac.patch
 Patch1:         default-terminal.patch
-Patch2:         glib-do-not-install-localtime-test.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -27,6 +26,7 @@ BuildRequires:  pkgconfig(libpcre2-8)
 BuildRequires:  pkgconfig(mount)
 BuildRequires:  pkgconfig(sysprof-capture-4)
 BuildRequires:  pkgconfig(zlib)
+BuildRequires:  gnutls
 BuildRequires:  python3-devel
 BuildRequires:  gobject-introspection-devel
 
@@ -36,6 +36,15 @@ Provides: bundled(gnulib)
 Provides: bundled(gvdb)
 Provides: bundled(libcharset)
 Provides: bundled(xdgmime)
+
+Conflicts: gobject-introspection < 1.79.1
+Conflicts: gobject-introspection-devel < 1.79.1
+
+%ifarch x86_64
+Requires: libgnutls.so.30()(64bit)
+%else
+Requires: libgnutls.so.30
+%endif
 
 %description
 GLib is the low-level core library that forms the basis for projects
@@ -52,6 +61,7 @@ The glib2-devel package includes the header files for the GLib library.
 %package static
 Summary: glib static
 Requires: %{name}-devel = %{version}-%{release}
+Requires: pcre2-devel
 
 %description static
 The %{name}-static subpackage contains static libraries for %{name}.
@@ -69,22 +79,27 @@ with open(path, 'w') as f: f.write(content)
 "
 
 %build
-meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build \
+%meson \
     -Dglib_debug=disabled \
     -Ddocumentation=false \
     -Dinstalled_tests=false \
     -Dgnutls=true \
     -Dintrospection=enabled \
     --default-library=both
-meson compile -C build
+%meson_build
 
 %install
-DESTDIR=%{buildroot} meson install -C build
+%meson_install
 
 mv %{buildroot}%{_bindir}/gio-querymodules %{buildroot}%{_bindir}/gio-querymodules-%{__isa_bits}
 
-sed -i 's|gio_querymodules=.*|gio_querymodules=${bindir}/gio-querymodules-64|' \
+sed -i -e "/^gio_querymodules=/s/gio-querymodules/gio-querymodules-%{__isa_bits}/" \
     %{buildroot}%{_libdir}/pkgconfig/gio-2.0.pc
+
+mkdir -p %{buildroot}%{_libdir}/gio/modules
+touch %{buildroot}%{_libdir}/gio/modules/giomodule.cache
+
+%py_byte_compile %{python3} %{buildroot}%{_datadir}
 
 %find_lang glib20
 
@@ -101,6 +116,8 @@ gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 
 %files -f glib20.lang
+%license LICENSES/LGPL-2.1-or-later.txt
+%doc NEWS README.md
 %{_bindir}/gapplication
 %{_bindir}/gdbus
 %{_bindir}/gio
@@ -120,6 +137,8 @@ gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 %{_datadir}/glib-2.0/schemas
 %{_datadir}/glib-2.0/dtds/gresource.dtd
 %{_libexecdir}/gio-launch-desktop
+%dir %{_libdir}/gio/modules
+%ghost %{_libdir}/gio/modules/giomodule.cache
 
 %files devel
 %{_bindir}/gdbus-codegen
@@ -150,6 +169,18 @@ gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 %{_libdir}/*.a
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 2.88.0-1
+- Update to 2.88.0 (GNOME 50 stable release)
+- Track F44 branch instead of rawhide
+- Add gobject-introspection Conflicts for correctness
+- Add explicit gnutls BR and runtime Requires
+- Fix gio-querymodules sed to be arch-agnostic
+- Add gio modules cache dir and ghost entry
+- Drop glib-do-not-install-localtime-test.patch (not needed with installed_tests=false)
+- Adopt %meson macros for build/install
+- EL10: keep documentation=false, installed_tests=false (gi-docgen unavailable)
+- EL10: exclude doc and tests subpackages
+
 * Fri Mar 13 2026 Conductor <james@conductor.local> - 2.87.3-2
 - Add transfiletrigger scriptlets for glib-compile-schemas and gio-querymodules
   to match Rawhide and fix missing schema compilation on EL10

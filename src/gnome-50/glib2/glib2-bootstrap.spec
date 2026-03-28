@@ -1,10 +1,10 @@
 Name:           glib2
-Version:        2.87.3
+Version:        2.88.0
 Release:        1%{?dist}
 Summary:        A library of handy utility functions
 License:        LGPL-2.1-or-later
 URL:            https://www.gtk.org
-Source0:        https://download.gnome.org/sources/glib/2.87/glib-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/glib/2.88/glib-%{version}.tar.xz
 
 BuildRequires:  meson
 BuildRequires:  gcc
@@ -74,5 +74,9 @@ DESTDIR=%{buildroot} meson install -C build
 # For now combined
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 2.88.0-1
+- Update to 2.88.0 (GNOME 50 stable release)
+- Track F44 branch
+
 * Thu Mar 12 2026 Conductor <james@conductor.local> - 2.87.3-1
 - Bootstrap upgrade build

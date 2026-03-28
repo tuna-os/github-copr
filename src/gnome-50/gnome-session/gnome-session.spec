@@ -3,7 +3,7 @@
 %define po_package gnome-session
 
 Name:           gnome-session
-Version:        50~rc
+Version:        50.0
 Release:        1%{?dist}
 Summary:        GNOME session manager
 
@@ -60,11 +60,11 @@ Desktop file to add GNOME on wayland to display manager session menu.
 %autosetup -p1 -n %{name}-%{tarball_version}
 
 %build
-meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build
-meson compile -C build
+%meson
+%meson_build
 
 %install
-DESTDIR=%{buildroot} meson install -C build
+%meson_install
 
 %find_lang %{po_package}
 
@@ -92,4 +92,9 @@ DESTDIR=%{buildroot} meson install -C build
 %{_userunitdir}/app-gnome-.scope.d/override.conf
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
+- Update to 50.0 (GNOME 50 stable release)
+- Track F44 branch instead of rawhide
+- Adopt %meson build macros (correct multi-arch %%{_libdir} vs hardcoded /usr/lib64)
+
 %autochangelog
