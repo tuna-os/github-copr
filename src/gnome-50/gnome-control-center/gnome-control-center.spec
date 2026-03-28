@@ -18,7 +18,7 @@
 
 Name:           gnome-control-center
 Version:        50.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
@@ -164,7 +164,6 @@ utilities.
 %build
 export PKG_CONFIG_PATH=/usr/share/pkgconfig:/usr/lib64/pkgconfig
 meson setup --prefix=/usr --libdir=%{_libdir} --buildtype=plain --wrap-mode=nodownload build \
-  -Ddocumentation=false \
   -Dlocation-services=enabled \
   -Ddistributor_logo=%{_datadir}/pixmaps/fedora-logo.png \
   -Ddark_mode_distributor_logo=%{_datadir}/pixmaps/system-logo-white.png \
@@ -204,9 +203,7 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %{_datadir}/gnome-shell/search-providers/org.gnome.Settings.search-provider.ini
 %{_datadir}/icons/gnome-logo-text*.svg
 %{_datadir}/icons/hicolor/*/*/*
-%if !0%{?rhel}
 %{_mandir}/man1/gnome-control-center.1*
-%endif
 %{_metainfodir}/org.gnome.Settings.metainfo.xml
 %{_datadir}/pixmaps/faces
 %{_datadir}/pkgconfig/gnome-keybindings.pc
@@ -223,6 +220,10 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
+- Enable documentation (drop -Ddocumentation=false); gnome-control-center uses
+  docbook/xslt for man pages which are already in BuildRequires
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
 - EL10: gate man page behind %%if !0%%{?rhel} (-Ddocumentation=false disables man pages)
 
