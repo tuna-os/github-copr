@@ -11,7 +11,7 @@ Version:        50.0
 %global tarball_version %%(echo %{version} | tr '~' '.')
 %global major_version %%(cut -d "." -f 1 <<<%{tarball_version})
 
-Release:        %autorelease
+Release:        1%{?dist}
 Summary:        File manager for GNOME
 
 # Sources are GPL-3.0-or-later and Appdata is CC0-1.0.
@@ -166,5 +166,4 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 - Add man pages to %%files
 - Properly wire %%bcond cloudproviders into meson -Dcloudproviders= argument
 - EL10: keep -Ddocs=false (gi-docgen not available on EL10)
-
-%autochangelog
+- Remove %%autorelease/%%autochangelog: Fedora-specific macros not available on EL10.

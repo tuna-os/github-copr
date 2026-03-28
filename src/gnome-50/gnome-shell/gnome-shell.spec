@@ -271,5 +271,4 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Porta
 - Update mutter_version minimum to 50.0
 - git BR → git-core (align with F44)
 - EL10: preserve explicit meson setup invocations and EL10-specific BuildRequires
-
-%autochangelog
+- Remove %%autochangelog: Fedora-specific macro not available on EL10.
