@@ -12,7 +12,7 @@
 
 Name:           tinysparql
 Version:        3.11~rc
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Desktop-neutral metadata database and search tool
 
 License:        GPL-2.0-or-later
@@ -111,24 +111,36 @@ This package contains the documentation for %{name}.
 
 
 %build
-%meson \
-  -Dunicode_support=icu \
-  -Dsystemd_user_services_dir=%{_userunitdir} \
+meson setup _build \
+    --buildtype=plain \
+    --prefix=%{_prefix} \
+    --libdir=%{_libdir} \
+    --libexecdir=%{_libexecdir} \
+    --bindir=%{_bindir} \
+    --sbindir=%{_sbindir} \
+    --includedir=%{_includedir} \
+    --datadir=%{_datadir} \
+    --mandir=%{_mandir} \
+    --infodir=%{_infodir} \
+    --localedir=%{_datadir}/locale \
+    --sysconfdir=%{_sysconfdir} \
+    --localstatedir=%{_localstatedir} \
+    --sharedstatedir=%{_sharedstatedir} \
+    --wrap-mode=nodownload \
+    -Dunicode_support=icu \
+    -Dsystemd_user_services_dir=%{_userunitdir} \
 %if !0%{?rhel}
-  -Dman=true \
+    -Dman=true \
+    -Dstemmer=%{?with_libstemmer:enabled}%{!?with_libstemmer:disabled}
 %else
-  -Dman=false \
+    -Dman=false \
+    -Dstemmer=%{?with_libstemmer:enabled}%{!?with_libstemmer:disabled}
 %endif
-%if %{without libstemmer}
-  -Dstemmer=disabled \
-%endif
-  %{nil}
-
-%meson_build
+ninja -C _build -j%{_smp_build_ncpus}
 
 
 %install
-%meson_install
+DESTDIR=%{buildroot} ninja -C _build install
 
 %find_lang tinysparql3
 
@@ -184,7 +196,17 @@ This package contains the documentation for %{name}.
 
 
 %changelog
-* Sat Mar 15 2026 James Reilly <jreilly1821@gmail.com> - 3.11~rc-1
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 3.11~rc-3
+- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
+  to avoid "fg: no job control" on COPR builders (non-interactive bash).
+- Fix bogus weekday in 3.11~rc-1 changelog: Mar 15 2026 is Sunday, not Saturday;
+  RPM 4.19+ rejects builds with invalid changelog dates.
+- Consolidate stemmer conditional into a single -Dstemmer= option.
+
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 3.11~rc-2
+- Add Release 2 marker (previously bumped without changelog entry).
+
+* Sun Mar 15 2026 James Reilly <jreilly1821@gmail.com> - 3.11~rc-1
 - EL10: gate BuildRequires asciidoc behind %%if !0%%{?rhel} to fix buildroot
   (asciidoc -> source-highlight -> libboost_regex.so.1.83.0 which is missing on EL10)
 - EL10: disable man-pages meson option on RHEL (requires asciidoc); gate man page
