@@ -18,7 +18,7 @@
 
 Name:           gnome-control-center
 Version:        50.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
@@ -204,7 +204,9 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %{_datadir}/gnome-shell/search-providers/org.gnome.Settings.search-provider.ini
 %{_datadir}/icons/gnome-logo-text*.svg
 %{_datadir}/icons/hicolor/*/*/*
+%if !0%{?rhel}
 %{_mandir}/man1/gnome-control-center.1*
+%endif
 %{_metainfodir}/org.gnome.Settings.metainfo.xml
 %{_datadir}/pixmaps/faces
 %{_datadir}/pkgconfig/gnome-keybindings.pc
@@ -221,6 +223,9 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
+- EL10: gate man page behind %%if !0%%{?rhel} (-Ddocumentation=false disables man pages)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
 - Update to 50.0 (GNOME 50 stable release)
 - Track F44 branch instead of rawhide
