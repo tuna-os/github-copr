@@ -11,7 +11,7 @@ Version:        50.0
 %global tarball_version %%(echo %{version} | tr '~' '.')
 %global major_version %%(cut -d "." -f 1 <<<%{tarball_version})
 
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        File manager for GNOME
 
 # Sources are GPL-3.0-or-later and Appdata is CC0-1.0.
@@ -142,8 +142,10 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_libdir}/nautilus/extensions-4/libnautilus-image-properties.so
 %{_libdir}/nautilus/extensions-4/libtotem-properties-page.so
 %{_metainfodir}/org.gnome.Nautilus.metainfo.xml
+%if !0%{?rhel}
 %{_mandir}/man1/nautilus.1*
 %{_mandir}/man1/nautilus-autorun-software.1*
+%endif
 
 %files extensions
 %license libnautilus-extension/LICENSE
@@ -160,6 +162,9 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %doc %{_datadir}/doc/nautilus/
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
+- EL10: gate man pages behind %%if !0%%{?rhel} (-Ddocs=false also disables man page generation)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
 - Update to 50.0 (GNOME 50 stable release)
 - Track F44 branch instead of rawhide
