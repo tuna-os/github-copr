@@ -128,6 +128,15 @@ gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 %{_bindir}/gi-compile-repository
 %{_bindir}/gi-decompile-typelib
 %{_bindir}/gi-inspect-typelib
+%{_mandir}/man1/gapplication.1*
+%{_mandir}/man1/gdbus.1*
+%{_mandir}/man1/gio.1*
+%{_mandir}/man1/gio-querymodules.1*
+%{_mandir}/man1/glib-compile-schemas.1*
+%{_mandir}/man1/gsettings.1*
+%{_mandir}/man1/gi-compile-repository.1*
+%{_mandir}/man1/gi-decompile-typelib.1*
+%{_mandir}/man1/gi-inspect-typelib.1*
 %{_libdir}/libgio-2.0.so.*
 %{_libdir}/libglib-2.0.so.*
 %{_libdir}/libgmodule-2.0.so.*
@@ -164,7 +173,17 @@ gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 %{_datadir}/bash-completion/completions/*
 %{_datadir}/gettext/its/gschema.*
 %{_datadir}/gdb/auto-load/usr/lib64/*.py
+%{_datadir}/gdb/auto-load/usr/lib64/__pycache__/
 %{_datadir}/systemtap/tapset/%{_arch}/*.stp
+%{_mandir}/man1/gdbus-codegen.1*
+%{_mandir}/man1/glib-compile-resources.1*
+%{_mandir}/man1/glib-genmarshal.1*
+%{_mandir}/man1/glib-gettextize.1*
+%{_mandir}/man1/glib-mkenums.1*
+%{_mandir}/man1/gobject-query.1*
+%{_mandir}/man1/gresource.1*
+%{_mandir}/man1/gtester.1*
+%{_mandir}/man1/gtester-report.1*
 
 %files static
 %{_libdir}/*.a
@@ -183,6 +202,8 @@ gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 - EL10: exclude doc and tests subpackages
 - Add python3-docutils BR for rst2man (man page generation, available in EL10 CRB)
 - Add version floor >= 1.80.0 on gobject-introspection-devel BR
+- Add man pages to %%files main and %%files devel (new in 2.88.0)
+- Add GDB auto-load __pycache__ dir to %%files devel
 
 * Fri Mar 13 2026 Conductor <james@conductor.local> - 2.87.3-2
 - Add transfiletrigger scriptlets for glib-compile-schemas and gio-querymodules
