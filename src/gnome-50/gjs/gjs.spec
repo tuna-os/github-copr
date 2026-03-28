@@ -6,7 +6,7 @@
 
 Name:           gjs
 Version:        1.88.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Javascript Bindings for GNOME
 
 # The following files contain code from Mozilla which
@@ -29,11 +29,10 @@ BuildRequires:  pkgconfig(gobject-introspection-1.0) >= %{gobject_introspection_
 BuildRequires:  pkgconfig(gtk4)
 BuildRequires:  pkgconfig(mozjs-140) >= %{mozjs140_version}
 BuildRequires:  pkgconfig(sysprof-capture-4)
+BuildRequires:  /usr/bin/dbus-run-session
 
 %if %{with tests}
 BuildRequires:  gtk3
-BuildRequires:  /usr/bin/dbus-run-session
-BuildRequires:  dbus-x11
 BuildRequires:  mesa-dri-drivers
 BuildRequires:  mutter
 BuildRequires:  xwayland-run
@@ -127,6 +126,11 @@ DESTDIR=%{buildroot} ninja -C _build install
 %endif
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.88.0-3
+- Move /usr/bin/dbus-run-session BR outside %%if %%{with tests}: GJS 1.88
+  meson.build:319 checks for it unconditionally at configure time regardless
+  of -Dinstalled_tests=false, causing build failure when dbus-daemon is absent.
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.88.0-2
 - Replace %%meson/%%meson_build/%%meson_install macros with explicit meson setup,
   ninja, and DESTDIR install to avoid "fg: no job control" on COPR builders.
