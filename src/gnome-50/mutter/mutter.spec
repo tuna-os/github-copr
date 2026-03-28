@@ -18,8 +18,8 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:          mutter
-Version:       50~rc
-Release:       3%{?dist}
+Version:       50.0
+Release:       4%{?dist}
 Summary:       Window and compositing manager based on Clutter
 
 # Automatically converted from old format: GPLv2+ - review is highly recommended.
@@ -162,7 +162,7 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 Viewer for nested mutter instances.
 
 %prep
-%autosetup -n mutter-50.rc -p1
+%autosetup -n %{name}-%{tarball_version}
 
 %build
 meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build -Degl_device=true
@@ -215,6 +215,12 @@ DESTDIR=%{buildroot} meson install -C build
 %{_libexecdir}/mutter-devkit
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-4
+- Update to 50.0 (GNOME 50 stable release)
+- Track F44 branch instead of rawhide
+- Fix %%autosetup -n to use %%{tarball_version} macro instead of hardcoded mutter-50.rc
+- EL10: preserve explicit meson setup invocations and extra BuildRequires
+
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-3
 - Add missing atk and libdecor BuildRequires
 - Enable libcanberra BuildRequires (now GTK3-free)

@@ -5,7 +5,7 @@
 %bcond_with tests
 
 Name:           gjs
-Version:        1.87.90
+Version:        1.88.0
 Release:        1%{?dist}
 Summary:        Javascript Bindings for GNOME
 
@@ -17,11 +17,10 @@ Summary:        Javascript Bindings for GNOME
 # modules/script/tweener/equations.js is BSD-3-Clause
 License:        MIT AND BSD-3-Clause AND (MIT OR LGPL-2.0-or-later) AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later)
 URL:            https://wiki.gnome.org/Projects/Gjs
-Source0:        https://download.gnome.org/sources/%{name}/1.87/%{name}-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/1.88/%{name}-%{version}.tar.xz
 
 BuildRequires:  gcc-c++
 BuildRequires:  meson
-BuildRequires:  dbus-daemon
 BuildRequires:  gettext
 BuildRequires:  readline-devel
 BuildRequires:  pkgconfig(cairo-gobject)
@@ -75,13 +74,11 @@ Tests are disabled.
 %autosetup -p1
 
 %build
-meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build
-meson compile -C build
+%meson
+%meson_build
 
 %install
-DESTDIR=%{buildroot} meson install -C build
-
-%ldconfig_scriptlets
+%meson_install
 
 %files
 %exclude %{_libdir}/debug/
@@ -89,6 +86,7 @@ DESTDIR=%{buildroot} meson install -C build
 %exclude %{_datadir}/installed-tests/
 %license COPYING
 %doc README.md
+%doc NEWS
 %{_bindir}/gjs
 %{_bindir}/gjs-console
 %{_libdir}/libgjs.so.*
@@ -98,7 +96,6 @@ DESTDIR=%{buildroot} meson install -C build
 %dir %{_datadir}/gjs-1.0/valgrind
 %{_datadir}/gjs-1.0/lsan/lsan.supp
 %{_datadir}/gjs-1.0/valgrind/gjs.supp
-%{_datadir}/glib-2.0/schemas/org.gnome.GjsTest.gschema.xml
 
 %files devel
 %dir %{_includedir}/gjs-1.0
@@ -106,6 +103,20 @@ DESTDIR=%{buildroot} meson install -C build
 %{_libdir}/libgjs.so
 %{_libdir}/pkgconfig/gjs-1.0.pc
 
+%files tests
+%{_libexecdir}/installed-tests/gjs/
+%{_datadir}/installed-tests/gjs/
+%{_datadir}/glib-2.0/schemas/org.gnome.GjsTest.gschema.xml
+
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.88.0-1
+- Update to 1.88.0 (GNOME 50 stable release)
+- Track F44 branch instead of rawhide
+- Adopt %meson build macros
+- Remove no-op %ldconfig_scriptlets
+- Remove dbus-daemon BR (pulled in transitively)
+- Fix %files tests subpackage to be populated unconditionally
+- EL10: keep %%bcond_with tests guard; xwfb-run/mutter tests not usable in COPR
+
 * Thu Mar 12 2026 Conductor <james@conductor.local> - 1.87.90-1
 - Clean build for GNOME 50 against mozjs140

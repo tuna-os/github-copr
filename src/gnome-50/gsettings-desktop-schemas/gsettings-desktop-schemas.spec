@@ -3,7 +3,7 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:           gsettings-desktop-schemas
-Version:        50~rc
+Version:        50.0
 Release:        1%{?dist}
 Summary:        A collection of GSettings schemas
 
@@ -13,7 +13,6 @@ URL:            https://gitlab.gnome.org/GNOME/gsettings-desktop-schemas
 Source0:        https://download.gnome.org/sources/%{name}/50/%{name}-%{tarball_version}.tar.xz
 Source1:        org.gnome.desktop.interface.rhel.gschema.override
 
-BuildRequires:  gcc
 BuildRequires:  gettext
 BuildRequires:  glib2-devel >= 2.31.0
 BuildRequires:  gobject-introspection-devel
@@ -49,12 +48,12 @@ and header files for developing applications that use %{name}.
 
 
 %build
-meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build
-meson compile -C build
+%meson
+%meson_build
 
 
 %install
-DESTDIR=%{buildroot} meson install -C build
+%meson_install
 
 %if 0%{?rhel} && 0%{?rhel} >= 10
 cp %{SOURCE1} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
@@ -86,4 +85,10 @@ glib-compile-schemas --dry-run --strict %{buildroot}%{_datadir}/glib-2.0/schemas
 
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
+- Update to 50.0 (GNOME 50 stable release)
+- Track F44 branch instead of rawhide
+- Drop gcc BuildRequires (pulled in transitively)
+- Adopt %meson build macros
+
 %autochangelog

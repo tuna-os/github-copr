@@ -5,7 +5,7 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:           libadwaita
-Version:        1.9~rc
+Version:        1.9.0
 Release:        1%{?dist}
 Summary:        Building blocks for modern GNOME applications
 
@@ -76,14 +76,14 @@ Demo files for %{name}.
 
 
 %build
-meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build \
+%meson \
     -Ddocumentation=true \
     %{nil}
-meson compile -C build
+%meson_build
 
 
 %install
-DESTDIR=%{buildroot} meson install -C build
+%meson_install
 %find_lang %{name}
 
 
@@ -117,4 +117,9 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/*.desktop
 
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.9.0-1
+- Update to 1.9.0 (libadwaita stable release for GNOME 50)
+- Track F44 branch instead of rawhide
+- Adopt %meson build macros
+
 %autochangelog

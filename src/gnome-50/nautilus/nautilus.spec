@@ -6,7 +6,7 @@
 %global libadwaita_version 1.6~beta
 
 Name:           nautilus
-Version:        50~rc
+Version:        50.0
 
 %global tarball_version %%(echo %{version} | tr '~' '.')
 %global major_version %%(cut -d "." -f 1 <<<%{tarball_version})
@@ -112,7 +112,7 @@ meson setup --prefix=/usr --libdir=%{_libdir} --buildtype=plain build \
   -Dextensions=true \
   -Dintrospection=true \
   -Dselinux=true \
-  -Dcloudproviders=false
+  -Dcloudproviders=%{?with_cloudproviders:true}%{?!with_cloudproviders:false}
 meson compile -C build
 
 %install
@@ -142,6 +142,8 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_libdir}/nautilus/extensions-4/libnautilus-image-properties.so
 %{_libdir}/nautilus/extensions-4/libtotem-properties-page.so
 %{_metainfodir}/org.gnome.Nautilus.metainfo.xml
+%{_mandir}/man1/nautilus.1*
+%{_mandir}/man1/nautilus-autorun-software.1*
 
 %files extensions
 %license libnautilus-extension/LICENSE
@@ -158,4 +160,11 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %doc %{_datadir}/doc/nautilus/
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
+- Update to 50.0 (GNOME 50 stable release)
+- Track F44 branch instead of rawhide
+- Add man pages to %%files
+- Properly wire %%bcond cloudproviders into meson -Dcloudproviders= argument
+- EL10: keep -Ddocs=false (gi-docgen not available on EL10)
+
 %autochangelog

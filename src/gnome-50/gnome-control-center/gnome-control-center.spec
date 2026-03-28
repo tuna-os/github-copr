@@ -17,8 +17,8 @@
 %bcond malcontent %[!0%{?rhel}]
 
 Name:           gnome-control-center
-Version:        50~rc
-Release:        10%{?dist}
+Version:        50.0
+Release:        1%{?dist}
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
@@ -34,9 +34,7 @@ BuildRequires:  meson
 BuildRequires:  pkgconfig(accountsservice)
 BuildRequires:  pkgconfig(colord)
 BuildRequires:  pkgconfig(colord-gtk4)
-BuildRequires:  pkgconfig(libcanberra)
-BuildRequires:  pkgconfig(tecla) >= 47.0
-BuildRequires:  pkgconfig(epoxy)
+BuildRequires:  pkgconfig(tecla)
 BuildRequires:  pkgconfig(cups)
 BuildRequires:  pkgconfig(gcr-4) >= %{gcr_version}
 BuildRequires:  pkgconfig(gdk-pixbuf-2.0)
@@ -124,6 +122,15 @@ Recommends: rygel
 Recommends: switcheroo-control
 # For the keyboard panel
 Requires: /usr/bin/tecla
+%if 0%{?fedora} >= 35 || 0%{?rhel} >= 9
+# For the power panel
+Recommends: ppd-service
+%if 0%{?fedora} && 0%{?fedora} < 41
+Suggests: power-profiles-daemon
+%else
+Suggests: tuned-ppd
+%endif
+%endif
 
 # Renamed in F28
 Provides: control-center = 1:%{version}-%{release}
@@ -197,6 +204,7 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %{_datadir}/gnome-shell/search-providers/org.gnome.Settings.search-provider.ini
 %{_datadir}/icons/gnome-logo-text*.svg
 %{_datadir}/icons/hicolor/*/*/*
+%{_mandir}/man1/gnome-control-center.1*
 %{_metainfodir}/org.gnome.Settings.metainfo.xml
 %{_datadir}/pixmaps/faces
 %{_datadir}/pkgconfig/gnome-keybindings.pc
@@ -213,6 +221,17 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
+- Update to 50.0 (GNOME 50 stable release)
+- Track F44 branch instead of rawhide
+- Drop libcanberra BuildRequires (removed upstream in 50.0)
+- Drop epoxy BuildRequires (removed upstream in 50.0)
+- Drop version floor on tecla BR (aligned with F44)
+- Add manpage to %%files
+- Add ppd-service Recommends block (gated on rhel >= 9, aligns with F44)
+- EL10: retain gdk-wayland-3.0 guard (no gtk3 on EL10)
+- EL10: retain manual meson setup with PKG_CONFIG_PATH and -Ddocumentation=false
+
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-10
 - Revert hacks and use real tecla >= 47.0 dependency
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-9

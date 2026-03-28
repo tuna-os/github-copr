@@ -15,7 +15,7 @@
 
 Name:           gdm
 Epoch:          1
-Version:        50~rc
+Version:        50.0
 Release:        %autorelease
 Summary:        The GNOME Display Manager
 
@@ -30,7 +30,6 @@ Patch:          0001-Honor-initial-setup-being-disabled-by-distro-install.patch
 Patch:          0001-data-add-system-dconf-databases-to-gdm-profile.patch
 Patch:          0001-Add-headless-session-files.patch
 
-BuildRequires:  gcc
 BuildRequires:  dconf
 BuildRequires:  desktop-file-utils
 BuildRequires:  gettext-devel
@@ -45,7 +44,9 @@ BuildRequires:  pkgconfig(gtk+-3.0) >= %{gtk3_version}
 BuildRequires:  pkgconfig(gudev-1.0)
 BuildRequires:  pkgconfig(iso-codes)
 BuildRequires:  pkgconfig(json-glib-1.0)
+%if !0%{?rhel}
 BuildRequires:  pkgconfig(libcanberra-gtk3)
+%endif
 BuildRequires:  pkgconfig(libkeyutils)
 BuildRequires:  pkgconfig(libselinux)
 BuildRequires:  pkgconfig(libsystemd)
@@ -64,7 +65,6 @@ Provides: service(graphical-login) = %{name}
 
 Requires: accountsservice
 Requires: dbus-common
-Requires: dbus-daemon
 Requires: dconf
 # since we use it, and pam spams the log if the module is missing
 Requires: gnome-keyring-pam
@@ -232,4 +232,10 @@ ln -sf ../X11/xinit/Xsession %{buildroot}%{_sysconfdir}/gdm/
 %{_libdir}/pkgconfig/gdm-pam-extensions.pc
 
 %changelog
-%autochangelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
+- Update to 50.0 (GNOME 50 stable release)
+- Track F44 branch instead of rawhide
+- Drop gcc BuildRequires (pulled in transitively)
+- Drop dbus-daemon Requires (covered by dbus-common)
+- EL10: gate libcanberra-gtk3 BR behind %%if !0%%{?rhel} (no gtk3 on EL10)
+- EL10: retain gnome50-el10-compat Requires (SELinux/PAM compat)

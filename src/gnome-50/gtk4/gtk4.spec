@@ -26,8 +26,8 @@
 %endif
 
 Name:           gtk4
-Version:        4.21.6
-Release:        3%{?dist}
+Version:        4.22.1
+Release:        1%{?dist}
 Summary:        GTK graphical user interface library
 
 # Most files are either LGPL-2.0-or-later or LGPL-2.1-or-later.
@@ -71,7 +71,8 @@ Summary:        GTK graphical user interface library
 # The license was last checked for GTK 4.19.3.
 License:        LGPL-2.0-or-later AND LGPL-2.1-or-later AND Apache-2.0 AND CC0-1.0 AND MIT AND MIT-open-group AND HPND-sell-variant AND GPL-2.0-or-later AND GPL-3.0-or-later AND OFL-1.1
 URL:            https://www.gtk.org
-Source0:        https://download.gnome.org/sources/gtk/4.21/gtk-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/gtk/4.22/gtk-%{version}.tar.xz
+Patch: 0001-gtkapplication-wayland-null-check.patch
 
 BuildRequires:  cups-devel
 BuildRequires:  desktop-file-utils
@@ -89,7 +90,6 @@ BuildRequires:  pkgconfig(cairo-gobject) >= %{cairo_version}
 BuildRequires:  pkgconfig(colord)
 BuildRequires:  pkgconfig(egl)
 BuildRequires:  pkgconfig(epoxy)
-BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(gdk-pixbuf-2.0) >= %{gdk_pixbuf_version}
 BuildRequires:  pkgconfig(glib-2.0) >= %{glib2_version}
 BuildRequires:  pkgconfig(gobject-introspection-1.0)
@@ -193,7 +193,7 @@ This package contains helpful applications for developers using GTK.
 
 %build
 export CFLAGS='-std=c11 -fno-strict-aliasing -DG_DISABLE_CAST_CHECKS -DG_DISABLE_ASSERT %optflags'
-meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain --wrap-mode=nodownload build \
+%meson --wrap-mode=nodownload \
 %if 0%{?with_broadway}
         -Dbroadway-backend=true \
 %endif
@@ -211,10 +211,10 @@ meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain --wrap-mode=nodo
         -Dbuild-tests=false \
         -Dbuild-examples=false
 
-meson compile -C build
+%meson_build
 
 %install
-DESTDIR=%{buildroot} meson install -C build
+%meson_install
 
 %find_lang gtk40
 
@@ -317,6 +317,14 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_mandir}/man1/gtk4-widget-factory.1*
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 4.22.1-1
+- Update to 4.22.1 (GTK stable release for GNOME 50)
+- Track F44 branch instead of rawhide
+- Add 0001-gtkapplication-wayland-null-check.patch (BZ 2450986)
+- Drop libdrm BuildRequires (removed upstream)
+- Adopt %meson build macros
+- EL10: preserve gstreamer/tracker disable guards
+
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-3
 - EL10: disable tracker/tinysparql integration (not available on EL10); gate
   tracker-sparql-3.0 BuildRequires and -Dtracker=enabled behind %%if !0%%{?rhel}

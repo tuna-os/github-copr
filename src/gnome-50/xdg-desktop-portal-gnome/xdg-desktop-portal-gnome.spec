@@ -3,7 +3,7 @@
 %global xdg_desktop_portal_version 1.19.1
 
 Name:           xdg-desktop-portal-gnome
-Version:        50~rc
+Version:        50.0
 Release:        %autorelease
 Summary:        Backend implementation for xdg-desktop-portal using GNOME
 
@@ -44,31 +44,11 @@ org.gnome.SessionManager D-Bus interfaces.
 
 
 %build
-mkdir -p redhat-linux-build
-meson setup \
-    --prefix=%{_prefix} \
-    --libdir=%{_libdir} \
-    --libexecdir=%{_libexecdir} \
-    --bindir=%{_bindir} \
-    --sbindir=%{_sbin} \
-    --includedir=%{_includedir} \
-    --datadir=%{_datadir} \
-    --mandir=%{_mandir} \
-    --infodir=%{_infodir} \
-    --localedir=%{_datadir}/locale \
-    --sysconfdir=%{_sysconfdir} \
-    --localstatedir=%{_localstatedir} \
-    --sharedstatedir=%{_sharedstatedir} \
-    --wrap-mode=nodownload \
-    --auto-features=enabled \
-    --buildtype=plain \
-    -Dsystemduserunitdir=%{_userunitdir} \
-    redhat-linux-build
-
-ninja -C redhat-linux-build %{?_smp_mflags} -v
+%meson -Dsystemduserunitdir=%{_userunitdir}
+%meson_build
 
 %install
-DESTDIR=%{buildroot} ninja -C redhat-linux-build install
+%meson_install
 desktop-file-validate %{buildroot}/%{_datadir}/applications/%{name}.desktop
 %find_lang %{name}
 
@@ -92,4 +72,10 @@ desktop-file-validate %{buildroot}/%{_datadir}/applications/%{name}.desktop
 
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
+- Update to 50.0 (GNOME 50 stable release)
+- Track F44 branch instead of rawhide
+- Replace verbose manual meson invocation with %%meson macros
+- Fix %%{_sbin} typo (was incorrect macro, now handled by %%meson)
+
 %autochangelog
