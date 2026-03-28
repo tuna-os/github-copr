@@ -77,6 +77,8 @@ tiers:
       - path: src/deps/pango
       - path: src/deps/tinysparql
       - path: src/deps/pipewire
+      - copr_name: jpegxl
+      - copr_name: simdutf
 
   # Tier 10: System Tools & GJS.
   - name: system-tools
@@ -103,6 +105,7 @@ tiers:
       - path: src/gnome-50/libadwaita
       - path: src/gnome-50/xdg-desktop-portal
       - path: src/deps/localsearch
+      - copr_name: vte291
 
   # Tier 13: Compositor & Shell.
   - name: shell-foundations
@@ -123,3 +126,4 @@ tiers:
       - path: src/gnome-50/gnome-session
       - path: src/gnome-50/gnome-control-center
       - path: src/gnome-50/gdm
+      - copr_name: ptyxis
