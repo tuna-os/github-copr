@@ -29,6 +29,7 @@ BuildRequires:  pkgconfig(zlib)
 BuildRequires:  gnutls
 BuildRequires:  python3-devel
 BuildRequires:  gobject-introspection-devel >= 1.80.0
+BuildRequires:  python3-docutils
 
 Provides: bundled(cmph)
 Provides: bundled(dirent)
@@ -180,6 +181,8 @@ gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 - Adopt %meson macros for build/install
 - EL10: keep documentation=false, installed_tests=false (gi-docgen unavailable)
 - EL10: exclude doc and tests subpackages
+- Add python3-docutils BR for rst2man (man page generation, available in EL10 CRB)
+- Add version floor >= 1.80.0 on gobject-introspection-devel BR
 
 * Fri Mar 13 2026 Conductor <james@conductor.local> - 2.87.3-2
 - Add transfiletrigger scriptlets for glib-compile-schemas and gio-querymodules
