@@ -27,7 +27,7 @@
 
 Name:           gtk4
 Version:        4.22.1
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        GTK graphical user interface library
 
 # Most files are either LGPL-2.0-or-later or LGPL-2.1-or-later.
@@ -193,28 +193,43 @@ This package contains helpful applications for developers using GTK.
 
 %build
 export CFLAGS='-std=c11 -fno-strict-aliasing -DG_DISABLE_CAST_CHECKS -DG_DISABLE_ASSERT %optflags'
-%meson --wrap-mode=nodownload \
+meson setup _build \
+    --buildtype=plain \
+    --prefix=%{_prefix} \
+    --libdir=%{_libdir} \
+    --libexecdir=%{_libexecdir} \
+    --bindir=%{_bindir} \
+    --sbindir=%{_sbindir} \
+    --includedir=%{_includedir} \
+    --datadir=%{_datadir} \
+    --mandir=%{_mandir} \
+    --infodir=%{_infodir} \
+    --localedir=%{_datadir}/locale \
+    --sysconfdir=%{_sysconfdir} \
+    --localstatedir=%{_localstatedir} \
+    --sharedstatedir=%{_sharedstatedir} \
+    --wrap-mode=nodownload \
+    --auto-features=enabled \
 %if 0%{?with_broadway}
-        -Dbroadway-backend=true \
+    -Dbroadway-backend=true \
 %endif
-        -Dsysprof=enabled \
+    -Dsysprof=enabled \
 %if 0%{?rhel}
-        -Dmedia-gstreamer=disabled \
-        -Dtracker=disabled \
+    -Dmedia-gstreamer=disabled \
+    -Dtracker=disabled \
 %else
-        -Dtracker=enabled \
+    -Dtracker=enabled \
 %endif
-        -Dcolord=enabled \
-        -Ddocumentation=true \
-        -Dman-pages=true \
-        -Dbuild-testsuite=false \
-        -Dbuild-tests=false \
-        -Dbuild-examples=false
-
-%meson_build
+    -Dcolord=enabled \
+    -Ddocumentation=true \
+    -Dman-pages=true \
+    -Dbuild-testsuite=false \
+    -Dbuild-tests=false \
+    -Dbuild-examples=false
+ninja -C _build -j%{_smp_build_ncpus}
 
 %install
-%meson_install
+DESTDIR=%{buildroot} ninja -C _build install
 
 %find_lang gtk40
 
@@ -317,6 +332,10 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_mandir}/man1/gtk4-widget-factory.1*
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 4.22.1-2
+- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
+  to avoid non-deterministic "fg: no job control" on COPR builders.
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 4.22.1-1
 - Update to 4.22.1 (GTK stable release for GNOME 50)
 - Track F44 branch instead of rawhide
