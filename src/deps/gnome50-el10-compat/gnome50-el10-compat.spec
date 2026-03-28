@@ -1,6 +1,6 @@
 Name:           gnome50-el10-compat
 Version:        1.2.5
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
 License:        MIT
@@ -89,6 +89,8 @@ Exec=orca
 Hidden=true
 X-GNOME-Autostart-enabled=false
 EOF
+# Apply PyGObject GLib→GLibUnix shim (see Source5 for rationale)
+python3 %{_datadir}/gnome50-el10-compat/apply-gi-glib-compat.py 2>/dev/null || :
 
 # Re-apply PyGObject shim whenever python3-gobject updates GLib.py.
 %filetriggerin -- /usr/lib/python3.12/site-packages/gi/overrides/GLib.py
@@ -111,16 +113,6 @@ if [ $1 -eq 0 ]; then
     %{_sbindir}/semodule -X 300 -r gdm-gnome50 gdm-userdb-connect tuned-ppd-logging 2>/dev/null || :
 fi
 
-%post
-if [ $1 -ge 1 ]; then
-    %{_sbindir}/semodule -X 300 -i \
-        %{_datadir}/selinux/packages/gdm-gnome50.pp \
-        %{_datadir}/selinux/packages/gdm-userdb-connect.pp \
-        %{_datadir}/selinux/packages/tuned-ppd-logging.pp 2>/dev/null || :
-fi
-# Apply PyGObject GLib→GLibUnix shim (see Source5 for rationale)
-python3 %{_datadir}/gnome50-el10-compat/apply-gi-glib-compat.py 2>/dev/null || :
-
 %files
 %config(noreplace) %{_sysconfdir}/pam.d/systemd-user
 %{_datadir}/selinux/packages/gdm-gnome50.pp
@@ -130,6 +122,10 @@ python3 %{_datadir}/gnome50-el10-compat/apply-gi-glib-compat.py 2>/dev/null || :
 %{_datadir}/gnome50-el10-compat/apply-gi-glib-compat.py
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.2.5-2
+- Fix duplicate %%post section that prevented SRPM creation; merge PyGObject
+  shim invocation into the single %%post block
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.2.5-1
 - Add PyGObject GLib→GLibUnix compat shim: GLib 2.87+ moved g_unix_signal_add
   to the GLibUnix-2.0 GI namespace; EL10's python3-gobject 3.46 does not know
