@@ -14,7 +14,7 @@
 
 Name:           gnome-settings-daemon
 Version:        50.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        The daemon sharing settings from GNOME to GTK+/KDE applications
 
 License:        GPL-2.0-or-later AND LGPL-2.1-or-later
@@ -108,11 +108,26 @@ for the default behavior of Workstation in the Server with GUI product.
 %autosetup -p1 -n %{name}-%{tarball_version}
 
 %build
-%meson
-%meson_build
+meson setup _build \
+    --buildtype=plain \
+    --prefix=%{_prefix} \
+    --libdir=%{_libdir} \
+    --libexecdir=%{_libexecdir} \
+    --bindir=%{_bindir} \
+    --sbindir=%{_sbindir} \
+    --includedir=%{_includedir} \
+    --datadir=%{_datadir} \
+    --mandir=%{_mandir} \
+    --infodir=%{_infodir} \
+    --localedir=%{_datadir}/locale \
+    --sysconfdir=%{_sysconfdir} \
+    --localstatedir=%{_localstatedir} \
+    --sharedstatedir=%{_sharedstatedir} \
+    --wrap-mode=nodownload
+ninja -C _build -j%{_smp_build_ncpus}
 
 %install
-%meson_install
+DESTDIR=%{buildroot} ninja -C _build install
 
 %if 0%{?rhel}
 cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
@@ -206,13 +221,17 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 %endif
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
+- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
+  to avoid "fg: no job control" on COPR builders (non-interactive bash).
+- Remove %%autochangelog: Fedora-specific macro not available on EL10.
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
 - Update to 50.0 (GNOME 50 stable release)
 - Track F44 branch instead of rawhide
 - Drop sed libnotify version hack (50.0 upstream no longer requires >= 0.8.7)
 - Drop libnotify version pin from BuildRequires
 - Remove vestigial plain libcanberra BR (sound plugin disabled on EL10)
-- Adopt %meson build macros
 - Gate gsd-sound in %%files behind %%if !0%%{?rhel} (plugin not built without libcanberra-gtk3)
 - EL10: libcanberra-gtk3 BR remains gated (no gtk3 on EL10)
 
@@ -220,5 +239,3 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 - EL10: gate libcanberra-gtk3 BuildRequires behind %%if !0%%{?rhel} (requires
   gtk3 which is removed from EL10); also gate gsd-sound from %%files since
   the sound plugin is disabled when libcanberra-gtk3 is absent
-
-%autochangelog
