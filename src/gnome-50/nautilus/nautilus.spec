@@ -11,7 +11,7 @@ Version:        50.0
 %global tarball_version %%(echo %{version} | tr '~' '.')
 %global major_version %%(cut -d "." -f 1 <<<%{tarball_version})
 
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        File manager for GNOME
 
 # Sources are GPL-3.0-or-later and Appdata is CC0-1.0.
@@ -108,6 +108,7 @@ sed -i '/-Werror/d' meson.build
 
 %build
 meson setup --prefix=/usr --libdir=%{_libdir} --buildtype=plain build \
+  -Ddocs=true \
   -Dextensions=true \
   -Dintrospection=true \
   -Dselinux=true \
@@ -159,6 +160,9 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %doc %{_datadir}/doc/nautilus/
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-4
+- Add explicit -Ddocs=true (docs option defaults to disabled, not auto-detect)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
 - Enable docs (gi-docgen is now available in COPR); restore unconditional man pages
 
