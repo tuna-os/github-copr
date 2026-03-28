@@ -14,7 +14,7 @@
 
 Name:           gnome-settings-daemon
 Version:        50.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        The daemon sharing settings from GNOME to GTK+/KDE applications
 
 License:        GPL-2.0-or-later AND LGPL-2.1-or-later
@@ -48,7 +48,8 @@ BuildRequires:  pkgconfig(gudev-1.0)
 BuildRequires:  pkgconfig(gweather4)
 BuildRequires:  pkgconfig(lcms2) >= 2.2
 # libcanberra-gtk3 requires gtk3 (removed from EL10); gate on non-RHEL
-# sound plugin will be disabled at build time if libcanberra-gtk3 is absent
+# libcanberra (base, without gtk3) is required unconditionally by meson.build:105
+BuildRequires:  pkgconfig(libcanberra)
 %if !0%{?rhel}
 BuildRequires:  pkgconfig(libcanberra-gtk3)
 %endif
@@ -221,6 +222,11 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 %endif
 
 %changelog
+* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
+- Add pkgconfig(libcanberra) BuildRequires unconditionally: meson.build:105
+  requires the base libcanberra regardless of gtk3 availability; on EL10
+  libcanberra-gtk3 is skipped so libcanberra was not pulled in transitively.
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
 - Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
   to avoid "fg: no job control" on COPR builders (non-interactive bash).
