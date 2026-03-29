@@ -5,7 +5,7 @@
 
 Name:           libei
 Version:        1.5.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Library for Emulated Input
 
 License:        MIT
@@ -81,11 +81,26 @@ Library for XDG RemoteDesktop Portal Setup Development Package
 %py3_shebang_fix $(git grep -l  '#!/usr/bin/.*python3')
 
 %build
-%meson -Dtests=disabled -Ddocumentation='[]' -Dliboeffis=enabled
-%meson_build
+meson setup _build \
+    --buildtype=plain \
+    --prefix=%{_prefix} \
+    --libdir=%{_libdir} \
+    --libexecdir=%{_libexecdir} \
+    --bindir=%{_bindir} \
+    --sbindir=%{_sbindir} \
+    --includedir=%{_includedir} \
+    --datadir=%{_datadir} \
+    --mandir=%{_mandir} \
+    --sysconfdir=%{_sysconfdir} \
+    --localstatedir=%{_localstatedir} \
+    --wrap-mode=nodownload \
+    -Dtests=disabled \
+    -Ddocumentation=[] \
+    -Dliboeffis=enabled
+ninja -C _build -j%{_smp_build_ncpus}
 
 %install
-%meson_install
+DESTDIR=%{buildroot} ninja -C _build install
 
 %files
 %license COPYING
@@ -121,5 +136,9 @@ Library for XDG RemoteDesktop Portal Setup Development Package
 %{_bindir}/ei-debug-events
 
 %changelog
+* Sun Mar 29 2026 James Reilly <jreilly1821@gmail.com> - 1.5.0-3
+- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
+  to avoid "fg: no job control" on COPR x86_64_v3 workers (non-interactive bash)
+
 * Thu Mar 12 2026 Conductor <james@conductor.local> - 1.5.0-1
 - Initial bootstrap build
