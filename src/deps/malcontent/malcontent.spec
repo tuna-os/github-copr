@@ -1,6 +1,6 @@
 Name:           malcontent
 Version:        0.14.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Parental controls implementation
 
 License:        LGPL-2.1-only AND CC-BY-3.0
@@ -30,7 +30,6 @@ BuildRequires:  pkgconfig(flatpak)
 BuildRequires:  pkgconfig(glib-testing-0)
 BuildRequires:  pkgconfig(gnome-desktop-4)
 BuildRequires:  pam-devel
-BuildRequires:  gtk-doc
 BuildRequires:  libsoup3-devel
 
 Provides:       bundled(gvdb)
@@ -217,6 +216,9 @@ appstream-util validate-relax --nonet %{buildroot}%{_datadir}/metainfo/org.freed
 %{_docdir}/libmalcontent-ui-1
 
 %changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 0.14.0-2
+- Remove spurious gtk-doc BR (malcontent uses gi-docgen, not gtk-doc)
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 0.14.0-1
 - Initial package for EL10; enables parental controls in gnome-initial-setup
 - Explicit meson/ninja invocations (no %%meson macros, COPR non-interactive bash)
