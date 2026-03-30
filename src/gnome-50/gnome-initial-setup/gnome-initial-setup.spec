@@ -16,7 +16,7 @@
 
 Name:           gnome-initial-setup
 Version:        50.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Bootstrapping your OS
 
 License:        GPL-2.0-or-later
@@ -80,16 +80,31 @@ you through configuring it. It is integrated with gdm.
 %autosetup -p1 -n %{name}-%{tarball_version}
 
 %build
-%meson \
-  -Dparental_controls=disabled \
+meson setup _build \
+    --buildtype=plain \
+    --prefix=%{_prefix} \
+    --libdir=%{_libdir} \
+    --libexecdir=%{_libexecdir} \
+    --bindir=%{_bindir} \
+    --sbindir=%{_sbindir} \
+    --includedir=%{_includedir} \
+    --datadir=%{_datadir} \
+    --mandir=%{_mandir} \
+    --infodir=%{_infodir} \
+    --localedir=%{_datadir}/locale \
+    --sysconfdir=%{_sysconfdir} \
+    --localstatedir=%{_localstatedir} \
+    --sharedstatedir=%{_sharedstatedir} \
+    --wrap-mode=nodownload \
+    -Dparental_controls=disabled \
 %if !%{with webkitgtk}
-  -Dwebkitgtk=disabled \
+    -Dwebkitgtk=disabled \
 %endif
-  %{nil}
-%meson_build
+    %{nil}
+ninja -C _build -j%{_smp_build_ncpus}
 
 %install
-%meson_install
+DESTDIR=%{buildroot} ninja -C _build install
 
 mkdir -p %{buildroot}%{_datadir}/gnome-initial-setup
 
@@ -117,6 +132,10 @@ useradd -rM -d /run/gnome-initial-setup/ -s /sbin/nologin %{name} &>/dev/null ||
 %{_userunitdir}/*
 
 %changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
+- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
+  to avoid "fg: no job control" on COPR builders (non-interactive bash)
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
 - Update to 50.0 for GNOME 50 on EL10
 - Track F44 branch; webkitgtk disabled for RHEL builds
