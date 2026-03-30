@@ -77,7 +77,6 @@ tiers:
       - path: src/deps/pango
       - path: src/deps/tinysparql
       - path: src/deps/pipewire
-      - copr_name: jpegxl
       - copr_name: simdutf
 
   # Tier 10: System Tools & GJS.
@@ -128,3 +127,8 @@ tiers:
       - path: src/gnome-50/gnome-control-center
       - path: src/gnome-50/gdm
       - copr_name: ptyxis
+
+  # Tier 16: Post-session packages that depend on GDM/gnome-shell.
+  - name: post-session
+    packages:
+      - path: src/gnome-50/gnome-initial-setup
