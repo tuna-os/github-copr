@@ -244,7 +244,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Porta
 %{_datadir}/icons/hicolor/scalable/apps/org.gnome.Shell.Extensions.svg
 %{_datadir}/icons/hicolor/symbolic/apps/org.gnome.Shell.Extensions-symbolic.svg
 %{_userunitdir}/org.gnome.Shell-disable-extensions.service
-#{_userunitdir}/org.gnome.Shell.target
+%{_userunitdir}/org.gnome.Shell.target
 %{_userunitdir}/org.gnome.Shell@.service
 %{_libdir}/gnome-shell/
 %{_libexecdir}/gnome-shell-calendar-server
