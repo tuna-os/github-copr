@@ -77,6 +77,7 @@ tiers:
       - path: src/deps/pango
       - path: src/deps/tinysparql
       - path: src/deps/pipewire
+      - path: src/deps/libglib-testing
       - copr_name: simdutf
 
   # Tier 10: System Tools & GJS.
@@ -106,6 +107,11 @@ tiers:
       - path: src/deps/localsearch
       - path: src/deps/vte291
         spec_override: vte291.spec
+
+  # Tier 12b: Parental controls stack (needs gtk4, libadwaita, flatpak).
+  - name: parental-controls
+    packages:
+      - path: src/deps/malcontent
 
   # Tier 13: Compositor & Shell.
   - name: shell-foundations

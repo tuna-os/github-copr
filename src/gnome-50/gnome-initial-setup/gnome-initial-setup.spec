@@ -16,7 +16,7 @@
 
 Name:           gnome-initial-setup
 Version:        50.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Bootstrapping your OS
 
 License:        GPL-2.0-or-later
@@ -51,6 +51,8 @@ BuildRequires:  pkgconfig(pango)
 BuildRequires:  pkgconfig(polkit-gobject-1)
 BuildRequires:  pkgconfig(pwquality)
 BuildRequires:  pkgconfig(rest-1.0)
+BuildRequires:  pkgconfig(malcontent-0)
+BuildRequires:  pkgconfig(malcontent-ui-1)
 %if %{with webkitgtk}
 BuildRequires:  pkgconfig(webkitgtk-6.0)
 %endif
@@ -96,7 +98,7 @@ meson setup _build \
     --localstatedir=%{_localstatedir} \
     --sharedstatedir=%{_sharedstatedir} \
     --wrap-mode=nodownload \
-    -Dparental_controls=disabled \
+    -Dparental_controls=enabled \
 %if !%{with webkitgtk}
     -Dwebkitgtk=disabled \
 %endif
@@ -132,6 +134,11 @@ useradd -rM -d /run/gnome-initial-setup/ -s /sbin/nologin %{name} &>/dev/null ||
 %{_userunitdir}/*
 
 %changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
+- Enable parental controls (-Dparental_controls=enabled); malcontent and
+  libglib-testing are now available in the COPR
+- Add BuildRequires: malcontent-0, malcontent-ui-1
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
 - Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
   to avoid "fg: no job control" on COPR builders (non-interactive bash)

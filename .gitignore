@@ -48,3 +48,4 @@ src/**/*.zip
 # OS
 .DS_Store
 Thumbs.db
+!src/deps/malcontent/gvdb.tar.xz
