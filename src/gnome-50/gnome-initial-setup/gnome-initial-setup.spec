@@ -16,7 +16,7 @@
 
 Name:           gnome-initial-setup
 Version:        50.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Bootstrapping your OS
 
 License:        GPL-2.0-or-later
@@ -51,8 +51,6 @@ BuildRequires:  pkgconfig(pango)
 BuildRequires:  pkgconfig(polkit-gobject-1)
 BuildRequires:  pkgconfig(pwquality)
 BuildRequires:  pkgconfig(rest-1.0)
-BuildRequires:  pkgconfig(malcontent-0)
-BuildRequires:  pkgconfig(malcontent-ui-1)
 %if %{with webkitgtk}
 BuildRequires:  pkgconfig(webkitgtk-6.0)
 %endif
@@ -98,7 +96,7 @@ meson setup _build \
     --localstatedir=%{_localstatedir} \
     --sharedstatedir=%{_sharedstatedir} \
     --wrap-mode=nodownload \
-    -Dparental_controls=enabled \
+    -Dparental_controls=disabled \
 %if !%{with webkitgtk}
     -Dwebkitgtk=disabled \
 %endif
@@ -134,6 +132,10 @@ useradd -rM -d /run/gnome-initial-setup/ -s /sbin/nologin %{name} &>/dev/null ||
 %{_userunitdir}/*
 
 %changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-4
+- Revert parental_controls=enabled: flatpak-devel and appstream-devel not
+  available in EL10/EPEL 10 (needed by libmalcontent-ui). Track in TODO.
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
 - Enable parental controls (-Dparental_controls=enabled); malcontent and
   libglib-testing are now available in the COPR
