@@ -4,7 +4,7 @@
 
 Name:           gnome-session
 Version:        50.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        GNOME session manager
 
 License:        GPL-2.0-or-later
@@ -32,6 +32,7 @@ Requires: gsettings-desktop-schemas >= 0.1.7
 
 Requires: dbus
 
+Obsoletes: gnome-session < 50.0
 Conflicts: gnome-desktop3 < 44.4-2
 Conflicts: shared-mime-info < 2.0-4
 Requires: shared-mime-info
@@ -107,6 +108,12 @@ DESTDIR=%{buildroot} ninja -C _build install
 %{_userunitdir}/app-gnome-.scope.d/override.conf
 
 %changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
+- Add Obsoletes: gnome-session < 50.0 to ensure EL10's stock gnome-session
+  46.0 is replaced; without this the old gnome-session-init-worker binary
+  (which references the removed org.gnome.Shell.target) could remain on
+  disk alongside GNOME 50 packages (tuna-os/tunaOS#80)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
 - Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
   to avoid "fg: no job control" on COPR builders (non-interactive bash).
