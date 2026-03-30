@@ -5,8 +5,8 @@
 %global geoclue_version 2.6.0
 %global gnome_desktop_version 44.0-7
 
-%global tarball_version %(echo %{version} | tr '~' '.')
-%global major_version %(echo %{tarball_version} | cut -d "." -f 1)
+%global tarball_version 50.0
+%global major_version 50
 
 %if 0%{?rhel}
 %bcond_with webkitgtk

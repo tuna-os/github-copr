@@ -1,5 +1,5 @@
-%global tarball_version %%(echo %{version} | tr '~' '.')
-%define major_version %(c=%{version}; echo $c | cut -d. -f1 | cut -d~ -f1)
+%global tarball_version 50.0
+%global major_version 50
 
 %if 0%{?rhel}
 %global portal_helper 0
