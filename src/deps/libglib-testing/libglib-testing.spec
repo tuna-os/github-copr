@@ -1,6 +1,6 @@
 Name:           libglib-testing
 Version:        0.1.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        GLib-based test library and harness
 
 License:        LicenseRef-Callaway-LGPLv2+
@@ -27,6 +27,8 @@ for %{name}.
 
 %prep
 %autosetup -n %{name}-%{version}
+# Remove docs subdir — gtkdoc-scan not available in EL10 buildroot
+sed -i "/^subdir('docs')/d" libglib-testing/meson.build
 
 %build
 meson setup _build \
@@ -52,5 +54,8 @@ DESTDIR=%{buildroot} ninja -C _build install
 %{_libdir}/pkgconfig/glib-testing-0.pc
 
 %changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 0.1.0-2
+- Remove docs subdir: gtkdoc-scan not available in EL10 buildroot
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 0.1.0-1
 - Initial package for EL10; build dep for malcontent parental controls
