@@ -16,7 +16,7 @@
 
 Name:           gnome-initial-setup
 Version:        50.0
-Release:        4%{?dist}
+Release:        5%{?dist}
 Summary:        Bootstrapping your OS
 
 License:        GPL-2.0-or-later
@@ -51,6 +51,8 @@ BuildRequires:  pkgconfig(pango)
 BuildRequires:  pkgconfig(polkit-gobject-1)
 BuildRequires:  pkgconfig(pwquality)
 BuildRequires:  pkgconfig(rest-1.0)
+BuildRequires:  pkgconfig(malcontent-0)
+BuildRequires:  pkgconfig(malcontent-ui-1)
 %if %{with webkitgtk}
 BuildRequires:  pkgconfig(webkitgtk-6.0)
 %endif
@@ -96,7 +98,7 @@ meson setup _build \
     --localstatedir=%{_localstatedir} \
     --sharedstatedir=%{_sharedstatedir} \
     --wrap-mode=nodownload \
-    -Dparental_controls=disabled \
+    -Dparental_controls=enabled \
 %if !%{with webkitgtk}
     -Dwebkitgtk=disabled \
 %endif
@@ -132,6 +134,12 @@ useradd -rM -d /run/gnome-initial-setup/ -s /sbin/nologin %{name} &>/dev/null ||
 %{_userunitdir}/*
 
 %changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-5
+- Re-enable parental controls (-Dparental_controls=enabled)
+- Add BuildRequires: pkgconfig(malcontent-0), pkgconfig(malcontent-ui-1)
+- flatpak-devel and appstream-devel now available from our COPR
+- malcontent 0.14.0 now built in COPR
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-4
 - Revert parental_controls=enabled: flatpak-devel and appstream-devel not
   available in EL10/EPEL 10 (needed by libmalcontent-ui). Track in TODO.
