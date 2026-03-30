@@ -1,6 +1,6 @@
 Name:           malcontent
 Version:        0.14.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Parental controls implementation
 
 License:        LGPL-2.1-only AND CC-BY-3.0
@@ -8,7 +8,7 @@ URL:            https://gitlab.freedesktop.org/pwithnall/%{name}/
 Source0:        https://tecnocode.co.uk/downloads/%{name}/%{name}-%{version}.tar.xz
 Source1:        https://gitlab.gnome.org/pwithnall/libgsystemservice/-/archive/0.3.0/libgsystemservice-0.3.0.tar.bz2
 Source2:        gvdb.tar.xz
-Source3:        http://www.corpit.ru/mjt/tinycdb/tinycdb-0.81.tar.gz
+Source3:        tinycdb-0.81.tar.gz
 
 BuildRequires:  gettext
 BuildRequires:  gi-docgen
@@ -216,6 +216,10 @@ appstream-util validate-relax --nonet %{buildroot}%{_datadir}/metainfo/org.freed
 %{_docdir}/libmalcontent-ui-1
 
 %changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 0.14.0-3
+- Commit tinycdb-0.81.tar.gz locally; COPR SRPM builder rejects HTTP URLs
+- Change Source3 from HTTP URL to local filename
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 0.14.0-2
 - Remove spurious gtk-doc BR (malcontent uses gi-docgen, not gtk-doc)
 
