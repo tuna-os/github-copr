@@ -12,7 +12,7 @@
 
 Name:           flatpak
 Version:        1.16.0
-Release:        7.1.tuna%{?dist}
+Release:        7.2.tuna%{?dist}
 Summary:        Application deployment framework for desktop apps
 
 License:        LGPL-2.1-or-later
@@ -184,6 +184,7 @@ This package contains installed tests for %{name}.
     -Dmalcontent=disabled \
 %endif
     -Dwayland_security_context=enabled \
+    -Dgtkdoc=disabled \
     %{nil}
 %meson_build
 
@@ -263,9 +264,6 @@ fi
 
 %files devel
 %{_datadir}/gir-1.0/Flatpak-1.0.gir
-%if 0%{?fedora}
-%{_datadir}/gtk-doc/
-%endif
 %{_includedir}/%{name}/
 %{_libdir}/libflatpak.so
 %{_libdir}/pkgconfig/%{name}.pc
@@ -292,6 +290,14 @@ fi
 
 
 %changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 1.16.0-7.2.tuna
+- Disable gtkdoc (-Dgtkdoc=disabled); gtk-doc not available on EL10
+- Remove gtk-doc %files devel entry (no docs built)
+- Remove Fedora-only Source1 (flatpak-add-fedora-repos.service)
+
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 1.16.0-7.1.tuna
+- EL10 override: add gcc/gcc-c++ BRs; gate gtk-doc %files behind %%if fedora
+
 * Mon Oct 13 2025 Jan Grulich <jgrulich@redhat.com> - 1.16.0-7
 - Get certificates from /etc/pki/entitlement for registry.redhat.io
   Resolves: RHEL-85004
