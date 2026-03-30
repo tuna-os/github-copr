@@ -19,11 +19,6 @@ License:        LGPL-2.1-or-later
 URL:            https://flatpak.org/
 Source0:        https://github.com/flatpak/flatpak/releases/download/%{version}/%{name}-%{version}.tar.xz
 
-%if 0%{?fedora}
-# Add Fedora flatpak repositories
-Source1:        flatpak-add-fedora-repos.service
-%endif
-
 # systemd-sysusers config. Only used for the %%pre macro. Must be kept in sync
 # with the config from upstream sources.
 Source2:        flatpak.sysusers.conf
@@ -210,26 +205,8 @@ install -D -t %{buildroot}%{_unitdir} %{SOURCE1}
 %sysusers_create_compat %{SOURCE2}
 
 
-%if 0%{?fedora}
-%post
-%systemd_post flatpak-add-fedora-repos.service
-%endif
-
-
 %post selinux
 %selinux_modules_install %{_datadir}/selinux/packages/flatpak.pp.bz2
-
-
-%if 0%{?fedora}
-%preun
-%systemd_preun flatpak-add-fedora-repos.service
-%endif
-
-
-%if 0%{?fedora}
-%postun
-%systemd_postun_with_restart flatpak-add-fedora-repos.service
-%endif
 
 
 %postun selinux
@@ -283,10 +260,6 @@ fi
 %{_systemd_system_env_generator_dir}/60-flatpak-system-only
 %{_systemd_user_env_generator_dir}/60-flatpak
 %{_tmpfilesdir}/%{name}.conf
-
-%if 0%{?fedora}
-%{_unitdir}/flatpak-add-fedora-repos.service
-%endif
 
 %files devel
 %{_datadir}/gir-1.0/Flatpak-1.0.gir
