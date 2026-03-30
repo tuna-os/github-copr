@@ -1,0 +1,56 @@
+Name:           libglib-testing
+Version:        0.1.0
+Release:        1%{?dist}
+Summary:        GLib-based test library and harness
+
+License:        LicenseRef-Callaway-LGPLv2+
+URL:            https://gitlab.gnome.org/pwithnall/libglib-testing
+Source0:        https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.bz2
+
+BuildRequires:  meson
+BuildRequires:  gcc
+BuildRequires:  pkgconfig(gio-2.0)
+
+%description
+libglib-testing is a test library providing test harnesses and mock classes
+which complement the classes provided by GLib. It is intended to be used by
+any project which uses GLib and which wants to write internal unit tests.
+
+%package devel
+Summary:        Development files for %{name}
+License:        LicenseRef-Callaway-LGPLv2+
+Requires:       %{name}%{?_isa} = %{version}-%{release}
+
+%description devel
+This package contains the pkg-config file and development headers
+for %{name}.
+
+%prep
+%autosetup -n %{name}-%{version}
+
+%build
+meson setup _build \
+    --buildtype=plain \
+    --prefix=%{_prefix} \
+    --libdir=%{_libdir} \
+    --libexecdir=%{_libexecdir} \
+    --includedir=%{_includedir} \
+    --datadir=%{_datadir} \
+    --wrap-mode=nodownload
+ninja -C _build -j%{_smp_build_ncpus}
+
+%install
+DESTDIR=%{buildroot} ninja -C _build install
+
+%files
+%license COPYING
+%{_libdir}/libglib-testing-0.so.*
+
+%files devel
+%{_includedir}/libglib-testing-0/
+%{_libdir}/libglib-testing-0.so
+%{_libdir}/pkgconfig/glib-testing-0.pc
+
+%changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 0.1.0-1
+- Initial package for EL10; build dep for malcontent parental controls
