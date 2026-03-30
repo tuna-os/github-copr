@@ -1,6 +1,6 @@
 Name:           gnome50-el10-compat
-Version:        1.2.5
-Release:        2%{?dist}
+Version:        1.2.6
+Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
 License:        MIT
@@ -122,6 +122,10 @@ fi
 %{_datadir}/gnome50-el10-compat/apply-gi-glib-compat.py
 
 %changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 1.2.6-1
+- gdm-gnome50.te: allow xdm_t status on systemd_unit_file_t:service so
+  gnome-session-init-worker can query unit status during greeter startup (issue #15)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.2.5-2
 - Fix duplicate %%post section that prevented SRPM creation; merge PyGObject
   shim invocation into the single %%post block
