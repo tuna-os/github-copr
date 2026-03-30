@@ -1,6 +1,6 @@
 Name:           libglib-testing
 Version:        0.1.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        GLib-based test library and harness
 
 License:        LicenseRef-Callaway-LGPLv2+
@@ -49,11 +49,14 @@ DESTDIR=%{buildroot} ninja -C _build install
 %{_libdir}/libglib-testing-0.so.*
 
 %files devel
-%{_includedir}/libglib-testing-0/
+%{_includedir}/glib-testing-0/
 %{_libdir}/libglib-testing-0.so
 %{_libdir}/pkgconfig/glib-testing-0.pc
 
 %changelog
+* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 0.1.0-3
+- Fix %%files devel: include dir is glib-testing-0/ not libglib-testing-0/
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 0.1.0-2
 - Remove docs subdir: gtkdoc-scan not available in EL10 buildroot
 
