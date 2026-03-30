@@ -1,5 +1,5 @@
-%global major_version %%(echo %{version} | cut -d '.' -f1 | cut -d '~' -f 1)
-%global tarball_version %%(echo %{version} | tr '~' '.')
+%global major_version 50
+%global tarball_version 50.0
 %define po_package gnome-session
 
 Name:           gnome-session
