@@ -18,7 +18,7 @@
 %endif
 
 Name:           gnome-shell
-Version:        49.4
+Version:        49.5
 Release:        %autorelease -e el10gnomeqr
 Summary:        Window management and application launching for GNOME
 
