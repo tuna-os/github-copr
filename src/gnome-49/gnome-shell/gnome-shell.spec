@@ -19,7 +19,7 @@
 
 Name:           gnome-shell
 Version:        49.5
-Release:        %autorelease -e el10gnomeqr
+Release:        100.el10gnomeqr%{?dist}
 Summary:        Window management and application launching for GNOME
 
 License:        GPL-2.0-or-later
