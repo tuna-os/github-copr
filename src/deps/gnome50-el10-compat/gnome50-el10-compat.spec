@@ -1,5 +1,5 @@
 Name:           gnome50-el10-compat
-Version:        1.2.6
+Version:        1.2.7
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
@@ -77,6 +77,11 @@ if [ $1 -ge 1 ]; then
         %{_datadir}/selinux/packages/gdm-userdb-connect.pp \
         %{_datadir}/selinux/packages/tuned-ppd-logging.pp 2>/dev/null || :
 fi
+# Relabel /var/home so useradd_t can access it. In reinstall/upgrade scenarios
+# /var/home may have default_t or unlabeled_t from a previous deployment;
+# file_contexts.subs_dist maps /var/home -> /home but the on-disk xattr is
+# never updated unless we explicitly call restorecon here.
+restorecon -RF /var/home 2>/dev/null || :
 # Override orca autostart: GNOME 50 dropped AutostartCondition evaluation,
 # so orca launches unconditionally. Write Hidden=true without owning the file
 # (orca package owns it; we overwrite after install to avoid RPM conflict).
@@ -122,6 +127,11 @@ fi
 %{_datadir}/gnome50-el10-compat/apply-gi-glib-compat.py
 
 %changelog
+* Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.7-1
+- %post: run restorecon -RF /var/home to fix default_t/unlabeled_t labeling
+  in reinstall/upgrade scenarios where /var is not wiped. Fixes useradd
+  exit 12 (E_HOMEDIR) during gnome-initial-setup (issues #16, #17).
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 1.2.6-1
 - gdm-gnome50.te: allow xdm_t status on systemd_unit_file_t:service so
   gnome-session-init-worker can query unit status during greeter startup (issue #15)
