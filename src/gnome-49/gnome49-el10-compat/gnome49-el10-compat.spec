@@ -1,5 +1,5 @@
 Name:           gnome49-el10-compat
-Version:        1.2.4
+Version:        1.2.5
 Release:        1%{?dist}
 Summary:        GNOME 49 Compatibility workarounds for EL10
 
@@ -13,7 +13,8 @@ BuildArch:      noarch
 BuildRequires:  checkpolicy
 BuildRequires:  policycoreutils
 # SELinux policy backport for GDM userdb architecture support
-Requires:       selinux-policy >= 43.1
+Requires:       selinux-policy >= 43.3
+Requires:       selinux-policy-targeted >= 43.3
 Requires(post): policycoreutils
 # Conflicts with systemd versions that have the Patch0254 regression.
 Conflicts:      systemd < 256.5-1.el10
@@ -52,6 +53,11 @@ cp tuned-ppd-logging.pp %{buildroot}%{_datadir}/selinux/packages/
 semodule -X 300 -i \
     %{_datadir}/selinux/packages/gdm-gnome49.pp \
     %{_datadir}/selinux/packages/tuned-ppd-logging.pp &>/dev/null || :
+# Relabel /var/home so useradd_t can access it. In reinstall/upgrade scenarios
+# /var/home may have default_t or unlabeled_t from a previous deployment;
+# file_contexts.subs_dist maps /var/home -> /home but the on-disk xattr is
+# never updated unless we explicitly call restorecon here.
+restorecon -RF /var/home 2>/dev/null || :
 # Override orca autostart: gnome-session 49 does not evaluate AutostartCondition,
 # so orca would launch unconditionally. Write Hidden=true without owning the file
 # (orca package owns it; we overwrite after install to avoid RPM conflict).
@@ -88,6 +94,11 @@ fi
 %{_datadir}/selinux/packages/tuned-ppd-logging.pp
 
 %changelog
+* Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.5-1
+- %post: run restorecon -RF /var/home to fix default_t/unlabeled_t labeling
+  in reinstall/upgrade scenarios where /var is not wiped. Fixes useradd
+  exit 12 (E_HOMEDIR) during gnome-initial-setup (issues #16, #17).
+
 * Tue Mar 25 2026 James <james@example.com> - 1.2.4-1
 - Add tuned-ppd-logging SELinux module: EL10 base policy does not grant
   tuned_ppd_t access to var_log_t; this allows tuned-ppd to write its
