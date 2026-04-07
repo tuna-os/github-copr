@@ -27,6 +27,8 @@ tiers:
       # freerdp requires a custom repack tarball (freerdp_download_and_repack.sh) not fetchable by spectool;
       # keep as COPR-only SCM build, not in GHA pipeline
       - path: src/gnome-49/avahi
+      - copr_name: graphviz
+      - copr_name: sqlcipher
 
   # Tier 1: Font/text foundations (harfbuzz needs meson but no GLib yet).
   - name: build-tools
@@ -34,6 +36,7 @@ tiers:
       - path: src/gnome-49/harfbuzz
         build_tool: true
       - path: src/gnome-49/fontconfig
+      - copr_name: vala
 
   # Tier 2: Bootstrap GLib (introspection disabled to break circular dep).
   - name: glib2-bootstrap
@@ -64,6 +67,8 @@ tiers:
       - path: src/gnome-49/tinysparql
       - path: src/gnome-49/libcloudproviders
       - path: src/gnome-49/libgexiv2
+      - copr_name: libgee
+      - path: src/deps/libsoup
 
   # Tier 8: GTK Core (needs pango + GI).
   - name: gtk-core
@@ -73,6 +78,7 @@ tiers:
       - path: src/gnome-49/gnome-desktop3
       - path: src/gnome-49/gsound
       - path: src/gnome-49/colord-gtk
+      - path: src/deps/libgda
 
   # Tier 9: GJS + higher-level libs (needs gtk4 + mozjs128 from EPEL + GI).
   - name: gjs-layer
