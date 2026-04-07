@@ -3,7 +3,7 @@
 Name:           libgda
 Epoch:          1
 Version:        6.0.0
-Release:        101.el10%{?dist}
+Release:        102.el10%{?dist}
 Summary:        Library for writing gnome database programs
 
 License:        LGPL-2.0-or-later
@@ -128,6 +128,7 @@ install libgda-ui/data/import_encodings.xml %{buildroot}%{_datadir}/%{name}-%{ap
 %{_libdir}/%{name}-%{apiver}.so.*
 %dir %{_libdir}/%{name}-%{apiver}/
 %dir %{_libdir}/%{name}-%{apiver}/providers/
+%{_libdir}/girepository-1.0/Gda-%{apiver}.typelib
 %dir %{_datadir}/%{name}-%{apiver}/
 %dir %{_datadir}/%{name}-%{apiver}/dtd/
 %{_datadir}/%{name}-%{apiver}/dtd/libgda-*.dtd
@@ -140,7 +141,7 @@ install libgda-ui/data/import_encodings.xml %{buildroot}%{_datadir}/%{name}-%{ap
 %{_libdir}/%{name}-%{apiver}.so
 %{_libdir}/pkgconfig/%{name}-%{apiver}.pc
 %{_libdir}/pkgconfig/%{name}-*-%{apiver}.pc
-%exclude %{_libdir}/pkgconfig/%{name}-ui-%{apiver}.pc
+%{_datadir}/gir-1.0/Gda-%{apiver}.gir
 %dir %{_datadir}/vala
 %dir %{_datadir}/vala/vapi
 %{_datadir}/vala/vapi/libgda-%{apiver}.vapi
@@ -161,7 +162,9 @@ install libgda-ui/data/import_encodings.xml %{buildroot}%{_datadir}/%{name}-%{ap
 %{_libdir}/libgda-%{apiver}/providers/libgda-sqlcipher-%{apiver}.so
 
 %changelog
-# EL10: all features enabled via COPR-built deps:
-#   graphviz-devel, sqlcipher-devel, libsoup-devel (2.x), vala, libgee-devel
-# ldap provider requires experimental=true in meson; disabled to avoid %files mismatch.
-# Release pinned at 100+ to beat any future CentOS AppStream build.
+* Mon Apr 07 2026 EL10 Bootstrap <copr@tunaos.org> - 6.0.0-102
+- Add GIR typelib/gir files to %%files (unpackaged file error)
+- Remove %%exclude for libgda-ui-6.0.pc (ui=false; file never installed, causes error)
+- Remove ldap provider: requires experimental=true in meson; disabled (r101)
+- EL10: all features via COPR deps: graphviz, sqlcipher, libsoup 2.x, vala, libgee
+- Release pinned at 100+ to beat any future CentOS AppStream build
