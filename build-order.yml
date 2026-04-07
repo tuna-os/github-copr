@@ -20,6 +20,8 @@ tiers:
         build_tool: true
       - path: src/deps/gnome50-el10-compat
       - path: src/deps/selinux-policy
+      - copr_name: graphviz
+      - copr_name: sqlcipher
 
   # Tier 1: Needs tools from Tier 0.
   - name: build-tools
@@ -34,6 +36,7 @@ tiers:
         build_tool: true
       - path: src/deps/gi-docgen
         build_tool: true
+      - copr_name: vala
 
   # Tier 3: Bootstrap GLib.
   - name: glib2-bootstrap
@@ -79,6 +82,8 @@ tiers:
       - path: src/deps/pipewire
       - path: src/deps/libglib-testing
       - copr_name: simdutf
+      - copr_name: libgee
+      - path: src/deps/libsoup
 
   # Tier 10: System Tools & GJS.
   - name: system-tools
@@ -98,6 +103,7 @@ tiers:
       - path: src/gnome-50/gnome-desktop3
       - path: src/deps/gtk4
       - path: src/deps/glycin
+      - path: src/deps/libgda
 
   # Tier 12: Desktop Foundations.
   - name: desktop-foundations
