@@ -1,5 +1,5 @@
 Name:           el10-v2-buildflags
-Version:        1
+Version:        2
 Release:        1%{?dist}
 Summary:        Override RPM optflags for x86_64_v2 buildroots on EL10
 License:        MIT
@@ -11,9 +11,9 @@ Overrides %%optflags to use -march=x86-64-v2 instead of the EL10 default
 where build hosts only support SSE4.2 and cannot execute v3 instructions.
 
 %install
-mkdir -p %{buildroot}%{_rpmconfigdir}/macros.d
+mkdir -p %{buildroot}%{_sysconfdir}/rpm/macros.d
 printf '%%%%optflags -O2 -flto=auto -ffat-lto-objects -fexceptions -g -grecord-gcc-switches -pipe -Wall -Werror=format-security -Wp,-U_FORTIFY_SOURCE,-D_FORTIFY_SOURCE=3 -Wp,-D_GLIBCXX_ASSERTIONS -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 -fstack-protector-strong -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1 -m64 -march=x86-64-v2 -mtune=generic -fasynchronous-unwind-tables -fstack-clash-protection -fcf-protection\n' \
-    > %{buildroot}%{_rpmconfigdir}/macros.d/macros.el10-v2-buildflags
+    > %{buildroot}%{_sysconfdir}/rpm/macros.d/el10-v2-buildflags
 
 %files
-%{_rpmconfigdir}/macros.d/macros.el10-v2-buildflags
+%{_sysconfdir}/rpm/macros.d/el10-v2-buildflags
