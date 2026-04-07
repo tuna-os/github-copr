@@ -14,6 +14,7 @@ Source0: https://download.gnome.org/sources/%{name}/2.74/%{name}-%{version}.tar.
 # https://gitlab.gnome.org/GNOME/libsoup/-/merge_requests/385
 Patch:   libsoup-2.74.3-libxml2-2.12.0-includes.patch
 
+BuildRequires: gcc
 BuildRequires: gettext
 BuildRequires: pkgconfig(glib-2.0) >= %{glib2_version}
 BuildRequires: glib-networking
