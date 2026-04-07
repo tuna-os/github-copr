@@ -18,9 +18,6 @@ BuildRequires:    gcc
 BuildRequires:    gcc-c++
 BuildRequires:    pkgconfig >= 0.8
 BuildRequires:    glib2-devel >= 2.38.0
-BuildRequires:    gtk3-devel >= 3.0.0
-BuildRequires:    gtksourceview3-devel
-BuildRequires:    goocanvas2-devel
 BuildRequires:    graphviz-devel >= 2.26.0
 BuildRequires:    iso-codes-devel
 BuildRequires:    itstool
@@ -73,31 +70,6 @@ Requires:       %{name}%{?_isa} = %{epoch}:%{version}-%{release}
 The %{name}-devel package contains libraries and header files for
 developing applications that use %{name}.
 
-%package ui
-Summary:         UI extensions for %{name}
-Requires:        %{name}%{?_isa} = %{epoch}:%{version}-%{release}
-
-%description ui
-%{name}-ui extends %{name} providing graphical widgets (Gtk+).
-
-%package        ui-devel
-Summary:        Development files for %{name}-ui
-Requires:       %{name}%{?_isa} = %{epoch}:%{version}-%{release}
-Requires:       %{name}-ui%{?_isa} = %{epoch}:%{version}-%{release}
-Requires:       %{name}-devel%{?_isa} = %{epoch}:%{version}-%{release}
-Requires:       gtk3-devel%{?_isa} >= 3.0.0
-
-%description    ui-devel
-The %{name}-ui-devel package contains libraries and header files for
-developing applications that use %{name}-ui.
-
-%package tools
-Summary:         Graphical tools for %{name}
-Requires:        %{name}-ui%{?_isa} = %{epoch}:%{version}-%{release}
-
-%description tools
-This %{name}-tools package provides graphical tools for %{name}.
-
 %package sqlite
 Summary:        SQLite provider for %{name}
 Requires:       %{name}%{?isa} = %{epoch}:%{version}-%{release}
@@ -135,7 +107,7 @@ iconv --from=ISO-8859-1 --to=UTF-8 AUTHORS > AUTHORS.new && \
 touch -r AUTHORS AUTHORS.new && mv AUTHORS.new AUTHORS
 
 %build
-%meson -Djson=true -Dldap=true -Ddoc=false -Dexperimental=true -Dhelp=true -Dui=true -Dlibsoup=true -Dlibsecret=true -Dflatpak=false -Dsqlcipher=true -Dgraphviz=true
+%meson -Djson=true -Dldap=true -Ddoc=false -Dexperimental=true -Dhelp=true -Dui=false -Dlibsoup=true -Dlibsecret=true -Dflatpak=false -Dsqlcipher=true -Dgraphviz=true
 #-Dtools=true
 #        -Dexamples=false \
 
@@ -185,31 +157,6 @@ install libgda-ui/data/import_encodings.xml %{buildroot}%{_datadir}/%{name}-%{ap
 %{_datadir}/vala/vapi/libgda-%{apiver}.deps
 %{_includedir}/%{name}-%{apiver}/providers/
 
-
-%files ui
-%{_libdir}/%{name}-ui-%{apiver}.so.*
-%{_libdir}/%{name}-%{apiver}/plugins/%{name}-ui-plugins-%{name}-%{apiver}.so
-%{_libdir}/girepository-1.0/Gdaui-%{apiver}.typelib
-%{_datadir}/%{name}-%{apiver}/ui/
-
-%files ui-devel
-%{_includedir}/%{name}-%{apiver}/%{name}-ui
-%{_libdir}/%{name}-ui-%{apiver}.so
-%{_libdir}/pkgconfig/%{name}-ui-%{apiver}.pc
-%{_datadir}/%{name}-%{apiver}/demo/
-%{_datadir}/gir-1.0/Gdaui-%{apiver}.gir
-%{_datadir}/glade/
-%dir %{_datadir}/vala
-%dir %{_datadir}/vala/vapi
-%{_datadir}/vala/vapi/libgdaui-%{apiver}.vapi
-
-%files tools
-%{_bindir}/gda-*
-%{_bindir}/org.gnome.gda.*
-%{_bindir}/trml2html.py
-%{_bindir}/trml2pdf.py
-%{_datadir}/%{name}-%{apiver}/gda_trml2html
-%{_datadir}/%{name}-%{apiver}/gda_trml2pdf
 
 %files sqlite
 %{_libdir}/%{name}-%{apiver}/providers/%{name}-sqlite-%{apiver}.so
