@@ -1,6 +1,6 @@
 Name:           glib2
 Version:        2.88.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        A library of handy utility functions
 
 License:        LGPL-2.1-or-later
@@ -50,6 +50,7 @@ such as GTK+ and GNOME.
 %package devel
 Summary: A library of handy utility functions
 Requires: %{name}%{?_isa} = %{version}-%{release}
+Requires: glibc-devel
 Requires: python3-packaging
 
 %description devel
@@ -201,6 +202,11 @@ gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 %{_libdir}/*.a
 
 %changelog
+* Mon Apr 07 2026 James Reilly <jreilly1821@gmail.com> - 2.88.0-4
+- Add Requires: glibc-devel to glib2-devel; without it downstream BuildRequires
+  on glib2-devel no longer pulled in glibc-devel transitively, causing
+  "C compiler cannot create executables" in all chroots (all arches).
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 2.88.0-3
 - Replace %%meson/%%meson_build/%%meson_install macros with explicit meson setup,
   ninja, and DESTDIR install to avoid "fg: no job control" failure on COPR
