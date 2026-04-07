@@ -25,7 +25,6 @@ BuildRequires:    libxslt-devel >= 1.0.9
 BuildRequires:    sqlite-devel >= 3.22.0
 BuildRequires:    libgcrypt-devel
 BuildRequires:    libgee-devel
-BuildRequires:    gobject-introspection-devel >= 0.6.5
 BuildRequires:    libxml2-devel readline-devel json-glib-devel
 BuildRequires:    gtk-doc intltool gettext flex bison perl(XML::Parser)
 BuildRequires:    libsecret-devel
@@ -107,7 +106,7 @@ iconv --from=ISO-8859-1 --to=UTF-8 AUTHORS > AUTHORS.new && \
 touch -r AUTHORS AUTHORS.new && mv AUTHORS.new AUTHORS
 
 %build
-%meson -Djson=true -Dldap=true -Ddoc=false -Dexperimental=true -Dhelp=true -Dui=false -Dlibsoup=true -Dlibsecret=true -Dflatpak=false -Dsqlcipher=true -Dgraphviz=true
+%meson -Djson=true -Dldap=true -Ddoc=false -Dexperimental=false -Dhelp=false -Dui=false -Dlibsoup=true -Dlibsecret=true -Dflatpak=false -Dsqlcipher=true -Dgraphviz=true -Dintrospection=false -Dreport=false
 #-Dtools=true
 #        -Dexamples=false \
 
@@ -128,12 +127,9 @@ install libgda-ui/data/import_encodings.xml %{buildroot}%{_datadir}/%{name}-%{ap
 %dir %{_sysconfdir}/%{name}-%{apiver}/
 %config(noreplace) %{_sysconfdir}/%{name}-%{apiver}/config
 %{_libdir}/%{name}-%{apiver}.so.*
-%{_libdir}/%{name}-report-%{apiver}.so.*
-%{_libdir}/%{name}-xslt-%{apiver}.so.*
 %dir %{_libdir}/%{name}-%{apiver}/
 %dir %{_libdir}/%{name}-%{apiver}/providers/
 %{_libdir}/libgda-%{apiver}/providers/libgda-ldap-%{apiver}.so
-%{_libdir}/girepository-1.0/Gda-%{apiver}.typelib
 %dir %{_datadir}/%{name}-%{apiver}/
 %dir %{_datadir}/%{name}-%{apiver}/dtd/
 %{_datadir}/%{name}-%{apiver}/dtd/libgda-*.dtd
@@ -141,13 +137,9 @@ install libgda-ui/data/import_encodings.xml %{buildroot}%{_datadir}/%{name}-%{ap
 %{_datadir}/%{name}-%{apiver}/information_schema.xml
 
 %files devel
-%{_datadir}/gir-1.0/Gda-%{apiver}.gir
 %dir %{_includedir}/%{name}-%{apiver}/
 %{_includedir}/%{name}-%{apiver}/%{name}
-%{_includedir}/%{name}-%{apiver}/%{name}-report
 %{_libdir}/%{name}-%{apiver}.so
-%{_libdir}/%{name}-report-%{apiver}.so
-%{_libdir}/%{name}-xslt-%{apiver}.so
 %{_libdir}/pkgconfig/%{name}-%{apiver}.pc
 %{_libdir}/pkgconfig/%{name}-*-%{apiver}.pc
 %exclude %{_libdir}/pkgconfig/%{name}-ui-%{apiver}.pc
