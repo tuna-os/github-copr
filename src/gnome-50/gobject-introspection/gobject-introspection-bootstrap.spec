@@ -1,6 +1,6 @@
 Name:           gobject-introspection
 Version:        1.86.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Introspection system for GObject-based libraries
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later AND MIT
 URL:            https://wiki.gnome.org/Projects/GObjectIntrospection
@@ -30,6 +30,10 @@ GObject-based libraries.
 %package devel
 Summary:        Libraries and headers for gobject-introspection
 Requires:       %{name}%{?_isa} = %{version}-%{release}
+Requires:       libtool
+Requires:       python3-mako
+Requires:       python3-markdown
+Requires:       python3-setuptools
 
 %description devel
 Libraries and headers for gobject-introspection.
@@ -76,5 +80,9 @@ DESTDIR=%{buildroot} meson install -C build
 %{_datadir}/gtk-doc/html/gi/
 
 %changelog
+* Mon Apr 07 2026 James Reilly <jreilly1821@gmail.com> - 1.86.0-2
+- Add Requires: libtool, python3-mako/markdown/setuptools to devel subpackage
+  so downstream packages (vala, libgee) get gcc pulled in transitively.
+
 * Thu Mar 12 2026 Conductor <james@conductor.local> - 1.86.0-1
 - Bootstrap build
