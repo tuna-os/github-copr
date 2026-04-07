@@ -3,7 +3,7 @@
 Name:           libgda
 Epoch:          1
 Version:        6.0.0
-Release:        100.el10%{?dist}
+Release:        101.el10%{?dist}
 Summary:        Library for writing gnome database programs
 
 License:        LGPL-2.0-or-later
@@ -34,7 +34,6 @@ BuildRequires:    yelp-tools
 BuildRequires:    vala
 BuildRequires:    make
 BuildRequires:    meson
-BuildRequires:    openldap-devel
 BuildRequires:    mariadb-connector-c-devel
 BuildRequires:    libpq-devel
 BuildRequires:    sqlcipher-devel
@@ -106,7 +105,7 @@ iconv --from=ISO-8859-1 --to=UTF-8 AUTHORS > AUTHORS.new && \
 touch -r AUTHORS AUTHORS.new && mv AUTHORS.new AUTHORS
 
 %build
-%meson -Djson=true -Dldap=true -Ddoc=false -Dexperimental=false -Dhelp=false -Dui=false -Dlibsoup=true -Dlibsecret=true -Dflatpak=false -Dsqlcipher=true -Dgraphviz=true
+%meson -Djson=true -Ddoc=false -Dexperimental=false -Dhelp=false -Dui=false -Dlibsoup=true -Dlibsecret=true -Dflatpak=false -Dsqlcipher=true -Dgraphviz=true
 #-Dtools=true
 #        -Dexamples=false \
 
@@ -129,7 +128,6 @@ install libgda-ui/data/import_encodings.xml %{buildroot}%{_datadir}/%{name}-%{ap
 %{_libdir}/%{name}-%{apiver}.so.*
 %dir %{_libdir}/%{name}-%{apiver}/
 %dir %{_libdir}/%{name}-%{apiver}/providers/
-%{_libdir}/libgda-%{apiver}/providers/libgda-ldap-%{apiver}.so
 %dir %{_datadir}/%{name}-%{apiver}/
 %dir %{_datadir}/%{name}-%{apiver}/dtd/
 %{_datadir}/%{name}-%{apiver}/dtd/libgda-*.dtd
@@ -165,4 +163,5 @@ install libgda-ui/data/import_encodings.xml %{buildroot}%{_datadir}/%{name}-%{ap
 %changelog
 # EL10: all features enabled via COPR-built deps:
 #   graphviz-devel, sqlcipher-devel, libsoup-devel (2.x), vala, libgee-devel
-# Release pinned at 100 to beat any future CentOS AppStream build.
+# ldap provider requires experimental=true in meson; disabled to avoid %files mismatch.
+# Release pinned at 100+ to beat any future CentOS AppStream build.
