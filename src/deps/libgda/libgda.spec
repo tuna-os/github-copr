@@ -106,7 +106,7 @@ iconv --from=ISO-8859-1 --to=UTF-8 AUTHORS > AUTHORS.new && \
 touch -r AUTHORS AUTHORS.new && mv AUTHORS.new AUTHORS
 
 %build
-%meson -Djson=true -Dldap=true -Ddoc=false -Dexperimental=false -Dhelp=false -Dui=false -Dlibsoup=true -Dlibsecret=true -Dflatpak=false -Dsqlcipher=true -Dgraphviz=true -Dintrospection=false -Dreport=false
+%meson -Djson=true -Dldap=true -Ddoc=false -Dexperimental=false -Dhelp=false -Dui=false -Dlibsoup=true -Dlibsecret=true -Dflatpak=false -Dsqlcipher=true -Dgraphviz=true
 #-Dtools=true
 #        -Dexamples=false \
 
