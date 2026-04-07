@@ -21,28 +21,36 @@ BuildRequires:    glib2-devel >= 2.38.0
 BuildRequires:    gtk3-devel >= 3.0.0
 BuildRequires:    gtksourceview3-devel
 BuildRequires:    goocanvas2-devel
+BuildRequires:    graphviz-devel >= 2.26.0
 BuildRequires:    iso-codes-devel
 BuildRequires:    itstool
 BuildRequires:    libxslt-devel >= 1.0.9
 BuildRequires:    sqlite-devel >= 3.22.0
 BuildRequires:    libgcrypt-devel
+BuildRequires:    libgee-devel
 BuildRequires:    gobject-introspection-devel >= 0.6.5
 BuildRequires:    libxml2-devel readline-devel json-glib-devel
 BuildRequires:    gtk-doc intltool gettext flex bison perl(XML::Parser)
 BuildRequires:    libsecret-devel
+BuildRequires:    libsoup-devel
 BuildRequires:    openssl-devel
 BuildRequires:    yelp-tools
+BuildRequires:    vala
 BuildRequires:    make
 BuildRequires:    meson
 BuildRequires:    openldap-devel
 BuildRequires:    mariadb-connector-c-devel
 BuildRequires:    libpq-devel
+BuildRequires:    sqlcipher-devel
 
 Provides: %{name}-bdb%{?_isa} = 1:%{version}-%{release}
 Obsoletes: %{name}-bdb <= 1:5.2.10-4
 
 Provides: %{name}-ldap%{?_isa} = 1:%{version}-%{release}
 Obsoletes: %{name}-ldap <= 1:5.2.10-4
+
+Provides: %{name}-sqlcipher%{?_isa} = 1:%{version}-%{release}
+Obsoletes: %{name}-sqlcipher <= 1:5.2.10-4
 
 Provides: %{name}-mdb%{?_isa} = 1:%{version}-%{release}
 Obsoletes: %{name}-mdb <= 1:5.2.10-4
@@ -105,6 +113,13 @@ Requires:       %{name}%{?isa} = %{epoch}:%{version}-%{release}
 %description mysql
 This %{name}-mysql includes the %{name} Mysql provider.
 
+%package sqlcipher
+Summary:        SQLiteCipher provider for %{name}
+Requires:       %{name}%{?isa} = %{epoch}:%{version}-%{release}
+
+%description sqlcipher
+This %{name}-sqlcipher includes the %{name} SQLiteCipher provider.
+
 %package postgres
 Summary:        Postgres provider for %{name}
 Requires:       %{name}%{?isa} = %{epoch}:%{version}-%{release}
@@ -120,7 +135,7 @@ iconv --from=ISO-8859-1 --to=UTF-8 AUTHORS > AUTHORS.new && \
 touch -r AUTHORS AUTHORS.new && mv AUTHORS.new AUTHORS
 
 %build
-%meson -Djson=true -Dldap=true -Ddoc=false -Dexperimental=true -Dhelp=true -Dui=true -Dlibsoup=false -Dlibsecret=true -Dflatpak=false -Dsqlcipher=false -Dgraphviz=false
+%meson -Djson=true -Dldap=true -Ddoc=false -Dexperimental=true -Dhelp=true -Dui=true -Dlibsoup=true -Dlibsecret=true -Dflatpak=false -Dsqlcipher=true -Dgraphviz=true
 #-Dtools=true
 #        -Dexamples=false \
 
@@ -164,6 +179,10 @@ install libgda-ui/data/import_encodings.xml %{buildroot}%{_datadir}/%{name}-%{ap
 %{_libdir}/pkgconfig/%{name}-%{apiver}.pc
 %{_libdir}/pkgconfig/%{name}-*-%{apiver}.pc
 %exclude %{_libdir}/pkgconfig/%{name}-ui-%{apiver}.pc
+%dir %{_datadir}/vala
+%dir %{_datadir}/vala/vapi
+%{_datadir}/vala/vapi/libgda-%{apiver}.vapi
+%{_datadir}/vala/vapi/libgda-%{apiver}.deps
 %{_includedir}/%{name}-%{apiver}/providers/
 
 
@@ -179,6 +198,10 @@ install libgda-ui/data/import_encodings.xml %{buildroot}%{_datadir}/%{name}-%{ap
 %{_libdir}/pkgconfig/%{name}-ui-%{apiver}.pc
 %{_datadir}/%{name}-%{apiver}/demo/
 %{_datadir}/gir-1.0/Gdaui-%{apiver}.gir
+%{_datadir}/glade/
+%dir %{_datadir}/vala
+%dir %{_datadir}/vala/vapi
+%{_datadir}/vala/vapi/libgdaui-%{apiver}.vapi
 
 %files tools
 %{_bindir}/gda-*
@@ -197,8 +220,10 @@ install libgda-ui/data/import_encodings.xml %{buildroot}%{_datadir}/%{name}-%{ap
 %files postgres
 %{_libdir}/libgda-%{apiver}/providers/libgda-postgres-%{apiver}.so
 
+%files sqlcipher
+%{_libdir}/libgda-%{apiver}/providers/libgda-sqlcipher-%{apiver}.so
+
 %changelog
-# EL10: disabled graphviz (no -devel), sqlcipher (not in EPEL10),
-#        libsoup (libsoup2 not in EL10), vala/libgee (no -devel),
-#        glade (not in EL10), gnome-common (not needed for meson).
+# EL10: all features enabled via COPR-built deps:
+#   graphviz-devel, sqlcipher-devel, libsoup-devel (2.x), vala, libgee-devel
 # Release pinned at 100 to beat any future CentOS AppStream build.
