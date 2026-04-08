@@ -79,6 +79,9 @@ tiers:
       - path: src/gnome-49/gsound
       - path: src/gnome-49/colord-gtk
       - path: src/deps/libgda
+      - copr_name: highway         # runtime dep of glycin-loaders (bundled libjxl); in EPEL10 but explicit here for self-contained COPR
+      - path: src/deps/glycin      # gdk-pixbuf2 2.44.5 image loading backend
+      - path: src/deps/gdk-pixbuf2 # 2.44.5 with glycin integration (replaces EL10 2.42.12)
 
   # Tier 9: GJS + higher-level libs (needs gtk4 + mozjs128 from EPEL + GI).
   - name: gjs-layer

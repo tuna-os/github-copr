@@ -102,6 +102,7 @@ tiers:
       - path: src/gnome-50/gsettings-desktop-schemas
       - path: src/gnome-50/gnome-desktop3
       - path: src/deps/gtk4
+      - copr_name: highway         # runtime dep of glycin-loaders (bundled libjxl); in EPEL10 but explicit here for self-contained COPR
       - path: src/deps/glycin
       - path: src/deps/libgda
 
