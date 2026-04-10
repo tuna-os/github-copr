@@ -3,7 +3,7 @@
 Summary:	Font configuration and customization library
 Name:		fontconfig
 Version:	2.17.0
-Release:	1%{?dist}
+Release:	2%{?dist}
 License:	HPND AND LicenseRef-Fedora-Public-Domain AND Unicode-DFS-2016
 Source0:	https://src.fedoraproject.org/repo/pkgs/fontconfig/fontconfig-2.17.0.tar.xz/sha512/dd64905c3e0e5c5881df505b8f0bea594bbac5ce145f57aedcd7130978cd285491497198d8f2d6ed26f7b2abb31268dc3ff97aa75ce998b8e57f2d5c75b240b4/fontconfig-2.17.0.tar.xz
 Source1:	25-no-bitmap-fedora.conf
@@ -45,7 +45,8 @@ needed to compile programs that use fontconfig.
 %meson \
   -Ddoc=disabled \
   -Dtests=disabled \
-  -Dcache-build=disabled
+  -Dcache-build=disabled \
+  -Dcache-dir=/usr/lib/fontconfig/cache
 %meson_build
 
 %install
@@ -76,6 +77,10 @@ fi
 %{_includedir}/fontconfig/
 
 %changelog
+* Thu Apr 10 2026 Conductor <james@conductor.local> - 2.17.0-2
+- Add -Dcache-dir=/usr/lib/fontconfig/cache so fc-cache writes to persistent
+  path; fixes Flatpak apps not discovering host fonts (GH#21)
+
 * Sun Mar 15 2026 Conductor <james@conductor.local> - 2.17.0-1
 - Build fontconfig 2.17.0 for EL10 (needed by pango 1.57+)
 - Disabled docs, tests, and cache-build for EL10 compatibility
