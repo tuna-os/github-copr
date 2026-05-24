@@ -162,6 +162,14 @@ Obsoletes:      python2-caribou < 0.4.21-10
 Obsoletes:      python3-caribou < 0.4.21-10
 %endif
 
+# EL10 ships a gnome-shell-common subpackage at version 48.x. This COPR
+# rebuilds gnome-shell as a monolithic package (no split common/) at v50,
+# so the shared data files (org.gnome.shell.gschema.xml, locale files,
+# etc.) now live in gnome-shell itself. Obsolete the older split package
+# so DNF auto-replaces it instead of aborting with a file-conflict.
+Obsoletes:      gnome-shell-common < %{major_version}
+Provides:       gnome-shell-common = %{version}-%{release}
+
 # https://bugzilla.redhat.com/show_bug.cgi?id=1740897
 Conflicts:      gnome-shell-extension-background-logo < 3.34.0
 
