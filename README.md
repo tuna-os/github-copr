@@ -1,5 +1,7 @@
 # GNOME 50 for CentOS Stream 10
 
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 RPM packages bringing GNOME 50 to CentOS Stream 10 (EL10), hosted on
 [COPR](https://copr.fedorainfracloud.org/coprs/jreilly1821/c10s-gnome-50/).
 
@@ -200,6 +202,8 @@ to Fedora:
 
 ```
 # Must use local spec (SCM or SRPM upload):
+
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 glib2               → SRPM   src/gnome-50/glib2/
 gdm                 → SCM    src/gnome-50/gdm/
 gjs                 → SCM    src/gnome-50/gjs/
@@ -210,6 +214,8 @@ tinysparql          → SCM    src/deps/tinysparql/
 gnome50-el10-compat → SRPM   src/deps/gnome50-el10-compat/
 
 # Everything else uses Fedora Rawhide dist-git directly:
+
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 mutter, gnome-shell, gtk4, libadwaita, pipewire, pango, fontconfig,
 xdg-desktop-portal, xdg-desktop-portal-gnome, gobject-introspection,
 gsettings-desktop-schemas, gnome-session, gnome-control-center,
