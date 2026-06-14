@@ -1,6 +1,6 @@
 Name:           gnome50-el10-compat
 Version:        1.2.7
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
 License:        MIT
@@ -10,6 +10,7 @@ Source2:        gdm-userdb-connect.te
 Source3:        orca-autostart.desktop
 Source4:        tuned-ppd-logging.te
 Source5:        apply-gi-glib-compat.py
+Source6:        useradd-wrapper
 
 BuildArch:      noarch
 BuildRequires:  checkpolicy
@@ -18,6 +19,7 @@ BuildRequires:  policycoreutils
 Requires:       selinux-policy >= 43.1
 Requires(post): policycoreutils
 Requires(preun): policycoreutils
+Requires(post): shadow-utils
 
 %description
 This package provides configuration overrides to restore upstream behavior
@@ -66,11 +68,24 @@ install -m 644 tuned-ppd-logging.pp %{buildroot}%{_datadir}/selinux/packages/
 
 install -d %{buildroot}%{_datadir}/gnome50-el10-compat
 install -m 755 apply-gi-glib-compat.py %{buildroot}%{_datadir}/gnome50-el10-compat/
+install -d %{buildroot}%{_libexecdir}/%{name}
+install -m 755 %{SOURCE6} %{buildroot}%{_libexecdir}/%{name}/useradd
 
 # Suppress unconditional Orca autostart (GNOME 50 dropped AutostartCondition evaluation)
 # Written via %post/%filetriggerin to avoid file conflict with orca package.
 
+# Preserve real useradd binary before alternatives symlinks it.
+%pre
+if [ -f /usr/sbin/useradd ] && [ ! -L /usr/sbin/useradd ]; then
+    cp -a /usr/sbin/useradd /usr/sbin/useradd.shadow-utils
+fi
+
 %post
+# Install useradd wrapper alternative (#17: handle EEXIST on existing home dir).
+if [ $1 -ge 1 ]; then
+    alternatives --install /usr/sbin/useradd useradd %{_libexecdir}/%{name}/useradd 50
+fi
+
 if [ $1 -ge 1 ]; then
     %{_sbindir}/semodule -X 300 -i \
         %{_datadir}/selinux/packages/gdm-gnome50.pp \
@@ -110,7 +125,16 @@ EOF
 
 %preun
 if [ $1 -eq 0 ]; then
+    alternatives --remove useradd %{_libexecdir}/%{name}/useradd 2>/dev/null || :
     %{_sbindir}/semodule -X 300 -r gdm-gnome50 gdm-userdb-connect tuned-ppd-logging 2>/dev/null || :
+fi
+
+%postun
+if [ $1 -eq 0 ]; then
+    if [ -f /usr/sbin/useradd.shadow-utils ] && \
+       { [ ! -e /usr/sbin/useradd ] || [ -L /usr/sbin/useradd ]; }; then
+        mv /usr/sbin/useradd.shadow-utils /usr/sbin/useradd
+    fi
 fi
 
 %files
@@ -120,8 +144,16 @@ fi
 %{_datadir}/selinux/packages/tuned-ppd-logging.pp
 %dir %{_datadir}/gnome50-el10-compat
 %{_datadir}/gnome50-el10-compat/apply-gi-glib-compat.py
+%{_libexecdir}/%{name}/useradd
 
 %changelog
+* Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.7-3
+- Add useradd wrapper via alternatives(8) to handle existing home
+  directory gracefully. EL10 shadow-utils 4.15 treats mkdir()→EEXIST
+  as fatal (exit 12, E_HOMEDIR); the wrapper strips -m/--create-home
+  when the target directory already exists and chowns it instead.
+  Fixes gnome-initial-setup failure on preserved /var/home (#17).
+
 * Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.7-2
 - %post: drop ineffective restorecon -RF /var/home (see #22). The
   compose-time %post cannot fix preserved-/var scenarios on deployed

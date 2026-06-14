@@ -1,6 +1,6 @@
 Name:           gnome49-el10-compat
 Version:        1.2.5
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        GNOME 49 Compatibility workarounds for EL10
 
 License:        MIT
@@ -8,6 +8,7 @@ Source0:        systemd-user.pam
 Source1:        gdm-gnome49.te
 Source2:        orca-autostart.desktop
 Source3:        tuned-ppd-logging.te
+Source4:        useradd-wrapper
 
 BuildArch:      noarch
 BuildRequires:  checkpolicy
@@ -16,6 +17,7 @@ BuildRequires:  policycoreutils
 Requires:       selinux-policy >= 43.3
 Requires:       selinux-policy-targeted >= 43.3
 Requires(post): policycoreutils
+Requires(post): shadow-utils
 # Conflicts with systemd versions that have the Patch0254 regression.
 Conflicts:      systemd < 256.5-1.el10
 
@@ -31,6 +33,8 @@ Includes:
 - orca-autostart.desktop override: suppresses unconditional Orca launch;
   gnome-session 49 does not evaluate AutostartCondition=GSettings.
   orca.service is now shipped by orca >= 49.6 directly.
+- useradd wrapper: handles shadow-utils 4.15 EEXIST bug when home dir
+  already exists on reinstall/upgrade scenarios (see #17).
 
 %prep
 # No prep needed.
@@ -48,8 +52,21 @@ cp %{SOURCE0} %{buildroot}%{_sysconfdir}/pam.d/systemd-user
 mkdir -p %{buildroot}%{_datadir}/selinux/packages
 cp gdm-gnome49.pp %{buildroot}%{_datadir}/selinux/packages/
 cp tuned-ppd-logging.pp %{buildroot}%{_datadir}/selinux/packages/
+mkdir -p %{buildroot}%{_libexecdir}/%{name}
+install -m 755 %{SOURCE4} %{buildroot}%{_libexecdir}/%{name}/useradd
+
+# Preserve real useradd binary before alternatives symlinks it.
+%pre
+if [ -f /usr/sbin/useradd ] && [ ! -L /usr/sbin/useradd ]; then
+    cp -a /usr/sbin/useradd /usr/sbin/useradd.shadow-utils
+fi
 
 %post
+# Install useradd wrapper alternative (#17: handle EEXIST on existing home dir).
+if [ $1 -ge 1 ]; then
+    alternatives --install /usr/sbin/useradd useradd %{_libexecdir}/%{name}/useradd 50
+fi
+
 semodule -X 300 -i \
     %{_datadir}/selinux/packages/gdm-gnome49.pp \
     %{_datadir}/selinux/packages/tuned-ppd-logging.pp &>/dev/null || :
@@ -78,22 +95,36 @@ Hidden=true
 X-GNOME-Autostart-enabled=false
 EOF
 
+%preun
+if [ $1 -eq 0 ]; then
+    alternatives --remove useradd %{_libexecdir}/%{name}/useradd 2>/dev/null || :
+    semodule -r gdm-gnome49 tuned-ppd-logging &>/dev/null || :
+fi
+
 %postun
 if [ $1 -eq 0 ]; then
-    semodule -r gdm-gnome49 tuned-ppd-logging &>/dev/null || :
+    if [ -f /usr/sbin/useradd.shadow-utils ] && \
+       { [ ! -e /usr/sbin/useradd ] || [ -L /usr/sbin/useradd ]; }; then
+        mv /usr/sbin/useradd.shadow-utils /usr/sbin/useradd
+    fi
 fi
 
 %files
 %config(noreplace) %{_sysconfdir}/pam.d/systemd-user
 %{_datadir}/selinux/packages/gdm-gnome49.pp
 %{_datadir}/selinux/packages/tuned-ppd-logging.pp
+%{_libexecdir}/%{name}/useradd
 
 %changelog
-* Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.5-1
+* Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.5-2
+- Add useradd wrapper via alternatives(8) to handle existing home
+  directory gracefully. EL10 shadow-utils 4.15 treats mkdir()→EEXIST
+  as fatal (exit 12, E_HOMEDIR); the wrapper strips -m/--create-home
+  when the target directory already exists and chowns it instead.
+  Fixes gnome-initial-setup failure on preserved /var/home (#17).
 - %post: drop ineffective restorecon -RF /var/home (see #22). The
   compose-time %post cannot fix preserved-/var scenarios on deployed
-  systems; the actual fix for useradd exit 12 belongs at the runtime
-  or shadow-utils level (#17).
+  systems.
 
 * Tue Mar 25 2026 James <james@example.com> - 1.2.4-1
 - Add tuned-ppd-logging SELinux module: EL10 base policy does not grant

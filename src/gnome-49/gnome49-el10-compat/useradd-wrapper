@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# useradd wrapper: handle existing home directory gracefully
+#
+# EL10 shadow-utils 4.15.0 treats mkdir()→EEXIST as fatal (exit 12,
+# E_HOMEDIR) when the target home directory already exists. This causes
+# gnome-initial-setup to fail on reinstall/upgrade scenarios where /var
+# is preserved (e.g. same disk, previous OS install).
+#
+# Upstream shadow-utils >= 4.17 fixed this; until EL10 backports the fix,
+# this wrapper intercepts useradd -m and handles the existing-directory
+# case by passing -M to the real useradd, then fixing ownership.
+#
+# See: https://github.com/tuna-os/github-copr/issues/17
+
+set -euo pipefail
+
+REAL_USERADD=/usr/sbin/useradd.shadow-utils
+
+has_flag() {
+    local flag="$1"; shift
+    for a in "$@"; do
+        [ "$a" = "$flag" ] && return 0
+    done
+    return 1
+}
+
+find_username() {
+    for a in "$@"; do
+        case "$a" in
+            -*) continue ;;
+            *) echo "$a"; return 0 ;;
+        esac
+    done
+    return 1
+}
+
+find_home() {
+    local home=""
+    local i=0
+    local args=("$@")
+    while [ $i -lt ${#args[@]} ]; do
+        case "${args[$i]}" in
+            --home-dir=*) home="${args[$i]#*=}" ;;
+            -d|--home|--home-dir)
+                i=$((i + 1))
+                [ $i -lt ${#args[@]} ] && home="${args[$i]}"
+                ;;
+        esac
+        i=$((i + 1))
+    done
+    if [ -z "$home" ]; then
+        local u; u=$(find_username "$@") || true
+        [ -n "$u" ] && home="/var/home/$u"
+    fi
+    echo "$home"
+}
+
+if has_flag "-m" "$@" || has_flag "--create-home" "$@"; then
+    HOME_DIR=$(find_home "$@")
+    if [ -n "$HOME_DIR" ] && [ -d "$HOME_DIR" ]; then
+        USERNAME=$(find_username "$@")
+        # Strip -m/--create-home, add -M to skip home creation
+        FILTERED=()
+        local add_M=true
+        for arg in "$@"; do
+            case "$arg" in
+                -m|--create-home) ;;
+                -M|--no-create-home) add_M=false ; FILTERED+=("$arg") ;;
+                *) FILTERED+=("$arg") ;;
+            esac
+        done
+        $add_M && FILTERED+=("-M")
+        # Run real useradd, then fix ownership if it succeeded
+        if "$REAL_USERADD" "${FILTERED[@]}"; then
+            [ -n "$USERNAME" ] && [ -d "$HOME_DIR" ] && chown -R "$USERNAME:$USERNAME" "$HOME_DIR" 2>/dev/null || true
+            restorecon -RF "$HOME_DIR" 2>/dev/null || true
+        fi
+        exit $?
+    fi
+fi
+
+exec "$REAL_USERADD" "$@"
