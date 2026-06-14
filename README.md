@@ -1,6 +1,8 @@
 # GNOME 50 for CentOS Stream 10
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-7b68ee.svg)](SECURITY.md)
 
 RPM packages bringing GNOME 50 to CentOS Stream 10 (EL10), hosted on
 [COPR](https://copr.fedorainfracloud.org/coprs/jreilly1821/c10s-gnome-50/).
