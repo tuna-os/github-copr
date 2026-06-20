@@ -77,6 +77,14 @@ Patch: 0001-el10-stub-gnome-qr.patch
 %define gtk4_version 4.0.0
 %define adwaita_version 1.5.0
 %define mutter_version 49.0
+# Lock the runtime mutter to the exact build the shell was compiled against.
+# mutter ships GObject-Introspection typelibs whose API can change behind a stable
+# version and SONAME (the el10 keymap backport in mutter-49.4-6 did exactly this),
+# so a ">= floor" does not stop a newer mutter drifting in under an unrebuilt shell
+# and crashing it at the introspection boundary. Capture the buildroot EVR instead
+# (mutter-devel pulls the exact mutter), with a ">= floor" fallback when mutter is
+# not installed, e.g. when the spec is parsed outside a buildroot. See issue #27.
+%global mutter_dep %(rpm -q --qf '= %%{version}-%%{release}' mutter 2>/dev/null | grep -q '^= ' && rpm -q --qf '= %%{version}-%%{release}' mutter || echo '>= %{mutter_version}')
 %define polkit_version 0.100
 %define gsettings_desktop_schemas_version 47~alpha
 %define ibus_version 1.5.2
@@ -139,7 +147,7 @@ Requires:       libadwaita%{_isa} >= %{adwaita_version}
 Requires:       libnma-gtk4%{?_isa}
 # needed for loading SVG's via gdk-pixbuf
 Requires:       librsvg2%{?_isa}
-Requires:       mutter%{?_isa} >= %{mutter_version}
+Requires:       mutter%{?_isa} %{mutter_dep}
 Requires:       upower%{?_isa}
 Requires:       polkit%{?_isa} >= %{polkit_version}
 Requires:       gnome-desktop4%{?_isa} >= %{gnome_desktop_version}
