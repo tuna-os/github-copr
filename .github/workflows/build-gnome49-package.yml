@@ -114,6 +114,13 @@ jobs:
           rclone sync "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo/ --exclude "repodata/**" || true
           createrepo_c local-repo
 
+      - name: Add COPR as build dependency source (PR builds)
+        if: github.event_name == 'pull_request'
+        run: |
+          COPR_URL="https://copr.fedorainfracloud.org/coprs/jreilly1821/c10s-gnome-49/repo/epel-10-x86_64/"
+          printf '\n[copr-deps]\nname=COPR dependency repo\nbaseurl=%s\nenabled=1\ngpgcheck=0\ncost=5\nskip_if_unavailable=1\nmodule_hotfixes=1\n' "${COPR_URL}" >> mock/centos-stream-10-ci.cfg
+          echo "Added COPR deps: ${COPR_URL}"
+
       - name: Build package
         run: |
           ./scripts/build-chain.sh \
