@@ -311,25 +311,47 @@ jobs:
                 #!/bin/bash
                 set -euxo pipefail
                 dnf -y install dnf-plugins-core python3-dnf-plugin-copr
-                # Enable COPR (which has the current gnome-shell/mutter pairing)
-                dnf copr enable -y jreilly1821/c10s-gnome-49
-                dnf -y install \
-                  gnome-shell \
-                  gnome-control-center \
-                  mutter \
-                  gdm \
-                  gnome-session-wayland-session \
-                  glib2
-                glib-compile-schemas /usr/share/glib-2.0/schemas/
                 printf '[daemon]\nWaylandEnable=true\n' > /etc/gdm/custom.conf
-                systemctl enable gdm
-                systemctl set-default graphical.target
           EOF
 
       - name: Start Lima VM
         run: |
           limactl start --name=gnome49-verify-copr /tmp/gnome49-verify-copr.yaml --timeout=25m
           echo "VM started"
+
+      - name: Enable COPR and install GNOME packages
+        run: |
+          echo "Enabling COPR..."
+          limactl shell gnome49-verify-copr -- sudo dnf copr enable -y jreilly1821/c10s-gnome-49
+          echo "Installing GNOME packages from COPR..."
+          limactl shell gnome49-verify-copr -- sudo dnf -y install \
+            gnome-shell \
+            gnome-control-center \
+            mutter \
+            gdm \
+            gnome-session-wayland-session \
+            glib2
+          echo "Post-install setup..."
+          limactl shell gnome49-verify-copr -- sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
+          limactl shell gnome49-verify-copr -- sudo systemctl enable gdm
+          limactl shell gnome49-verify-copr -- sudo systemctl set-default graphical.target
+          echo "Packages installed:"
+          limactl shell gnome49-verify-copr -- rpm -q gdm gnome-shell mutter glib2
+
+      - name: Reboot VM to start GDM
+        run: |
+          echo "Rebooting VM to start GDM in graphical target..."
+          limactl shell gnome49-verify-copr -- sudo reboot || true
+          sleep 30
+          echo "Waiting for VM to come back after reboot..."
+          for i in $(seq 1 18); do
+            if limactl shell gnome49-verify-copr -- true 2>/dev/null; then
+              echo "VM is back after reboot"
+              break
+            fi
+            echo "Attempt $i/18: waiting for VM SSH..."
+            sleep 10
+          done
 
       - name: Wait for GDM to become active
         run: |
