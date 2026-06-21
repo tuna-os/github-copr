@@ -1,1 +1,70 @@
-{"$schema":"https://docs.renovatebot.com/renovate-schema.json","description":"TunaOS GNOME 49 package version tracking against Fedora F43","extends":["config:base",":enableHelp"],"enabled":true,"github-actions":{"enabled":true},"labels":["renovate","package-update"],"prHourlyLimit":5,"prConcurrentLimit":10,"automerge":true,"reviewers":["jreilly1821"],"customManagers":[{"customType":"regex","description":"Track RPM spec Version: fields","fileMatch":["^src/gnome-49/[^/]+/[^/]+\\.spec$"],"matchStrings":["^Version:\\s+(?<currentValue>[0-9][^\\s]+)\\s*$"],"depNameTemplate":"{{{packageName}}}","packageNameTemplate":"{{replace '.*/' '' packageFileDir}}","datasourceTemplate":"custom.fedora-f43","versioningTemplate":"loose"}],"customDatasources":{"fedora-f43":{"defaultRegistryUrlTemplate":"https://src.fedoraproject.org/api/0/rpms/{{packageName}}/git/tags?pattern=f43*","format":"json","transformTemplates":["{\"releases\": $map($.tags, function($t) { {\"version\": $replace($t, /^.*-/, \"\")} }) }"]}},"packageRules":[{"matchUpdateTypes":["minor","patch","pin","digest"],"automerge":true},{"matchFileNames":["src/gnome-49/**/*.spec"],"groupName":"GNOME 49 package updates","commitMessagePrefix":"chore(gnome49):","additionalBranchPrefix":"gnome49-"},{"matchPackageNames":["gdm","gnome-shell","mutter"],"automerge":false,"labels":["renovate","major-component"]}]}
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "TunaOS GNOME 49/50 package version tracking",
+  "extends": ["config:base", ":enableHelp"],
+  "enabled": true,
+  "github-actions": { "enabled": true },
+  "labels": ["renovate", "package-update"],
+  "prHourlyLimit": 5,
+  "prConcurrentLimit": 10,
+  "automerge": true,
+  "reviewers": ["jreilly1821"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track GNOME 49 spec Version: fields against Fedora F43",
+      "fileMatch": ["^src/gnome-49/[^/]+/[^/]+\\.spec$"],
+      "matchStrings": ["^Version:\\s+(?<currentValue>[0-9][^\\s]+)\\s*$"],
+      "depNameTemplate": "{{{packageName}}}",
+      "packageNameTemplate": "{{replace '.*/' '' packageFileDir}}",
+      "datasourceTemplate": "custom.fedora-f43",
+      "versioningTemplate": "loose"
+    },
+    {
+      "customType": "regex",
+      "description": "Track GNOME 50 spec Version: fields against Fedora Rawhide",
+      "fileMatch": ["^src/gnome-50/[^/]+/[^/]+\\.spec$"],
+      "matchStrings": ["^Version:\\s+(?<currentValue>[0-9][^\\s]+)\\s*$"],
+      "depNameTemplate": "{{{packageName}}}",
+      "packageNameTemplate": "{{replace '.*/' '' packageFileDir}}",
+      "datasourceTemplate": "custom.fedora-rawhide",
+      "versioningTemplate": "loose"
+    }
+  ],
+  "customDatasources": {
+    "fedora-f43": {
+      "defaultRegistryUrlTemplate": "https://src.fedoraproject.org/api/0/rpms/{{packageName}}/git/tags?pattern=f43*",
+      "format": "json",
+      "transformTemplates": [
+        "{\"releases\": $map($.tags, function($t) { {\"version\": $replace($t, /^.*-/, \"\")} }) }"
+      ]
+    },
+    "fedora-rawhide": {
+      "defaultRegistryUrlTemplate": "https://src.fedoraproject.org/api/0/rpms/{{packageName}}/git/tags?pattern=rawhide*",
+      "format": "json",
+      "transformTemplates": [
+        "{\"releases\": $map($.tags, function($t) { {\"version\": $replace($t, /^.*-/, \"\")} }) }"
+      ]
+    }
+  },
+  "packageRules": [
+    { "matchUpdateTypes": ["minor", "patch", "pin", "digest"], "automerge": true },
+    {
+      "matchFileNames": ["src/gnome-49/**/*.spec"],
+      "groupName": "GNOME 49 package updates",
+      "commitMessagePrefix": "chore(gnome49):",
+      "additionalBranchPrefix": "gnome49-"
+    },
+    {
+      "matchFileNames": ["src/gnome-50/**/*.spec"],
+      "groupName": "GNOME 50 package updates",
+      "commitMessagePrefix": "chore(gnome50):",
+      "additionalBranchPrefix": "gnome50-"
+    },
+    {
+      "matchPackageNames": ["gdm", "gnome-shell", "mutter"],
+      "automerge": false,
+      "labels": ["renovate", "major-component"]
+    }
+  ]
+}
