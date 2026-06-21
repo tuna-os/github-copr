@@ -75,7 +75,6 @@ jobs:
 
           video:
             display: "vnc"
-            vga: "std"
 
           images:
             - location: "https://cloud.centos.org/centos/10-stream/x86_64/images/CentOS-Stream-GenericCloud-x86_64-10-latest.x86_64.qcow2"
@@ -124,7 +123,7 @@ jobs:
           done
           if [[ "${STATUS}" != "active" ]]; then
             echo "ERROR: GDM failed to become active"
-            limactl shell gnome50-verify -- journalctl -u gdm --no-pager -n 50 || true
+            limactl shell gnome50-verify -- sudo journalctl -u gdm --no-pager -n 50 || true
             exit 1
           fi
 
@@ -154,7 +153,7 @@ jobs:
           done
           if [[ "${STABLE}" != "true" ]]; then
             echo "ERROR: gnome-shell greeter did not stabilize (crash-loop detected)"
-            limactl shell gnome50-verify -- journalctl -u gdm --no-pager -n 60 || true
+            limactl shell gnome50-verify -- sudo journalctl -u gdm --no-pager -n 60 || true
             exit 1
           fi
           echo "gnome-shell greeter is stable"
@@ -175,7 +174,7 @@ jobs:
           # - "Too many arguments": GJS introspection argument count mismatch
           # - "Expected an object of type MetaKeymapDescription": type coercion failure
           PATTERNS='SIGSEGV|SIGABRT|signal 11|Too many arguments|Expected an object of type.*MetaKeymapDescription'
-          limactl shell gnome50-verify -- journalctl -u gdm --no-pager | grep -E "${PATTERNS}" > /tmp/crash-matches.txt || true
+          limactl shell gnome50-verify -- sudo journalctl -u gdm --no-pager | grep -E "${PATTERNS}" > /tmp/crash-matches.txt || true
           CRASHES=$(wc -l < /tmp/crash-matches.txt)
           echo "crash_matches=${CRASHES}" >> "${GITHUB_OUTPUT}"
           echo "Crash-pattern matches: ${CRASHES}"
