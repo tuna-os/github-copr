@@ -50,13 +50,13 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q qemu-system-x86 qemu-utils ovmf
           LIMA_ASSET_URL=$(curl -s https://api.github.com/repos/lima-vm/lima/releases/latest | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-for a in data['assets']:
-    if 'Linux-x86_64' in a['name'] and a['name'].endswith('.tar.gz'):
-        print(a['browser_download_url'])
-        break
-")
+          import sys, json
+          data = json.load(sys.stdin)
+          for a in data['assets']:
+              if 'Linux-x86_64' in a['name'] and a['name'].endswith('.tar.gz'):
+                  print(a['browser_download_url'])
+                  break
+          ")
           echo "Downloading Lima from ${LIMA_ASSET_URL}"
           curl -fsSL "${LIMA_ASSET_URL}" | sudo tar xz -C /usr/local
           limactl --version
