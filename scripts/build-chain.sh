@@ -155,7 +155,7 @@ prepare_sources() {
         spectool -g -C "${builddir}/SOURCES/" "$spec"
     else
         podman run --rm \
-            --pull=missing \
+            --pull=always \
             -v "${builddir}:/builddir:Z" \
             "${BUILD_IMAGE}" \
             spectool -g -C /builddir/SOURCES/ "/builddir/SPECS/$(basename "$spec")"
@@ -176,7 +176,7 @@ check_package_exists() {
     # We do this inside the container to ensure macro expansion (%autorelease, %dist, etc.)
     local nvr
     nvr=$(podman run --rm \
-        --pull=missing \
+        --pull=always \
         -v "$(dirname "$spec"):/specdir:Z" \
         "${BUILD_IMAGE}" \
         rpmspec -q "/specdir/${spec_basename}" \
@@ -229,7 +229,7 @@ build_package_podman() {
     spec_basename="$(basename "$spec")"
     echo "==> [${pkg_name}] Building SRPM..."
     podman run --rm \
-        --pull=missing \
+        --pull=always \
         -v "${builddir}:/builddir:Z" \
         "${BUILD_IMAGE}" \
         rpmbuild -bs "/builddir/SPECS/${spec_basename}" \
@@ -257,7 +257,7 @@ build_package_podman() {
     echo "==> [${pkg_name}] Running mock inside podman (${BUILD_IMAGE})..."
 
     podman run --rm --privileged \
-        --pull=missing \
+        --pull=always \
         -v "${builddir}:/builddir:Z" \
         -v "${LOCAL_REPO}:/local-repo:Z" \
         "${BUILD_IMAGE}" \
@@ -324,7 +324,7 @@ build_package_mock() {
     spec_basename="$(basename "$spec")"
     echo "==> [${pkg_name}] Building SRPM..."
     podman run --rm \
-        --pull=missing \
+        --pull=always \
         -v "${builddir}:/builddir:Z" \
         "${BUILD_IMAGE}" \
         rpmbuild -bs "/builddir/SPECS/${spec_basename}" \
