@@ -119,7 +119,12 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           COPR_URL="https://copr.fedorainfracloud.org/coprs/jreilly1821/c10s-gnome-49/repo/epel-10-x86_64/"
-          printf '\n[copr-deps]\nname=COPR dependency repo\nbaseurl=%s\nenabled=1\ngpgcheck=0\ncost=10\nskip_if_unavailable=1\nmodule_hotfixes=1\n' "${COPR_URL}" >> mock/centos-stream-10-ci.cfg
+          # Patch the mock config for PR builds: skip_if_unavailable on local-build,
+          # and add COPR as fallback. Mount over the baked-in config.
+          cp mock/centos-stream-10-ci.cfg /tmp/centos-stream-10-ci-pr.cfg
+          printf '\n[copr-deps]\nname=COPR dependency repo\nbaseurl=%s\nenabled=1\ngpgcheck=0\ncost=10\nskip_if_unavailable=1\nmodule_hotfixes=1\n' "${COPR_URL}" >> /tmp/centos-stream-10-ci-pr.cfg
+          # Also add skip_if_unavailable to local-build in the patched config
+          sed -i '/^\[local-build\]/,/^\[/{s/^cost=1$/cost=1\nskip_if_unavailable=1/}' /tmp/centos-stream-10-ci-pr.cfg
           echo "Added COPR deps: ${COPR_URL}"
 
       - name: Build package
