@@ -25,6 +25,8 @@ RUN dnf install -y \
     && rm -rf /var/cache/dnf
 
 COPY centos-stream-10-ci.cfg /etc/mock/centos-stream-10-ci.cfg
+COPY centos-stream-10-ci-gnome49.cfg /etc/mock/centos-stream-10-ci-gnome49.cfg
+COPY centos-stream-10-ci-gnome50.cfg /etc/mock/centos-stream-10-ci-gnome50.cfg
 
 LABEL org.opencontainers.image.description="Fedora + mock runner for CentOS Stream 10 package builds"
 LABEL org.opencontainers.image.source="https://github.com/tuna-os/github-copr"

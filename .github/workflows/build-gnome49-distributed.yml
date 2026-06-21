@@ -88,7 +88,7 @@ jobs:
         name: repo-0
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier base-tools --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier base-tools --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -160,7 +160,7 @@ jobs:
         name: repo-1
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier build-tools --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier build-tools --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -231,7 +231,7 @@ jobs:
         name: repo-2
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier glib2-bootstrap --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier glib2-bootstrap --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -302,7 +302,7 @@ jobs:
         name: repo-3
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gi-bootstrap --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier gi-bootstrap --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -373,7 +373,7 @@ jobs:
         name: repo-4
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier glib2-full --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier glib2-full --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -444,7 +444,7 @@ jobs:
         name: repo-5
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gi-full --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier gi-full --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -518,7 +518,7 @@ jobs:
         name: repo-6
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier core-libraries --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier core-libraries --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -593,7 +593,7 @@ jobs:
         name: repo-7
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gtk-core --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier gtk-core --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -669,7 +669,7 @@ jobs:
         name: repo-8
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gjs-layer --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier gjs-layer --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -741,7 +741,7 @@ jobs:
         name: repo-9
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier shell-foundations --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier shell-foundations --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -814,7 +814,7 @@ jobs:
         name: repo-10
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gnome-shell --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier gnome-shell --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
@@ -889,7 +889,7 @@ jobs:
         name: repo-11
         path: local-repo
     - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier session-layer --package ${{ matrix.package }} --manifest build-order-gnome49.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      run: "touch .build-marker\nARGS=(--backend podman --tier session-layer --package ${{ matrix.package }} --manifest build-order-gnome49.yml --mock-config centos-stream-10-ci-gnome49)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
     - name: Find new RPMs
       id: find-rpms
       run: 'mkdir -p new-rpms
