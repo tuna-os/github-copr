@@ -34,6 +34,8 @@ jobs:
   verify-gdm:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      issues: write
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Enable KVM
@@ -119,11 +121,101 @@ jobs:
             exit 1
           fi
 
+      - name: Wait for gnome-shell greeter to be stable
+        run: |
+          echo "Waiting for gnome-shell greeter to start and stabilize (no crash-loop)..."
+          # GDM may be active while gnome-shell crash-loops behind it (#27).
+          # Poll for a gnome-shell PID; once found, wait 10s and confirm the PID
+          # hasn't changed. A changing PID means the greeter is crash-restart cycling.
+          STABLE=false
+          for i in $(seq 1 30); do
+            SHELL_PID=$(limactl shell gnome50-verify -- pgrep -f 'gnome-shell.*gdm' 2>/dev/null | head -1 || true)
+            if [[ -z "${SHELL_PID}" ]]; then
+              echo "Attempt $i/30: gnome-shell not running yet"
+              sleep 10
+              continue
+            fi
+            echo "Attempt $i/30: gnome-shell PID=${SHELL_PID}, waiting 10s for stability check..."
+            sleep 10
+            SHELL_PID2=$(limactl shell gnome50-verify -- pgrep -f 'gnome-shell.*gdm' 2>/dev/null | head -1 || true)
+            if [[ "${SHELL_PID}" == "${SHELL_PID2}" ]]; then
+              echo "gnome-shell PID stable at ${SHELL_PID} (survived 10s)"
+              STABLE=true
+              break
+            fi
+            echo "PID changed: ${SHELL_PID} -> ${SHELL_PID2} (crash-restart detected)"
+          done
+          if [[ "${STABLE}" != "true" ]]; then
+            echo "ERROR: gnome-shell greeter did not stabilize (crash-loop detected)"
+            limactl shell gnome50-verify -- journalctl -u gdm --no-pager -n 60 || true
+            exit 1
+          fi
+          echo "gnome-shell greeter is stable"
+
       - name: Check GDM and GNOME Shell status
         run: |
           limactl shell gnome50-verify -- systemctl status gdm --no-pager
           limactl shell gnome50-verify -- rpm -q gdm gnome-shell mutter glib2
           limactl shell gnome50-verify -- gdm --version
+
+      - name: Scan journal for gnome-shell crash signatures
+        id: crash-scan
+        run: |
+          echo "Scanning journal for gnome-shell crash patterns..."
+          # Patterns that indicate the #27 class of bug (gnome-shell/mutter
+          # GObject-Introspection ABI mismatch behind a stable SONAME):
+          # - SIGSEGV / SIGABRT / signal 11: hard crashes
+          # - "Too many arguments": GJS introspection argument count mismatch
+          # - "Expected an object of type MetaKeymapDescription": type coercion failure
+          PATTERNS='SIGSEGV|SIGABRT|signal 11|Too many arguments|Expected an object of type.*MetaKeymapDescription'
+          limactl shell gnome50-verify -- journalctl -u gdm --no-pager | grep -E "${PATTERNS}" > /tmp/crash-matches.txt || true
+          CRASHES=$(wc -l < /tmp/crash-matches.txt)
+          echo "crash_matches=${CRASHES}" >> "${GITHUB_OUTPUT}"
+          echo "Crash-pattern matches: ${CRASHES}"
+          if [[ "${CRASHES}" -gt 0 ]]; then
+            echo "=== CRASH SIGNATURES FOUND ==="
+            cat /tmp/crash-matches.txt
+          else
+            echo "No gnome-shell crash patterns detected."
+          fi
+
+      - name: File regression issue from crash signatures
+        if: ${{ steps.crash-scan.outputs.crash_matches != '0' }}
+        run: |
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          cat > /tmp/issue-body.md << BODYEOF
+          ## gnome-shell crash-loop regression detected
+
+          The verify-gdm VM test found **${{ steps.crash-scan.outputs.crash_matches }}** gnome-shell crash signature(s) in the GDM journal.
+
+          **Workflow run**: ${RUN_URL}
+
+          ### Crash signatures
+
+          \`\`\`
+          $(cat /tmp/crash-matches.txt)
+          \`\`\`
+
+          ### What this means
+
+          gnome-shell is likely out of lockstep with mutter's GObject-Introspection typelib —
+          the same class of bug as #27. The shell was built against a different mutter
+          than the one installed at runtime, and the typelib API changed behind a stable
+          version/SONAME.
+
+          ### Action
+
+          Rebuild gnome-shell against the current mutter in the buildroot. The
+          exact-EVR pin from the spec should prevent this from reaching users, but
+          if this fired from CI, the pin may not have been enough.
+          BODYEOF
+          gh issue create \
+            --title "gnome-shell crash-loop regression (verify-gdm CI catch)" \
+            --body-file /tmp/issue-body.md \
+            --label "bug" \
+            --label "ci-caught"
+          echo "Regression issue filed."
+          exit 1
 
       - name: Take login screen screenshot via VNC
         run: |
