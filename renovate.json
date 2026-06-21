@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "TunaOS GNOME 49/50 package version tracking",
+  "description": "TunaOS GNOME 49/50 — per-package version bumps from Fedora dist-git",
   "extends": ["config:base", ":enableHelp"],
   "enabled": true,
   "github-actions": { "enabled": true },
@@ -51,20 +51,18 @@
     { "matchUpdateTypes": ["minor", "patch", "pin", "digest"], "automerge": true },
     {
       "matchFileNames": ["src/gnome-49/**/*.spec"],
-      "groupName": "GNOME 49 package updates",
       "commitMessagePrefix": "chore(gnome49):",
       "additionalBranchPrefix": "gnome49-"
     },
     {
       "matchFileNames": ["src/gnome-50/**/*.spec"],
-      "groupName": "GNOME 50 package updates",
       "commitMessagePrefix": "chore(gnome50):",
       "additionalBranchPrefix": "gnome50-"
     },
     {
       "matchPackageNames": ["gdm", "gnome-shell", "mutter"],
       "automerge": false,
-      "labels": ["renovate", "major-component"]
+      "labels": ["renovate", "major-component", "needs-review"]
     }
   ]
 }

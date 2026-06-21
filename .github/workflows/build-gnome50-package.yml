@@ -1,24 +1,23 @@
-name: GNOME 49 Package Build (Incremental)
+name: GNOME 50 Package Build (Incremental)
 
 on:
   pull_request:
     paths:
-      - 'src/gnome-49/**'
+      - 'src/gnome-50/**'
   push:
     branches:
-      - gnome-49-pipeline
       - main
     paths:
-      - 'src/gnome-49/**'
+      - 'src/gnome-50/**'
   workflow_dispatch:
     inputs:
       package_path:
-        description: 'Package path (e.g. src/gnome-49/gdm)'
+        description: 'Package path (e.g. src/gnome-50/gdm)'
         required: true
 
 env:
   R2_BUCKET: bluefin
-  R2_REPO_PATH: gnome49/10-stream-x86_64
+  R2_REPO_PATH: gnome50/10-stream-x86_64
   MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
 
 jobs:
@@ -37,14 +36,12 @@ jobs:
         run: |
           SESSION_PKGS='mutter|gnome-shell|gdm'
           if [[ -n "${{ github.event.inputs.package_path }}" ]]; then
-            # Manual dispatch: use explicit path
             PACKAGES='["${{ github.event.inputs.package_path }}"]'
           else
-            # Detect from changed files
             BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
             HEAD="${{ github.sha }}"
             CHANGED=$(git diff --name-only "${BASE}" "${HEAD}" | \
-              grep '^src/gnome-49/' | \
+              grep '^src/gnome-50/' | \
               sed 's|/[^/]*$||' | sort -u | \
               python3 -c "import sys,json; dirs=sys.stdin.read().splitlines(); print(json.dumps(dirs))")
             PACKAGES="${CHANGED}"
@@ -52,7 +49,6 @@ jobs:
           echo "packages=${PACKAGES}" >> $GITHUB_OUTPUT
           echo "Will build: ${PACKAGES}"
 
-          # Check if any changed package is a session-layer package
           HAS_SESSION=false
           for PKG in $(echo "${PACKAGES}" | python3 -c "import sys,json; print('\n'.join(json.load(sys.stdin)))" 2>/dev/null); do
             PKG_BASENAME=$(basename "${PKG}")
@@ -119,7 +115,7 @@ jobs:
           ./scripts/build-chain.sh \
             --backend podman \
             --local-repo local-repo \
-            --manifest build-order-gnome49.yml \
+            --manifest build-order.yml \
             --package "${{ matrix.package }}" \
             --force
 
@@ -146,8 +142,6 @@ jobs:
 
       - name: Smoke test — install RPM in CentOS Stream 10
         run: |
-          # Verify the built RPM can be installed cleanly against the base OS.
-          # Catches: missing deps, file conflicts, broken %%post scriptlets.
           RPM=$(find local-repo -name '*.rpm' ! -name '*-debuginfo-*' ! -name '*-debugsource-*' 2>/dev/null | head -1)
           if [[ -z "${RPM}" ]]; then
             echo "No non-debug RPM found to test"
@@ -199,7 +193,7 @@ jobs:
 
       - name: Create Lima VM config
         run: |
-          cat > /tmp/gnome49-pr-test.yaml << 'EOF'
+          cat > /tmp/gnome50-pr-test.yaml << 'EOF'
           vmType: qemu
           arch: x86_64
           cpus: 2
@@ -226,25 +220,23 @@ jobs:
               script: |
                 #!/bin/bash
                 set -euxo pipefail
-                # Install PR-built RPM overlaying CentOS Stream 10 base
                 dnf -y install /tmp/lima/pr-rpms/*.rpm
-                # Enable GDM for graphical boot
                 systemctl enable gdm
                 systemctl set-default graphical.target
           EOF
 
       - name: Start Lima VM
         run: |
-          limactl start --name=gnome49-pr-test /tmp/gnome49-pr-test.yaml --timeout=20m
+          limactl start --name=gnome50-pr-test /tmp/gnome50-pr-test.yaml --timeout=20m
           echo "VM started"
 
       - name: Reboot and wait for GDM
         run: |
           echo "Rebooting VM to start GDM..."
-          limactl shell gnome49-pr-test -- sudo reboot || true
+          limactl shell gnome50-pr-test -- sudo reboot || true
           sleep 30
           for i in $(seq 1 18); do
-            if limactl shell gnome49-pr-test -- true 2>/dev/null; then
+            if limactl shell gnome50-pr-test -- true 2>/dev/null; then
               echo "VM back after reboot"
               break
             fi
@@ -252,14 +244,14 @@ jobs:
           done
           echo "Waiting for GDM (up to 5 min)..."
           for i in $(seq 1 30); do
-            STATUS=$(limactl shell gnome49-pr-test -- systemctl is-active gdm 2>/dev/null || echo "inactive")
+            STATUS=$(limactl shell gnome50-pr-test -- systemctl is-active gdm 2>/dev/null || echo "inactive")
             echo "Attempt $i/30: gdm is ${STATUS}"
             [[ "${STATUS}" == "active" ]] && break
             sleep 10
           done
           if [[ "${STATUS}" != "active" ]]; then
             echo "ERROR: GDM failed to become active"
-            limactl shell gnome49-pr-test -- sudo journalctl -u gdm --no-pager -n 50 || true
+            limactl shell gnome50-pr-test -- sudo journalctl -u gdm --no-pager -n 50 || true
             exit 1
           fi
 
@@ -267,7 +259,7 @@ jobs:
         run: |
           echo "Checking gnome-shell greeter stability..."
           for i in $(seq 1 30); do
-            SHELL_PID=$(limactl shell gnome49-pr-test -- pgrep -f 'gnome-shell.*gdm' 2>/dev/null | head -1 || true)
+            SHELL_PID=$(limactl shell gnome50-pr-test -- pgrep -f 'gnome-shell.*gdm' 2>/dev/null | head -1 || true)
             if [[ -z "${SHELL_PID}" ]]; then
               echo "Attempt $i/30: gnome-shell not running yet"
               sleep 10
@@ -275,7 +267,7 @@ jobs:
             fi
             echo "Attempt $i/30: gnome-shell PID=${SHELL_PID}, waiting 10s..."
             sleep 10
-            SHELL_PID2=$(limactl shell gnome49-pr-test -- pgrep -f 'gnome-shell.*gdm' 2>/dev/null | head -1 || true)
+            SHELL_PID2=$(limactl shell gnome50-pr-test -- pgrep -f 'gnome-shell.*gdm' 2>/dev/null | head -1 || true)
             if [[ "${SHELL_PID}" == "${SHELL_PID2}" ]]; then
               echo "gnome-shell PID stable at ${SHELL_PID} (survived 10s)"
               echo "LOGIN TEST PASSED"
@@ -284,9 +276,9 @@ jobs:
             echo "PID changed: ${SHELL_PID} -> ${SHELL_PID2} (crash-restart detected)"
           done
           echo "ERROR: gnome-shell did not stabilize (crash-loop)"
-          limactl shell gnome49-pr-test -- sudo journalctl -u gdm --no-pager -n 30 || true
+          limactl shell gnome50-pr-test -- sudo journalctl -u gdm --no-pager -n 30 || true
           exit 1
 
       - name: Stop Lima VM
         if: always()
-        run: limactl stop gnome49-pr-test --force || true
+        run: limactl stop gnome50-pr-test --force || true
