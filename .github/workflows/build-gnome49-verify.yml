@@ -249,3 +249,211 @@ jobs:
       - name: Stop Lima VM
         if: always()
         run: limactl stop gnome49-verify --force || true
+
+  verify-gdm-copr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      issues: write
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - name: Install QEMU and Lima
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-system-x86 qemu-utils ovmf
+          LIMA_ASSET_URL=$(curl -s https://api.github.com/repos/lima-vm/lima/releases/latest | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for a in data['assets']:
+              if 'Linux-x86_64' in a['name'] and a['name'].endswith('.tar.gz'):
+                  print(a['browser_download_url'])
+                  break
+          ")
+          echo "Downloading Lima from ${LIMA_ASSET_URL}"
+          curl -fsSL "${LIMA_ASSET_URL}" | sudo tar xz -C /usr/local
+          limactl --version
+
+      - name: Install vncdotool
+        run: pip install vncdotool
+
+      - name: Create Lima VM config
+        run: |
+          cat > /tmp/gnome49-verify-copr.yaml << 'EOF'
+          vmType: qemu
+          arch: x86_64
+          cpus: 2
+          memory: 4GiB
+          disk: 20GiB
+
+          video:
+            display: "vnc"
+
+          images:
+            - location: "https://cloud.centos.org/centos/10-stream/x86_64/images/CentOS-Stream-GenericCloud-x86_64-10-latest.x86_64.qcow2"
+              arch: x86_64
+
+          mounts: []
+
+          ssh:
+            localPort: 0
+            loadDotSSHPubKeys: false
+
+          provision:
+            - mode: system
+              script: |
+                #!/bin/bash
+                set -euxo pipefail
+                dnf -y install dnf-plugins-core python3-dnf-plugin-copr
+                # Enable COPR (which has the current gnome-shell/mutter pairing)
+                dnf copr enable -y jreilly1821/c10s-gnome-49
+                dnf -y install \
+                  gnome-shell \
+                  gnome-control-center \
+                  mutter \
+                  gdm \
+                  gnome-session-wayland-session \
+                  glib2
+                glib-compile-schemas /usr/share/glib-2.0/schemas/
+                printf '[daemon]\nWaylandEnable=true\n' > /etc/gdm/custom.conf
+                systemctl enable gdm
+                systemctl set-default graphical.target
+          EOF
+
+      - name: Start Lima VM
+        run: |
+          limactl start --name=gnome49-verify-copr /tmp/gnome49-verify-copr.yaml --timeout=25m
+          echo "VM started"
+
+      - name: Wait for GDM to become active
+        run: |
+          echo "Waiting for GDM to start (up to 5 minutes)..."
+          for i in $(seq 1 30); do
+            STATUS=$(limactl shell gnome49-verify-copr -- systemctl is-active gdm 2>/dev/null || echo "inactive")
+            echo "Attempt $i/30: gdm is ${STATUS}"
+            [[ "${STATUS}" == "active" ]] && break
+            sleep 10
+          done
+          if [[ "${STATUS}" != "active" ]]; then
+            echo "ERROR: GDM failed to become active"
+            limactl shell gnome49-verify-copr -- sudo journalctl -u gdm --no-pager -n 50 || true
+            exit 1
+          fi
+
+      - name: Wait for gnome-shell greeter to be stable
+        run: |
+          echo "Waiting for gnome-shell greeter to start and stabilize (no crash-loop)..."
+          # GDM may be active while gnome-shell crash-loops behind it (#27).
+          # Poll for a gnome-shell PID; once found, wait 10s and confirm the PID
+          # hasn't changed. A changing PID means the greeter is crash-restart cycling.
+          STABLE=false
+          for i in $(seq 1 30); do
+            SHELL_PID=$(limactl shell gnome49-verify-copr -- pgrep -f 'gnome-shell.*gdm' 2>/dev/null | head -1 || true)
+            if [[ -z "${SHELL_PID}" ]]; then
+              echo "Attempt $i/30: gnome-shell not running yet"
+              sleep 10
+              continue
+            fi
+            echo "Attempt $i/30: gnome-shell PID=${SHELL_PID}, waiting 10s for stability check..."
+            sleep 10
+            SHELL_PID2=$(limactl shell gnome49-verify-copr -- pgrep -f 'gnome-shell.*gdm' 2>/dev/null | head -1 || true)
+            if [[ "${SHELL_PID}" == "${SHELL_PID2}" ]]; then
+              echo "gnome-shell PID stable at ${SHELL_PID} (survived 10s)"
+              STABLE=true
+              break
+            fi
+            echo "PID changed: ${SHELL_PID} -> ${SHELL_PID2} (crash-restart detected)"
+          done
+          if [[ "${STABLE}" != "true" ]]; then
+            echo "ERROR: gnome-shell greeter did not stabilize (crash-loop detected)"
+            limactl shell gnome49-verify-copr -- sudo journalctl -u gdm --no-pager -n 60 || true
+            exit 1
+          fi
+          echo "gnome-shell greeter is stable"
+
+      - name: Check GDM and GNOME Shell status
+        run: |
+          limactl shell gnome49-verify-copr -- systemctl status gdm --no-pager
+          limactl shell gnome49-verify-copr -- rpm -q gdm gnome-shell mutter glib2
+          limactl shell gnome49-verify-copr -- gdm --version
+
+      - name: Scan journal for gnome-shell crash signatures
+        id: crash-scan-copr
+        run: |
+          echo "Scanning journal for gnome-shell crash patterns..."
+          PATTERNS='SIGSEGV|SIGABRT|signal 11|Too many arguments|Expected an object of type.*MetaKeymapDescription'
+          limactl shell gnome49-verify-copr -- sudo journalctl -u gdm --no-pager | grep -E "${PATTERNS}" > /tmp/crash-matches.txt || true
+          CRASHES=$(wc -l < /tmp/crash-matches.txt)
+          echo "crash_matches=${CRASHES}" >> "${GITHUB_OUTPUT}"
+          echo "Crash-pattern matches: ${CRASHES}"
+          if [[ "${CRASHES}" -gt 0 ]]; then
+            echo "=== CRASH SIGNATURES FOUND ==="
+            cat /tmp/crash-matches.txt
+          else
+            echo "No gnome-shell crash patterns detected."
+          fi
+
+      - name: File regression issue from crash signatures
+        if: ${{ steps.crash-scan-copr.outputs.crash_matches != '0' }}
+        run: |
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          cat > /tmp/issue-body.md << BODYEOF
+          ## gnome-shell crash-loop regression detected (COPR)
+
+          The verify-gdm-copr VM test found **${{ steps.crash-scan-copr.outputs.crash_matches }}** gnome-shell crash signature(s) in the GDM journal.
+
+          **COPR project**: jreilly1821/c10s-gnome-49
+          **Workflow run**: ${RUN_URL}
+
+          ### Crash signatures
+
+          \`\`\`
+          $(cat /tmp/crash-matches.txt)
+          \`\`\`
+
+          ### What this means
+
+          gnome-shell is out of lockstep with mutter's GObject-Introspection typelib —
+          the same class of bug as #27. The COPR's gnome-shell was built against a
+          different mutter than the one installed at runtime.
+          BODYEOF
+          gh issue create \
+            --title "gnome-shell crash-loop regression (COPR CI catch)" \
+            --body-file /tmp/issue-body.md \
+            --label "bug" \
+            --label "ci-caught"
+          echo "Regression issue filed."
+          exit 1
+
+      - name: Take login screen screenshot via VNC
+        run: |
+          VNC_DISPLAY=$(cat /proc/$(pgrep -f 'qemu.*gnome49-verify-copr' | head -1)/cmdline \
+            | tr '\0' '\n' | grep -oP '(?<=vnc=127\.0\.0\.1:)\d+' || echo "0")
+          VNC_PORT=$((5900 + ${VNC_DISPLAY:-0}))
+          echo "VNC port: ${VNC_PORT}"
+          sleep 5
+          python3 - <<PYEOF
+          from vncdotool import api
+          client = api.connect('127.0.0.1', password='', port=${VNC_PORT})
+          client.captureScreen('gdm-login-screen-copr.png')
+          client.disconnect()
+          print("Screenshot captured")
+          PYEOF
+
+      - name: Upload login screen screenshot
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gdm-login-screen-gnome49-copr
+          path: gdm-login-screen-copr.png
+          retention-days: 7
+
+      - name: Stop Lima VM
+        if: always()
+        run: limactl stop gnome49-verify-copr --force || true
