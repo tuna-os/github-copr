@@ -112,6 +112,21 @@ jobs:
           limactl start --name=gnome49-verify /tmp/gnome49-verify.yaml --timeout=25m
           echo "VM started"
 
+      - name: Reboot VM to start GDM
+        run: |
+          echo "Rebooting VM to start GDM in graphical target..."
+          limactl shell gnome49-verify -- sudo reboot || true
+          sleep 30
+          echo "Waiting for VM to come back after reboot..."
+          for i in $(seq 1 18); do
+            if limactl shell gnome49-verify -- true 2>/dev/null; then
+              echo "VM is back after reboot"
+              break
+            fi
+            echo "Attempt $i/18: waiting for VM SSH..."
+            sleep 10
+          done
+
       - name: Wait for GDM to become active
         run: |
           echo "Waiting for GDM to start (up to 5 minutes)..."
