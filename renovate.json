@@ -22,12 +22,12 @@
     },
     {
       "customType": "regex",
-      "description": "Track GNOME 50 spec Version: fields against Fedora Rawhide",
+      "description": "Track GNOME 50 spec Version: fields against Fedora F44",
       "fileMatch": ["^src/gnome-50/[^/]+/[^/]+\\.spec$"],
       "matchStrings": ["^Version:\\s+(?<currentValue>[0-9][^\\s]+)\\s*$"],
       "depNameTemplate": "{{{packageName}}}",
       "packageNameTemplate": "{{replace '.*/' '' packageFileDir}}",
-      "datasourceTemplate": "custom.fedora-rawhide",
+      "datasourceTemplate": "custom.fedora-f44",
       "versioningTemplate": "loose"
     }
   ],
@@ -39,8 +39,8 @@
         "{\"releases\": $map($.tags, function($t) { {\"version\": $replace($t, /^.*-/, \"\")} }) }"
       ]
     },
-    "fedora-rawhide": {
-      "defaultRegistryUrlTemplate": "https://src.fedoraproject.org/api/0/rpms/{{packageName}}/git/tags?pattern=rawhide*",
+    "fedora-f44": {
+      "defaultRegistryUrlTemplate": "https://src.fedoraproject.org/api/0/rpms/{{packageName}}/git/tags?pattern=f44*",
       "format": "json",
       "transformTemplates": [
         "{\"releases\": $map($.tags, function($t) { {\"version\": $replace($t, /^.*-/, \"\")} }) }"
