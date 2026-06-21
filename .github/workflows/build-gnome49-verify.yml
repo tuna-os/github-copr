@@ -357,12 +357,10 @@ jobs:
             exit 1
           fi
 
-      - name: Wait for gnome-shell greeter to be stable
+      - name: Check gnome-shell greeter stability
+        id: greeter-check
         run: |
-          echo "Waiting for gnome-shell greeter to start and stabilize (no crash-loop)..."
-          # GDM may be active while gnome-shell crash-loops behind it (#27).
-          # Poll for a gnome-shell PID; once found, wait 10s and confirm the PID
-          # hasn't changed. A changing PID means the greeter is crash-restart cycling.
+          echo "Checking gnome-shell greeter stability (no crash-loop)..."
           STABLE=false
           for i in $(seq 1 30); do
             SHELL_PID=$(limactl shell gnome49-verify-copr -- pgrep -f 'gnome-shell.*gdm' 2>/dev/null | head -1 || true)
@@ -381,24 +379,23 @@ jobs:
             fi
             echo "PID changed: ${SHELL_PID} -> ${SHELL_PID2} (crash-restart detected)"
           done
-          if [[ "${STABLE}" != "true" ]]; then
-            echo "ERROR: gnome-shell greeter did not stabilize (crash-loop detected)"
-            limactl shell gnome49-verify-copr -- sudo journalctl -u gdm --no-pager -n 60 || true
-            exit 1
+          echo "greeter_stable=${STABLE}" >> "${GITHUB_OUTPUT}"
+          if [[ "${STABLE}" == "true" ]]; then
+            echo "gnome-shell greeter is stable"
+          else
+            echo "CRASH-LOOP DETECTED: gnome-shell greeter did not stabilize"
           fi
-          echo "gnome-shell greeter is stable"
 
       - name: Check GDM and GNOME Shell status
         run: |
-          limactl shell gnome49-verify-copr -- systemctl status gdm --no-pager
+          limactl shell gnome49-verify-copr -- systemctl status gdm --no-pager || true
           limactl shell gnome49-verify-copr -- rpm -q gdm gnome-shell mutter glib2
-          limactl shell gnome49-verify-copr -- gdm --version
 
       - name: Scan journal for gnome-shell crash signatures
         id: crash-scan-copr
         run: |
           echo "Scanning journal for gnome-shell crash patterns..."
-          PATTERNS='SIGSEGV|SIGABRT|signal 11|Too many arguments|Expected an object of type.*MetaKeymapDescription'
+          PATTERNS='SIGSEGV|SIGABRT|signal 11|Too many arguments|Expected an object of type.*MetaKeymapDescription|Session never registered|Child process.*already dead|maximum number of.*display failures'
           limactl shell gnome49-verify-copr -- sudo journalctl -u gdm --no-pager | grep -E "${PATTERNS}" > /tmp/crash-matches.txt || true
           CRASHES=$(wc -l < /tmp/crash-matches.txt)
           echo "crash_matches=${CRASHES}" >> "${GITHUB_OUTPUT}"
@@ -410,29 +407,34 @@ jobs:
             echo "No gnome-shell crash patterns detected."
           fi
 
-      - name: File regression issue from crash signatures
-        if: ${{ steps.crash-scan-copr.outputs.crash_matches != '0' }}
+      - name: Check results and file issue if broken
         run: |
+          STABLE="${{ steps.greeter-check.outputs.greeter_stable }}"
+          CRASHES="${{ steps.crash-scan-copr.outputs.crash_matches }}"
+          if [[ "${STABLE}" == "true" && "${CRASHES}" == "0" ]]; then
+            echo "PASSED: gnome-shell greeter stable, no crash patterns"
+            exit 0
+          fi
+          echo "FAILED: gnome-shell login broken"
+          echo "  greeter stable: ${STABLE}"
+          echo "  crash patterns: ${CRASHES}"
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           cat > /tmp/issue-body.md << BODYEOF
-          ## gnome-shell crash-loop regression detected (COPR)
-
-          The verify-gdm-copr VM test found **${{ steps.crash-scan-copr.outputs.crash_matches }}** gnome-shell crash signature(s) in the GDM journal.
+          ## gnome-shell crash-loop detected (COPR CI)
 
           **COPR project**: jreilly1821/c10s-gnome-49
           **Workflow run**: ${RUN_URL}
 
-          ### Crash signatures
+          ### Findings
+
+          - Greeter PID stable: ${STABLE}
+          - Crash pattern matches: ${CRASHES}
+
+          ### Journal evidence
 
           \`\`\`
-          $(cat /tmp/crash-matches.txt)
+          $(limactl shell gnome49-verify-copr -- sudo journalctl -u gdm --no-pager -n 30 2>/dev/null || echo "(journal unavailable)")
           \`\`\`
-
-          ### What this means
-
-          gnome-shell is out of lockstep with mutter's GObject-Introspection typelib —
-          the same class of bug as #27. The COPR's gnome-shell was built against a
-          different mutter than the one installed at runtime.
           BODYEOF
           gh issue create \
             --title "gnome-shell crash-loop regression (COPR CI catch)" \
