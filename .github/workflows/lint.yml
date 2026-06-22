@@ -83,12 +83,34 @@ jobs:
           done
           exit $ERRORS
 
+  pytest:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install pytest
+
+      - name: Run pytest
+        run: |
+          echo "=== Python Tests ==="
+          FAILED=0
+          python3 -m pytest tests/ -v --tb=short || FAILED=1
+          exit $FAILED
+
       - name: Test summary
         if: always()
         run: |
-          echo "## Lint Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Results" >> "$GITHUB_STEP_SUMMARY"
           echo "| Check | Status |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| YAML Lint | completed |" >> "$GITHUB_STEP_SUMMARY"
           echo "| ShellCheck | completed |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Workflow Syntax | completed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Python Tests | completed |" >> "$GITHUB_STEP_SUMMARY"
