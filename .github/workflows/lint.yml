@@ -1,0 +1,139 @@
+name: Lint
+
+on:
+  pull_request:
+    paths:
+      - '**.yml'
+      - '**.yaml'
+      - '**.sh'
+      - 'scripts/**'
+      - '.github/workflows/lint.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**.yml'
+      - '**.yaml'
+      - '**.sh'
+      - 'scripts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  yamllint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: .
+          config_data: |
+            extends: default
+            rules:
+              line-length: disable
+              document-start: disable
+              truthy: disable
+              comments-indentation: disable
+              braces:
+                level: warning
+                max-spaces-inside: 1
+              brackets:
+                level: warning
+                max-spaces-inside: 1
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './'
+          severity: warning
+          format: tty
+          ignore_paths: >
+            src/deps
+            src/gnome-49
+            src/gnome-50
+
+  workspace-validate:
+    name: Workflow Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+
+      - name: Validate workflow YAMLs
+        run: |
+          echo "=== Checking GitHub Actions workflow syntax ==="
+          pip install pyyaml -q 2>/dev/null || true
+          ERRORS=0
+          for f in .github/workflows/*.yml; do
+            if ! python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>/dev/null; then
+              echo "  INVALID: $f"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "  OK: $f"
+            fi
+          done
+          exit $ERRORS
+
+  bats-tests:
+    name: BATS Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+
+      - name: Install BATS
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bats
+
+      - name: Run BATS tests
+        run: |
+          echo "=== BATS Tests ==="
+          FAILED=0
+          for f in tests/bats/*.bats; do
+            [[ -f "$f" ]] || continue
+            echo "  Running: $f"
+            bats --formatter tap "$f" || FAILED=1
+          done
+          exit $FAILED
+
+  pytest:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install pytest
+
+      - name: Run pytest
+        run: |
+          echo "=== Python Tests ==="
+          FAILED=0
+          python3 -m pytest tests/ -v --tb=short || FAILED=1
+          exit $FAILED
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| YAML Lint | completed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ShellCheck | completed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Workflow Syntax | completed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| BATS Tests | completed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Python Tests | completed |" >> "$GITHUB_STEP_SUMMARY"
