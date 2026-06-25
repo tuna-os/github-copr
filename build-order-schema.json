@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Build Order Manifest",
+  "description": "Schema for COPR build order manifest files (build-order.yml, build-order-gnome49.yml)",
+  "type": "object",
+  "required": ["target", "tiers"],
+  "properties": {
+    "target": {
+      "type": "string",
+      "description": "COPR build target (e.g., centos-stream-10-x86_64)"
+    },
+    "r2_path": {
+      "type": "string",
+      "description": "R2 storage path prefix (optional, e.g., gnome49/10-stream-x86_64)"
+    },
+    "tiers": {
+      "type": "array",
+      "description": "Sequential build tiers. Packages within a tier build in parallel.",
+      "items": {
+        "type": "object",
+        "required": ["name", "packages"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Tier name (e.g., base-tools, bootstrap-libs)"
+          },
+          "packages": {
+            "type": "array",
+            "description": "Packages in this tier",
+            "items": {
+              "type": "object",
+              "oneOf": [
+                {
+                  "required": ["path"],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "description": "Relative path to spec directory"
+                    },
+                    "build_tool": {
+                      "type": "boolean",
+                      "description": "Whether this is a build tool (used in seed-repo)"
+                    },
+                    "spec_override": {
+                      "type": "string",
+                      "description": "Override the default spec filename"
+                    },
+                    "copr_name": {
+                      "type": "string",
+                      "description": "Existing COPR package name"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "required": ["copr_name"],
+                  "properties": {
+                    "copr_name": {
+                      "type": "string",
+                      "description": "Existing COPR package name"
+                    },
+                    "build_tool": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
