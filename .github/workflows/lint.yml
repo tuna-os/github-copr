@@ -83,6 +83,41 @@ jobs:
           done
           exit $ERRORS
 
+  build-order-validate:
+    name: Build Order Schema Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+
+      - name: Install yq and check-jsonschema
+        run: |
+          pip install check-jsonschema 2>/dev/null || true
+          sudo wget -qO /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && sudo chmod +x /usr/bin/yq
+
+      - name: Validate build-order.yml against schema
+        run: |
+          echo "=== Validating build-order.yml ==="
+          for f in build-order.yml build-order-gnome49.yml; do
+            if [ -f "$f" ]; then
+              echo "  Checking: $f"
+              python3 -c "
+import json, yaml, sys
+with open('$f') as fh:
+    data = yaml.safe_load(fh)
+with open('build-order-schema.json') as fh:
+    schema = json.load(fh)
+import jsonschema
+try:
+    jsonschema.validate(data, schema)
+    print('    Schema valid')
+except jsonschema.ValidationError as e:
+    print(f'    INVALID: {e.message}')
+    sys.exit(1)
+" || exit $?
+            fi
+          done
+          echo "All build order files valid"
+
   bats-tests:
     name: BATS Unit Tests
     runs-on: ubuntu-latest
