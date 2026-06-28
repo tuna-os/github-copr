@@ -6,7 +6,7 @@ Release: 1%{?dist}
 Summary: Wayland compositor for Xfce4
 License: GPL-3.0-or-later AND Apache-2.0 AND MIT
 URL: https://gitlab.xfce.org/xfce/xfwl4
-Source0: %{cargo_name}-%{version}.tar.gz
+Source0: https://gitlab.xfce.org/xfce/xfwl4/-/archive/xfwl4-0.1.0/xfwl4-0.1.0.tar.gz
 
 %if 0%{?rhel} >= 10
 %global __cargo_requires_buildrequires 1

@@ -4,7 +4,7 @@ Release: 6%{?dist}
 Summary: Xfce configuration daemon and library
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/xfconf
-Source0: xfconf-%{version}.tar.bz2
+Source0: https://gitlab.xfce.org/xfce/xfconf/-/archive/xfconf-4.21.2/xfconf-4.21.2.tar.gz
 BuildRequires: glib2-devel, dbus-devel, libxfce4util-devel
 BuildRequires: gobject-introspection-devel, vala, intltool, gettext
 %description

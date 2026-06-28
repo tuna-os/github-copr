@@ -4,7 +4,7 @@ Release: 70%{?dist}
 Summary: Common UI library for Xfce
 License: LGPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/libxfce4ui
-Source0: libxfce4ui-%{version}.tar.bz2
+Source0: https://gitlab.xfce.org/xfce/libxfce4ui/-/archive/libxfce4ui-4.21.7/libxfce4ui-4.21.7.tar.gz
 BuildRequires: gtk3-devel, libxfce4util-devel, xfconf-devel
 BuildRequires: gobject-introspection-devel, vala, intltool, gettext
 %description
