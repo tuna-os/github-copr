@@ -45,7 +45,7 @@ jobs:
 
         echo "Downloading existing repo from R2..."
 
-        rclone sync "r2:${R2_BUCKET}/repo/10-x86_64/" "local-repo/" --exclude "repodata/**" || true
+        rclone sync "r2:${R2_BUCKET}/xfce/10-stream-x86_64/" "local-repo/" --exclude "repodata/**" || true
 
         createrepo_c local-repo
 
@@ -720,9 +720,9 @@ jobs:
 
         '
     - name: Upload to R2
-      run: 'echo "Uploading to 10-x86_64..."
+      run: 'echo "Uploading to 10-stream-x86_64..."
 
-        rclone sync local-repo/ "r2:${R2_BUCKET}/repo/10-x86_64/"
+        rclone sync local-repo/ "r2:${R2_BUCKET}/xfce/10-stream-x86_64/"
 
         echo "Uploading to 10-x86_64..."
 

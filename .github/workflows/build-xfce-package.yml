@@ -17,7 +17,7 @@ on:
 
 env:
   R2_BUCKET: bluefin
-  R2_REPO_PATH: repo/10-x86_64
+  R2_REPO_PATH: xfce/10-stream-x86_64
   MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
 
 jobs:

@@ -10,7 +10,7 @@
 #          install alongside the existing GNOME stack)
 
 target: centos-stream-10-x86_64
-r2_path: repo/10-x86_64
+r2_path: xfce/10-stream-x86_64
 
 tiers:
   # Tier 0: GTK3 Wayland layer shell — required by panel, terminal, notifyd.
