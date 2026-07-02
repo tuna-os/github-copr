@@ -91,8 +91,10 @@ jobs:
         name: repo-0
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier base-tools --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -172,8 +174,10 @@ jobs:
         name: repo-1
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier build-tools --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -249,8 +253,10 @@ jobs:
         name: repo-2
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier glib2-bootstrap --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -329,8 +335,10 @@ jobs:
         name: repo-3
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier bootstrap-libs --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -406,8 +414,10 @@ jobs:
         name: repo-4
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier cairo-layer --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -483,8 +493,10 @@ jobs:
         name: repo-5
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier gi-bootstrap --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -560,8 +572,10 @@ jobs:
         name: repo-6
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier glib2-full --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -637,8 +651,10 @@ jobs:
         name: repo-7
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier gi-full --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -716,8 +732,10 @@ jobs:
         name: repo-8
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier core-libraries --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -796,8 +814,10 @@ jobs:
         name: repo-9
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier system-tools --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -876,8 +896,10 @@ jobs:
         name: repo-10
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier gtk-core --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -955,8 +977,10 @@ jobs:
         name: repo-11
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier desktop-foundations\
-        \ --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force\
+        \ --package ${{ matrix.package }})\nif [[ \"${FORCE}
         \ }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh\
         \ \"${ARGS[@]}\"\n"
     - name: Find new RPMs
@@ -1033,8 +1057,10 @@ jobs:
         name: repo-12
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier shell-foundations\
-        \ --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force\
+        \ --package ${{ matrix.package }})\nif [[ \"${FORCE}
         \ }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh\
         \ \"${ARGS[@]}\"\n"
     - name: Find new RPMs
@@ -1112,8 +1138,10 @@ jobs:
         name: repo-13
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier gnome-shell --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
@@ -1191,8 +1219,10 @@ jobs:
         name: repo-14
         path: local-repo
     - name: Build package
+      env:
+        FORCE: ${FORCE}
       run: "touch .build-marker\nARGS=(--backend podman --tier session-layer --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
+        \ ${{ matrix.package }})\nif [[ \"${FORCE}\" == \"\
         true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
         \n"
     - name: Find new RPMs
