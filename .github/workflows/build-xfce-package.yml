@@ -1,0 +1,139 @@
+name: XFCE Wayland Package Build (Incremental)
+
+on:
+  pull_request:
+    paths:
+      - 'src/xfce-wayland/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/xfce-wayland/**'
+  workflow_dispatch:
+    inputs:
+      package_path:
+        description: 'Package path (e.g. src/xfce-wayland/xfce4-panel)'
+        required: true
+
+env:
+  R2_BUCKET: bluefin
+  R2_REPO_PATH: repo/10-x86_64
+  MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.detect.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed packages
+        id: detect
+        env:
+          PACKAGE_PATH_INPUT: ${{ github.event.inputs.package_path }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          if [[ -n "${PACKAGE_PATH_INPUT}" ]]; then
+            PACKAGES="[\"${PACKAGE_PATH_INPUT}\"]"
+          else
+            BASE="${PR_BASE_SHA:-${BEFORE_SHA}}"
+            HEAD="${CURRENT_SHA}"
+            CHANGED=$(git diff --name-only "${BASE}" "${HEAD}" | \
+              grep '^src/xfce-wayland/' | \
+              sed 's|/[^/]*$||' | sort -u | \
+              python3 -c "import sys,json; dirs=sys.stdin.read().splitlines(); print(json.dumps(dirs))")
+            PACKAGES="${CHANGED}"
+          fi
+          echo "packages=${PACKAGES}" >> $GITHUB_OUTPUT
+          echo "Will build: ${PACKAGES}"
+
+  build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.packages != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q podman createrepo-c rpm gpg gpgconf
+
+      - name: Set up GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "${GPG_PRIVATE_KEY}" | gpg --batch --import
+          GPG_FINGERPRINT=$(gpg --list-secret-keys --with-colons | grep '^fpr' | head -1 | cut -d: -f10)
+          echo "GPG_FINGERPRINT=${GPG_FINGERPRINT}" >> $GITHUB_ENV
+
+      - name: Install rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Configure rclone for R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = ${R2_ENDPOINT}
+          EOF
+
+      - name: Build package
+        env:
+          PACKAGE_PATH: ${{ matrix.package }}
+        run: |
+          PKG_NAME=$(basename "${PACKAGE_PATH}")
+          echo "Building ${PKG_NAME} from ${PACKAGE_PATH}"
+
+          mkdir -p "${HOME}/local-repo"
+
+          podman run --rm --privileged \
+            -v "$(pwd):/workspace:ro" \
+            -v "${HOME}/local-repo:/local-repo:rw" \
+            "${MOCK_RUNNER_IMAGE}" \
+            /workspace/scripts/build-package.sh \
+              "/workspace/${PACKAGE_PATH}" \
+              /local-repo
+
+      - name: Sign RPMs
+        run: |
+          find "${HOME}/local-repo" -name '*.rpm' ! -name '*.src.rpm' | \
+            xargs -r rpmsign --addsign \
+              --define "_gpg_name ${GPG_FINGERPRINT}" \
+              --define "_signature gpg" \
+              --define "__gpg_sign_cmd %{__gpg} gpg --force-v3-sigs --digest-algo=sha256 --batch --no-verbose --no-armor --pinentry-mode loopback --passphrase '' %{__gpg_sign_opt} %{__plaintext_filename}| %{__gpg_path} --import-options import-show --import 2>&1" \
+              --define "__gpg /usr/bin/gpg"
+
+      - name: Update local repo metadata
+        run: |
+          createrepo_c --update "${HOME}/local-repo"
+
+      - name: Sync to R2
+        env:
+          R2_BUCKET: ${{ env.R2_BUCKET }}
+          R2_REPO_PATH: ${{ env.R2_REPO_PATH }}
+        run: |
+          rclone sync "${HOME}/local-repo/" \
+            "r2:${R2_BUCKET}/${R2_REPO_PATH}/" \
+            --progress \
+            --transfers 8
