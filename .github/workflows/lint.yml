@@ -97,23 +97,23 @@ jobs:
       - name: Validate build-order.yml against schema
         run: |
           echo "=== Validating build-order.yml ==="
-          for f in build-order.yml build-order-gnome49.yml; do
+          for f in build-order.yml build-order-gnome49.yml build-order-xfce.yml; do
             if [ -f "$f" ]; then
               echo "  Checking: $f"
               python3 -c "
-import json, yaml, sys
-with open('$f') as fh:
-    data = yaml.safe_load(fh)
-with open('build-order-schema.json') as fh:
-    schema = json.load(fh)
-import jsonschema
-try:
-    jsonschema.validate(data, schema)
-    print('    Schema valid')
-except jsonschema.ValidationError as e:
-    print(f'    INVALID: {e.message}')
-    sys.exit(1)
-" || exit $?
+              import json, yaml, sys
+              try:
+                  with open('$f') as fh:
+                      data = yaml.safe_load(fh)
+                  with open('build-order-schema.json') as fh:
+                      schema = json.load(fh)
+                  import jsonschema
+                  jsonschema.validate(data, schema)
+                  print('    Schema valid')
+              except Exception as e:
+                  print(f'    INVALID: {e}')
+                  sys.exit(1)
+              " || exit $?
             fi
           done
           echo "All build order files valid"
