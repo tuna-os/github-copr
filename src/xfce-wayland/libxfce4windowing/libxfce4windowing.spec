@@ -27,14 +27,19 @@ Headers and pkgconfig files for building against libxfce4windowing.
 %meson_build
 %install
 %meson_install
-%files
+%find_lang %{name}
+
+%files -f %{name}.lang
 %license COPYING
 %{_libdir}/libxfce4windowing*.so.*
+%{_libdir}/girepository-1.0/*.typelib
 
 %files devel
 %{_includedir}/xfce4/libxfce4windowing-0/
 %{_libdir}/libxfce4windowing*.so
 %{_libdir}/pkgconfig/*.pc
+%{_datadir}/gir-1.0/*.gir
+%{_datadir}/vala/vapi/*
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}

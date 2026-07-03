@@ -34,10 +34,20 @@ building against libxfce4ui.
 
 %install
 %meson_install
+%find_lang %{name}
 
-%files
+%files -f %{name}.lang
 %license COPYING
 %{_libdir}/libxfce4ui*.so.*
+%{_libdir}/libxfce4kbd-private*.so.*
+%{_bindir}/xfce-desktop-item-edit
+%{_bindir}/xfce-open
+%{_bindir}/xfce4-about
+%config(noreplace) %{_sysconfdir}/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml
+%{_datadir}/applications/xfce4-about.desktop
+%{_datadir}/icons/hicolor/*/apps/*.png
+%{_datadir}/icons/hicolor/*/apps/*.svg
+%{_datadir}/pixmaps/libxfce4ui/
 
 %files devel
 %{_includedir}/xfce4/libxfce4ui-2/
