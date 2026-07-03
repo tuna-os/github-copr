@@ -1,16 +1,18 @@
+%global commit a6f0a7aa9073f9d8a0935cee73c0da52b6e49660
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: xfconf
 Version: 4.21.2
 Release: 6%{?dist}
 Summary: Xfce configuration daemon and library
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/xfconf
-Source0: https://gitlab.xfce.org/xfce/xfconf/-/archive/xfconf-4.21.2/xfconf-4.21.2.tar.gz
+Source0: https://gitlab.xfce.org/xfce/xfconf/-/archive/%{commit}/xfconf-%{commit}.tar.gz
 BuildRequires: glib2-devel, dbus-devel, libxfce4util-devel
 BuildRequires: gobject-introspection-devel, vala, intltool, gettext
 %description
 Xfce configuration daemon and library. Required by all Xfce components.
 %prep
-%autosetup -n xfconf-%{version}
+%autosetup -n xfconf-%{commit}
 %build
 NOCONFIGURE=1 ./autogen.sh
 %configure --disable-gtk-doc

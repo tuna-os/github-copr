@@ -4,7 +4,7 @@ Release: 1%{?dist}
 Summary: Terminal emulator for the Xfce desktop environment
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/apps/xfce4-terminal
-Source0: https://gitlab.xfce.org/apps/xfce4-terminal/-/archive/xfce4-terminal-1.2.0/xfce4-terminal-1.2.0.tar.gz
+Source0: https://archive.xfce.org/src/apps/xfce4-terminal/1.2/xfce4-terminal-%{version}.tar.xz
 
 BuildRequires: gtk3-devel
 BuildRequires: libxfce4ui-devel

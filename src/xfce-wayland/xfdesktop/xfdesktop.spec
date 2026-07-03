@@ -1,3 +1,5 @@
+%global commit 1c491868ca45092b6816ea5a9272f2ae6d2d788a
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name:           xfdesktop
 Version:        4.21.0
 Release:        1%{?dist}
@@ -28,7 +30,7 @@ and providing a right-click application menu. This build targets
 Wayland compositors for use in TunaOS EL10.
 
 %prep
-%autosetup -n xfdesktop-%{version}
+%autosetup -n xfdesktop-%{commit}
 
 %build
 %meson

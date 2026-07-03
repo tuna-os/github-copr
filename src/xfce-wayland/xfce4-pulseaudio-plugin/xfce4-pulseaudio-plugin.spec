@@ -1,10 +1,10 @@
 Name: xfce4-pulseaudio-plugin
-Version: 0.4.10
+Version: 0.4.9
 Release: 1%{?dist}
 Summary: PulseAudio panel plugin for the Xfce desktop (Wayland)
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/panel-plugins/xfce4-pulseaudio-plugin
-Source0: https://gitlab.xfce.org/panel-plugins/xfce4-pulseaudio-plugin/-/archive/xfce4-pulseaudio-plugin-0.4.10/xfce4-pulseaudio-plugin-0.4.10.tar.gz
+Source0: https://archive.xfce.org/src/panel-plugins/xfce4-pulseaudio-plugin/0.4/xfce4-pulseaudio-plugin-0.4.9.tar.bz2
 
 BuildRequires: gtk3-devel
 BuildRequires: libxfce4ui-devel

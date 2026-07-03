@@ -1,10 +1,10 @@
 Name: xfce4-cpugraph-plugin
-Version: 1.2.10
+Version: 1.2.11
 Release: 1%{?dist}
 Summary: CPU frequency monitor plugin for the Xfce panel
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/panel-plugins/xfce4-cpugraph-plugin
-Source0: https://gitlab.xfce.org/panel-plugins/xfce4-cpugraph-plugin/-/archive/xfce4-cpugraph-plugin-1.2.10/xfce4-cpugraph-plugin-1.2.10.tar.gz
+Source0: https://archive.xfce.org/src/panel-plugins/xfce4-cpugraph-plugin/1.2/xfce4-cpugraph-plugin-1.2.11.tar.bz2
 BuildRequires: gtk3-devel, libxfce4ui-devel, libxfce4util-devel, xfce4-panel-devel, intltool, gettext, autoconf, automake, libtool
 Requires: xfce4-panel
 %description

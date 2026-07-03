@@ -4,7 +4,7 @@ Release: 1%{?dist}
 Summary: Sensors plugin for the Xfce panel
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/panel-plugins/xfce4-sensors-plugin
-Source0: https://gitlab.xfce.org/panel-plugins/xfce4-sensors-plugin/-/archive/xfce4-sensors-plugin-1.4.5/xfce4-sensors-plugin-1.4.5.tar.gz
+Source0: https://archive.xfce.org/src/panel-plugins/xfce4-sensors-plugin/1.4/xfce4-sensors-plugin-%{version}.tar.bz2
 BuildRequires: gtk3-devel, libxfce4ui-devel, libxfce4util-devel, xfce4-panel-devel, lm_sensors-devel, intltool, gettext, autoconf, automake, libtool
 Requires: xfce4-panel, lm_sensors
 %description

@@ -1,10 +1,10 @@
 Name: xfce4-weather-plugin
-Version: 0.11.2
+Version: 0.11.3
 Release: 1%{?dist}
 Summary: Weather plugin for the Xfce panel
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/panel-plugins/xfce4-weather-plugin
-Source0: https://gitlab.xfce.org/panel-plugins/xfce4-weather-plugin/-/archive/xfce4-weather-plugin-0.11.2/xfce4-weather-plugin-0.11.2.tar.gz
+Source0: https://archive.xfce.org/src/panel-plugins/xfce4-weather-plugin/0.11/xfce4-weather-plugin-0.11.3.tar.bz2
 BuildRequires: gtk3-devel, libxfce4ui-devel, libxfce4util-devel, xfce4-panel-devel, libsoup-devel, upower-devel, intltool, gettext, meson, ninja-build
 Requires: xfce4-panel
 %description

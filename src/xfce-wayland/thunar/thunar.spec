@@ -1,3 +1,5 @@
+%global commit eec4d04e10c66f0a537961f63b435755ef357bf2
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name:           thunar
 Version:        4.21.0
 Release:        1%{?dist}
@@ -24,7 +26,7 @@ to be fast and easy to use. This build is compiled with X11 support disabled
 (-Dx11=disabled) for use in pure Wayland sessions on TunaOS EL10.
 
 %prep
-%autosetup -n thunar-%{version}
+%autosetup -n thunar-%{commit}
 
 %build
 %meson -Dx11=disabled

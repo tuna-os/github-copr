@@ -1,3 +1,5 @@
+%global commit 8e9f1a16f189a27b6d36c444d86a8b220ee90062
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name:           xfce4-settings
 Version:        4.21.0
 Release:        1%{?dist}
@@ -27,7 +29,7 @@ display, keyboard, mouse, MIME types, and more. The settings daemon
 xfsettingsd applies preferences at session startup.
 
 %prep
-%autosetup -n xfce4-settings-%{version}
+%autosetup -n xfce4-settings-%{commit}
 
 %build
 %meson

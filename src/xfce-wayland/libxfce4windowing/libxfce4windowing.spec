@@ -1,10 +1,10 @@
 Name: libxfce4windowing
-Version: 4.21.0
+Version: 4.20.6
 Release: 1%{?dist}
 Summary: X11/Wayland windowing abstraction for Xfce
 License: LGPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/libxfce4windowing
-Source0: libxfce4windowing-%{version}.tar.bz2
+Source0: https://archive.xfce.org/src/xfce/libxfce4windowing/4.20/libxfce4windowing-%{version}.tar.bz2
 BuildRequires: gtk3-devel, libxfce4util-devel, wayland-devel
 BuildRequires: wayland-protocols-devel
 %description

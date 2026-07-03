@@ -1,3 +1,5 @@
+%global commit 3467f08522846be0ba294c867f456eaf74274dbd
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name:           xfce4-panel
 Version:        4.21.0
 Release:        1%{?dist}
@@ -31,7 +33,7 @@ This build targets Wayland compositors via gtk-layer-shell and supports
 the xfce4-panel 4.21.x development series.
 
 %prep
-%autosetup -n xfce4-panel-%{version}
+%autosetup -n xfce4-panel-%{commit}
 
 %build
 %meson

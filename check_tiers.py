@@ -50,13 +50,16 @@ def main():
         
         tier_pkgs = []
         for pkg_entry in tier['packages']:
-            # copr_name-only entries (e.g. graphviz) are built directly in
-            # COPR from upstream — there is no local spec path to check or
-            # trigger, so tier verification skips them.
             path = pkg_entry.get('path')
-            if not path:
+            if path:
+                name = get_pkg_name(path)
+            else:
+                name = pkg_entry.get('copr_name')
+                path = ""
+            
+            if not name:
                 continue
-            name = get_pkg_name(path)
+                
             tier_pkgs.append(name)
             
             for chroot in [ARM_CHROOT, V2_CHROOT]:

@@ -1,10 +1,10 @@
 Name: xfce4-clipman-plugin
-Version: 1.7.1
+Version: 1.7.0
 Release: 1%{?dist}
 Summary: Clipboard manager panel plugin for the Xfce desktop
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/panel-plugins/xfce4-clipman-plugin
-Source0: https://gitlab.xfce.org/panel-plugins/xfce4-clipman-plugin/-/archive/xfce4-clipman-plugin-1.7.1/xfce4-clipman-plugin-1.7.1.tar.gz
+Source0: https://archive.xfce.org/src/panel-plugins/xfce4-clipman-plugin/1.7/xfce4-clipman-plugin-%{version}.tar.xz
 
 BuildRequires: gtk3-devel
 BuildRequires: libxfce4ui-devel

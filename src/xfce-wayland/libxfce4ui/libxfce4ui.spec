@@ -1,16 +1,18 @@
+%global commit c07644b91e627341452c881392bf417d4dbc0031
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: libxfce4ui
 Version: 4.21.7
 Release: 70%{?dist}
 Summary: Common UI library for Xfce
 License: LGPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/libxfce4ui
-Source0: https://gitlab.xfce.org/xfce/libxfce4ui/-/archive/libxfce4ui-4.21.7/libxfce4ui-4.21.7.tar.gz
+Source0: https://gitlab.xfce.org/xfce/libxfce4ui/-/archive/%{commit}/libxfce4ui-%{commit}.tar.gz
 BuildRequires: gtk3-devel, libxfce4util-devel, xfconf-devel
 BuildRequires: gobject-introspection-devel, vala, intltool, gettext
 %description
 Common UI library for Xfce desktop environment.
 %prep
-%autosetup -n libxfce4ui-%{version}
+%autosetup -n libxfce4ui-%{commit}
 %build
 NOCONFIGURE=1 ./autogen.sh
 %configure --disable-gtk-doc

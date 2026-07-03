@@ -1,10 +1,12 @@
+%global commit f6e83d2c95a7adf58cf62b5b69c50ac11a51a2d9
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: xfce4-power-manager
 Version: 4.21.1
 Release: 1%{?dist}
 Summary: Power manager for the Xfce desktop environment (Wayland)
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/xfce4-power-manager
-Source0: https://gitlab.xfce.org/xfce/xfce4-power-manager/-/archive/xfce4-power-manager-4.21.1/xfce4-power-manager-4.21.1.tar.gz
+Source0: https://gitlab.xfce.org/xfce/xfce4-power-manager/-/archive/%{commit}/xfce4-power-manager-%{commit}.tar.gz
 
 BuildRequires: gtk3-devel
 BuildRequires: libxfce4ui-devel
@@ -29,7 +31,7 @@ Requires: libxfce4windowing
 Power manager for the Xfce desktop environment with Wayland support.
 
 %prep
-%autosetup -n xfce4-power-manager-%{version}
+%autosetup -n xfce4-power-manager-%{commit}
 
 %build
 %meson -Dwayland=enabled

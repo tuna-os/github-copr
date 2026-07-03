@@ -4,7 +4,7 @@ Release: 1%{?dist}
 Summary: Task manager for the Xfce desktop environment (Wayland)
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/apps/xfce4-taskmanager
-Source0: https://gitlab.xfce.org/apps/xfce4-taskmanager/-/archive/xfce4-taskmanager-1.5.8/xfce4-taskmanager-1.5.8.tar.gz
+Source0: https://archive.xfce.org/src/apps/xfce4-taskmanager/1.5/xfce4-taskmanager-%{version}.tar.bz2
 
 BuildRequires: gtk3-devel
 BuildRequires: libxfce4ui-devel

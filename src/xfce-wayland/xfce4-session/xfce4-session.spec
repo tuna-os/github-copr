@@ -1,3 +1,5 @@
+%global commit 17225e9ff9a4d2de5c23c8225e8abf5cdc1fddd9
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name:           xfce4-session
 Version:        4.21.0
 Release:        1%{?dist}
@@ -29,7 +31,7 @@ sessions, and managing logout/shutdown/reboot actions. This build supports
 Wayland sessions via the wayland-sessions entry point.
 
 %prep
-%autosetup -n xfce4-session-%{version}
+%autosetup -n xfce4-session-%{commit}
 
 %build
 %meson

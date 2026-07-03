@@ -7,7 +7,7 @@ Summary:        Basic utility library for Xfce4
 
 License:        LGPL-2.0-or-later
 URL:            https://gitlab.xfce.org/xfce/libxfce4util
-Source0: https://gitlab.xfce.org/xfce/libxfce4util/-/archive/libxfce4util-4.20.1/libxfce4util-4.20.1.tar.gz
+Source0: https://archive.xfce.org/src/xfce/libxfce4util/4.20/libxfce4util-%{version}.tar.bz2
 
 %if 0%{?rhel} >= 10
 BuildRequires:  glib2-devel
