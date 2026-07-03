@@ -99,21 +99,13 @@ jobs:
           EOF
 
       - name: Build package
-        env:
-          PACKAGE_PATH: ${{ matrix.package }}
         run: |
-          PKG_NAME=$(basename "${PACKAGE_PATH}")
-          echo "Building ${PKG_NAME} from ${PACKAGE_PATH}"
-
-          mkdir -p "${HOME}/local-repo"
-
-          podman run --rm --privileged \
-            -v "$(pwd):/workspace:ro" \
-            -v "${HOME}/local-repo:/local-repo:rw" \
-            "${MOCK_RUNNER_IMAGE}" \
-            /workspace/scripts/build-package.sh \
-              "/workspace/${PACKAGE_PATH}" \
-              /local-repo
+          ./scripts/build-chain.sh \
+            --backend podman \
+            --manifest build-order-xfce.yml \
+            --package "${{ matrix.package }}" \
+            --local-repo "${HOME}/local-repo" \
+            --force
 
       - name: Sign RPMs
         run: |
