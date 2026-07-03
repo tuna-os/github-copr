@@ -7,8 +7,7 @@ Summary: Common UI library for Xfce
 License: LGPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/libxfce4ui
 Source0: https://gitlab.xfce.org/xfce/libxfce4ui/-/archive/%{commit}/libxfce4ui-%{commit}.tar.gz
-BuildRequires: xfce4-dev-tools
-BuildRequires: autoconf automake libtool gettext-devel
+BuildRequires: gcc, meson, ninja-build
 BuildRequires: gtk3-devel, libxfce4util-devel, xfconf-devel
 BuildRequires: gobject-introspection-devel, vala, intltool, gettext
 %description
@@ -24,16 +23,18 @@ building against libxfce4ui.
 
 %prep
 %autosetup -n libxfce4ui-%{commit}
+
+# This commit has fully migrated to meson (no configure.ac/autogen.sh).
 %build
-NOCONFIGURE=1 ./autogen.sh
-%configure --disable-gtk-doc
-%make_build
+%meson
+%meson_build
+
 %install
-%make_install
+%meson_install
+
 %files
 %license COPYING
 %{_libdir}/libxfce4ui*.so.*
-%{_libdir}/libxfce4ui-%{version}/
 
 %files devel
 %{_includedir}/xfce4/libxfce4ui/

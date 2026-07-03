@@ -7,8 +7,7 @@ Summary: Xfce configuration daemon and library
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/xfconf
 Source0: https://gitlab.xfce.org/xfce/xfconf/-/archive/%{commit}/xfconf-%{commit}.tar.gz
-BuildRequires: xfce4-dev-tools
-BuildRequires: autoconf automake libtool gettext-devel
+BuildRequires: gcc, meson, ninja-build
 BuildRequires: glib2-devel, dbus-devel, libxfce4util-devel
 BuildRequires: gobject-introspection-devel, vala, intltool, gettext
 %description
@@ -24,12 +23,16 @@ building against xfconf.
 
 %prep
 %autosetup -n xfconf-%{commit}
+
+# This commit has fully migrated to meson (no configure.ac/autogen.sh at
+# all) — xfce4-dev-tools/autotools BuildRequires from the old spec are
+# gone; gtk-doc defaults to false in meson_options.txt already.
 %build
-NOCONFIGURE=1 ./autogen.sh
-%configure --disable-gtk-doc
-%make_build
+%meson
+%meson_build
+
 %install
-%make_install
+%meson_install
 
 %files
 %license COPYING

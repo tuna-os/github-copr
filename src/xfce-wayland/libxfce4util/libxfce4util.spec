@@ -59,9 +59,8 @@ autoreconf -fi
 
 %files
 %license COPYING
-%doc AUTHORS ChangeLog NEWS README TODO
+%doc AUTHORS ChangeLog NEWS
 %{_libdir}/libxfce4util.so.*
-%{_libdir}/libxfce4util-%{version}/
 %{_datadir}/glib-2.0/schemas/*.gschema.xml
 
 %files devel
