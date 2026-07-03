@@ -14,6 +14,23 @@ import sys
 import yaml
 
 
+def validate_manifest(manifest_path):
+    import json
+    import os
+    import jsonschema
+
+    schema_path = os.path.join(os.path.dirname(manifest_path), "build-order-schema.json")
+    if not os.path.exists(schema_path):
+        schema_path = "build-order-schema.json"
+
+    with open(manifest_path) as fh:
+        data = yaml.safe_load(fh)
+    with open(schema_path) as fh:
+        schema = json.load(fh)
+    jsonschema.validate(data, schema)
+    print("    Schema valid")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Parse build-order.yml")
     parser.add_argument("manifest", help="Path to build-order.yml")
@@ -21,7 +38,14 @@ def main():
     parser.add_argument(
         "--tiers", action="store_true", help="Print tier names only"
     )
+    parser.add_argument(
+        "--validate", action="store_true", help="Validate manifest against schema"
+    )
     args = parser.parse_args()
+
+    if args.validate:
+        validate_manifest(args.manifest)
+        return
 
     with open(args.manifest) as f:
         data = yaml.safe_load(f)
