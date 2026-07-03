@@ -90,9 +90,10 @@ jobs:
           EOF
 
       - name: Pull mock runner image
+        env:
+          MOCK_IMAGE: ${{ github.event.inputs.image || env.MOCK_RUNNER_IMAGE }}
         run: |
-          IMAGE="${{ github.event.inputs.image || env.MOCK_RUNNER_IMAGE }}"
-          podman pull "${IMAGE}"
+          podman pull "${MOCK_IMAGE}"
 
       - name: Seed local repo from R2
         run: |
@@ -104,21 +105,25 @@ jobs:
           createrepo_c "${LOCAL_REPO}"
 
       - name: Build packages
+        env:
+          BUILD_IMAGE: ${{ github.event.inputs.image || env.MOCK_RUNNER_IMAGE }}
+          BUILD_TIER: ${{ github.event.inputs.tier || '' }}
+          BUILD_PACKAGES: ${{ github.event.inputs.packages || '' }}
+          BUILD_JOBS: ${{ github.event.inputs.jobs || '' }}
         run: |
-          IMAGE="${{ github.event.inputs.image || env.MOCK_RUNNER_IMAGE }}"
           ARGS=(
             --backend podman
-            --image   "${IMAGE}"
+            --image   "${BUILD_IMAGE}"
             --local-repo "${LOCAL_REPO}"
           )
-          if [[ -n "${{ github.event.inputs.tier }}" ]]; then
-            ARGS+=(--tier "${{ github.event.inputs.tier }}")
+          if [[ -n "${BUILD_TIER}" ]]; then
+            ARGS+=(--tier "${BUILD_TIER}")
           fi
-          if [[ -n "${{ github.event.inputs.packages }}" ]]; then
-            ARGS+=(--package "${{ github.event.inputs.packages }}")
+          if [[ -n "${BUILD_PACKAGES}" ]]; then
+            ARGS+=(--package "${BUILD_PACKAGES}")
           fi
-          if [[ -n "${{ github.event.inputs.jobs }}" ]]; then
-            ARGS+=(--jobs "${{ github.event.inputs.jobs }}")
+          if [[ -n "${BUILD_JOBS}" ]]; then
+            ARGS+=(--jobs "${BUILD_JOBS}")
           fi
           ./scripts/build-chain.sh "${ARGS[@]}"
 

@@ -33,10 +33,12 @@ jobs:
 
       - name: Detect changed packages
         id: detect
+        env:
+          PACKAGE_PATH: ${{ github.event.inputs.package_path || '' }}
         run: |
           SESSION_PKGS='mutter|gnome-shell|gdm'
-          if [[ -n "${{ github.event.inputs.package_path }}" ]]; then
-            PACKAGES='["${{ github.event.inputs.package_path }}"]'
+          if [[ -n "${PACKAGE_PATH}" ]]; then
+            PACKAGES=$(python3 -c "import json; print(json.dumps(['${PACKAGE_PATH}']))")
           else
             BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
             HEAD="${{ github.sha }}"
