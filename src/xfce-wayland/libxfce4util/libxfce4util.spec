@@ -53,11 +53,12 @@ autoreconf -fi
 
 %install
 %make_install
+%find_lang libxfce4util
 
 %post -p /sbin/ldconfig
 %postun -p /sbin/ldconfig
 
-%files
+%files -f libxfce4util.lang
 %license COPYING
 %doc AUTHORS ChangeLog NEWS
 %{_libdir}/libxfce4util.so.*

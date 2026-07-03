@@ -33,14 +33,18 @@ building against xfconf.
 
 %install
 %meson_install
+%find_lang xfconf
 
-%files
+%files -f xfconf.lang
 %license COPYING
 %{_libdir}/libxfconf*.so.*
 %{_libdir}/xfce4/xfconf/xfconfd
 %{_bindir}/xfconf-query
+%{_libdir}/gio/modules/libxfconfgsettingsbackend.so
+%{_datadir}/bash-completion/completions/xfconf-query
 %{_prefix}/lib/systemd/user/xfconfd.service
 %{_datadir}/dbus-1/services/*.service
+%exclude %{_libdir}/debug/
 
 %files devel
 %{_includedir}/xfce4/xfconf-0/xfconf/
