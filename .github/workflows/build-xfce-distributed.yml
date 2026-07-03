@@ -83,7 +83,17 @@ jobs:
         with:
           name: repo-0
           path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v4
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
       - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
         run: "touch .build-marker\nARGS=(--backend podman --tier xfce-build-tools --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
       - name: Find new RPMs
         id: find-rpms
@@ -156,7 +166,17 @@ jobs:
         with:
           name: repo-1
           path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v4
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
       - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
         run: "touch .build-marker\nARGS=(--backend podman --tier xfce-layer-shell --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
       - name: Find new RPMs
         id: find-rpms
@@ -230,7 +250,17 @@ jobs:
         with:
           name: repo-2
           path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v4
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
       - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
         run: "touch .build-marker\nARGS=(--backend podman --tier xfce-core-libs --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
       - name: Find new RPMs
         id: find-rpms
@@ -305,7 +335,17 @@ jobs:
         with:
           name: repo-3
           path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v4
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
       - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
         run: "touch .build-marker\nARGS=(--backend podman --tier xfce-ui-libs --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
       - name: Find new RPMs
         id: find-rpms
@@ -383,7 +423,17 @@ jobs:
         with:
           name: repo-4
           path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v4
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
       - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
         run: "touch .build-marker\nARGS=(--backend podman --tier xfce-desktop-core --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
       - name: Find new RPMs
         id: find-rpms
@@ -456,7 +506,17 @@ jobs:
         with:
           name: repo-5
           path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v4
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
       - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
         run: "touch .build-marker\nARGS=(--backend podman --tier xfce-compositor --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
       - name: Find new RPMs
         id: find-rpms
@@ -534,7 +594,17 @@ jobs:
         with:
           name: repo-6
           path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v4
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
       - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
         run: "touch .build-marker\nARGS=(--backend podman --tier xfce-apps --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
       - name: Find new RPMs
         id: find-rpms
@@ -614,7 +684,17 @@ jobs:
         with:
           name: repo-7
           path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v4
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
       - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
         run: "touch .build-marker\nARGS=(--backend podman --tier xfce-panel-plugins --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
       - name: Find new RPMs
         id: find-rpms
@@ -687,7 +767,17 @@ jobs:
         with:
           name: repo-8
           path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v4
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
       - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
         run: "touch .build-marker\nARGS=(--backend podman --tier xfce-meta --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
       - name: Find new RPMs
         id: find-rpms

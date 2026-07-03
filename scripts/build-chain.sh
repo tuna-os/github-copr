@@ -278,10 +278,22 @@ build_package_podman() {
 
     echo "==> [${pkg_name}] Running mock inside podman (${BUILD_IMAGE})..."
 
+    # Optional persistent mock cache (dnf package downloads + chroot state).
+    # CI sets MOCK_CACHE_DIR to a host path wrapped in actions/cache, keyed
+    # per package, so a rebuild of the SAME package (Renovate bump, retry)
+    # reuses its already-resolved BuildRequires instead of re-downloading
+    # them from the CentOS/EPEL mirrors. No-op locally when unset.
+    MOCK_CACHE_ARGS=()
+    if [[ -n "${MOCK_CACHE_DIR:-}" ]]; then
+        mkdir -p "${MOCK_CACHE_DIR}"
+        MOCK_CACHE_ARGS=(-v "${MOCK_CACHE_DIR}:/var/cache/mock:Z")
+    fi
+
     podman run --rm --privileged \
         --pull=always \
         -v "${builddir}:/builddir:Z" \
         -v "${LOCAL_REPO}:/local-repo:Z" \
+        "${MOCK_CACHE_ARGS[@]}" \
         "${BUILD_IMAGE}" \
         bash -exc "
             # Use flock to ensure only one process runs mock at a time
