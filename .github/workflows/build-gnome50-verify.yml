@@ -220,7 +220,7 @@ jobs:
           sleep 5
           python3 - <<PYEOF
           from vncdotool import api
-          client = api.connect('127.0.0.1', password='', port=${VNC_PORT})
+          client = api.connect('127.0.0.1::' + str(${VNC_PORT}), password='')
           client.captureScreen('gdm-login-screen.png')
           client.disconnect()
           print("Screenshot captured")
@@ -446,7 +446,7 @@ jobs:
           sleep 5
           python3 - <<PYEOF
           from vncdotool import api
-          client = api.connect('127.0.0.1', password='', port=${VNC_PORT})
+          client = api.connect('127.0.0.1::' + str(${VNC_PORT}), password='')
           client.captureScreen('gdm-login-screen-copr.png')
           client.disconnect()
           print("Screenshot captured")
