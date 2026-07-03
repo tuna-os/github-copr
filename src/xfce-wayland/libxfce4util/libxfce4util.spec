@@ -61,11 +61,16 @@ autoreconf -fi
 %license COPYING
 %doc AUTHORS ChangeLog NEWS
 %{_libdir}/libxfce4util.so.*
+%{_sbindir}/xfce4-kiosk-query
+%exclude %{_libdir}/debug/
 
 %files devel
 %{_includedir}/xfce4/libxfce4util/
 %{_libdir}/libxfce4util.so
 %{_libdir}/pkgconfig/libxfce4util*.pc
+%{_libdir}/girepository-1.0/Libxfce4util-1.0.typelib
+%{_datadir}/gir-1.0/Libxfce4util-1.0.gir
+%{_datadir}/gtk-doc/html/libxfce4util/
 
 %changelog
 * Sat Jun 27 2026 TunaOS Bot <bot@tunaos.org> - 4.20.1-17

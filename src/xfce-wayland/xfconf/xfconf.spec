@@ -43,7 +43,7 @@ building against xfconf.
 %{_datadir}/dbus-1/services/*.service
 
 %files devel
-%{_includedir}/xfce4/libxfconf-0/xfconf/
+%{_includedir}/xfce4/xfconf-0/xfconf/
 %{_libdir}/libxfconf*.so
 %{_libdir}/pkgconfig/*.pc
 %{_libdir}/girepository-1.0/*.typelib
