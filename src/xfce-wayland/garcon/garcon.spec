@@ -11,7 +11,6 @@ Menu handling library for the Xfce desktop environment.
 %prep
 %autosetup -n garcon-%{version}
 %build
-NOCONFIGURE=1 ./autogen.sh
 %configure --disable-gtk-doc
 %make_build
 %install

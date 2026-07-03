@@ -33,7 +33,6 @@ Required by all other Xfce components.
 %autosetup -n libxfce4util-%{version}
 
 %build
-NOCONFIGURE=1 ./autogen.sh
 %configure --disable-gtk-doc
 %make_build
 

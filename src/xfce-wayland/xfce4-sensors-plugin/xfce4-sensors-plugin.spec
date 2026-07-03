@@ -13,7 +13,6 @@ such as temperatures, voltages, and fan speeds.
 %prep
 %autosetup -n xfce4-sensors-plugin-%{version}
 %build
-NOCONFIGURE=1 ./autogen.sh
 %configure --disable-gtk-doc
 %make_build
 %install

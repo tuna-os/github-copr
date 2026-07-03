@@ -13,7 +13,6 @@ display of CPU usage over time.
 %prep
 %autosetup -n xfce4-cpugraph-plugin-%{version}
 %build
-NOCONFIGURE=1 ./autogen.sh
 %configure --disable-gtk-doc
 %make_build
 %install

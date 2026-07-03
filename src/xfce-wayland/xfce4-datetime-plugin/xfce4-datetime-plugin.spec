@@ -7,6 +7,8 @@ Summary: Date and time panel plugin for the Xfce panel
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/panel-plugins/xfce4-datetime-plugin
 Source0: https://gitlab.xfce.org/panel-plugins/xfce4-datetime-plugin/-/archive/%{commit}/xfce4-datetime-plugin-%{commit}.tar.gz
+BuildRequires: xfce4-dev-tools
+BuildRequires: autoconf automake libtool gettext-devel
 BuildRequires: gtk3-devel, libxfce4ui-devel, libxfce4util-devel, xfce4-panel-devel, intltool, gettext, autoconf, automake, libtool
 Requires: xfce4-panel
 %description

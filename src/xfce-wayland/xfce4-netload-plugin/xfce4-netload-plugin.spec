@@ -13,7 +13,6 @@ network traffic statistics for configured network interfaces.
 %prep
 %autosetup -n xfce4-netload-plugin-%{version}
 %build
-NOCONFIGURE=1 ./autogen.sh
 %configure --disable-gtk-doc
 %make_build
 %install

@@ -13,7 +13,6 @@ command periodically and displays its output in the panel.
 %prep
 %autosetup -n xfce4-genmon-plugin-%{version}
 %build
-NOCONFIGURE=1 ./autogen.sh
 %configure --disable-gtk-doc
 %make_build
 %install
