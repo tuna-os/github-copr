@@ -143,6 +143,8 @@ jobs:
           pip install pytest pyyaml jsonschema
 
       - name: Run pytest
+        env:
+          PYTHONPATH: scripts:.
         run: |
           echo "=== Python Tests ==="
           FAILED=0

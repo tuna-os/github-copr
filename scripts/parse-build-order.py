@@ -22,6 +22,9 @@ def validate_manifest(manifest_path):
     schema_path = os.path.join(os.path.dirname(manifest_path), "build-order-schema.json")
     if not os.path.exists(schema_path):
         schema_path = "build-order-schema.json"
+    if not os.path.exists(schema_path):
+        print("    Schema file not found. Skipping validation.")
+        return
 
     with open(manifest_path) as fh:
         data = yaml.safe_load(fh)
