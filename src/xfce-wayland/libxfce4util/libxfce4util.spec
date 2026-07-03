@@ -66,9 +66,6 @@ autoreconf -fi
 %{_includedir}/xfce4/libxfce4util/
 %{_libdir}/libxfce4util.so
 %{_libdir}/pkgconfig/libxfce4util*.pc
-%{_libdir}/girepository-1.0/Xfce4util*.typelib
-%{_datadir}/gir-1.0/Xfce4util*.gir
-%{_datadir}/vala/vapi/libxfce4util*.vapi
 
 %changelog
 * Sat Jun 27 2026 TunaOS Bot <bot@tunaos.org> - 4.20.1-17
