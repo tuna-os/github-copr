@@ -25,7 +25,7 @@ jobs:
     name: YAML Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/checkout@v4
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
@@ -49,7 +49,7 @@ jobs:
     name: ShellCheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/checkout@v4
 
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
@@ -66,7 +66,7 @@ jobs:
     name: Workflow Syntax Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/checkout@v4
 
       - name: Validate workflow YAMLs
         run: |
@@ -87,7 +87,7 @@ jobs:
     name: Build Order Schema Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/checkout@v4
 
       - name: Install yq and check-jsonschema
         run: |
@@ -122,7 +122,7 @@ jobs:
     name: BATS Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/checkout@v4
 
       - name: Install BATS
         run: |
@@ -144,7 +144,7 @@ jobs:
     name: Python Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:

@@ -90,6 +90,7 @@ jobs:
                 dnf config-manager --add-repo https://dev.repo.tunaos.org/gnome50/10-stream-x86_64/
                 dnf config-manager --save --setopt='dev.repo.tunaos.org_gnome50_10-stream-x86_64_.gpgcheck=0'
                 dnf -y install \
+                  gnome50-el10-compat \
                   gnome-shell \
                   gnome-control-center \
                   mutter \
@@ -305,6 +306,7 @@ jobs:
           limactl shell gnome50-verify-copr -- sudo dnf copr enable -y jreilly1821/c10s-gnome-50
           echo "Installing GNOME packages from COPR..."
           limactl shell gnome50-verify-copr -- sudo dnf -y install \
+            gnome50-el10-compat \
             gnome-shell \
             gnome-control-center \
             mutter \
