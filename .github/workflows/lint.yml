@@ -33,6 +33,8 @@ jobs:
           file_or_dir: .
           config_data: |
             extends: default
+            ignore: |
+              src/
             rules:
               line-length: disable
               document-start: disable

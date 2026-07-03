@@ -5,8 +5,14 @@ import sys
 import tempfile
 import yaml
 
-# Add scripts to path for import
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+# Load module from filepath directly because of hyphen in filename
+import importlib.util
+scripts_dir = os.path.join(os.path.dirname(__file__), '..', 'scripts')
+module_path = os.path.join(scripts_dir, 'generate-distributed-workflow.py')
+spec = importlib.util.spec_from_file_location("generate_distributed_workflow", module_path)
+generate_distributed_workflow = importlib.util.module_from_spec(spec)
+sys.modules["generate_distributed_workflow"] = generate_distributed_workflow
+spec.loader.exec_module(generate_distributed_workflow)
 from generate_distributed_workflow import generate_workflow
 
 

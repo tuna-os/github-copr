@@ -7,12 +7,12 @@
     tags:
     - classic
     tests:
-    - Basic-sanity-test
-    - got-audit
+      - Basic-sanity-test
+      - got-audit
     required_packages:
-    - avahi
-    - avahi-tools
-    - bind
-    - bind-chroot
-    - bind-utils
-    - gdb-gef           # needed to test got-audit
+      - avahi
+      - avahi-tools
+      - bind
+      - bind-chroot
+      - bind-utils
+      - gdb-gef           # needed to test got-audit

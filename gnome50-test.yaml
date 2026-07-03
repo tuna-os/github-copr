@@ -25,11 +25,11 @@ provision:
     script: |
       #!/bin/bash
       set -euxo pipefail
-      
+
       # Enable our COPR
       dnf -y install dnf-plugins-core
       dnf copr enable -y jreilly1821/c10s-gnome-50
-      
+
       # Install GNOME 50 core components
       # We install these first to ensure our versions are picked up
       dnf -y install \
@@ -41,10 +41,10 @@ provision:
         gnome-terminal \
         nautilus \
         glib2
-      
+
       # Install a minimal graphical environment
       dnf -y group install "BaseOS" "Fonts"
-      
+
       # Enable GDM and set graphical boot
       systemctl enable gdm
       systemctl set-default graphical.target
