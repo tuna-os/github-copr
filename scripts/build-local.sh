@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SPEC_FILE=""
 TARGET="${2:-fedora-40-x86_64}"
-MOCK_CONFIG=""
+# MOCK_CONFIG is defined in target-specific files if needed
 # Use podman if available, fall back to docker
 if command -v podman &>/dev/null; then
     CONTAINER_RUNTIME="podman"
@@ -59,6 +59,7 @@ find_spec() {
     fi
     
     # Try to find spec in src/
+    # shellcheck disable=SC2012
     spec=$(ls "$PROJECT_DIR/src/"*.spec 2>/dev/null | head -n1 || true)
     if [ -n "$spec" ]; then
         SPEC_FILE="$spec"
@@ -84,7 +85,7 @@ build_srpm() {
     # Create tarball if needed
     # (Note: This still runs on host, but for hello-world it's fine.
     # For more complex specs it might need refinement)
-    local name version
+    local name
     name=$(basename "$spec" .spec)
     
     if [ -d "$PROJECT_DIR/src/$name" ]; then
@@ -175,6 +176,7 @@ main() {
     
     # Find the SRPM
     local srpm
+    # shellcheck disable=SC2012
     srpm=$(ls "$PROJECT_DIR/build/SRPMS/"*.src.rpm 2>/dev/null | head -n1)
     
     if [ -z "$srpm" ]; then

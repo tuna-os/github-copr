@@ -1,12 +1,14 @@
+%global commit 465880f67b5705136895bf69c60e2178ad351856
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 %global cargo_name xfwl4
 
 Name: xfwl4
-Version: 0.1.0
+Version: 4.21.0
 Release: 1%{?dist}
 Summary: Wayland compositor for Xfce4
 License: GPL-3.0-or-later AND Apache-2.0 AND MIT
 URL: https://gitlab.xfce.org/xfce/xfwl4
-Source0: https://gitlab.xfce.org/xfce/xfwl4/-/archive/xfwl4-0.1.0/xfwl4-0.1.0.tar.gz
+Source0: https://gitlab.xfce.org/xfce/xfwl4/-/archive/%{commit}/xfwl4-%{commit}.tar.gz
 
 %if 0%{?rhel} >= 10
 %global __cargo_requires_buildrequires 1
@@ -24,7 +26,7 @@ xfwl4 is a Wayland compositor for Xfce4 built on Smithay/wlroots.
 Provides both winit (nested) and TTY (udev+egl) backends.
 
 %prep
-%autosetup -n %{cargo_name}-%{version}
+%autosetup -n xfwl4-%{commit}
 
 %build
 export RUSTFLAGS="-C relocation-model=pic"

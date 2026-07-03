@@ -1,0 +1,731 @@
+name: XFCE Wayland Distributed Build and Publish
+'on':
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Force rebuild even if package exists in repo
+        type: boolean
+        default: false
+env:
+  R2_BUCKET: bluefin
+  LOCAL_REPO: ${{ github.workspace }}/local-repo
+  MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
+jobs:
+  seed-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Configure rclone
+        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
+
+          mkdir -p ~/.config/rclone
+
+          cat > ~/.config/rclone/rclone.conf << EOF
+
+          [r2]
+
+          type = s3
+
+          provider = Cloudflare
+
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+
+          EOF
+
+          '
+      - name: Seed local repo from R2
+        run: 'mkdir -p local-repo
+
+          echo "Downloading existing repo from R2..."
+
+          rclone sync "r2:${R2_BUCKET}/xfce/10-stream-x86_64/" "local-repo/" --exclude "repodata/**" || true
+
+          createrepo_c local-repo
+
+          '
+      - name: Upload initial repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-0
+          path: local-repo
+          retention-days: 1
+  build-xfce-layer-shell:
+    needs: seed-repo
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/xfce-wayland/gtk-layer-shell
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-0
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier xfce-layer-shell --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-xfce-layer-shell-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-xfce-layer-shell:
+    needs: build-xfce-layer-shell
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-0
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-xfce-layer-shell-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-1
+          path: local-repo
+          retention-days: 1
+  build-xfce-core-libs:
+    needs: consolidate-xfce-layer-shell
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/xfce-wayland/libxfce4util
+          - src/xfce-wayland/xfconf
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-1
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier xfce-core-libs --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-xfce-core-libs-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-xfce-core-libs:
+    needs: build-xfce-core-libs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-1
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-xfce-core-libs-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-2
+          path: local-repo
+          retention-days: 1
+  build-xfce-ui-libs:
+    needs: consolidate-xfce-core-libs
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/xfce-wayland/libxfce4ui
+          - src/xfce-wayland/garcon
+          - src/xfce-wayland/libxfce4windowing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-2
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier xfce-ui-libs --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-xfce-ui-libs-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-xfce-ui-libs:
+    needs: build-xfce-ui-libs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-2
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-xfce-ui-libs-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-3
+          path: local-repo
+          retention-days: 1
+  build-xfce-desktop-core:
+    needs: consolidate-xfce-ui-libs
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/xfce-wayland/xfce4-panel
+          - src/xfce-wayland/xfce4-session
+          - src/xfce-wayland/xfdesktop
+          - src/xfce-wayland/xfce4-settings
+          - src/xfce-wayland/thunar
+          - src/xfce-wayland/tumbler
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-3
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier xfce-desktop-core --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-xfce-desktop-core-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-xfce-desktop-core:
+    needs: build-xfce-desktop-core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-3
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-xfce-desktop-core-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-4
+          path: local-repo
+          retention-days: 1
+  build-xfce-compositor:
+    needs: consolidate-xfce-desktop-core
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/xfce-wayland/xfwl4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-4
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier xfce-compositor --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-xfce-compositor-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-xfce-compositor:
+    needs: build-xfce-compositor
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-4
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-xfce-compositor-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-5
+          path: local-repo
+          retention-days: 1
+  build-xfce-apps:
+    needs: consolidate-xfce-compositor
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/xfce-wayland/xfce4-terminal
+          - src/xfce-wayland/xfce4-power-manager
+          - src/xfce-wayland/xfce4-notifyd
+          - src/xfce-wayland/xfce4-appfinder
+          - src/xfce-wayland/xfce4-screenshooter
+          - src/xfce-wayland/xfce4-taskmanager
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-5
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier xfce-apps --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-xfce-apps-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-xfce-apps:
+    needs: build-xfce-apps
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-5
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-xfce-apps-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-6
+          path: local-repo
+          retention-days: 1
+  build-xfce-panel-plugins:
+    needs: consolidate-xfce-apps
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/xfce-wayland/xfce4-pulseaudio-plugin
+          - src/xfce-wayland/xfce4-clipman-plugin
+          - src/xfce-wayland/xfce4-sensors-plugin
+          - src/xfce-wayland/xfce4-weather-plugin
+          - src/xfce-wayland/xfce4-netload-plugin
+          - src/xfce-wayland/xfce4-cpugraph-plugin
+          - src/xfce-wayland/xfce4-datetime-plugin
+          - src/xfce-wayland/xfce4-genmon-plugin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-6
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier xfce-panel-plugins --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-xfce-panel-plugins-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-xfce-panel-plugins:
+    needs: build-xfce-panel-plugins
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-6
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-xfce-panel-plugins-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-7
+          path: local-repo
+          retention-days: 1
+  build-xfce-meta:
+    needs: consolidate-xfce-panel-plugins
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/xfce-wayland/xfce4-wayland
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-7
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier xfce-meta --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-xfce-meta-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-xfce-meta:
+    needs: build-xfce-meta
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-7
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-xfce-meta-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-8
+          path: local-repo
+          retention-days: 1
+  publish:
+    needs: consolidate-xfce-meta
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf
+
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+          '
+      - name: Download final repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-8
+          path: local-repo
+      - name: Import GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_committer_name: RPM Builder
+          git_committer_email: rpm-signing@tunaos.org
+      - name: Configure RPM macros
+        run: 'echo "%_signature gpg" > ~/.rpmmacros
+
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+
+          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
+
+          '
+      - name: Sign RPMs
+        run: 'find local-repo -name "*.rpm" -exec rpmsign --addsign {} \;
+
+          createrepo_c --update local-repo
+
+          '
+      - name: Configure rclone
+        run: 'mkdir -p ~/.config/rclone
+
+          cat > ~/.config/rclone/rclone.conf << EOF
+
+          [r2]
+
+          type = s3
+
+          provider = Cloudflare
+
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+
+          EOF
+
+          '
+      - name: Upload to R2
+        run: 'echo "Uploading to 10-stream-x86_64..."
+
+          rclone sync local-repo/ "r2:${R2_BUCKET}/xfce/10-stream-x86_64/"
+
+          rclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"
+
+          rclone copyto contrib/install.sh "r2:${R2_BUCKET}/install.sh"
+
+          '

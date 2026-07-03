@@ -41,9 +41,30 @@ FILTER_PACKAGE=""
 DRY_RUN=false
 FORCE=false
 
+usage() {
+    echo "Usage: $0 [options]"
+    echo ""
+    echo "Options:"
+    echo "  --manifest <path>    Path to build-order.yml (default: build-order.yml)"
+    echo "  --backend <name>     Build backend: podman, mock, or native (default: podman)"
+    echo "  --image <ref>        Container image for podman backend"
+    echo "  --mock-config <cfg>  Mock config name (default: centos-stream-10-ci)"
+    echo "  --local-repo <path>  Path to local repo directory (default: ./local-repo)"
+    echo "  --jobs <N>           Parallel jobs within a tier (default: nproc/2)"
+    echo "  --tier <name>        Only build a specific tier"
+    echo "  --package <path>     Only build a specific package path"
+    echo "  --dry-run            Print what would be built without building"
+    echo "  --force              Force rebuild even if package exists in repo"
+    echo "  -h, --help           Show this help message"
+}
+
 # --- Argument parsing ---
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
         --manifest)    MANIFEST="$2";    shift 2 ;;
         --backend)     BACKEND="$2";     shift 2 ;;
         --image)       BUILD_IMAGE="$2"; shift 2 ;;
@@ -220,6 +241,7 @@ build_package_podman() {
 
     local builddir
     builddir="$(mktemp -d)"
+    # shellcheck disable=SC2064
     trap "rm -rf '${builddir}'" RETURN
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
@@ -315,6 +337,7 @@ build_package_mock() {
     echo "==> [${pkg_name}] Building (mock) from ${pkg_dir}"
 
     builddir="$(mktemp -d)"
+    # shellcheck disable=SC2064
     trap "rm -rf '${builddir}'" RETURN
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
@@ -407,6 +430,7 @@ build_package_native() {
 
     local builddir
     builddir="$(mktemp -d)"
+    # shellcheck disable=SC2064
     trap "rm -rf '${builddir}'" RETURN
 
     mkdir -p "${builddir}"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS,SPECS}
@@ -510,6 +534,7 @@ build_tier() {
 
     local logdir
     logdir="$(mktemp -d)"
+    # shellcheck disable=SC2064
     trap "rm -rf '${logdir}'" RETURN
 
     local pids=()
@@ -521,7 +546,8 @@ build_tier() {
             local pid="${pids[$i]}"
             local path="${pkg_paths[$i]}"
             if ! kill -0 "$pid" 2>/dev/null; then
-                local logfile="${logdir}/$(basename "$path").log"
+                local logfile
+                logfile="${logdir}/$(basename "$path").log"
                 cat "$logfile"
                 if wait "$pid"; then
                     : # success
@@ -554,7 +580,8 @@ build_tier() {
             wait_one
         done
 
-        local logfile="${logdir}/$(basename "$pkg_path").log"
+        local logfile
+        logfile="${logdir}/$(basename "$pkg_path").log"
         build_package "$pkg_path" "$spec_override" > "$logfile" 2>&1 &
         pids+=($!)
         pkg_paths+=("$pkg_path")

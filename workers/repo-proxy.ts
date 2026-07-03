@@ -28,12 +28,38 @@ export default {
       return handleCors(request);
     }
 
-    // Route: Serve GPG public key
-    if (path === "/public.gpg" || path === "/keys/RPM-GPG-KEY-james-rc") {
-      return serveFromR2(env, "public.gpg", {
+    // Route: Serve GPG public key or Release.gpg signature
+    if (path === "/public.gpg" || path === "/keys/RPM-GPG-KEY-james-rc" || path.endsWith("/Release.gpg")) {
+      return serveFromR2(env, path === "/public.gpg" || path === "/keys/RPM-GPG-KEY-james-rc" ? "public.gpg" : path, {
         contentType: "application/pgp-keys",
         addHeaders: {
           "Content-Disposition": "attachment; filename=\"RPM-GPG-KEY-james-rc\"",
+        },
+      });
+    }
+ 
+    // Route: Serve Debian/Ubuntu APT Release metadata files (InRelease, Release)
+    if (path.endsWith("/InRelease") || path.endsWith("/Release")) {
+      return serveFromR2(env, path, {
+        contentType: "text/plain",
+        cacheable: true,
+      });
+    }
+
+    // Route: Serve Debian/Ubuntu APT Packages indices and metadata
+    if (path.endsWith("/Packages") || path.endsWith("/Packages.gz") || path.endsWith("/Sources.gz")) {
+      return serveFromR2(env, path, {
+        contentType: path.endsWith(".gz") ? "application/x-gzip" : "text/plain",
+        cacheable: true,
+      });
+    }
+
+    // Route: Serve Debian packages
+    if (path.endsWith(".deb")) {
+      return serveFromR2(env, path, {
+        contentType: "application/x-debian-package",
+        addHeaders: {
+          "Content-Disposition": "attachment",
         },
       });
     }

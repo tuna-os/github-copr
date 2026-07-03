@@ -1,0 +1,83 @@
+# Build Order Manifest for XFCE Wayland Stack on EL10
+#
+# Packages within a tier build in parallel; tiers are sequential.
+# Each package entry is a path relative to the repo root.
+#
+# Resolves issue: https://github.com/tuna-os/github-copr/issues/65
+#
+# Target: almalinux-kitten-10-x86_64 (also centos-stream-10-x86_64)
+# R2 path: repo/10/x86_64 (same as main GNOME 50 repo — XFCE packages
+#          install alongside the existing GNOME stack)
+
+target: centos-stream-10-x86_64
+r2_path: xfce/10-stream-x86_64
+
+tiers:
+  # Tier 0: GTK3 Wayland layer shell — required by panel, terminal, notifyd.
+  # Builds cleanly with EL10 base + wayland-protocols from deps.
+  - name: xfce-build-tools
+    packages:
+      - path: src/xfce-wayland/xfce4-dev-tools
+        build_tool: true
+
+  - name: xfce-layer-shell
+    packages:
+      - path: src/xfce-wayland/gtk-layer-shell
+
+  # Tier 1: Core XFCE libraries (dependency order within tier handled by
+  # parallel build; these have no intra-tier deps).
+  - name: xfce-core-libs
+    packages:
+      - path: src/xfce-wayland/libxfce4util
+      - path: src/xfce-wayland/xfconf
+
+  # Tier 2: Libraries that depend on libxfce4util / xfconf.
+  - name: xfce-ui-libs
+    packages:
+      - path: src/xfce-wayland/libxfce4ui
+      - path: src/xfce-wayland/garcon
+      - path: src/xfce-wayland/libxfce4windowing
+
+  # Tier 3: Core desktop components (panel, session, desktop, settings,
+  # file manager) — all depend on the ui-libs tier.
+  - name: xfce-desktop-core
+    packages:
+      - path: src/xfce-wayland/xfce4-panel
+      - path: src/xfce-wayland/xfce4-session
+      - path: src/xfce-wayland/xfdesktop
+      - path: src/xfce-wayland/xfce4-settings
+      - path: src/xfce-wayland/thunar
+      - path: src/xfce-wayland/tumbler
+
+  # Tier 4: Compositor — xfwl4 (Rust/Smithay); only depends on system libs.
+  # Placed here (after desktop-core) so COPR has gtk3-devel etc. available.
+  - name: xfce-compositor
+    packages:
+      - path: src/xfce-wayland/xfwl4
+
+  # Tier 5: Applications that depend on xfce4-panel / desktop-core.
+  - name: xfce-apps
+    packages:
+      - path: src/xfce-wayland/xfce4-terminal
+      - path: src/xfce-wayland/xfce4-power-manager
+      - path: src/xfce-wayland/xfce4-notifyd
+      - path: src/xfce-wayland/xfce4-appfinder
+      - path: src/xfce-wayland/xfce4-screenshooter
+      - path: src/xfce-wayland/xfce4-taskmanager
+
+  # Tier 6: Panel plugins — all depend on xfce4-panel from tier 3.
+  - name: xfce-panel-plugins
+    packages:
+      - path: src/xfce-wayland/xfce4-pulseaudio-plugin
+      - path: src/xfce-wayland/xfce4-clipman-plugin
+      - path: src/xfce-wayland/xfce4-sensors-plugin
+      - path: src/xfce-wayland/xfce4-weather-plugin
+      - path: src/xfce-wayland/xfce4-netload-plugin
+      - path: src/xfce-wayland/xfce4-cpugraph-plugin
+      - path: src/xfce-wayland/xfce4-datetime-plugin
+      - path: src/xfce-wayland/xfce4-genmon-plugin
+
+  # Tier 7: Meta package — requires all of the above.
+  - name: xfce-meta
+    packages:
+      - path: src/xfce-wayland/xfce4-wayland

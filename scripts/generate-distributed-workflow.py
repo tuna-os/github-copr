@@ -121,9 +121,13 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         ]
     }
 
+    class IndentedDumper(yaml.Dumper):
+        def increase_indent(self, flow=False, indentless=False):
+            return super(IndentedDumper, self).increase_indent(flow, False)
+
     # Write yaml out without using standard aliases and formatting correctly
     with open(output_path, 'w') as f:
-        yaml.dump(workflow, f, default_flow_style=False, sort_keys=False, width=float("inf"))
+        yaml.dump(workflow, f, Dumper=IndentedDumper, default_flow_style=False, sort_keys=False, width=float("inf"))
 
 
 def _build_upload_run(r2_path, secondary_r2_path, install_script, install_r2_dest):
