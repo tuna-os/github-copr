@@ -13,6 +13,15 @@ BuildRequires: gtk3-devel, libxfce4util-devel, xfconf-devel
 BuildRequires: gobject-introspection-devel, vala, intltool, gettext
 %description
 Common UI library for Xfce desktop environment.
+
+%package devel
+Summary: Development files for %{name}
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description devel
+Headers, pkgconfig, GObject-Introspection typelib, and Vala bindings for
+building against libxfce4ui.
+
 %prep
 %autosetup -n libxfce4ui-%{commit}
 %build
@@ -25,6 +34,16 @@ NOCONFIGURE=1 ./autogen.sh
 %license COPYING
 %{_libdir}/libxfce4ui*.so.*
 %{_libdir}/libxfce4ui-%{version}/
+
+%files devel
+%{_includedir}/xfce4/libxfce4ui/
+%{_includedir}/xfce4/libxfce4kbd-private/
+%{_libdir}/libxfce4ui*.so
+%{_libdir}/libxfce4kbd-private*.so
+%{_libdir}/pkgconfig/*.pc
+%{_libdir}/girepository-1.0/*.typelib
+%{_datadir}/gir-1.0/*.gir
+%{_datadir}/vala/vapi/*
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}

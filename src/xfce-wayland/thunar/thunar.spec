@@ -7,7 +7,7 @@ Summary:        File manager for the Xfce desktop environment (Wayland)
 
 License:        GPL-2.0-or-later AND LGPL-2.1-or-later
 URL:            https://gitlab.xfce.org/xfce/thunar
-Source0:        https://gitlab.xfce.org/xfce/thunar/-/archive/thunar-4.21.0/thunar-4.21.0.tar.gz
+Source0: https://gitlab.xfce.org/xfce/thunar/-/archive/%{commit}/thunar-%{commit}.tar.gz
 
 BuildRequires: gcc
 BuildRequires:  gtk3-devel
@@ -25,6 +25,13 @@ BuildRequires:  ninja-build
 Thunar is the file manager for the Xfce desktop environment. It is designed
 to be fast and easy to use. This build is compiled with X11 support disabled
 (-Dx11=disabled) for use in pure Wayland sessions on TunaOS EL10.
+
+%package devel
+Summary: Development files for %{name} (thunarx plugin API)
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description devel
+Headers and pkgconfig files for building Thunar (thunarx) plugins.
 
 %prep
 %autosetup -n thunar-%{commit}
@@ -46,8 +53,11 @@ to be fast and easy to use. This build is compiled with X11 support disabled
 %{_bindir}/thunar-bulk-rename
 %{_libdir}/libthunar*.so.*
 %{_libdir}/thunarx-3/
-%{_libdir}/pkgconfig/thunarx-3.pc
 %{_datadir}/applications/*.desktop
+
+%files devel
+%{_includedir}/thunarx-3/
+%{_libdir}/pkgconfig/thunarx-3.pc
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.0-1

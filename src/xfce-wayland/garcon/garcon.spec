@@ -10,6 +10,14 @@ BuildRequires: autoconf automake libtool gettext-devel
 BuildRequires: glib2-devel, libxfce4util-devel
 %description
 Menu handling library for the Xfce desktop environment.
+
+%package devel
+Summary: Development files for %{name}
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description devel
+Headers and pkgconfig files for building against garcon.
+
 %prep
 %autosetup -n garcon-%{version}
 # The dist tarball bundles a configure script generated against an
@@ -25,6 +33,11 @@ autoreconf -fi
 %files
 %license COPYING
 %{_libdir}/libgarcon*.so.*
+
+%files devel
+%{_includedir}/xfce4/garcon-1/
+%{_libdir}/libgarcon*.so
+%{_libdir}/pkgconfig/*.pc
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}

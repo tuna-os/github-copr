@@ -7,7 +7,7 @@ Summary:        Desktop manager for the Xfce desktop environment (Wayland)
 
 License:        GPL-2.0-or-later
 URL:            https://gitlab.xfce.org/xfce/xfdesktop
-Source0:        https://gitlab.xfce.org/xfce/xfdesktop/-/archive/xfdesktop-4.21.0/xfdesktop-4.21.0.tar.gz
+Source0: https://gitlab.xfce.org/xfce/xfdesktop/-/archive/%{commit}/xfdesktop-%{commit}.tar.gz
 
 BuildRequires: gcc
 BuildRequires:  gtk3-devel

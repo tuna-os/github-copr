@@ -7,7 +7,7 @@ Summary:        Session manager for the Xfce desktop environment (Wayland)
 
 License:        GPL-2.0-or-later
 URL:            https://gitlab.xfce.org/xfce/xfce4-session
-Source0:        https://gitlab.xfce.org/xfce/xfce4-session/-/archive/xfce4-session-4.21.0/xfce4-session-4.21.0.tar.gz
+Source0: https://gitlab.xfce.org/xfce/xfce4-session/-/archive/%{commit}/xfce4-session-%{commit}.tar.gz
 
 BuildRequires: gcc
 BuildRequires:  gtk3-devel

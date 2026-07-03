@@ -31,6 +31,14 @@ Requires:       glib2%{?_isa}
 Basic utility library for the Xfce desktop environment.
 Required by all other Xfce components.
 
+%package devel
+Summary: Development files for %{name}
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description devel
+Headers, pkgconfig, GObject-Introspection typelib, and Vala bindings for
+building against libxfce4util.
+
 %prep
 %autosetup -n libxfce4util-%{version}
 
@@ -54,10 +62,14 @@ autoreconf -fi
 %doc AUTHORS ChangeLog NEWS README TODO
 %{_libdir}/libxfce4util.so.*
 %{_libdir}/libxfce4util-%{version}/
-%{_libdir}/pkgconfig/libxfce4util*.pc
 %{_datadir}/glib-2.0/schemas/*.gschema.xml
-%{_datadir}/gtk-doc/html/libxfce4util/
+
+%files devel
+%{_includedir}/xfce4/libxfce4util/
+%{_libdir}/libxfce4util.so
+%{_libdir}/pkgconfig/libxfce4util*.pc
 %{_libdir}/girepository-1.0/Xfce4util*.typelib
+%{_datadir}/gir-1.0/Xfce4util*.gir
 %{_datadir}/vala/vapi/libxfce4util*.vapi
 
 %changelog

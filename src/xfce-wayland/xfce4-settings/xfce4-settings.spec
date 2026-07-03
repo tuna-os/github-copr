@@ -7,7 +7,7 @@ Summary:        Settings manager for the Xfce desktop environment
 
 License:        GPL-2.0-or-later
 URL:            https://gitlab.xfce.org/xfce/xfce4-settings
-Source0:        https://gitlab.xfce.org/xfce/xfce4-settings/-/archive/xfce4-settings-4.21.0/xfce4-settings-4.21.0.tar.gz
+Source0: https://gitlab.xfce.org/xfce/xfce4-settings/-/archive/%{commit}/xfce4-settings-%{commit}.tar.gz
 
 BuildRequires: gcc
 BuildRequires:  gtk3-devel

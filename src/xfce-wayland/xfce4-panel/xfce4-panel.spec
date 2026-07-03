@@ -7,7 +7,7 @@ Summary:        Panel for the Xfce desktop environment (Wayland-ready)
 
 License:        GPL-2.0-or-later AND LGPL-2.1-or-later
 URL:            https://gitlab.xfce.org/xfce/xfce4-panel
-Source0:        https://gitlab.xfce.org/xfce/xfce4-panel/-/archive/xfce4-panel-4.21.0/xfce4-panel-4.21.0.tar.gz
+Source0: https://gitlab.xfce.org/xfce/xfce4-panel/-/archive/%{commit}/xfce4-panel-%{commit}.tar.gz
 
 BuildRequires: gcc
 BuildRequires:  gtk3-devel
@@ -33,6 +33,14 @@ The Xfce4 panel is the taskbar/launcher for the Xfce desktop environment.
 This build targets Wayland compositors via gtk-layer-shell and supports
 the xfce4-panel 4.21.x development series.
 
+%package devel
+Summary: Development files for %{name}
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description devel
+Headers, pkgconfig, GObject-Introspection typelib, and Vala bindings for
+building xfce4-panel plugins.
+
 %prep
 %autosetup -n xfce4-panel-%{commit}
 
@@ -47,10 +55,17 @@ the xfce4-panel 4.21.x development series.
 %license COPYING
 %{_bindir}/xfce4-panel
 %{_libdir}/libxfce4panel*.so.*
-%{_libdir}/pkgconfig/libxfce4panel-2.0.pc
 %{_libdir}/xfce4/panel/
 %{_datadir}/applications/*.desktop
 %{_datadir}/xfce4/panel/
+
+%files devel
+%{_includedir}/xfce4/libxfce4panel-2.0/
+%{_libdir}/libxfce4panel*.so
+%{_libdir}/pkgconfig/libxfce4panel-2.0.pc
+%{_libdir}/girepository-1.0/*.typelib
+%{_datadir}/gir-1.0/*.gir
+%{_datadir}/vala/vapi/*
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.0-1

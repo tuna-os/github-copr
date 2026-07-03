@@ -22,6 +22,15 @@ Layer shell is a Wayland protocol for desktop components such as panels and
 notification daemons. It allows windows to be anchored to the edges or corners
 of the screen and placed above or below other windows.
 
+%package devel
+Summary: Development files for %{name}
+Requires: %{name}%{?_isa} = %{version}-%{release}
+Requires: gtk3-devel%{?_isa}
+
+%description devel
+Headers, GObject-Introspection typelib, and Vala bindings for building
+against gtk-layer-shell.
+
 %prep
 %autosetup -n gtk-layer-shell-%{version}
 
@@ -38,7 +47,15 @@ of the screen and placed above or below other windows.
 %files
 %license LICENSE_GPL.txt LICENSE_LGPL.txt LICENSE_MIT.txt
 %{_libdir}/libgtk-layer-shell.so.*
+
+%files devel
+%{_includedir}/gtk-layer-shell/gtk-layer-shell.h
+%{_libdir}/libgtk-layer-shell.so
 %{_libdir}/pkgconfig/gtk-layer-shell-0.pc
+%{_libdir}/girepository-1.0/GtkLayerShell-0.1.typelib
+%{_datadir}/gir-1.0/GtkLayerShell-0.1.gir
+%{_datadir}/vala/vapi/gtk-layer-shell-0.deps
+%{_datadir}/vala/vapi/gtk-layer-shell-0.vapi
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 0.9.0-1

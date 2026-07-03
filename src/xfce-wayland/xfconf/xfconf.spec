@@ -13,6 +13,15 @@ BuildRequires: glib2-devel, dbus-devel, libxfce4util-devel
 BuildRequires: gobject-introspection-devel, vala, intltool, gettext
 %description
 Xfce configuration daemon and library. Required by all Xfce components.
+
+%package devel
+Summary: Development files for %{name}
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description devel
+Headers, pkgconfig, GObject-Introspection typelib, and Vala bindings for
+building against xfconf.
+
 %prep
 %autosetup -n xfconf-%{commit}
 %build
@@ -21,11 +30,20 @@ NOCONFIGURE=1 ./autogen.sh
 %make_build
 %install
 %make_install
+
 %files
 %license COPYING
 %{_libdir}/libxfconf*.so.*
 %{_bindir}/xfconfd
 %{_bindir}/xfconf-query
+
+%files devel
+%{_includedir}/xfce4/xfconf/
+%{_libdir}/libxfconf*.so
+%{_libdir}/pkgconfig/*.pc
+%{_libdir}/girepository-1.0/*.typelib
+%{_datadir}/gir-1.0/*.gir
+%{_datadir}/vala/vapi/*
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
