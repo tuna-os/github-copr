@@ -10,7 +10,7 @@ URL:            https://gitlab.xfce.org/xfce/libxfce4util
 Source0: https://archive.xfce.org/src/xfce/libxfce4util/4.20/libxfce4util-%{version}.tar.bz2
 
 %if 0%{?rhel} >= 10
-BuildRequires: autoconf automake libtool
+BuildRequires: autoconf automake libtool gettext-devel
 BuildRequires:  glib2-devel
 BuildRequires:  gobject-introspection-devel
 BuildRequires:  vala
