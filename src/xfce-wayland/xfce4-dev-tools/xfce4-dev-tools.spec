@@ -9,6 +9,7 @@ Source0: https://archive.xfce.org/src/xfce/xfce4-dev-tools/4.20/xfce4-dev-tools-
 BuildRequires: gcc
 BuildRequires: make
 BuildRequires: glib2-devel
+BuildRequires: libxslt
 BuildRequires: autoconf automake libtool gettext-devel
 Requires: autoconf automake libtool gettext-devel
 
