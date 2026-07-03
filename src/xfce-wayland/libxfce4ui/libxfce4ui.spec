@@ -40,8 +40,8 @@ building against libxfce4ui.
 %{_libdir}/libxfce4ui*.so.*
 
 %files devel
-%{_includedir}/xfce4/libxfce4ui/
-%{_includedir}/xfce4/libxfce4kbd-private/
+%{_includedir}/xfce4/libxfce4ui-2/
+%{_includedir}/xfce4/libxfce4kbd-private-3/
 %{_libdir}/libxfce4ui*.so
 %{_libdir}/libxfce4kbd-private*.so
 %{_libdir}/pkgconfig/*.pc
