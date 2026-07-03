@@ -6,7 +6,7 @@ License: LGPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/garcon
 Source0: https://archive.xfce.org/src/xfce/garcon/4.20/garcon-%{version}.tar.bz2
 BuildRequires: xfce4-dev-tools
-BuildRequires: autoconf automake libtool gettext-devel
+BuildRequires: autoconf automake libtool gettext-devel gtk-doc
 BuildRequires: glib2-devel, libxfce4util-devel
 %description
 Menu handling library for the Xfce desktop environment.
