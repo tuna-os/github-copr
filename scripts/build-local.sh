@@ -59,6 +59,7 @@ find_spec() {
     fi
     
     # Try to find spec in src/
+    # shellcheck disable=SC2012
     spec=$(ls "$PROJECT_DIR/src/"*.spec 2>/dev/null | head -n1 || true)
     if [ -n "$spec" ]; then
         SPEC_FILE="$spec"
@@ -175,6 +176,7 @@ main() {
     
     # Find the SRPM
     local srpm
+    # shellcheck disable=SC2012
     srpm=$(ls "$PROJECT_DIR/build/SRPMS/"*.src.rpm 2>/dev/null | head -n1)
     
     if [ -z "$srpm" ]; then

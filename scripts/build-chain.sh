@@ -41,9 +41,30 @@ FILTER_PACKAGE=""
 DRY_RUN=false
 FORCE=false
 
+usage() {
+    echo "Usage: $0 [options]"
+    echo ""
+    echo "Options:"
+    echo "  --manifest <path>    Path to build-order.yml (default: build-order.yml)"
+    echo "  --backend <name>     Build backend: podman, mock, or native (default: podman)"
+    echo "  --image <ref>        Container image for podman backend"
+    echo "  --mock-config <cfg>  Mock config name (default: centos-stream-10-ci)"
+    echo "  --local-repo <path>  Path to local repo directory (default: ./local-repo)"
+    echo "  --jobs <N>           Parallel jobs within a tier (default: nproc/2)"
+    echo "  --tier <name>        Only build a specific tier"
+    echo "  --package <path>     Only build a specific package path"
+    echo "  --dry-run            Print what would be built without building"
+    echo "  --force              Force rebuild even if package exists in repo"
+    echo "  -h, --help           Show this help message"
+}
+
 # --- Argument parsing ---
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
         --manifest)    MANIFEST="$2";    shift 2 ;;
         --backend)     BACKEND="$2";     shift 2 ;;
         --image)       BUILD_IMAGE="$2"; shift 2 ;;

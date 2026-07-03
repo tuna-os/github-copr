@@ -12,6 +12,7 @@ REPO_NAME="${REPO_NAME:-tuna-os}"
 
 detect_distro() {
     if [ -f /etc/os-release ]; then
+        # shellcheck disable=SC1091
         . /etc/os-release
         case "$ID" in
             fedora)
@@ -31,6 +32,7 @@ detect_distro() {
 
 detect_version() {
     if [ -f /etc/os-release ]; then
+        # shellcheck disable=SC1091
         . /etc/os-release
         case "$ID" in
             fedora)

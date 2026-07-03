@@ -20,6 +20,11 @@ cmd="${1:-status}"
 shift || true
 
 case "${cmd}" in
+  -h|--help)
+    echo "Usage: watch-pipeline.sh [run|watch [id]|package <path>|status]"
+    exit 0
+    ;;
+
   run)
     echo "Triggering full GNOME 49 bootstrap build..."
     gh workflow run "${WORKFLOW_BOOTSTRAP}" \
