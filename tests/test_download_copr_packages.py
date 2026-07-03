@@ -17,6 +17,8 @@ def test_download_srpm_success(mock_rmtree, mock_exists, mock_rename, mock_walk,
     mock_run.assert_called_once()
 
 @patch('subprocess.run')
-def test_download_srpm_failure(mock_run):
+@patch('os.path.exists')
+def test_download_srpm_failure(mock_exists, mock_run):
     mock_run.return_value = MagicMock(returncode=1)
+    mock_exists.return_value = True
     assert download_srpm("123", "/dest") == False

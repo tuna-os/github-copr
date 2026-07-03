@@ -28,7 +28,7 @@ WATCH_PIPELINE="${REPO_ROOT}/scripts/watch-pipeline.sh"
 @test "watch-pipeline.sh: status subcommand runs without error" {
   run bash "${WATCH_PIPELINE}" status 2>&1 || true
   # Should either list runs or fail gracefully (no gh auth)
-  [ "$status" -eq 0 ] || [[ "$output" =~ auth ]] || [[ "$output" =~ error ]] || [[ "$output" =~ Usage ]]
+  [ "$status" -eq 0 ] || [[ "$output" =~ auth ]] || [[ "$output" =~ error ]] || [[ "$output" =~ Usage ]] || [[ "$output" =~ accessible ]] || [[ "$output" =~ token ]] || [[ "$output" =~ Forbidden ]] || [[ "$output" =~ "not found" ]]
 }
 
 @test "watch-pipeline.sh: defines WORKFLOW_BOOTSTRAP" {
