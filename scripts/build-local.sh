@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SPEC_FILE=""
 TARGET="${2:-fedora-40-x86_64}"
-MOCK_CONFIG=""
+# MOCK_CONFIG is defined in target-specific files if needed
 # Use podman if available, fall back to docker
 if command -v podman &>/dev/null; then
     CONTAINER_RUNTIME="podman"
@@ -84,7 +84,7 @@ build_srpm() {
     # Create tarball if needed
     # (Note: This still runs on host, but for hello-world it's fine.
     # For more complex specs it might need refinement)
-    local name version
+    local name
     name=$(basename "$spec" .spec)
     
     if [ -d "$PROJECT_DIR/src/$name" ]; then

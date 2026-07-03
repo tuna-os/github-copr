@@ -220,7 +220,7 @@ build_package_podman() {
 
     local builddir
     builddir="$(mktemp -d)"
-    trap "rm -rf '${builddir}'" RETURN
+    trap 'rm -rf "${builddir}"' RETURN
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
 
@@ -315,7 +315,7 @@ build_package_mock() {
     echo "==> [${pkg_name}] Building (mock) from ${pkg_dir}"
 
     builddir="$(mktemp -d)"
-    trap "rm -rf '${builddir}'" RETURN
+    trap 'rm -rf "${builddir}"' RETURN
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
 
@@ -407,7 +407,7 @@ build_package_native() {
 
     local builddir
     builddir="$(mktemp -d)"
-    trap "rm -rf '${builddir}'" RETURN
+    trap 'rm -rf "${builddir}"' RETURN
 
     mkdir -p "${builddir}"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS,SPECS}
 
@@ -510,7 +510,7 @@ build_tier() {
 
     local logdir
     logdir="$(mktemp -d)"
-    trap "rm -rf '${logdir}'" RETURN
+    trap 'rm -rf "${logdir}"' RETURN
 
     local pids=()
     local pkg_paths=()
@@ -521,7 +521,8 @@ build_tier() {
             local pid="${pids[$i]}"
             local path="${pkg_paths[$i]}"
             if ! kill -0 "$pid" 2>/dev/null; then
-                local logfile="${logdir}/$(basename "$path").log"
+                local logfile
+                logfile="${logdir}/$(basename "$path").log"
                 cat "$logfile"
                 if wait "$pid"; then
                     : # success
@@ -554,7 +555,8 @@ build_tier() {
             wait_one
         done
 
-        local logfile="${logdir}/$(basename "$pkg_path").log"
+        local logfile
+        logfile="${logdir}/$(basename "$pkg_path").log"
         build_package "$pkg_path" "$spec_override" > "$logfile" 2>&1 &
         pids+=($!)
         pkg_paths+=("$pkg_path")
