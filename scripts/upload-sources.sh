@@ -29,7 +29,8 @@ upload_source() {
     
     local tmpdir
     tmpdir=$(mktemp -d)
-    trap 'rm -rf "$tmpdir"' EXIT
+    # shellcheck disable=SC2064
+    trap "rm -rf '$tmpdir'" EXIT
     
     local filename
     filename=$(basename "$url")

@@ -220,7 +220,8 @@ build_package_podman() {
 
     local builddir
     builddir="$(mktemp -d)"
-    trap 'rm -rf "${builddir}"' RETURN
+    # shellcheck disable=SC2064
+    trap "rm -rf '${builddir}'" RETURN
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
 
@@ -315,7 +316,8 @@ build_package_mock() {
     echo "==> [${pkg_name}] Building (mock) from ${pkg_dir}"
 
     builddir="$(mktemp -d)"
-    trap 'rm -rf "${builddir}"' RETURN
+    # shellcheck disable=SC2064
+    trap "rm -rf '${builddir}'" RETURN
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
 
@@ -407,7 +409,8 @@ build_package_native() {
 
     local builddir
     builddir="$(mktemp -d)"
-    trap 'rm -rf "${builddir}"' RETURN
+    # shellcheck disable=SC2064
+    trap "rm -rf '${builddir}'" RETURN
 
     mkdir -p "${builddir}"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS,SPECS}
 
@@ -510,7 +513,8 @@ build_tier() {
 
     local logdir
     logdir="$(mktemp -d)"
-    trap 'rm -rf "${logdir}"' RETURN
+    # shellcheck disable=SC2064
+    trap "rm -rf '${logdir}'" RETURN
 
     local pids=()
     local pkg_paths=()
