@@ -2,6 +2,7 @@ import yaml
 import subprocess
 import json
 import os
+from pathlib import Path
 
 ARM_CHROOT = "epel-10-aarch64"
 V2_CHROOT = "alma-kitten+epel-10-x86_64_v2"
@@ -36,8 +37,9 @@ def get_status():
     return status_map
 
 def main():
-    with open('build-order.yml') as f:
-        config = yaml.safe_load(f)
+    # Path.read_text (not open()) so callers/tests can substitute the
+    # build-order content cleanly.
+    config = yaml.safe_load(Path('build-order.yml').read_text())
     
     status_map = get_status()
     
@@ -48,7 +50,12 @@ def main():
         
         tier_pkgs = []
         for pkg_entry in tier['packages']:
-            path = pkg_entry['path']
+            # copr_name-only entries (e.g. graphviz) are built directly in
+            # COPR from upstream — there is no local spec path to check or
+            # trigger, so tier verification skips them.
+            path = pkg_entry.get('path')
+            if not path:
+                continue
             name = get_pkg_name(path)
             tier_pkgs.append(name)
             
