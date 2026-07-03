@@ -6,6 +6,7 @@ License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/panel-plugins/xfce4-pulseaudio-plugin
 Source0: https://archive.xfce.org/src/panel-plugins/xfce4-pulseaudio-plugin/0.4/xfce4-pulseaudio-plugin-0.4.9.tar.bz2
 
+BuildRequires: gcc
 BuildRequires: gtk3-devel
 BuildRequires: libxfce4ui-devel
 BuildRequires: libxfce4util-devel

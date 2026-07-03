@@ -7,6 +7,7 @@ License:        MIT
 URL:            https://github.com/wmww/gtk-layer-shell
 Source0:        https://github.com/wmww/gtk-layer-shell/archive/v0.9.0/gtk-layer-shell-0.9.0.tar.gz
 
+BuildRequires: gcc
 BuildRequires:  gtk3-devel
 BuildRequires:  wayland-devel
 BuildRequires:  wayland-protocols-devel
@@ -35,7 +36,7 @@ of the screen and placed above or below other windows.
 %postun -p /sbin/ldconfig
 
 %files
-%license LICENSE
+%license LICENSE_GPL.txt LICENSE_LGPL.txt LICENSE_MIT.txt
 %{_libdir}/libgtk-layer-shell.so.*
 %{_libdir}/pkgconfig/gtk-layer-shell-0.pc
 

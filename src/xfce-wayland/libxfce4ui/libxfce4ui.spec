@@ -25,3 +25,8 @@ NOCONFIGURE=1 ./autogen.sh
 %license COPYING
 %{_libdir}/libxfce4ui*.so.*
 %{_libdir}/libxfce4ui-%{version}/
+
+%changelog
+* Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
+- Packaged for the XFCE Wayland stack (tuna-os/github-copr#65)
+

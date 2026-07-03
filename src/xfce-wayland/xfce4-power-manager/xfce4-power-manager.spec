@@ -8,6 +8,7 @@ License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/xfce4-power-manager
 Source0: https://gitlab.xfce.org/xfce/xfce4-power-manager/-/archive/%{commit}/xfce4-power-manager-%{commit}.tar.gz
 
+BuildRequires: gcc
 BuildRequires: gtk3-devel
 BuildRequires: libxfce4ui-devel
 BuildRequires: libxfce4util-devel

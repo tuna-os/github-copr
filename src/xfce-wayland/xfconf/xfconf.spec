@@ -26,3 +26,8 @@ NOCONFIGURE=1 ./autogen.sh
 %{_libdir}/libxfconf*.so.*
 %{_bindir}/xfconfd
 %{_bindir}/xfconf-query
+
+%changelog
+* Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
+- Packaged for the XFCE Wayland stack (tuna-os/github-copr#65)
+

@@ -5,6 +5,7 @@ Summary: Xfce menu handling library
 License: LGPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/garcon
 Source0: https://archive.xfce.org/src/xfce/garcon/4.20/garcon-%{version}.tar.bz2
+BuildRequires: xfce4-dev-tools
 BuildRequires: autoconf automake libtool gettext-devel
 BuildRequires: glib2-devel, libxfce4util-devel
 %description
@@ -24,3 +25,8 @@ autoreconf -fi
 %files
 %license COPYING
 %{_libdir}/libgarcon*.so.*
+
+%changelog
+* Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
+- Packaged for the XFCE Wayland stack (tuna-os/github-copr#65)
+

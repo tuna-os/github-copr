@@ -6,6 +6,7 @@ License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/panel-plugins/xfce4-clipman-plugin
 Source0: https://archive.xfce.org/src/panel-plugins/xfce4-clipman-plugin/1.7/xfce4-clipman-plugin-%{version}.tar.xz
 
+BuildRequires: gcc
 BuildRequires: gtk3-devel
 BuildRequires: libxfce4ui-devel
 BuildRequires: libxfce4util-devel

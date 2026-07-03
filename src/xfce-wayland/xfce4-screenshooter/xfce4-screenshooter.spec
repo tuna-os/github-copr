@@ -6,6 +6,7 @@ License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/apps/xfce4-screenshooter
 Source0: https://archive.xfce.org/src/apps/xfce4-screenshooter/1.11/xfce4-screenshooter-1.11.1.tar.bz2
 
+BuildRequires: gcc
 BuildRequires: gtk3-devel
 BuildRequires: libxfce4ui-devel
 BuildRequires: libxfce4util-devel

@@ -9,6 +9,7 @@ License:        GPL-2.0-or-later
 URL:            https://gitlab.xfce.org/xfce/xfdesktop
 Source0:        https://gitlab.xfce.org/xfce/xfdesktop/-/archive/xfdesktop-4.21.0/xfdesktop-4.21.0.tar.gz
 
+BuildRequires: gcc
 BuildRequires:  gtk3-devel
 BuildRequires:  libxfce4ui-devel
 BuildRequires:  libxfce4util-devel

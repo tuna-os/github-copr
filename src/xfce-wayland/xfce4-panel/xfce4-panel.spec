@@ -9,6 +9,7 @@ License:        GPL-2.0-or-later AND LGPL-2.1-or-later
 URL:            https://gitlab.xfce.org/xfce/xfce4-panel
 Source0:        https://gitlab.xfce.org/xfce/xfce4-panel/-/archive/xfce4-panel-4.21.0/xfce4-panel-4.21.0.tar.gz
 
+BuildRequires: gcc
 BuildRequires:  gtk3-devel
 BuildRequires:  libxfce4ui-devel
 BuildRequires:  libxfce4util-devel
