@@ -42,8 +42,10 @@ autoreconf -fi
 
 %files devel
 %{_includedir}/garcon-1/
+%{_includedir}/garcon-gtk3-1/
 %{_libdir}/libgarcon*.so
 %{_libdir}/pkgconfig/*.pc
+%doc %{_datadir}/gtk-doc/
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
