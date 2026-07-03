@@ -10,6 +10,8 @@ Source0: https://gitlab.xfce.org/xfce/libxfce4ui/-/archive/%{commit}/libxfce4ui-
 BuildRequires: gcc, meson, ninja-build
 BuildRequires: gtk3-devel, libxfce4util-devel, xfconf-devel
 BuildRequires: libSM-devel
+BuildRequires: startup-notification-devel
+BuildRequires: libgtop2-devel, libepoxy-devel, libgudev-devel
 BuildRequires: gobject-introspection-devel, vala, intltool, gettext
 %description
 Common UI library for Xfce desktop environment.

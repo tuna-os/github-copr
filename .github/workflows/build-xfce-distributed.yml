@@ -314,7 +314,6 @@ jobs:
       matrix:
         package:
           - src/xfce-wayland/libxfce4ui
-          - src/xfce-wayland/garcon
           - src/xfce-wayland/libxfce4windowing
     steps:
       - name: Checkout
@@ -391,8 +390,91 @@ jobs:
           name: repo-4
           path: local-repo
           retention-days: 1
-  build-xfce-desktop-core:
+  build-xfce-ui-libs-garcon:
     needs: consolidate-xfce-ui-libs
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/xfce-wayland/garcon
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-4
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v4
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier xfce-ui-libs-garcon --package ${{ matrix.package }} --manifest build-order-xfce.yml)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-xfce-ui-libs-garcon-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-xfce-ui-libs-garcon:
+    needs: build-xfce-ui-libs-garcon
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-4
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-xfce-ui-libs-garcon-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-5
+          path: local-repo
+          retention-days: 1
+  build-xfce-desktop-core:
+    needs: consolidate-xfce-ui-libs-garcon
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -421,7 +503,7 @@ jobs:
       - name: Download previous repo
         uses: actions/download-artifact@v4
         with:
-          name: repo-4
+          name: repo-5
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
         uses: actions/cache@v4
@@ -462,7 +544,7 @@ jobs:
       - name: Download previous repo
         uses: actions/download-artifact@v4
         with:
-          name: repo-4
+          name: repo-5
           path: local-repo
       - name: Download new RPMs
         uses: actions/download-artifact@v4
@@ -476,7 +558,7 @@ jobs:
       - name: Upload updated repo
         uses: actions/upload-artifact@v4
         with:
-          name: repo-5
+          name: repo-6
           path: local-repo
           retention-days: 1
   build-xfce-compositor:
@@ -504,7 +586,7 @@ jobs:
       - name: Download previous repo
         uses: actions/download-artifact@v4
         with:
-          name: repo-5
+          name: repo-6
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
         uses: actions/cache@v4
@@ -545,7 +627,7 @@ jobs:
       - name: Download previous repo
         uses: actions/download-artifact@v4
         with:
-          name: repo-5
+          name: repo-6
           path: local-repo
       - name: Download new RPMs
         uses: actions/download-artifact@v4
@@ -559,7 +641,7 @@ jobs:
       - name: Upload updated repo
         uses: actions/upload-artifact@v4
         with:
-          name: repo-6
+          name: repo-7
           path: local-repo
           retention-days: 1
   build-xfce-apps:
@@ -592,7 +674,7 @@ jobs:
       - name: Download previous repo
         uses: actions/download-artifact@v4
         with:
-          name: repo-6
+          name: repo-7
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
         uses: actions/cache@v4
@@ -633,7 +715,7 @@ jobs:
       - name: Download previous repo
         uses: actions/download-artifact@v4
         with:
-          name: repo-6
+          name: repo-7
           path: local-repo
       - name: Download new RPMs
         uses: actions/download-artifact@v4
@@ -647,7 +729,7 @@ jobs:
       - name: Upload updated repo
         uses: actions/upload-artifact@v4
         with:
-          name: repo-7
+          name: repo-8
           path: local-repo
           retention-days: 1
   build-xfce-panel-plugins:
@@ -682,7 +764,7 @@ jobs:
       - name: Download previous repo
         uses: actions/download-artifact@v4
         with:
-          name: repo-7
+          name: repo-8
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
         uses: actions/cache@v4
@@ -723,7 +805,7 @@ jobs:
       - name: Download previous repo
         uses: actions/download-artifact@v4
         with:
-          name: repo-7
+          name: repo-8
           path: local-repo
       - name: Download new RPMs
         uses: actions/download-artifact@v4
@@ -737,7 +819,7 @@ jobs:
       - name: Upload updated repo
         uses: actions/upload-artifact@v4
         with:
-          name: repo-8
+          name: repo-9
           path: local-repo
           retention-days: 1
   build-xfce-meta:
@@ -765,7 +847,7 @@ jobs:
       - name: Download previous repo
         uses: actions/download-artifact@v4
         with:
-          name: repo-8
+          name: repo-9
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
         uses: actions/cache@v4
@@ -806,7 +888,7 @@ jobs:
       - name: Download previous repo
         uses: actions/download-artifact@v4
         with:
-          name: repo-8
+          name: repo-9
           path: local-repo
       - name: Download new RPMs
         uses: actions/download-artifact@v4
@@ -820,7 +902,7 @@ jobs:
       - name: Upload updated repo
         uses: actions/upload-artifact@v4
         with:
-          name: repo-9
+          name: repo-10
           path: local-repo
           retention-days: 1
   publish:
@@ -838,7 +920,7 @@ jobs:
       - name: Download final repo
         uses: actions/download-artifact@v4
         with:
-          name: repo-9
+          name: repo-10
           path: local-repo
       - name: Import GPG key
         id: import-gpg

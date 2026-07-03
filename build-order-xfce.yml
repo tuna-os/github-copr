@@ -35,8 +35,13 @@ tiers:
   - name: xfce-ui-libs
     packages:
       - path: src/xfce-wayland/libxfce4ui
-      - path: src/xfce-wayland/garcon
       - path: src/xfce-wayland/libxfce4windowing
+
+  # Tier 2b: garcon links against libxfce4ui-2 (pkgconfig), so it can't
+  # build in parallel with it — needs its own tier after xfce-ui-libs.
+  - name: xfce-ui-libs-garcon
+    packages:
+      - path: src/xfce-wayland/garcon
 
   # Tier 3: Core desktop components (panel, session, desktop, settings,
   # file manager) — all depend on the ui-libs tier.
