@@ -1,4 +1,4 @@
-name: GNOME 50 Distributed Build and Publish
+name: Distributed Build and Publish RPMs
 'on':
   workflow_dispatch:
     inputs:
@@ -7,55 +7,55 @@ name: GNOME 50 Distributed Build and Publish
         type: boolean
         default: false
 env:
-  R2_BUCKET: tunaosdev
+  R2_BUCKET: bluefin
   LOCAL_REPO: ${{ github.workspace }}/local-repo
   MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
 jobs:
   seed-repo:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Configure rclone
-      run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Configure rclone
+        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
 
-        mkdir -p ~/.config/rclone
+          mkdir -p ~/.config/rclone
 
-        cat > ~/.config/rclone/rclone.conf << EOF
+          cat > ~/.config/rclone/rclone.conf << EOF
 
-        [r2]
+          [r2]
 
-        type = s3
+          type = s3
 
-        provider = Cloudflare
+          provider = Cloudflare
 
-        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
 
-        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
-        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
 
-        EOF
+          EOF
 
-        '
-    - name: Seed local repo from R2
-      run: 'mkdir -p local-repo
+          '
+      - name: Seed local repo from R2
+        run: 'mkdir -p local-repo
 
-        echo "Downloading existing repo from R2..."
+          echo "Downloading existing repo from R2..."
 
-        rclone sync "r2:${R2_BUCKET}/gnome50/10-stream-x86_64/" "local-repo/" --exclude "repodata/**" || true
+          rclone sync "r2:${R2_BUCKET}/repo/10-stream-x86_64/" "local-repo/" --exclude "repodata/**" || true
 
-        createrepo_c local-repo
+          createrepo_c local-repo
 
-        '
-    - name: Upload initial repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-0
-        path: local-repo
-        retention-days: 1
+          '
+      - name: Upload initial repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-0
+          path: local-repo
+          retention-days: 1
   build-base-tools:
     needs: seed-repo
     runs-on: ubuntu-latest
@@ -63,82 +63,78 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/deps/meson
-        - src/deps/autoconf
-        - src/deps/libldac
-        - src/deps/python-smartypants
-        - src/deps/python-typogrify
-        - src/deps/gnome50-el10-compat
-        - src/deps/selinux-policy
+          - src/deps/meson
+          - src/deps/autoconf
+          - src/deps/libldac
+          - src/deps/python-smartypants
+          - src/deps/python-typogrify
+          - src/deps/gnome50-el10-compat
+          - src/deps/selinux-policy
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-0
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier base-tools --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-0
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier base-tools --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-base-tools-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-base-tools-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-base-tools:
     needs: build-base-tools
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-0
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-base-tools-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-1
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-0
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-base-tools-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-1
+          path: local-repo
+          retention-days: 1
   build-build-tools:
     needs: consolidate-base-tools
     runs-on: ubuntu-latest
@@ -146,80 +142,76 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/deps/wayland-protocols
-        - src/deps/harfbuzz
-        - src/deps/libxcvt
-        - src/deps/shaderc
-        - src/deps/gi-docgen
+          - src/deps/wayland-protocols
+          - src/deps/harfbuzz
+          - src/deps/libxcvt
+          - src/deps/shaderc
+          - src/deps/gi-docgen
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-1
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier build-tools --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-1
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier build-tools --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-build-tools-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-build-tools-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-build-tools:
     needs: build-build-tools
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-1
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-build-tools-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-2
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-1
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-build-tools-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-2
+          path: local-repo
+          retention-days: 1
   build-glib2-bootstrap:
     needs: consolidate-build-tools
     runs-on: ubuntu-latest
@@ -227,76 +219,72 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/gnome-50/glib2
+          - src/gnome-50/glib2
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-2
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier glib2-bootstrap --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-2
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier glib2-bootstrap --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-glib2-bootstrap-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-glib2-bootstrap-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-glib2-bootstrap:
     needs: build-glib2-bootstrap
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-2
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-glib2-bootstrap-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-3
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-2
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-glib2-bootstrap-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-3
+          path: local-repo
+          retention-days: 1
   build-bootstrap-libs:
     needs: consolidate-glib2-bootstrap
     runs-on: ubuntu-latest
@@ -304,79 +292,75 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/deps/libei
-        - src/deps/mozjs140
-        - src/deps/libzip
-        - src/deps/fontconfig
+          - src/deps/libei
+          - src/deps/mozjs140
+          - src/deps/libzip
+          - src/deps/fontconfig
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-3
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier bootstrap-libs --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-3
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier bootstrap-libs --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-bootstrap-libs-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-bootstrap-libs-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-bootstrap-libs:
     needs: build-bootstrap-libs
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-3
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-bootstrap-libs-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-4
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-3
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-bootstrap-libs-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-4
+          path: local-repo
+          retention-days: 1
   build-cairo-layer:
     needs: consolidate-bootstrap-libs
     runs-on: ubuntu-latest
@@ -384,76 +368,72 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/deps/cairo
+          - src/deps/cairo
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-4
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier cairo-layer --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-4
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier cairo-layer --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-cairo-layer-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-cairo-layer-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-cairo-layer:
     needs: build-cairo-layer
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-4
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-cairo-layer-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-5
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-4
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-cairo-layer-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-5
+          path: local-repo
+          retention-days: 1
   build-gi-bootstrap:
     needs: consolidate-cairo-layer
     runs-on: ubuntu-latest
@@ -461,76 +441,72 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/gnome-50/gobject-introspection
+          - src/gnome-50/gobject-introspection
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-5
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gi-bootstrap --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-5
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier gi-bootstrap --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-gi-bootstrap-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-gi-bootstrap-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-gi-bootstrap:
     needs: build-gi-bootstrap
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-5
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-gi-bootstrap-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-6
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-5
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-gi-bootstrap-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-6
+          path: local-repo
+          retention-days: 1
   build-glib2-full:
     needs: consolidate-gi-bootstrap
     runs-on: ubuntu-latest
@@ -538,76 +514,72 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/gnome-50/glib2
+          - src/gnome-50/glib2
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-6
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier glib2-full --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-6
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier glib2-full --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-glib2-full-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-glib2-full-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-glib2-full:
     needs: build-glib2-full
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-6
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-glib2-full-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-7
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-6
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-glib2-full-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-7
+          path: local-repo
+          retention-days: 1
   build-gi-full:
     needs: consolidate-glib2-full
     runs-on: ubuntu-latest
@@ -615,76 +587,72 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/gnome-50/gobject-introspection
+          - src/gnome-50/gobject-introspection
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-7
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gi-full --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-7
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier gi-full --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-gi-full-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-gi-full-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-gi-full:
     needs: build-gi-full
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-7
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-gi-full-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-8
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-7
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-gi-full-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-8
+          path: local-repo
+          retention-days: 1
   build-core-libraries:
     needs: consolidate-gi-full
     runs-on: ubuntu-latest
@@ -692,78 +660,76 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/deps/pango
-        - src/deps/tinysparql
-        - src/deps/pipewire
+          - src/deps/pango
+          - src/deps/tinysparql
+          - src/deps/pipewire
+          - src/deps/libglib-testing
+          - src/deps/libsoup
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-8
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier core-libraries --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-8
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier core-libraries --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-core-libraries-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-core-libraries-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-core-libraries:
     needs: build-core-libraries
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-8
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-core-libraries-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-9
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-8
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-core-libraries-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-9
+          path: local-repo
+          retention-days: 1
   build-system-tools:
     needs: consolidate-core-libraries
     runs-on: ubuntu-latest
@@ -771,79 +737,75 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/deps/umockdev
-        - src/deps/python-dbusmock
-        - src/deps/avahi
-        - src/gnome-50/gjs
+          - src/deps/umockdev
+          - src/deps/python-dbusmock
+          - src/deps/avahi
+          - src/gnome-50/gjs
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-9
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier system-tools --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-9
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier system-tools --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-system-tools-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-system-tools-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-system-tools:
     needs: build-system-tools
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-9
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-system-tools-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-10
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-9
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-system-tools-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-10
+          path: local-repo
+          retention-days: 1
   build-gtk-core:
     needs: consolidate-system-tools
     runs-on: ubuntu-latest
@@ -851,79 +813,76 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/gnome-50/gsettings-desktop-schemas
-        - src/gnome-50/gnome-desktop3
-        - src/deps/gtk4
-        - src/deps/glycin
+          - src/gnome-50/gsettings-desktop-schemas
+          - src/gnome-50/gnome-desktop3
+          - src/deps/gtk4
+          - src/deps/glycin
+          - src/deps/libgda
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-10
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gtk-core --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-10
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier gtk-core --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-gtk-core-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-gtk-core-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-gtk-core:
     needs: build-gtk-core
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-10
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-gtk-core-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-11
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-10
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-gtk-core-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-11
+          path: local-repo
+          retention-days: 1
   build-desktop-foundations:
     needs: consolidate-gtk-core
     runs-on: ubuntu-latest
@@ -931,156 +890,222 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/gnome-50/libadwaita
-        - src/gnome-50/xdg-desktop-portal
-        - src/deps/localsearch
+          - src/gnome-50/libadwaita
+          - src/gnome-50/xdg-desktop-portal
+          - src/deps/localsearch
+          - src/deps/vte291
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-11
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier desktop-foundations\
-        \ --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force\
-        \ }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh\
-        \ \"${ARGS[@]}\"\n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-11
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier desktop-foundations --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-desktop-foundations-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-desktop-foundations-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-desktop-foundations:
     needs: build-desktop-foundations
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-11
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-desktop-foundations-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-12
-        path: local-repo
-        retention-days: 1
-  build-shell-foundations:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-11
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-desktop-foundations-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-12
+          path: local-repo
+          retention-days: 1
+  build-parental-controls:
     needs: consolidate-desktop-foundations
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         package:
-        - src/gnome-50/gnome-settings-daemon
-        - src/gnome-50/mutter
+          - src/deps/malcontent
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-12
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier shell-foundations\
-        \ --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force\
-        \ }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh\
-        \ \"${ARGS[@]}\"\n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-12
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier parental-controls --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-shell-foundations-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-parental-controls-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-parental-controls:
+    needs: build-parental-controls
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-12
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-parental-controls-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-13
+          path: local-repo
+          retention-days: 1
+  build-shell-foundations:
+    needs: consolidate-parental-controls
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-50/gnome-settings-daemon
+          - src/gnome-50/mutter
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-13
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier shell-foundations --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-shell-foundations-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-shell-foundations:
     needs: build-shell-foundations
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-12
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-shell-foundations-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-13
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-13
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-shell-foundations-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-14
+          path: local-repo
+          retention-days: 1
   build-gnome-shell:
     needs: consolidate-shell-foundations
     runs-on: ubuntu-latest
@@ -1088,78 +1113,74 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/gnome-50/gnome-shell
-        - src/gnome-50/xdg-desktop-portal-gnome
-        - src/gnome-50/nautilus
+          - src/gnome-50/gnome-shell
+          - src/gnome-50/xdg-desktop-portal-gnome
+          - src/gnome-50/nautilus
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-13
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier gnome-shell --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-14
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier gnome-shell --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-gnome-shell-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-gnome-shell-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-gnome-shell:
     needs: build-gnome-shell
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-13
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-gnome-shell-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-14
-        path: local-repo
-        retention-days: 1
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-14
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-gnome-shell-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-15
+          path: local-repo
+          retention-days: 1
   build-session-layer:
     needs: consolidate-gnome-shell
     runs-on: ubuntu-latest
@@ -1167,148 +1188,217 @@ jobs:
       fail-fast: false
       matrix:
         package:
-        - src/gnome-50/gnome-session
-        - src/gnome-50/gnome-control-center
-        - src/gnome-50/gdm
+          - src/gnome-50/gnome-session
+          - src/gnome-50/gnome-control-center
+          - src/gnome-50/gdm
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install host dependencies
-      run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
-    - name: Cache CentOS Stream 10 image
-      uses: actions/cache@v4
-      with:
-        path: /tmp/cs10-image.tar
-        key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
-    - name: Load or pull image
-      run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\n\
-        else\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar\
-        \ quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE\
-        \ }}\n"
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-14
-        path: local-repo
-    - name: Build package
-      run: "touch .build-marker\nARGS=(--backend podman --tier session-layer --package\
-        \ ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"\
-        true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\
-        \n"
-    - name: Find new RPMs
-      id: find-rpms
-      run: 'mkdir -p new-rpms
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-15
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier session-layer --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "count=$count" >> $GITHUB_OUTPUT
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        '
-    - name: Upload RPMs
-      if: steps.find-rpms.outputs.count > '0'
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpms-session-layer-${{ strategy.job-index }}
-        path: new-rpms/*.rpm
-        retention-days: 1
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-session-layer-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
   consolidate-session-layer:
     needs: build-session-layer
     runs-on: ubuntu-latest
     steps:
-    - name: Install createrepo_c
-      run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
-    - name: Download previous repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-14
-        path: local-repo
-    - name: Download new RPMs
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        pattern: rpms-session-layer-*
-        path: local-repo
-        merge-multiple: true
-    - name: Update repo
-      run: createrepo_c --update local-repo
-    - name: Upload updated repo
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-15
-        path: local-repo
-        retention-days: 1
-  publish:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-15
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-session-layer-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-16
+          path: local-repo
+          retention-days: 1
+  build-post-session:
     needs: consolidate-session-layer
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-50/gnome-initial-setup
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install dependencies
-      run: 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-16
+          path: local-repo
+      - name: Build package
+        run: "touch .build-marker\nARGS=(--backend podman --tier post-session --package ${{ matrix.package }})\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
 
-        curl -fsSL https://rclone.org/install.sh | sudo bash
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
 
-        '
-    - name: Download final repo
-      uses: actions/download-artifact@v4
-      with:
-        name: repo-15
-        path: local-repo
-    - name: Import GPG key
-      id: import-gpg
-      uses: crazy-max/ghaction-import-gpg@v6
-      with:
-        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-        passphrase: ${{ secrets.GPG_PASSPHRASE }}
-        git_committer_name: RPM Builder
-        git_committer_email: rpm-signing@tunaos.org
-    - name: Configure RPM macros
-      run: 'echo "%_signature gpg" > ~/.rpmmacros
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
 
-        echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          echo "count=$count" >> $GITHUB_OUTPUT
 
-        echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-post-session-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-post-session:
+    needs: build-post-session
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+      - name: Download previous repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-16
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: rpms-post-session-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-17
+          path: local-repo
+          retention-days: 1
+  publish:
+    needs: consolidate-post-session
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf
 
-        '
-    - name: Sign RPMs
-      run: 'find local-repo -name "*.rpm" -exec rpmsign --addsign {} \;
+          curl -fsSL https://rclone.org/install.sh | sudo bash
 
-        createrepo_c --update local-repo
+          '
+      - name: Download final repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-17
+          path: local-repo
+      - name: Import GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_committer_name: RPM Builder
+          git_committer_email: rpm-signing@tunaos.org
+      - name: Configure RPM macros
+        run: 'echo "%_signature gpg" > ~/.rpmmacros
 
-        '
-    - name: Configure rclone
-      run: 'mkdir -p ~/.config/rclone
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
 
-        cat > ~/.config/rclone/rclone.conf << EOF
+          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
 
-        [r2]
+          '
+      - name: Sign RPMs
+        run: 'find local-repo -name "*.rpm" -exec rpmsign --addsign {} \;
 
-        type = s3
+          createrepo_c --update local-repo
 
-        provider = Cloudflare
+          '
+      - name: Configure rclone
+        run: 'mkdir -p ~/.config/rclone
 
-        access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          cat > ~/.config/rclone/rclone.conf << EOF
 
-        secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          [r2]
 
-        endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          type = s3
 
-        EOF
+          provider = Cloudflare
 
-        '
-    - name: Upload to R2
-      run: 'echo "Uploading to 10-stream-x86_64..."
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
 
-        rclone sync local-repo/ "r2:${R2_BUCKET}/gnome50/10-stream-x86_64/"
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
-        echo "Uploading to gnome50/10-x86_64..."
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
 
-        rclone sync local-repo/ "r2:${R2_BUCKET}/gnome50/10-x86_64/"
+          EOF
 
-        rclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"
+          '
+      - name: Upload to R2
+        run: 'echo "Uploading to 10-stream-x86_64..."
 
-        rclone copyto contrib/install.sh "r2:${R2_BUCKET}/install.sh"
+          rclone sync local-repo/ "r2:${R2_BUCKET}/repo/10-stream-x86_64/"
 
-        '
+          echo "Uploading to 10-x86_64..."
+
+          rclone sync local-repo/ "r2:${R2_BUCKET}/repo/10-x86_64/"
+
+          rclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"
+
+          rclone copyto contrib/install.sh "r2:${R2_BUCKET}/install.sh"
+
+          '

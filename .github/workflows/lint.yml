@@ -100,20 +100,19 @@ jobs:
           for f in build-order.yml build-order-gnome49.yml build-order-xfce.yml; do
             if [ -f "$f" ]; then
               echo "  Checking: $f"
-              python3 -c "
-              import json, yaml, sys
-              try:
-                  with open('$f') as fh:
-                      data = yaml.safe_load(fh)
-                  with open('build-order-schema.json') as fh:
-                      schema = json.load(fh)
-                  import jsonschema
-                  jsonschema.validate(data, schema)
-                  print('    Schema valid')
-              except Exception as e:
-                  print(f'    INVALID: {e}')
-                  sys.exit(1)
-              " || exit $?
+              python3 -c "import json, yaml, sys
+try:
+    with open('$f') as fh:
+        data = yaml.safe_load(fh)
+    with open('build-order-schema.json') as fh:
+        schema = json.load(fh)
+    import jsonschema
+    jsonschema.validate(data, schema)
+    print('    Schema valid')
+except Exception as e:
+    print(f'    INVALID: {e}')
+    sys.exit(1)
+" || exit $?
             fi
           done
           echo "All build order files valid"
