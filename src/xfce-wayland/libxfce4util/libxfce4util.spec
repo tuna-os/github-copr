@@ -61,7 +61,6 @@ autoreconf -fi
 %license COPYING
 %doc AUTHORS ChangeLog NEWS
 %{_libdir}/libxfce4util.so.*
-%{_datadir}/glib-2.0/schemas/*.gschema.xml
 
 %files devel
 %{_includedir}/xfce4/libxfce4util/

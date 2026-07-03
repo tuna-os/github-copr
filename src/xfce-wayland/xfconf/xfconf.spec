@@ -37,8 +37,10 @@ building against xfconf.
 %files
 %license COPYING
 %{_libdir}/libxfconf*.so.*
-%{_bindir}/xfconfd
+%{_libdir}/xfce4/xfconf/xfconfd
 %{_bindir}/xfconf-query
+%{_prefix}/lib/systemd/user/xfconfd.service
+%{_datadir}/dbus-1/services/*.service
 
 %files devel
 %{_includedir}/xfce4/xfconf/
