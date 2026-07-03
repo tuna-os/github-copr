@@ -10,6 +10,7 @@ URL:            https://gitlab.xfce.org/xfce/libxfce4util
 Source0: https://archive.xfce.org/src/xfce/libxfce4util/4.20/libxfce4util-%{version}.tar.bz2
 
 %if 0%{?rhel} >= 10
+BuildRequires: autoconf automake libtool
 BuildRequires:  glib2-devel
 BuildRequires:  gobject-introspection-devel
 BuildRequires:  vala
@@ -32,7 +33,12 @@ Required by all other Xfce components.
 %prep
 %autosetup -n libxfce4util-%{version}
 
+# The dist tarball bundles a configure script generated against an
+# older libtool than EL10 ships; its nm-output parsing predates current
+# binutils and mis-detects (breaks with a bogus command in the symbol
+# pipe). Regenerating against the system libtool fixes it.
 %build
+autoreconf -fi
 %configure --disable-gtk-doc
 %make_build
 
