@@ -10,6 +10,8 @@ BuildRequires: gcc
 BuildRequires: make
 BuildRequires: glib2-devel
 BuildRequires: libxslt
+BuildRequires: meson
+BuildRequires: ninja-build
 BuildRequires: autoconf automake libtool gettext-devel
 Requires: autoconf automake libtool gettext-devel
 
@@ -20,7 +22,10 @@ Xfce components built from git snapshots rather than dist tarballs.
 %prep
 %autosetup -n xfce4-dev-tools-%{version}
 
+# Same class of bug as the other release-tarball specs: the bundled
+# configure predates EL10's binutils nm-output format and mis-parses it.
 %build
+autoreconf -fi
 %configure
 %make_build
 
