@@ -31,12 +31,17 @@ autoreconf -fi
 %make_build
 %install
 %make_install
-%files
+%find_lang %{name}
+
+%files -f %{name}.lang
 %license COPYING
 %{_libdir}/libgarcon*.so.*
+%{_sysconfdir}/xdg/menus/xfce-applications.menu
+%{_datadir}/desktop-directories/*.directory
+%{_datadir}/icons/hicolor/*/apps/org.xfce.garcon.png
 
 %files devel
-%{_includedir}/xfce4/garcon-1/
+%{_includedir}/garcon-1/
 %{_libdir}/libgarcon*.so
 %{_libdir}/pkgconfig/*.pc
 
