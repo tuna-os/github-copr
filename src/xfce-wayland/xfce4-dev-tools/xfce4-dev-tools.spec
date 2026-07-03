@@ -35,8 +35,8 @@ autoreconf -fi
 %files
 %license COPYING
 %{_bindir}/xdt-*
+%{_bindir}/xfce-*
 %{_datadir}/aclocal/*.m4
-%{_datadir}/xfce4/dev-tools/
 %{_mandir}/man1/xdt-csource.1*
 
 %changelog
