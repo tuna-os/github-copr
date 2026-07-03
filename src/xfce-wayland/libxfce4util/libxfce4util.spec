@@ -63,7 +63,6 @@ autoreconf -fi
 %doc AUTHORS ChangeLog NEWS
 %{_libdir}/libxfce4util.so.*
 %{_sbindir}/xfce4-kiosk-query
-%exclude %{_libdir}/debug/
 
 %files devel
 %{_includedir}/xfce4/libxfce4util/
@@ -71,6 +70,7 @@ autoreconf -fi
 %{_libdir}/pkgconfig/libxfce4util*.pc
 %{_libdir}/girepository-1.0/Libxfce4util-1.0.typelib
 %{_datadir}/gir-1.0/Libxfce4util-1.0.gir
+%{_datadir}/vala/vapi/libxfce4util-1.0.vapi
 %{_datadir}/gtk-doc/html/libxfce4util/
 
 %changelog

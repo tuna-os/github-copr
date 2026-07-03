@@ -44,7 +44,6 @@ building against xfconf.
 %{_datadir}/bash-completion/completions/xfconf-query
 %{_prefix}/lib/systemd/user/xfconfd.service
 %{_datadir}/dbus-1/services/*.service
-%exclude %{_libdir}/debug/
 
 %files devel
 %{_includedir}/xfce4/xfconf-0/xfconf/
