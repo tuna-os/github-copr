@@ -30,6 +30,12 @@ BuildRequires: pkgconfig(sm), pkgconfig(libstartup-notification-1.0)
 # libxfce4ui-sys, libxfce4kbd-private-sys) link against these via
 # pkg-config — confirmed via the Cargo.lock dependency tree.
 BuildRequires: xfconf-devel, libxfce4ui-devel
+# Without gettext-devel, gettext-sys's build.rs can't find a usable
+# system gettext and falls back to building its own copy of GNU
+# gettext from source inside the Rust build — which then fails to
+# link against libintl_gettext. gettext-devel makes it use the system
+# one (glibc's built-in gettext) instead.
+BuildRequires: gettext-devel
 
 %description
 xfwl4 is a Wayland compositor for Xfce4 built on Smithay/wlroots.
