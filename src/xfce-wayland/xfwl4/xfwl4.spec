@@ -9,6 +9,12 @@ Summary: Wayland compositor for Xfce4
 License: GPL-3.0-or-later AND Apache-2.0 AND MIT
 URL: https://gitlab.xfce.org/xfce/xfwl4
 Source0: https://gitlab.xfce.org/xfce/xfwl4/-/archive/%{commit}/xfwl4-%{commit}.tar.gz
+# mock builds run with networking disabled (matches COPR's real isolation),
+# but Cargo.toml pulls `smithay` from git — cargo can't fetch that offline.
+# Pre-vendored with `cargo vendor` against this exact commit's Cargo.lock
+# (crates.io deps + the smithay git dep); see release notes for how it
+# was generated if it ever needs regenerating after a Cargo.lock bump.
+Source1: https://github.com/tuna-os/github-copr/releases/download/xfwl4-vendor-465880f6/vendor.tar.gz
 
 %if 0%{?rhel} >= 10
 %global __cargo_requires_buildrequires 1
@@ -31,10 +37,27 @@ Provides both winit (nested) and TTY (udev+egl) backends.
 
 %prep
 %autosetup -n xfwl4-%{commit}
+tar -xzf %{SOURCE1}
+mkdir -p .cargo
+cat > .cargo/config.toml <<'EOF'
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/smithay/smithay?rev=4645e03d6bd9377aa368de20e91d69951450392d"]
+git = "https://github.com/smithay/smithay"
+rev = "4645e03d6bd9377aa368de20e91d69951450392d"
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"
+
+[net]
+offline = true
+EOF
 
 %build
 export RUSTFLAGS="-C relocation-model=pic"
-cargo build --release %{?_smp_mflags} \
+cargo build --release --offline %{?_smp_mflags} \
   --no-default-features \
   --features udev,egl,xwayland,smithay/renderer_pixman,smithay/renderer_gl
 
