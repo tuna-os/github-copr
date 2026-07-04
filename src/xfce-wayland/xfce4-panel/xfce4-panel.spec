@@ -66,6 +66,7 @@ building xfce4-panel plugins.
 %{_datadir}/applications/*.desktop
 %{_datadir}/xfce4/panel/
 %{_datadir}/icons/hicolor/*/apps/org.xfce.panel*.png
+%{_datadir}/icons/hicolor/*/apps/org.xfce.panel*.svg
 %{_sysconfdir}/xdg/xfce4/panel/default.xml
 
 %files devel

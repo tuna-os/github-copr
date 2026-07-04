@@ -25,6 +25,9 @@ BuildRequires:  libgudev-devel
 BuildRequires:  gobject-introspection-devel
 BuildRequires:  libexif-devel
 BuildRequires:  pcre2-devel
+# xsltproc runs with --nonet; needs the docbook manpages stylesheet
+# available locally via an XML catalog rewrite, not fetched over http.
+BuildRequires:  docbook-style-xsl
 
 %description
 Thunar is the file manager for the Xfce desktop environment. It is designed
@@ -94,6 +97,8 @@ export GETTEXTDATADIRS="$(pwd)/gettext-its-workaround${GETTEXTDATADIRS:+:${GETTE
 %{_datadir}/metainfo/*.xml
 %{_datadir}/icons/hicolor/*/apps/org.xfce.thunar.*
 %{_datadir}/icons/hicolor/*/stock/navigation/*.png
+%{_datadir}/man/man1/Thunar.1*
+%{_datadir}/doc/thunar/
 
 %files devel
 %{_includedir}/thunarx-3/

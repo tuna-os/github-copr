@@ -55,6 +55,7 @@ xfsettingsd applies preferences at session startup.
 %{_bindir}/xfce4-appearance-settings
 %{_bindir}/xfce4-display-settings
 %{_bindir}/xfce4-mime-settings
+%{_bindir}/xfce4-mime-helper
 %{_bindir}/xfce4-color-settings
 %{_bindir}/xfsettingsd
 %{_datadir}/applications/*.desktop
