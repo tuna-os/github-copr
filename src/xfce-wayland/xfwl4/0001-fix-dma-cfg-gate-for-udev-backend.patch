@@ -1,14 +1,5 @@
-Upstream bug: WlrBufferConstraints.dma field's cfg gate is missing the
-udev feature, but three call sites in src/core/handlers/wlr_screencopy.rs
-and src/protocols/wlr_screencopy.rs already guard their access to it with
-#[cfg(any(feature = "winit", feature = "udev"))] — meaning a udev-only
-build (no winit, no x11) fails with "no field `dma` on type
-`WlrBufferConstraints`" since the struct field itself doesn't exist in
-that configuration. Widening the field's gate to also include "udev"
-matches what the rest of the code already expects.
-
---- a/src/protocols/wlr_screencopy.rs	2026-07-04 12:19:58.761019085 +0530
-+++ b/src/protocols/wlr_screencopy.rs	2026-07-04 12:19:58.762147765 +0530
+--- a/src/protocols/wlr_screencopy.rs
++++ b/src/protocols/wlr_screencopy.rs
 @@ -150,7 +150,7 @@
      pub size: Size<i32, BufferCoords>,
      /// Available SHM formats, and rowstride for that format
