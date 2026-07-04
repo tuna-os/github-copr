@@ -63,6 +63,10 @@ EOF
 
 %build
 export RUSTFLAGS="-C relocation-model=pic"
+# gettext-sys only skips its from-source build (which fails to link — see
+# vendor/gettext-sys/build.rs's try_gettext_system()) when GETTEXT_SYSTEM is
+# set; on glibc targets gettext is built into libc, no linking needed at all.
+export GETTEXT_SYSTEM=1
 cargo build --release --offline %{?_smp_mflags} \
   --no-default-features \
   --features udev,egl,xwayland,smithay/renderer_pixman,smithay/renderer_gl
