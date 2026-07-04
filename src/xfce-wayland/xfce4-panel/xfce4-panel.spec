@@ -53,14 +53,20 @@ building xfce4-panel plugins.
 
 %install
 %meson_install
+%find_lang %{name}
 
-%files
+%files -f %{name}.lang
 %license COPYING
 %{_bindir}/xfce4-panel
+%{_bindir}/xfce4-popup-applicationsmenu
+%{_bindir}/xfce4-popup-directorymenu
+%{_bindir}/xfce4-popup-windowmenu
 %{_libdir}/libxfce4panel*.so.*
 %{_libdir}/xfce4/panel/
 %{_datadir}/applications/*.desktop
 %{_datadir}/xfce4/panel/
+%{_datadir}/icons/hicolor/*/apps/org.xfce.panel*.png
+%{_sysconfdir}/xdg/xfce4/panel/default.xml
 
 %files devel
 %{_includedir}/xfce4/libxfce4panel-2.0/

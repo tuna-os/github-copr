@@ -49,12 +49,13 @@ xfsettingsd applies preferences at session startup.
 %license COPYING
 %{_bindir}/xfce4-settings-manager
 %{_bindir}/xfce4-settings-editor
-%{_bindir}/xfce4-accessibility-settings
+# accessibility-settings, keyboard-settings, and mouse-settings are only
+# built if enable_x11 (they depend on libxklavier/xcursor/xorg-libinput,
+# all X11-only per meson_options.txt) — not built in this Wayland-only build.
 %{_bindir}/xfce4-appearance-settings
 %{_bindir}/xfce4-display-settings
-%{_bindir}/xfce4-keyboard-settings
 %{_bindir}/xfce4-mime-settings
-%{_bindir}/xfce4-mouse-settings
+%{_bindir}/xfce4-color-settings
 %{_bindir}/xfsettingsd
 %{_datadir}/applications/*.desktop
 %{_datadir}/xfce4/helpers/

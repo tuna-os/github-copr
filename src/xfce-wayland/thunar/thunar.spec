@@ -25,9 +25,6 @@ BuildRequires:  libgudev-devel
 BuildRequires:  gobject-introspection-devel
 BuildRequires:  libexif-devel
 BuildRequires:  pcre2-devel
-# Ships /usr/share/gettext/its/polkit.its — msgfmt needs it to translate
-# org.xfce.thunar.policy.in (a PolicyKit .policy XML file).
-BuildRequires:  polkit
 
 %description
 Thunar is the file manager for the Xfce desktop environment. It is designed
@@ -45,6 +42,32 @@ Headers and pkgconfig files for building Thunar (thunarx) plugins.
 %autosetup -n thunar-%{commit}
 
 %build
+# EL10's polkit (125) predates upstream polkit shipping its own gettext ITS
+# ruleset (/usr/share/gettext/its/polkit.its + .loc), which msgfmt needs to
+# translate org.xfce.thunar.policy.in — without it, msgfmt errors with
+# "cannot locate ITS rules". Vendor the (tiny, static) upstream ruleset
+# ourselves rather than depend on a base-OS package we don't control.
+mkdir -p gettext-its-workaround/its
+cat > gettext-its-workaround/its/polkit.its <<'ITS_EOF'
+<?xml version="1.0"?>
+<its:rules xmlns:its="http://www.w3.org/2005/11/its"
+           version="2.0">
+  <its:translateRule selector="//*" translate="no"/>
+  <its:translateRule selector="//action/description |
+                               //action/message"
+                     translate="yes"/>
+</its:rules>
+ITS_EOF
+cat > gettext-its-workaround/its/polkit.loc <<'LOC_EOF'
+<?xml version="1.0"?>
+<locatingRules>
+  <locatingRule name="polkit policy" pattern="*.policy">
+    <documentRule localName="policyconfig" target="polkit.its"/>
+  </locatingRule>
+</locatingRules>
+LOC_EOF
+export GETTEXTDATADIRS="$(pwd)/gettext-its-workaround${GETTEXTDATADIRS:+:${GETTEXTDATADIRS}}"
+
 # thunar-tpa (the Thunar/xfce4-panel trash applet integration) needs
 # libxfce4panel-2.0, which would make this depend on xfce4-panel — a sibling
 # in the same build tier. Disable it to avoid the cross-tier ordering issue.

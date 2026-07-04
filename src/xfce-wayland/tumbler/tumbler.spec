@@ -12,6 +12,14 @@ BuildRequires: libxfce4util-devel, poppler-glib-devel
 %description
 D-Bus thumbnailing service for the Xfce desktop environment. Provides
 thumbnail generation for various file types used by file managers.
+
+%package devel
+Summary: Development files for %{name}
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description devel
+Headers and pkgconfig files for building tumbler thumbnailer plugins.
+
 %prep
 %autosetup -n tumbler-%{commit}
 %build
@@ -22,12 +30,22 @@ thumbnail generation for various file types used by file managers.
 %meson_build
 %install
 %meson_install
-%files
+%find_lang %{name}
+
+%files -f %{name}.lang
 %license COPYING
 %{_libdir}/tumbler-1/
+%{_libdir}/libtumbler-1.so.*
 %{_datadir}/dbus-1/services/*.service
 %{_prefix}/lib/systemd/user/tumblerd.service
 %config(noreplace) %{_sysconfdir}/xdg/tumbler/tumbler.rc
+%{_datadir}/icons/hicolor/*/apps/org.xfce.tumbler.png
+
+%files devel
+%{_includedir}/tumbler-1/
+%{_libdir}/libtumbler-1.so
+%{_libdir}/pkgconfig/tumbler-1.pc
+
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.1-1
 - Initial XFCE Wayland package for TunaOS EL10

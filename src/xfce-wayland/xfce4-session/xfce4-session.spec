@@ -48,7 +48,6 @@ Wayland sessions via the wayland-sessions entry point.
 %files -f %{name}.lang
 %license COPYING
 %{_bindir}/xfce4-session*
-%{_bindir}/xfce4-session-logout
 %{_bindir}/startxfce4
 %{_bindir}/xflock4
 %{_datadir}/wayland-sessions/*.desktop
@@ -56,6 +55,9 @@ Wayland sessions via the wayland-sessions entry point.
 %{_datadir}/xfce4/labwc/
 %{_datadir}/icons/hicolor/*/apps/org.xfce.session.*
 %{_datadir}/icons/hicolor/*/actions/xfsm-*.png
+%{_datadir}/man/man1/xfce4-session*.1*
+%{_datadir}/polkit-1/actions/org.xfce.session.policy
+%{_datadir}/xdg-desktop-portal/xfce-portals.conf
 %{_sysconfdir}/xdg/xfce4/xinitrc
 %{_sysconfdir}/xdg/xfce4/Xft.xrdb
 %{_sysconfdir}/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml
