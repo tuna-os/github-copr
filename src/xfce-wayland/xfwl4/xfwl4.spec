@@ -1,6 +1,10 @@
 %global commit 465880f67b5705136895bf69c60e2178ad351856
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 %global cargo_name xfwl4
+# Rust binaries don't produce the source-file manifest find-debuginfo.sh
+# expects for a separate debugsource subpackage (common across cargo-built
+# RPMs); debuginfo itself is unaffected.
+%undefine _debugsource_packages
 
 Name: xfwl4
 Version: 4.21.0
