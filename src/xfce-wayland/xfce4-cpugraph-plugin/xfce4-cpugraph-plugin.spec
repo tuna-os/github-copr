@@ -7,6 +7,8 @@ URL: https://gitlab.xfce.org/panel-plugins/xfce4-cpugraph-plugin
 Source0: https://archive.xfce.org/src/panel-plugins/xfce4-cpugraph-plugin/1.2/xfce4-cpugraph-plugin-1.2.11.tar.bz2
 BuildRequires: xfce4-dev-tools
 BuildRequires: autoconf automake libtool gettext-devel
+# Some sources here are .cc (C++), needs g++, not just gcc.
+BuildRequires: gcc-c++
 BuildRequires: gtk3-devel, libxfce4ui-devel, libxfce4util-devel, xfce4-panel-devel, intltool, gettext, autoconf, automake, libtool
 Requires: xfce4-panel
 %description
@@ -24,10 +26,12 @@ autoreconf -fi
 %make_build
 %install
 %make_install
-%files
+%find_lang %{name}
+%files -f %{name}.lang
 %license COPYING
 %{_libdir}/xfce4/panel/plugins/libcpugraph.so
 %{_datadir}/xfce4/panel/plugins/*.desktop
+%{_datadir}/icons/hicolor/*/apps/org.xfce.panel.cpugraph.*
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 1.2.10-1
 - Initial XFCE Wayland package for TunaOS EL10

@@ -1,0 +1,11 @@
+--- a/panel-plugin/datetime-dialog.c
++++ b/panel-plugin/datetime-dialog.c
+@@ -31,7 +31,7 @@
+ /* xfce includes */
+ #include <libxfce4ui/libxfce4ui.h>
+ #include <libxfce4util/libxfce4util.h>
+-#include <libxfce4panel/xfce-panel-plugin.h>
++#include <libxfce4panel/libxfce4panel.h>
+ 
+ #include "datetime.h"
+ #include "datetime-dialog.h"

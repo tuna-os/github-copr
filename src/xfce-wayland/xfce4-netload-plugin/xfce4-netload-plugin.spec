@@ -24,10 +24,12 @@ autoreconf -fi
 %make_build
 %install
 %make_install
-%files
+%find_lang %{name}
+%files -f %{name}.lang
 %license COPYING
 %{_libdir}/xfce4/panel/plugins/libnetload.so
 %{_datadir}/xfce4/panel/plugins/*.desktop
+%{_datadir}/icons/hicolor/*/apps/org.xfce.panel.netload.*
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 1.4.2-1
 - Initial XFCE Wayland package for TunaOS EL10

@@ -13,6 +13,7 @@ BuildRequires: libxfce4util-devel
 BuildRequires: xfce4-panel-devel
 BuildRequires: libXtst-devel
 BuildRequires: wayland-devel
+BuildRequires: qrencode-devel
 BuildRequires: intltool
 BuildRequires: gettext
 BuildRequires: meson
@@ -33,13 +34,22 @@ Wayland support.
 
 %install
 %meson_install
+%find_lang %{name}
 
-%files
+%files -f %{name}.lang
 %license COPYING
 %{_bindir}/xfce4-clipman
 %{_bindir}/xfce4-clipman-history
+%{_bindir}/xfce4-clipman-settings
+%{_bindir}/xfce4-popup-clipman
+%{_bindir}/xfce4-popup-clipman-actions
 %{_libdir}/xfce4/panel/plugins/libclipman.so
 %{_datadir}/xfce4/panel/plugins/*.desktop
+%{_datadir}/applications/*.desktop
+%{_datadir}/metainfo/*.xml
+%{_sysconfdir}/xdg/autostart/*.desktop
+%{_sysconfdir}/xdg/xfce4/panel/xfce4-clipman-actions.xml
+%{_datadir}/icons/hicolor/*/apps/*clipman*
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 1.7.1-1
