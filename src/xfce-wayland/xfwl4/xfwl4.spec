@@ -30,7 +30,7 @@ Patch0: 0001-fix-dma-cfg-gate-for-udev-backend.patch
 %global __cargo_requires_buildrequires 1
 %endif
 
-BuildRequires: cargo, rust, libdrm-devel, libinput-devel
+BuildRequires: cargo, rust, libdrm-devel, libinput-devel, mesa-libgbm-devel
 BuildRequires: libseat-devel, libxkbcommon-devel, pixman-devel
 BuildRequires: wayland-devel, wayland-protocols-devel
 BuildRequires: gtk3-devel, gdk-pixbuf2-devel, libdisplay-info-devel
