@@ -57,6 +57,7 @@ Wayland compositors for use in TunaOS EL10.
 %{_datadir}/icons/hicolor/*/apps/org.xfce.xfdesktop.*
 %{_datadir}/pixmaps/xfce4_xicon*.png
 %{_datadir}/pixmaps/xfdesktop/
+%{_datadir}/man/man1/xfdesktop.1*
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.0-1
