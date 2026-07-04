@@ -20,6 +20,8 @@ BuildRequires:  intltool
 BuildRequires:  gettext
 BuildRequires:  meson
 BuildRequires:  ninja-build
+BuildRequires:  garcon-devel
+BuildRequires:  gtk-layer-shell-devel
 
 Requires:       xfconf
 
@@ -33,7 +35,9 @@ xfsettingsd applies preferences at session startup.
 %autosetup -n xfce4-settings-%{commit}
 
 %build
-%meson
+# Wayland-only build (matches this stack's convention elsewhere) — avoids
+# needing libnotify/libxklavier/xcursor/xorg-libinput/xrandr X11-only devel.
+%meson -Dx11=disabled
 %meson_build
 
 %install

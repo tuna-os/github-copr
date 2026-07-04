@@ -43,16 +43,22 @@ tiers:
     packages:
       - path: src/xfce-wayland/garcon
 
-  # Tier 3: Core desktop components (panel, session, desktop, settings,
-  # file manager) — all depend on the ui-libs tier.
+  # Tier 3: Core desktop components (panel, session, settings, file manager,
+  # thumbnailer) — all depend on the ui-libs tier.
   - name: xfce-desktop-core
     packages:
       - path: src/xfce-wayland/xfce4-panel
       - path: src/xfce-wayland/xfce4-session
-      - path: src/xfce-wayland/xfdesktop
       - path: src/xfce-wayland/xfce4-settings
       - path: src/xfce-wayland/thunar
       - path: src/xfce-wayland/tumbler
+
+  # Tier 3b: xfdesktop links against thunarx-3 (Thunar's plugin API), so it
+  # can't build in parallel with thunar — same class of bug as garcon/
+  # libxfce4ui in tier 2 (see xfce-ui-libs-garcon above).
+  - name: xfce-desktop-core-xfdesktop
+    packages:
+      - path: src/xfce-wayland/xfdesktop
 
   # Tier 4: Compositor — xfwl4 (Rust/Smithay); only depends on system libs.
   # Placed here (after desktop-core) so COPR has gtk3-devel etc. available.

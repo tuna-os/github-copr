@@ -20,6 +20,10 @@ BuildRequires: wayland-devel, wayland-protocols-devel
 BuildRequires: gtk3-devel, gdk-pixbuf2-devel, libdisplay-info-devel
 BuildRequires: libSM-devel, systemd-libs-devel
 BuildRequires: pkgconfig(sm), pkgconfig(startup-notification)
+# The xfconf and libxfce4ui Rust binding crates (xfconf-sys,
+# libxfce4ui-sys, libxfce4kbd-private-sys) link against these via
+# pkg-config — confirmed via the Cargo.lock dependency tree.
+BuildRequires: xfconf-devel, libxfce4ui-devel
 
 %description
 xfwl4 is a Wayland compositor for Xfce4 built on Smithay/wlroots.

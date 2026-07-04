@@ -13,6 +13,7 @@ BuildRequires: gcc
 BuildRequires:  gtk3-devel
 BuildRequires:  libxfce4ui-devel
 BuildRequires:  libxfce4util-devel
+BuildRequires:  libxfce4windowing-devel
 BuildRequires:  xfconf-devel
 BuildRequires:  polkit-devel
 BuildRequires:  systemd-devel
@@ -21,6 +22,7 @@ BuildRequires:  intltool
 BuildRequires:  gettext
 BuildRequires:  meson
 BuildRequires:  ninja-build
+BuildRequires:  gtk-layer-shell-devel
 
 Requires:       polkit
 Requires:       dbus
@@ -35,7 +37,8 @@ Wayland sessions via the wayland-sessions entry point.
 %autosetup -n xfce4-session-%{commit}
 
 %build
-%meson
+# Wayland-only build (matches this stack's convention elsewhere).
+%meson -Dx11=disabled
 %meson_build
 
 %install

@@ -21,6 +21,9 @@ BuildRequires:  intltool
 BuildRequires:  gettext
 BuildRequires:  meson
 BuildRequires:  ninja-build
+BuildRequires:  libnotify-devel
+BuildRequires:  libyaml-devel
+BuildRequires:  gtk-layer-shell-devel
 
 Requires:       libxfce4windowing
 
@@ -34,7 +37,11 @@ Wayland compositors for use in TunaOS EL10.
 %autosetup -n xfdesktop-%{commit}
 
 %build
-%meson
+# Wayland-only build (matches this stack's convention elsewhere).
+# video-backdrop is a plain boolean defaulting true (not gated by
+# --auto-features=enabled) and needs gstreamer; disable it rather than
+# add that whole dependency chain for an animated-wallpaper nice-to-have.
+%meson -Dx11=disabled -Dvideo-backdrop=false
 %meson_build
 
 %install

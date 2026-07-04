@@ -20,6 +20,11 @@ BuildRequires:  intltool
 BuildRequires:  gettext
 BuildRequires:  meson
 BuildRequires:  ninja-build
+BuildRequires:  libxslt
+BuildRequires:  libgudev-devel
+BuildRequires:  gobject-introspection-devel
+BuildRequires:  libexif-devel
+BuildRequires:  pcre2-devel
 
 %description
 Thunar is the file manager for the Xfce desktop environment. It is designed
@@ -37,7 +42,10 @@ Headers and pkgconfig files for building Thunar (thunarx) plugins.
 %autosetup -n thunar-%{commit}
 
 %build
-%meson -Dx11=disabled
+# thunar-tpa (the Thunar/xfce4-panel trash applet integration) needs
+# libxfce4panel-2.0, which would make this depend on xfce4-panel — a sibling
+# in the same build tier. Disable it to avoid the cross-tier ordering issue.
+%meson -Dx11=disabled -Dthunar-tpa=disabled
 %meson_build
 
 %install

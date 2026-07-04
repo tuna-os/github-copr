@@ -22,6 +22,7 @@ BuildRequires:  gettext
 BuildRequires:  meson
 BuildRequires:  ninja-build
 BuildRequires:  gtk-layer-shell-devel
+BuildRequires:  libdbusmenu-gtk3-devel
 
 Requires:       libxfce4ui
 Requires:       libxfce4windowing
@@ -45,7 +46,9 @@ building xfce4-panel plugins.
 %autosetup -n xfce4-panel-%{commit}
 
 %build
-%meson
+# Wayland-only build (matches thunar's -Dx11=disabled convention in this
+# stack) — avoids pulling in libwnck3/libX11/libXext just for the X11 backend.
+%meson -Dx11=disabled
 %meson_build
 
 %install
