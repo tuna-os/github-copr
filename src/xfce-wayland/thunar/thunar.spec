@@ -88,10 +88,13 @@ export GETTEXTDATADIRS="$(pwd)/gettext-its-workaround${GETTEXTDATADIRS:+:${GETTE
 %license COPYING
 %{_bindir}/thunar
 %{_bindir}/Thunar
+%{_bindir}/thunar-settings
 # thunar-bulk-rename is no longer a separate binary — it's now
 # `thunar --bulk-rename` (see thunar-bulk-rename.desktop.in's Exec= line).
 %{_libdir}/libthunar*.so.*
 %{_libdir}/thunarx-3/
+%{_libdir}/girepository-1.0/*.typelib
+%{_libdir}/Thunar/
 %{_datadir}/applications/*.desktop
 %{_datadir}/dbus-1/services/*.service
 %{_datadir}/polkit-1/actions/*.policy
@@ -100,9 +103,14 @@ export GETTEXTDATADIRS="$(pwd)/gettext-its-workaround${GETTEXTDATADIRS:+:${GETTE
 %{_datadir}/icons/hicolor/*/stock/navigation/*.png
 %{_datadir}/man/man1/Thunar.1*
 %{_datadir}/doc/thunar/
+%{_datadir}/Thunar/
+%{_datadir}/gir-1.0/*.gir
+%{_sysconfdir}/xdg/Thunar/
+%{_prefix}/lib/systemd/user/thunar.service
 
 %files devel
 %{_includedir}/thunarx-3/
+%{_libdir}/libthunarx-3.so
 %{_libdir}/pkgconfig/thunarx-3.pc
 
 %changelog
