@@ -52,7 +52,7 @@ xfwl4 is a Wayland compositor for Xfce4 built on Smithay/wlroots.
 Provides both winit (nested) and TTY (udev+egl) backends.
 
 %prep
-%autosetup -n xfwl4-%{commit}
+%autosetup -n xfwl4-%{commit} -p1
 tar -xzf %{SOURCE1}
 mkdir -p resources/xfce-wayland-protocols
 tar -xzf %{SOURCE2} --strip-components=1 -C resources/xfce-wayland-protocols
