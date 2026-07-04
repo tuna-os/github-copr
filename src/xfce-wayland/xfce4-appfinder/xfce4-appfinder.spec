@@ -32,12 +32,16 @@ Application finder for the Xfce desktop environment.
 
 %install
 %meson_install
+%find_lang %{name}
 
-%files
+%files -f %{name}.lang
 %license COPYING
 %{_bindir}/xfce4-appfinder
-%{_bindir}/xfce4-run
+# xfce4-run was renamed upstream — it's now xfrun4, a symlink to xfce4-appfinder.
+%{_bindir}/xfrun4
 %{_datadir}/applications/*.desktop
+%{_datadir}/metainfo/*.xml
+%{_datadir}/icons/hicolor/*/apps/org.xfce.appfinder.*
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.1-1

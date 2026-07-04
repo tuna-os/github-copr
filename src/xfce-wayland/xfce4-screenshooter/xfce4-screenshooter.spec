@@ -11,35 +11,41 @@ BuildRequires: gtk3-devel
 BuildRequires: libxfce4ui-devel
 BuildRequires: libxfce4util-devel
 BuildRequires: xfce4-panel-devel
-BuildRequires: libsoup-devel
-BuildRequires: gexiv2-devel
+BuildRequires: exo-devel
+# libsoup and gexiv2 aren't build dependencies of this version — libsoup was
+# dropped upstream (see NEWS), and gexiv2 isn't referenced anywhere in the
+# source at all; both were stale guesses.
 BuildRequires: intltool
 BuildRequires: gettext
-BuildRequires: meson
-BuildRequires: ninja-build
 
 Requires: xfce4-panel
 
 %description
 Application to take screenshots for the Xfce desktop environment with
-Wayland support.
+Wayland support. This version (1.11.1) predates the meson-based build
+system used elsewhere in this stack — it's autotools (configure/make).
 
 %prep
 %autosetup -n xfce4-screenshooter-%{version}
 
 %build
-%meson -Dwayland=enabled
-%meson_build
+%configure
+%make_build
 
 %install
-%meson_install
+%make_install
+%find_lang %{name}
 
-%files
+%files -f %{name}.lang
 %license COPYING
 %{_bindir}/xfce4-screenshooter
-%{_libdir}/xfce4/panel/plugins/libscreenshooter.so
+%{_libdir}/xfce4/panel/plugins/libscreenshooterplugin.so
+%{_libexecdir}/xfce4/screenshooter/
 %{_datadir}/applications/*.desktop
 %{_datadir}/xfce4/panel/plugins/*.desktop
+%{_datadir}/icons/hicolor/*/apps/org.xfce.screenshooter.*
+%{_datadir}/man/man1/*
+%{_datadir}/metainfo/*.xml
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 1.11.3-1

@@ -399,6 +399,7 @@ jobs:
       matrix:
         package:
           - src/xfce-wayland/garcon
+          - src/xfce-wayland/exo
     steps:
       - name: Checkout
         uses: actions/checkout@v4

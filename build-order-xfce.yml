@@ -40,9 +40,12 @@ tiers:
 
   # Tier 2b: garcon links against libxfce4ui-2 (pkgconfig), so it can't
   # build in parallel with it — needs its own tier after xfce-ui-libs.
+  # exo lands here too — same dependency depth (libxfce4ui/libxfce4util),
+  # and doesn't depend on garcon or vice versa, so they build in parallel.
   - name: xfce-ui-libs-garcon
     packages:
       - path: src/xfce-wayland/garcon
+      - path: src/xfce-wayland/exo
 
   # Tier 3: Core desktop components (panel, session, settings, file manager,
   # thumbnailer) — all depend on the ui-libs tier.

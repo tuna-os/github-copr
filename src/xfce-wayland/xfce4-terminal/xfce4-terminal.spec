@@ -12,6 +12,11 @@ BuildRequires: libxfce4ui-devel
 BuildRequires: libxfce4util-devel
 BuildRequires: vte291-devel
 BuildRequires: gtk-layer-shell-devel
+BuildRequires: libxslt
+# xsltproc runs with --nonet; needs the docbook manpages stylesheet
+# available locally via an XML catalog rewrite (same fix thunar needed).
+BuildRequires: docbook-style-xsl
+BuildRequires: libutempter-devel
 BuildRequires: intltool
 BuildRequires: gettext
 BuildRequires: meson
@@ -32,12 +37,15 @@ via gtk-layer-shell.
 
 %install
 %meson_install
+%find_lang %{name}
 
-%files
+%files -f %{name}.lang
 %license COPYING
 %{_bindir}/xfce4-terminal
-%{_bindir}/xfce4-terminal-settings
 %{_datadir}/applications/*.desktop
+%{_datadir}/xfce4/terminal/colorschemes/
+%{_datadir}/man/man1/*
+%{_datadir}/icons/hicolor/*/apps/org.xfce.terminal*
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 1.2.0-1

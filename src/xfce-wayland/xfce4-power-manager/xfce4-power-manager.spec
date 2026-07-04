@@ -17,8 +17,10 @@ BuildRequires: xfconf-devel
 BuildRequires: xfce4-panel-devel
 BuildRequires: upower-devel
 BuildRequires: polkit-devel
+BuildRequires: libnotify-devel
 BuildRequires: wayland-devel
 BuildRequires: wayland-protocols-devel
+BuildRequires: wlr-protocols
 BuildRequires: intltool
 BuildRequires: gettext
 BuildRequires: meson
@@ -40,13 +42,25 @@ Power manager for the Xfce desktop environment with Wayland support.
 
 %install
 %meson_install
+%find_lang %{name}
 
-%files
+%files -f %{name}.lang
 %license COPYING
 %{_bindir}/xfce4-power-manager
 %{_bindir}/xfce4-power-manager-settings
-%{_libexecdir}/xfce4/xfce4-power-manager
+%{_sbindir}/xfpm-power-backlight-helper
+%{_sbindir}/xfce4-pm-helper
+%{_libdir}/xfce4/panel/plugins/libxfce4powermanager.so
+%{_datadir}/xfce4/panel/plugins/*.desktop
 %{_datadir}/applications/*.desktop
+%{_sysconfdir}/xdg/autostart/*.desktop
+%{_datadir}/polkit-1/actions/*.policy
+%{_datadir}/man/man1/*
+%{_datadir}/icons/hicolor/*/apps/*.png
+%{_datadir}/icons/hicolor/*/status/*.png
+%{_datadir}/icons/hicolor/*/status/*.svg
+%{_datadir}/icons/hicolor/scalable/apps/*.svg
+%{_datadir}/metainfo/*.xml
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.1-1
