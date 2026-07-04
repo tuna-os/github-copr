@@ -88,7 +88,8 @@ export GETTEXTDATADIRS="$(pwd)/gettext-its-workaround${GETTEXTDATADIRS:+:${GETTE
 %license COPYING
 %{_bindir}/thunar
 %{_bindir}/Thunar
-%{_bindir}/thunar-bulk-rename
+# thunar-bulk-rename is no longer a separate binary — it's now
+# `thunar --bulk-rename` (see thunar-bulk-rename.desktop.in's Exec= line).
 %{_libdir}/libthunar*.so.*
 %{_libdir}/thunarx-3/
 %{_datadir}/applications/*.desktop
