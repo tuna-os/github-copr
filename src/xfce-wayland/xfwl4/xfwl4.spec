@@ -21,6 +21,10 @@ Source1: https://github.com/tuna-os/github-copr/releases/download/xfwl4-vendor-4
 # by relative path in src/protocols/*.rs's wayland_scanner::generate_*!
 # macros, so it just needs to land at resources/xfce-wayland-protocols/.
 Source2: https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/6082cfa492154aec266527193bf8f6142ab14977/xfce-wayland-protocols-6082cfa492154aec266527193bf8f6142ab14977.tar.gz
+# Upstream bug: WlrBufferConstraints.dma's cfg gate doesn't include the
+# udev feature, but three call sites already guard access to it under
+# udev too — a udev-only build (ours) fails to compile as a result.
+Patch0: 0001-fix-dma-cfg-gate-for-udev-backend.patch
 
 %if 0%{?rhel} >= 10
 %global __cargo_requires_buildrequires 1
