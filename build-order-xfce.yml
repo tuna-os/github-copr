@@ -23,6 +23,7 @@ tiers:
   - name: xfce-layer-shell
     packages:
       - path: src/xfce-wayland/gtk-layer-shell
+      - path: src/xfce-wayland/wlr-protocols
 
   # Tier 1: Core XFCE libraries (dependency order within tier handled by
   # parallel build; these have no intra-tier deps).

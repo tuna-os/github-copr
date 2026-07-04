@@ -22,6 +22,7 @@ BuildRequires:  meson
 BuildRequires:  ninja-build
 BuildRequires:  garcon-devel
 BuildRequires:  gtk-layer-shell-devel
+BuildRequires:  wlr-protocols
 
 Requires:       xfconf
 
@@ -42,8 +43,9 @@ xfsettingsd applies preferences at session startup.
 
 %install
 %meson_install
+%find_lang %{name}
 
-%files
+%files -f %{name}.lang
 %license COPYING
 %{_bindir}/xfce4-settings-manager
 %{_bindir}/xfce4-settings-editor
@@ -53,8 +55,18 @@ xfsettingsd applies preferences at session startup.
 %{_bindir}/xfce4-keyboard-settings
 %{_bindir}/xfce4-mime-settings
 %{_bindir}/xfce4-mouse-settings
-%{_libexecdir}/xfce4/xfsettingsd
+%{_bindir}/xfsettingsd
 %{_datadir}/applications/*.desktop
+%{_datadir}/xfce4/helpers/
+%{_datadir}/icons/hicolor/*/apps/*.png
+%{_datadir}/icons/hicolor/*/apps/*.svg
+%{_datadir}/icons/hicolor/*/devices/*.png
+%{_datadir}/icons/hicolor/*/devices/*.svg
+%{_libdir}/xfce4/
+%{_libdir}/gtk-3.0/modules/*.so
+%{_sysconfdir}/xdg/xfce4/
+%{_sysconfdir}/xdg/menus/xfce-settings-manager.menu
+%{_sysconfdir}/xdg/autostart/*.desktop
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.0-1

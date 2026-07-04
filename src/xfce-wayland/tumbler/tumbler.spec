@@ -24,9 +24,10 @@ thumbnail generation for various file types used by file managers.
 %meson_install
 %files
 %license COPYING
-%{_bindir}/tumblerd
 %{_libdir}/tumbler-1/
 %{_datadir}/dbus-1/services/*.service
+%{_prefix}/lib/systemd/user/tumblerd.service
+%config(noreplace) %{_sysconfdir}/xdg/tumbler/tumbler.rc
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.1-1
 - Initial XFCE Wayland package for TunaOS EL10

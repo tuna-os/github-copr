@@ -147,6 +147,7 @@ jobs:
       matrix:
         package:
           - src/xfce-wayland/gtk-layer-shell
+          - src/xfce-wayland/wlr-protocols
     steps:
       - name: Checkout
         uses: actions/checkout@v4

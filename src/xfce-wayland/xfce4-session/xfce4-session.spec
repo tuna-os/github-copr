@@ -43,14 +43,25 @@ Wayland sessions via the wayland-sessions entry point.
 
 %install
 %meson_install
+%find_lang %{name}
 
-%files
+%files -f %{name}.lang
 %license COPYING
 %{_bindir}/xfce4-session*
 %{_bindir}/xfce4-session-logout
-%{_datadir}/xsessions/*.desktop
+%{_bindir}/startxfce4
+%{_bindir}/xflock4
 %{_datadir}/wayland-sessions/*.desktop
-%{_libexecdir}/xfce4/
+%{_datadir}/applications/*.desktop
+%{_datadir}/xfce4/labwc/
+%{_datadir}/icons/hicolor/*/apps/org.xfce.session.*
+%{_datadir}/icons/hicolor/*/actions/xfsm-*.png
+%{_sysconfdir}/xdg/xfce4/xinitrc
+%{_sysconfdir}/xdg/xfce4/Xft.xrdb
+%{_sysconfdir}/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml
+# xfsm-shutdown-helper installs under $libdir (helper_path_prefix defaults
+# to $prefix/$libdir), not $libexecdir.
+%{_libdir}/xfce4/session/
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.0-1

@@ -25,6 +25,9 @@ BuildRequires:  libgudev-devel
 BuildRequires:  gobject-introspection-devel
 BuildRequires:  libexif-devel
 BuildRequires:  pcre2-devel
+# Ships /usr/share/gettext/its/polkit.its — msgfmt needs it to translate
+# org.xfce.thunar.policy.in (a PolicyKit .policy XML file).
+BuildRequires:  polkit
 
 %description
 Thunar is the file manager for the Xfce desktop environment. It is designed
@@ -50,11 +53,12 @@ Headers and pkgconfig files for building Thunar (thunarx) plugins.
 
 %install
 %meson_install
+%find_lang %{name}
 
 %post -p /sbin/ldconfig
 %postun -p /sbin/ldconfig
 
-%files
+%files -f %{name}.lang
 %license COPYING
 %{_bindir}/thunar
 %{_bindir}/Thunar
@@ -62,6 +66,11 @@ Headers and pkgconfig files for building Thunar (thunarx) plugins.
 %{_libdir}/libthunar*.so.*
 %{_libdir}/thunarx-3/
 %{_datadir}/applications/*.desktop
+%{_datadir}/dbus-1/services/*.service
+%{_datadir}/polkit-1/actions/*.policy
+%{_datadir}/metainfo/*.xml
+%{_datadir}/icons/hicolor/*/apps/org.xfce.thunar.*
+%{_datadir}/icons/hicolor/*/stock/navigation/*.png
 
 %files devel
 %{_includedir}/thunarx-3/
