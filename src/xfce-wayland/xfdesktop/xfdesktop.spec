@@ -46,8 +46,9 @@ Wayland compositors for use in TunaOS EL10.
 
 %install
 %meson_install
+%find_lang %{name}
 
-%files
+%files -f %{name}.lang
 %license COPYING
 %{_bindir}/xfdesktop
 %{_bindir}/xfdesktop-settings
