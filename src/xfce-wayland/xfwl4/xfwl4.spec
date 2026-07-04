@@ -15,6 +15,12 @@ Source0: https://gitlab.xfce.org/xfce/xfwl4/-/archive/%{commit}/xfwl4-%{commit}.
 # (crates.io deps + the smithay git dep); see release notes for how it
 # was generated if it ever needs regenerating after a Cargo.lock bump.
 Source1: https://github.com/tuna-os/github-copr/releases/download/xfwl4-vendor-465880f6/vendor.tar.gz
+# resources/xfce-wayland-protocols is a git submodule (custom XFCE Wayland
+# protocol XML: output-management, input-device-list, etc.) — not included
+# in the plain archive tarball, same as any other git submodule. Referenced
+# by relative path in src/protocols/*.rs's wayland_scanner::generate_*!
+# macros, so it just needs to land at resources/xfce-wayland-protocols/.
+Source2: https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/6082cfa492154aec266527193bf8f6142ab14977/xfce-wayland-protocols-6082cfa492154aec266527193bf8f6142ab14977.tar.gz
 
 %if 0%{?rhel} >= 10
 %global __cargo_requires_buildrequires 1
@@ -44,6 +50,8 @@ Provides both winit (nested) and TTY (udev+egl) backends.
 %prep
 %autosetup -n xfwl4-%{commit}
 tar -xzf %{SOURCE1}
+mkdir -p resources/xfce-wayland-protocols
+tar -xzf %{SOURCE2} --strip-components=1 -C resources/xfce-wayland-protocols
 mkdir -p .cargo
 cat > .cargo/config.toml <<'EOF'
 [source.crates-io]
