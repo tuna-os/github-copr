@@ -100,7 +100,7 @@ jobs:
         run: |
           echo "=== Validating build-order.yml ==="
           pip install jsonschema pyyaml -q 2>/dev/null || true
-          for f in build-order.yml build-order-gnome49.yml build-order-xfce.yml; do
+          for f in build-order.yml .copr/build-order-gnome49.yml build-order-xfce.yml; do
             if [ -f "$f" ]; then
               echo "  Checking: $f"
               python3 scripts/parse-build-order.py "$f" --validate || exit $?
