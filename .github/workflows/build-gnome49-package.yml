@@ -122,7 +122,7 @@ jobs:
           ./scripts/build-chain.sh \
             --backend podman \
             --local-repo local-repo \
-            --manifest build-order-gnome49.yml \
+            --manifest .copr/build-order-gnome49.yml \
             --mock-config centos-stream-10-ci-gnome49 \
             --package "${{ matrix.package }}" \
             --force

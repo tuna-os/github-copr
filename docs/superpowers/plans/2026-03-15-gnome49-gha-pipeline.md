@@ -4,7 +4,7 @@
 
 **Goal:** Build GNOME 49 RPM packages via GitHub Actions (mock/podman), publish to Cloudflare R2, and serve a functioning DNF/YUM repository at `https://repo.tunaos.org/gnome49/` — without touching any existing COPR infrastructure.
 
-**Architecture:** All new work lives in the `gnome-49-pipeline` branch. A separate `build-order-gnome49.yml` manifest drives a per-package distributed GitHub Actions workflow that mirrors the pattern of the existing GNOME 50 workflow. Packages are uploaded to a dedicated R2 path (`gnome49/10-stream-x86_64/`) that the existing Cloudflare Worker serves without modification. Renovate watches `src/gnome-49/**/*.spec` Version fields for automated update PRs, each of which triggers an incremental single-package rebuild workflow.
+**Architecture:** All new work lives in the `gnome-49-pipeline` branch. A separate `.copr/build-order-gnome49.yml` manifest drives a per-package distributed GitHub Actions workflow that mirrors the pattern of the existing GNOME 50 workflow. Packages are uploaded to a dedicated R2 path (`gnome49/10-stream-x86_64/`) that the existing Cloudflare Worker serves without modification. Renovate watches `src/gnome-49/**/*.spec` Version fields for automated update PRs, each of which triggers an incremental single-package rebuild workflow.
 
 **Tech Stack:** GitHub Actions, mock (via podman container), createrepo_c, rpmsign, rclone → Cloudflare R2, Cloudflare Worker (existing), GitHub CLI (`gh`), Renovate Bot, Lima (VM testing), Python 3 (workflow generator).
 
@@ -23,7 +23,7 @@
 
 | File | Action | Responsibility |
 |------|--------|---------------|
-| `build-order-gnome49.yml` | **Create** | GNOME 49 tier manifest (separate from GNOME 50) |
+| `.copr/build-order-gnome49.yml` | **Create** | GNOME 49 tier manifest (separate from GNOME 50) |
 | `scripts/generate-distributed-workflow.py` | **Modify (tiny)** | Accept manifest + output as CLI args (currently hardcoded) |
 | `.github/workflows/build-gnome49-distributed.yml` | **Generate** | Full bootstrap workflow (all tiers, per-package matrix jobs) |
 | `.github/workflows/build-gnome49-package.yml` | **Create** | Incremental single-package workflow (Renovate PRs, path filters) |
@@ -31,7 +31,7 @@
 | `scripts/watch-pipeline.sh` | **Create** | Local script: watch GHA run progress, show per-tier/package status |
 | `contrib/install-gnome49.sh` | **Create** | User-facing repo install script for GNOME 49 |
 | `renovate.json` | **Create** | Renovate config: RPM spec Version: watcher for F43 dist-git |
-| `gnome49-repo-test.yaml` | **Create** | Lima VM config: boots CS10, adds repo.tunaos.org/gnome49, installs GNOME 49 |
+| `tests/gnome49-repo-test.yaml` | **Create** | Lima VM config: boots CS10, adds repo.tunaos.org/gnome49, installs GNOME 49 |
 | `AGENTS.md` | **Update** | Document new pipeline, R2 paths, Renovate setup |
 | `GEMINI.md` | **Update** | Add new pipeline rules so Gemini doesn't touch COPR |
 
@@ -73,17 +73,17 @@ git push -u origin gnome-49-pipeline
 
 ## Chunk 2: GNOME 49 Build Order Manifest
 
-### Task 2.1: Create `build-order-gnome49.yml`
+### Task 2.1: Create `.copr/build-order-gnome49.yml`
 
 The manifest drives both the bootstrap and incremental workflows. Packages that don't exist in `src/gnome-49/` (e.g., `mozjs128`, which comes from EPEL 10 base) are NOT listed — mock's buildroot resolves them from the base distro.
 
 **Files:**
-- Create: `build-order-gnome49.yml`
+- Create: `.copr/build-order-gnome49.yml`
 
 - [ ] **Create the manifest**
 
 ```yaml
-# build-order-gnome49.yml
+# .copr/build-order-gnome49.yml
 # Build Order Manifest for GNOME 49 on CentOS Stream 10 / EPEL 10
 #
 # All packages under src/gnome-49/ only.
@@ -181,7 +181,7 @@ tiers:
 ```bash
 python3 -c "
 import yaml, os
-m = yaml.safe_load(open('build-order-gnome49.yml'))
+m = yaml.safe_load(open('.copr/build-order-gnome49.yml'))
 missing = []
 for tier in m['tiers']:
     for pkg in tier['packages']:
@@ -195,7 +195,7 @@ Expected: `Missing: none`
 
 - [ ] **Commit**
 ```bash
-git add build-order-gnome49.yml
+git add .copr/build-order-gnome49.yml
 git commit -m "feat: add GNOME 49 build order manifest with 11 dependency tiers"
 ```
 
@@ -264,7 +264,7 @@ git commit -m "feat: parameterize workflow generator to support multiple manifes
 
 ```bash
 python3 scripts/generate-distributed-workflow.py \
-  build-order-gnome49.yml \
+  .copr/build-order-gnome49.yml \
   .github/workflows/build-gnome49-distributed.yml \
   --name "GNOME 49 Distributed Build and Publish" \
   --r2-path "gnome49/10-stream-x86_64"
@@ -785,16 +785,16 @@ git commit -m "feat: add Renovate config to track GNOME 49 versions against Fedo
 ### Task 9.1: Create Lima VM config for repo.tunaos.org testing
 
 **Files:**
-- Create: `gnome49-repo-test.yaml`
+- Create: `tests/gnome49-repo-test.yaml`
 
 - [ ] **Create the VM config**
 
 ```yaml
-# gnome49-repo-test.yaml
+# tests/gnome49-repo-test.yaml
 # Lima VM config: verify GNOME 49 packages install correctly from repo.tunaos.org
 #
 # Usage:
-#   limactl start gnome49-repo-test.yaml
+#   limactl start tests/gnome49-repo-test.yaml
 #   limactl shell gnome49-repo-test
 
 vmType: qemu
@@ -850,7 +850,7 @@ provision:
 
 - [ ] **Commit**
 ```bash
-git add gnome49-repo-test.yaml
+git add tests/gnome49-repo-test.yaml
 git commit -m "feat: add Lima VM config for end-to-end repo.tunaos.org verification"
 ```
 
@@ -864,7 +864,7 @@ git commit -m "feat: add Lima VM config for end-to-end repo.tunaos.org verificat
 
 Key additions to AGENTS.md:
 - New section: "Self-Hosted GitHub Actions Pipeline"
-  - Describes `build-order-gnome49.yml` and the two new workflow files
+  - Describes `.copr/build-order-gnome49.yml` and the two new workflow files
   - Documents R2 path layout: `gnome49/10-stream-x86_64/`
   - Lists the `scripts/watch-pipeline.sh` commands
   - Notes: never modify `build-order.yml` or existing GNOME 50 workflows
@@ -885,8 +885,8 @@ Key additions to AGENTS.md:
 - **NEVER** change COPR build commands (`just copr-build`, `just copr-scm-build`) — COPR and GHA pipelines are parallel, not replacements.
 
 ### GNOME 49 GHA Pipeline
-- Manifest: `build-order-gnome49.yml` (separate from GNOME 50's `build-order.yml`)
-- Bootstrap workflow: `.github/workflows/build-gnome49-distributed.yml` (GENERATED — regenerate with `python3 scripts/generate-distributed-workflow.py build-order-gnome49.yml ...`)
+- Manifest: `.copr/build-order-gnome49.yml` (separate from GNOME 50's `build-order.yml`)
+- Bootstrap workflow: `.github/workflows/build-gnome49-distributed.yml` (GENERATED — regenerate with `python3 scripts/generate-distributed-workflow.py .copr/build-order-gnome49.yml ...`)
 - Incremental workflow: `.github/workflows/build-gnome49-package.yml` (manually maintained)
 - R2 upload path: `r2:bluefin/gnome49/10-stream-x86_64/`
 - Public URL: `https://repo.tunaos.org/gnome49/10-stream-x86_64/`
@@ -938,7 +938,7 @@ curl -s https://repo.tunaos.org/gnome49/10-stream-x86_64/repodata/repomd.xml | g
 
 - [ ] **Start the test VM**
 ```bash
-limactl start gnome49-repo-test.yaml
+limactl start tests/gnome49-repo-test.yaml
 ```
 
 - [ ] **Verify packages install from repo.tunaos.org** (not COPR)
@@ -970,7 +970,7 @@ When the pipeline is stable and the VM test passes:
 
 - [ ] **Open a PR**: `gnome-49-pipeline` → `main`
 - [ ] **PR checklist before merge**:
-  - [ ] All new files only (`build-order-gnome49.yml`, new `.github/workflows/build-gnome49-*.yml`, `scripts/watch-pipeline.sh`, `contrib/install-gnome49.sh`, `renovate.json`, `gnome49-repo-test.yaml`)
+  - [ ] All new files only (`.copr/build-order-gnome49.yml`, new `.github/workflows/build-gnome49-*.yml`, `scripts/watch-pipeline.sh`, `contrib/install-gnome49.sh`, `renovate.json`, `tests/gnome49-repo-test.yaml`)
   - [ ] `build-order.yml` is unchanged (confirm with `git diff main -- build-order.yml`)
   - [ ] `build-distributed.yml` is unchanged
   - [ ] `build.yml` is unchanged
@@ -985,7 +985,7 @@ When the pipeline is stable and the VM test passes:
 
 | Issue | Decision |
 |-------|----------|
-| `build-order-gnome49.yml` tier ordering may need adjustment once actual builds run | Adjust tiers iteratively; re-generate workflow after each change |
+| `.copr/build-order-gnome49.yml` tier ordering may need adjustment once actual builds run | Adjust tiers iteratively; re-generate workflow after each change |
 | Renovate's Fedora Pagure datasource may not match API format | Fall back to scheduled `scripts/fetch_rawhide_specs.py` script if needed |
 | `spec_override` in gnome49 manifest (glib2-bootstrap, gi-bootstrap) needs generator support | Verify generator already handles `spec_override` field (it does for GNOME 50) |
 | GPG key: `install-gnome49.sh` enables `gpgcheck=1` but RPMs must be signed | GPG signing happens in the `publish` job; first run signs all RPMs |
@@ -998,7 +998,7 @@ When the pipeline is stable and the VM test passes:
 ```bash
 # Generate GNOME 49 workflow (after changing manifest)
 python3 scripts/generate-distributed-workflow.py \
-  build-order-gnome49.yml \
+  .copr/build-order-gnome49.yml \
   .github/workflows/build-gnome49-distributed.yml \
   --name "GNOME 49 Distributed Build and Publish" \
   --r2-path "gnome49/10-stream-x86_64"

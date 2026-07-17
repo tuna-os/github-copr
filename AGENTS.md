@@ -66,7 +66,7 @@ src/gnome-49/ specs
 ### Key Files
 | File | Purpose |
 |------|---------|
-| `build-order-gnome49.yml` | GNOME 49 tier manifest (12 tiers, separate from GNOME 50) |
+| `.copr/build-order-gnome49.yml` | GNOME 49 tier manifest (12 tiers, separate from GNOME 50) |
 | `.github/workflows/build-gnome49-distributed.yml` | Full bootstrap: builds all tiers in sequence, per-package parallel matrix |
 | `.github/workflows/build-gnome49-package.yml` | Incremental: triggered by Renovate PRs or manual dispatch for single package |
 | `.github/workflows/build-gnome49-verify.yml` | Post-publish: verifies repo.tunaos.org is serving packages correctly |

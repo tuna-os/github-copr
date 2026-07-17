@@ -40,11 +40,11 @@ We must protect the integrity of the main user repository. Avoid adding packages
 - **NEVER** mix GNOME 49 packages into the GNOME 50 manifest or R2 paths, or vice versa.
 
 ### GNOME 49 Self-Hosted Pipeline
-- **Manifest**: `build-order-gnome49.yml` (11 tiers, separate from GNOME 50's `build-order.yml`)
+- **Manifest**: `.copr/build-order-gnome49.yml` (11 tiers, separate from GNOME 50's `build-order.yml`)
 - **Bootstrap workflow**: `.github/workflows/build-gnome49-distributed.yml` — GENERATED from manifest; regenerate with:
   ```bash
   python3 scripts/generate-distributed-workflow.py \
-    build-order-gnome49.yml \
+    .copr/build-order-gnome49.yml \
     .github/workflows/build-gnome49-distributed.yml \
     --name "GNOME 49 Distributed Build and Publish" \
     --r2-path "gnome49/10-stream-x86_64"
