@@ -11,7 +11,7 @@
 #   podman tag mock-runner:local ghcr.io/tuna-os/mock-runner:centos-stream-10
 #   podman push ghcr.io/tuna-os/mock-runner:centos-stream-10
 
-FROM fedora:latest
+FROM fedora:41
 
 RUN dnf install -y \
         mock \
