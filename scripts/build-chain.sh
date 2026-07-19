@@ -93,6 +93,10 @@ done
 # --- Helpers ---
 log() { echo "==> $*"; }
 err() { echo "ERROR: $*" >&2; }
+# Used by update_local_repo()'s retry path but never defined, so a
+# createrepo_c hiccup became "warn: command not found" (exit 127) and buried
+# whatever actually went wrong.
+warn() { echo "WARNING: $*" >&2; }
 
 # Derive the %{dist} tag from the manifest's `target:` when --dist was not
 # given. Keeps a manifest self-describing: build-order-xfce.yml says
@@ -343,18 +347,21 @@ build_package_podman() {
             # producing build.log or root.log, so the failure looked like an
             # infrastructure glitch rather than a permissions rule.
             #
-            # The build user needs to own what it writes: the result dir and
-            # the local repo it publishes into.
-            chown -R builder /builddir /local-repo 2>/dev/null || true
+            # Only /builddir: that is what mock writes results into.
+            # /local-repo is a HOST-mounted directory that mock merely reads as
+            # a repo, and chowning it to the in-container builder uid locked the
+            # runner out of its own workspace — createrepo_c then failed with
+            # "Permission denied" creating .repodata.
+            chown -R builder /builddir 2>/dev/null || true
             # Use flock to ensure only one process runs mock at a time
             # because they share mock chroot initialization.
             flock /local-repo/repo.lock -c \"
                 setpriv --reuid=builder --regid=mock --init-groups \\
-                mock -r \"${MOCK_CONFIG}\" \\
+                mock -r '${MOCK_CONFIG}' \\
                     --uniqueext='${pkg_name}' \\
                     --rebuild /builddir/SRPMS/*.src.rpm \\
                     --resultdir=/builddir/results \\
-                    --define \"dist ${DIST}\" \\
+                    --define 'dist ${DIST}' \\
                     --nocheck \\
                     --no-clean \\
                     --no-cleanup-after || {
