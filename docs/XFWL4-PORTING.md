@@ -6,12 +6,36 @@ against the real base images rather than assumed.
 
 ## The finding
 
-**Every distro needs exactly one package: `xfwl4`.** Nothing else.
+> **CORRECTION (measured, 2026-07-19).** An earlier version of this document
+> claimed every distro needs exactly one package. That was wrong, and it was
+> wrong because it was reasoned from package *presence* without ever running a
+> build. A real build on Fedora 44 fails:
+>
+> ```
+> Package dependency requirement 'libxfce4kbd-private-3 >= 4.21.4'
+>   could not be satisfied.
+> Package 'libxfce4kbd-private-3' has version '4.20.2',
+>   required version is '>= 4.21.4'
+> ```
+>
+> **xfwl4 4.21.0 requires the XFCE 4.21 libraries, and every base except
+> Gentoo ships 4.20.x.** The corrected position is below.
 
-The reason is XFCE 4.20, which added upstream Wayland support. Every base we
-ship already has 4.20 or newer, and their `xfce4-panel` already links
-`libgtk-layer-shell` and `libwayland-client`. The greeter stack
-(`greetd` / `gtkgreet` / `cage`) is packaged in every one of them too.
+**Only Gentoo needs nothing. Everywhere else needs the XFCE 4.21 core
+libraries as well as `xfwl4`** — which is close to what EL10 already builds,
+not the one-package job this document originally described.
+
+XFCE 4.20 did add upstream Wayland support, and that part of the survey holds:
+every base ships 4.20 or newer, their `xfce4-panel` already links
+`libgtk-layer-shell` and `libwayland-client`, and the greeter stack
+(`greetd` / `gtkgreet` / `cage`) is packaged in all of them. Those facts were
+measured and are unchanged.
+
+What they do not establish is that xfwl4 *builds* against 4.20. It does not.
+The compositor tracks the 4.21 development series and its `-sys` crates pin
+`>= 4.21.4` at the pkg-config level, so 4.20.x libraries fail the probe before
+compilation starts. Package presence was never evidence of version adequacy —
+only a build is.
 
 So this is not "port a 20-package desktop stack to five ecosystems", which is
 what EL10 required and what it looked like from the outside. EL10 is the
@@ -25,6 +49,58 @@ Gentoo and AUR have picked up.
 ## Survey
 
 Measured from the base images in `.github/build-config.yml` (tunaOS repo).
+
+`libxfce4ui` version is the one that decides the work, since `xfwl4` needs
+`>= 4.21.4`:
+
+| Base | libxfce4ui | Meets xfwl4 >= 4.21.4 | Consequence |
+|---|---|---|---|
+| Gentoo | **4.21.9** | ✅ | nothing to build — xfwl4 also in tree |
+| Fedora 44 | 4.20.2 | ❌ | needs 4.21 core libs + xfwl4 |
+| Debian trixie | 4.20.1 | ❌ | needs 4.21 core libs + xfwl4 |
+| Ubuntu resolute | 4.20.2 | ❌ | needs 4.21 core libs + xfwl4 |
+| Arch / openSUSE | 4.20.x | ❌ | needs 4.21 core libs + xfwl4 |
+| EL10 | (ours) | ✅ | already builds the whole stack |
+
+Fedora is measured from a real build; Debian/Ubuntu from `apt-cache policy
+libxfce4ui-2-dev`; Gentoo from packages.gentoo.org.
+
+### What "4.21 core libs" means — measured on Fedora
+
+Building the chain on fedora:44 settles it at **three packages**, each present
+because a crate probe demanded it:
+
+| Crate | Probe requirement | Fedora ships | We build |
+|---|---|---|---|
+| `xfconf-sys` | `libxfconf-0 >= 4.21.2` | 4.20.0 | **xfconf 4.21.2** |
+| `libxfce4kbd-private-sys` | `libxfce4kbd-private-3 >= 4.21.4` | 4.20.2 | **libxfce4ui 4.21.7** |
+| — | — | — | **xfwl4 4.21.0** |
+
+Result: `xfwl4-4.21.0-1.fc44.x86_64.rpm`, EXIT=0.
+
+Two packages are deliberately NOT in that set, and the reasons generalise:
+
+- **`libxfce4util`** — our spec builds 4.20.1, *older* than Fedora's 4.20.2.
+  Including it attempts a downgrade.
+- **`libxfce4windowing`** — Fedora's 4.20.4 satisfies every probe, so building
+  ours replaces a distro package for nothing.
+
+EL10 builds the full stack because EL10 ships none of it. A distro that
+already ships half the stack needs only the pieces below a version floor, so
+EL10's tier list cannot be copied wholesale — the per-distro set has to be
+derived from the probes, which means building.
+
+Those packages carry the
+distro's own names, so shipping them means TunaOS supplies a *newer* XFCE core
+than the distro does. dnf/apt treat that as an upgrade rather than a conflict
+(4.21.9 > 4.20.2), but it is a real maintenance commitment: TunaOS then owns
+those libraries on that base until the distro catches up to 4.21/4.22.
+
+That trade — carry the 4.21 core, or wait for the distro — is the actual
+decision for each non-Gentoo base, and it was hidden by the original
+one-package framing.
+
+### Original per-base capability survey (unchanged, still accurate)
 
 | Base | Variant(s) | XFCE | panel is Wayland-capable | greetd | gtkgreet | cage | rust | **xfwl4** |
 |---|---|---|---|---|---|---|---|---|
