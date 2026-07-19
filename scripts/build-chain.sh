@@ -379,6 +379,19 @@ build_package_podman() {
                         exit 1;
                     }
             \"
+            # Mock ran as builder, so everything it wrote under /builddir is
+            # builder-owned inside the container. The container's own top
+            # level is root, and root can always chown back down — but
+            # nothing did, so control returned to the HOST process (which
+            # runs as the plain CI runner user, outside the container
+            # entirely) unable to read what mock had just produced:
+            #   find: /tmp/tmp.XXXXXX/results: Permission denied
+            #   ERROR: No RPMs produced for xfce4-dev-tools
+            # even though mock's own log said the build finished. Restore
+            # root ownership before the container exits and this handoff
+            # happens, regardless of whether mock succeeded or failed —
+            # build.log and root.log need to be host-readable on failure too.
+            chown -R root:root /builddir 2>/dev/null || true
         "
 
     # Collect RPMs from results
