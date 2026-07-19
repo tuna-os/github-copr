@@ -1,0 +1,29 @@
+# Build Order Manifest for XFCE Wayland on Fedora
+#
+# Companion to build-order-xfce.yml (EL10). The two look wildly different in
+# size, and the reason is worth stating so nobody "fixes" this by copying the
+# EL10 tier list over:
+#
+#   EL10 ships essentially no XFCE, so build-order-xfce.yml builds the entire
+#   stack from source — 20+ packages across 8 tiers.
+#
+#   Fedora 44 already ships XFCE 4.20, and 4.20 is the release that landed
+#   upstream Wayland support. Fedora's own xfce4-panel already links
+#   libgtk-layer-shell.so.0 and libwayland-client.so.0; greetd, gtkgreet and
+#   cage are all in Fedora proper. Rebuilding any of that here would mean
+#   shipping worse-tested duplicates of packages Fedora already maintains.
+#
+# The one genuine gap is xfwl4, the Rust/Smithay Wayland compositor from the
+# hanthor/xfce-wayland port, which no distro packages. That is the whole
+# manifest.
+#
+# Consumed by scripts/build-chain.sh, which derives %{dist} (.fc44) from the
+# target below — see derive_dist().
+
+target: fedora-44-x86_64
+r2_path: xfce/44-x86_64
+
+tiers:
+  - name: xfce-compositor
+    packages:
+      - path: src/xfce-wayland/xfwl4

@@ -33,6 +33,11 @@ MANIFEST="${REPO_ROOT}/build-order.yml"
 BACKEND="podman"
 BUILD_IMAGE="ghcr.io/tuna-os/mock-runner:centos-stream-10"
 MOCK_CONFIG="centos-stream-10-ci"
+# RPM %{dist} tag. Empty means "derive from the manifest's target:", so a
+# manifest targeting fedora-44 gets .fc44 without every caller passing --dist.
+# It used to be hard-coded to .el10 at eight separate call sites, which is why
+# this repo could only ever build for EL10.
+DIST=""
 LOCAL_REPO="${REPO_ROOT}/local-repo"
 JOBS=$(( $(nproc) / 2 ))
 [[ $JOBS -lt 1 ]] && JOBS=1
@@ -49,6 +54,8 @@ usage() {
     echo "  --backend <name>     Build backend: podman, mock, or native (default: podman)"
     echo "  --image <ref>        Container image for podman backend"
     echo "  --mock-config <cfg>  Mock config name (default: centos-stream-10-ci)"
+    echo "  --dist <tag>         RPM %{dist} tag, e.g. .el10 or .fc44"
+    echo "                       (default: derived from the manifest's target:)"
     echo "  --local-repo <path>  Path to local repo directory (default: ./local-repo)"
     echo "  --jobs <N>           Parallel jobs within a tier (default: nproc/2)"
     echo "  --tier <name>        Only build a specific tier"
@@ -69,6 +76,7 @@ while [[ $# -gt 0 ]]; do
         --backend)     BACKEND="$2";     shift 2 ;;
         --image)       BUILD_IMAGE="$2"; shift 2 ;;
         --mock-config) MOCK_CONFIG="$2"; shift 2 ;;
+        --dist)        DIST="$2";        shift 2 ;;
         --local-repo)  LOCAL_REPO="$2";  shift 2 ;;
         --jobs)        JOBS="$2";        shift 2 ;;
         --tier)        FILTER_TIER="$2"; shift 2 ;;
@@ -85,6 +93,37 @@ done
 # --- Helpers ---
 log() { echo "==> $*"; }
 err() { echo "ERROR: $*" >&2; }
+
+# Derive the %{dist} tag from the manifest's `target:` when --dist was not
+# given. Keeps a manifest self-describing: build-order-xfce.yml says
+# centos-stream-10-x86_64 and gets .el10, build-order-xfce-fedora.yml says
+# fedora-44-x86_64 and gets .fc44 — no caller has to keep the two in sync.
+derive_dist() {
+    local target
+    target="$(sed -n 's/^target:[[:space:]]*//p' "$MANIFEST" 2>/dev/null | head -1)"
+    case "$target" in
+        # Rawhide's dist tag is whatever Fedora's next release number is, which
+        # cannot be read off the target name and must not be guessed from the
+        # build host (it is not Fedora in CI). Require it explicitly.
+        fedora-rawhide*)
+            err "target '${target}' has no derivable %{dist} — rawhide's tag"
+            err "tracks Fedora's next release (e.g. .fc45); pass --dist"
+            exit 1
+            ;;
+        fedora-*)                 echo ".fc${target#fedora-}" | sed 's/-.*//' ;;
+        centos-stream-10*|epel-10*|almalinux*-10*) echo ".el10" ;;
+        centos-stream-9*|epel-9*) echo ".el9" ;;
+        *)
+            err "cannot derive %{dist} from target '${target:-<unset>}' in ${MANIFEST}"
+            err "pass --dist explicitly (e.g. --dist .fc44)"
+            exit 1
+            ;;
+    esac
+}
+
+if [[ -z "$DIST" ]]; then
+    DIST="$(derive_dist)"
+fi
 
 ensure_local_repo() {
     mkdir -p "${LOCAL_REPO}"
@@ -201,7 +240,7 @@ check_package_exists() {
         -v "$(dirname "$spec"):/specdir:Z" \
         "${BUILD_IMAGE}" \
         rpmspec -q "/specdir/${spec_basename}" \
-            --define "dist .el10" \
+            --define "dist ${DIST}" \
             --queryformat "%{NAME}-%{VERSION}-%{RELEASE}\n" | head -1)
 
     if [[ -z "$nvr" ]]; then
@@ -256,7 +295,7 @@ build_package_podman() {
         "${BUILD_IMAGE}" \
         rpmbuild -bs "/builddir/SPECS/${spec_basename}" \
             --define "_topdir /builddir" \
-            --define "dist .el10"
+            --define "dist ${DIST}"
 
     local srpm
     srpm="$(find "${builddir}/SRPMS" -name "*.src.rpm" | head -1)"
@@ -299,11 +338,11 @@ build_package_podman() {
             # Use flock to ensure only one process runs mock at a time
             # because they share mock chroot initialization.
             flock /local-repo/repo.lock -c \"
-                mock -r centos-stream-10-ci \\
+                mock -r \"${MOCK_CONFIG}\" \\
                     --uniqueext='${pkg_name}' \\
                     --rebuild /builddir/SRPMS/*.src.rpm \\
                     --resultdir=/builddir/results \\
-                    --define 'dist .el10' \\
+                    --define \"dist ${DIST}\" \\
                     --nocheck \\
                     --no-clean \\
                     --no-cleanup-after || {
@@ -364,7 +403,7 @@ build_package_mock() {
         "${BUILD_IMAGE}" \
         rpmbuild -bs "/builddir/SPECS/${spec_basename}" \
             --define "_topdir /builddir" \
-            --define "dist .el10"
+            --define "dist ${DIST}"
 
     local srpm
     srpm="$(find "${builddir}/SRPMS" -name "*.src.rpm" | head -1)"
@@ -386,7 +425,7 @@ build_package_mock() {
             --uniqueext=\"${pkg_name}\" \\
             --rebuild \"$srpm\" \\
             --resultdir=\"$resultdir\" \\
-            --define 'dist .el10' \\
+            --define \"dist ${DIST}\" \\
             --nocheck \\
             --no-clean \\
             --no-cleanup-after || {
@@ -430,7 +469,7 @@ build_package_native() {
     if ! $FORCE; then
         local nvr
         nvr=$(rpm -q --specfile "$spec" \
-            --define "dist .el10" \
+            --define "dist ${DIST}" \
             --queryformat "%{NAME}-%{VERSION}-%{RELEASE}\n" 2>/dev/null | head -1)
         if [[ -n "$nvr" ]] && ls "${LOCAL_REPO}/${nvr}"*.rpm &>/dev/null 2>&1; then
             log "[${pkg_name}] Skipping: ${nvr} already in local repo"
@@ -483,7 +522,7 @@ build_package_native() {
     # Install BuildRequires from spec
     log "[${pkg_name}] Installing BuildRequires..."
     dnf builddep -y \
-        --define "dist .el10" \
+        --define "dist ${DIST}" \
         "${builddir}/SPECS/${spec_basename}" || {
         err "dnf builddep failed for ${pkg_name}"
         return 1
@@ -493,7 +532,7 @@ build_package_native() {
     log "[${pkg_name}] Running rpmbuild..."
     rpmbuild -bb \
         --define "_topdir ${builddir}" \
-        --define "dist .el10" \
+        --define "dist ${DIST}" \
         "${builddir}/SPECS/${spec_basename}" || {
         err "rpmbuild failed for ${pkg_name}"
         return 1
@@ -613,7 +652,9 @@ main() {
     log "  Manifest:   ${MANIFEST}"
     log "  Backend:    ${BACKEND}"
     [[ "$BACKEND" == "podman" ]] && log "  Image:      ${BUILD_IMAGE}"
-    [[ "$BACKEND" == "mock"   ]] && log "  Mock cfg:   ${MOCK_CONFIG}"
+    # The podman backend runs mock too, so its config matters either way.
+    log "  Mock cfg:   ${MOCK_CONFIG}"
+    log "  Dist tag:   ${DIST}"
     log "  Local repo: ${LOCAL_REPO}"
     log "  Jobs:       ${JOBS}"
     [[ -n "$FILTER_TIER" ]]    && log "  Tier filter: ${FILTER_TIER}"
