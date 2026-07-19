@@ -1,39 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
+  "extends": ["config:recommended"],
   "automerge": true,
-  "regexManagers": [
-    {
-      "fileMatch": [
-        "^src/xfce-wayland/.*\\.spec$",
-        "^.*xfce.*\\.bst$"
-      ],
-      "matchStrings": [
-        "url:\\s+https://gitlab\\.xfce\\.org/xfce/(?<depName>[^\\s]+)",
-        "ref:\\s+(?<currentValue>[a-f0-9]{40})",
-        "# renovate: datasource=(?<datasource>gitlab-tags)\\s+depName=(?<depName>\\S+)\\s+versioning=(?<versioning>\\S+)"
-      ],
-      "datasourceTemplate": "gitlab-tags",
-      "versioningTemplate": "semver"
-    }
-  ],
-  "gitlabci": {
-    "enabled": true
-  },
   "packageRules": [
     {
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "pin",
-        "digest"
-      ],
+      "matchUpdateTypes": ["major", "minor", "patch", "pin", "digest"],
       "automerge": true
     }
-  ],
-  "labels": [
-    "dependencies"
   ]
 }
