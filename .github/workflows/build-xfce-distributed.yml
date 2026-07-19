@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Configure rclone
@@ -66,7 +66,7 @@ jobs:
           - src/xfce-wayland/xfce4-dev-tools
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -150,7 +150,7 @@ jobs:
           - src/xfce-wayland/wlr-protocols
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -234,7 +234,7 @@ jobs:
           - src/xfce-wayland/xfconf
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -318,7 +318,7 @@ jobs:
           - src/xfce-wayland/libxfce4windowing
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -402,7 +402,7 @@ jobs:
           - src/xfce-wayland/exo
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -489,7 +489,7 @@ jobs:
           - src/xfce-wayland/tumbler
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -572,7 +572,7 @@ jobs:
           - src/xfce-wayland/xfdesktop
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -655,7 +655,7 @@ jobs:
           - src/xfce-wayland/xfwl4
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -743,7 +743,7 @@ jobs:
           - src/xfce-wayland/xfce4-taskmanager
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -833,7 +833,7 @@ jobs:
           - src/xfce-wayland/xfce4-genmon-plugin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -916,7 +916,7 @@ jobs:
           - src/xfce-wayland/xfce4-wayland
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -994,7 +994,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install dependencies
         run: 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf
 

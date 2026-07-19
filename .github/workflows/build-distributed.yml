@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Configure rclone
@@ -72,7 +72,7 @@ jobs:
           - src/deps/selinux-policy
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -149,7 +149,7 @@ jobs:
           - src/deps/gi-docgen
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -222,7 +222,7 @@ jobs:
           - src/gnome-50/glib2
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -298,7 +298,7 @@ jobs:
           - src/deps/fontconfig
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -371,7 +371,7 @@ jobs:
           - src/deps/cairo
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -444,7 +444,7 @@ jobs:
           - src/gnome-50/gobject-introspection
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -517,7 +517,7 @@ jobs:
           - src/gnome-50/glib2
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -590,7 +590,7 @@ jobs:
           - src/gnome-50/gobject-introspection
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -667,7 +667,7 @@ jobs:
           - src/deps/libsoup
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -743,7 +743,7 @@ jobs:
           - src/gnome-50/gjs
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -820,7 +820,7 @@ jobs:
           - src/deps/libgda
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -896,7 +896,7 @@ jobs:
           - src/deps/vte291
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -969,7 +969,7 @@ jobs:
           - src/deps/malcontent
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -1043,7 +1043,7 @@ jobs:
           - src/gnome-50/mutter
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -1118,7 +1118,7 @@ jobs:
           - src/gnome-50/nautilus
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -1193,7 +1193,7 @@ jobs:
           - src/gnome-50/gdm
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -1266,7 +1266,7 @@ jobs:
           - src/gnome-50/gnome-initial-setup
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
@@ -1334,7 +1334,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install dependencies
         run: 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf
 
