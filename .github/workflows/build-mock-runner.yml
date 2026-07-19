@@ -7,8 +7,12 @@ on:
   push:
     branches: [main]
     paths:
+      # Any mock config, not just the cs10 one: the configs are baked into the
+      # image, so editing one in the repo has no effect until the image is
+      # rebuilt. Listing them individually meant a new chroot (or an edit to a
+      # gnome config) shipped silently stale.
       - 'mock/Containerfile'
-      - 'mock/centos-stream-10-ci.cfg'
+      - 'mock/*.cfg'
   workflow_dispatch:
 
 env:

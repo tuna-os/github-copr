@@ -335,9 +335,21 @@ build_package_podman() {
         "${MOCK_CACHE_ARGS[@]}" \
         "${BUILD_IMAGE}" \
         bash -exc "
+            # mock refuses to run as root — even 'mock --version' exits with
+            # 'Insufficient rights.' It wants an unprivileged user in the mock
+            # group and drops privileges itself. This container runs as root,
+            # which was fine with older mock but broke every build once the
+            # runner image was rebuilt onto a newer one: mock exited before
+            # producing build.log or root.log, so the failure looked like an
+            # infrastructure glitch rather than a permissions rule.
+            #
+            # The build user needs to own what it writes: the result dir and
+            # the local repo it publishes into.
+            chown -R builder /builddir /local-repo 2>/dev/null || true
             # Use flock to ensure only one process runs mock at a time
             # because they share mock chroot initialization.
             flock /local-repo/repo.lock -c \"
+                setpriv --reuid=builder --regid=mock --init-groups \\
                 mock -r \"${MOCK_CONFIG}\" \\
                     --uniqueext='${pkg_name}' \\
                     --rebuild /builddir/SRPMS/*.src.rpm \\
