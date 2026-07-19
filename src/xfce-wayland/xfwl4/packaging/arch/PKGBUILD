@@ -1,0 +1,72 @@
+# Maintainer: TunaOS Bot <bot@tunaos.org>
+#
+# xfwl4 for marlin (Arch). AUR already carries xfwl4-git, but that tracks git
+# HEAD; this pins the same commit the RPM builds so every TunaOS variant ships
+# an identical compositor rather than whatever HEAD was on build day.
+#
+# Arch is otherwise complete: xfce4-panel 4.20.7 already depends on
+# gtk-layer-shell, and greetd / greetd-gtkgreet / cage are all in the repos.
+
+pkgname=xfwl4
+pkgver=4.21.0
+pkgrel=1
+_commit=465880f67b5705136895bf69c60e2178ad351856
+# Custom XFCE Wayland protocol XML — a git submodule, absent from the archive.
+_protocols_commit=6082cfa492154aec266527193bf8f6142ab14977
+pkgdesc="Wayland compositor for Xfce4"
+arch=('x86_64')
+url="https://gitlab.xfce.org/xfce/xfwl4"
+license=('GPL-3.0-or-later' 'Apache-2.0' 'MIT')
+depends=('libdrm' 'libinput' 'mesa' 'seatd' 'libxkbcommon' 'pixman'
+         'wayland' 'gtk3' 'gdk-pixbuf2' 'libdisplay-info' 'libsm'
+         'startup-notification' 'systemd-libs' 'xfconf' 'libxfce4ui')
+makedepends=('cargo' 'rust' 'pkgconf' 'wayland-protocols' 'gettext')
+# The compositor alone is not a session.
+optdepends=('xfce4-session: XFCE session management'
+            'xfce4-panel: XFCE panel'
+            'greetd-gtkgreet: themable greeter for the login screen')
+source=("xfwl4-${_commit}.tar.gz::${url}/-/archive/${_commit}/xfwl4-${_commit}.tar.gz"
+        "xfce-wayland-protocols-${_protocols_commit}.tar.gz::https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/${_protocols_commit}/xfce-wayland-protocols-${_protocols_commit}.tar.gz"
+        "0001-fix-dma-cfg-gate-for-udev-backend.patch")
+# SKIP is a scaffold placeholder — fill these in before this is trusted.
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+prepare() {
+	cd "xfwl4-${_commit}"
+
+	# Upstream bug: WlrBufferConstraints.dma's cfg gate omits the udev feature
+	# while three call sites already guard access to it under udev, so a
+	# udev-only build (ours) fails to compile without this.
+	patch -Np1 -i "${srcdir}/0001-fix-dma-cfg-gate-for-udev-backend.patch"
+
+	# src/protocols/*.rs reference this by relative path via
+	# wayland_scanner::generate_*!, so the location is exact, not incidental.
+	mkdir -p resources/xfce-wayland-protocols
+	tar -xzf "${srcdir}/xfce-wayland-protocols-${_protocols_commit}.tar.gz" \
+		--strip-components=1 -C resources/xfce-wayland-protocols
+
+	# makepkg builds with the network up, so smithay's git dependency can be
+	# fetched normally here — unlike the RPM and .deb builds, which are
+	# network-isolated and need a pre-vendored tree.
+	cargo fetch --locked
+}
+
+build() {
+	cd "xfwl4-${_commit}"
+	export RUSTFLAGS="-C relocation-model=pic"
+	# Otherwise gettext-sys builds its own GNU gettext and fails to link
+	# libintl_gettext; on glibc, gettext lives in libc and needs no linking.
+	export GETTEXT_SYSTEM=1
+	cargo build --release --frozen \
+		--no-default-features \
+		--features udev,egl,xwayland,smithay/renderer_pixman,smithay/renderer_gl
+}
+
+package() {
+	cd "xfwl4-${_commit}"
+	install -Dm755 "target/release/xfwl4" "${pkgdir}/usr/bin/xfwl4"
+	install -Dm644 "resources/defaults" \
+		"${pkgdir}/usr/share/xfce4/xfwl4/defaults"
+	install -Dm644 LICENSE \
+		"${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

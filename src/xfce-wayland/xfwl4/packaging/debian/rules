@@ -1,0 +1,44 @@
+#!/usr/bin/make -f
+#
+# xfwl4 for Debian/Ubuntu. Mirrors the logic in ../../xfwl4.spec — keep the two
+# in sync, because every constraint here comes from upstream, not from RPM.
+
+# gettext-sys only skips its own from-source gettext build (which then fails to
+# link libintl_gettext) when GETTEXT_SYSTEM is set. On glibc, gettext is built
+# into libc, so nothing needs linking at all.
+export GETTEXT_SYSTEM = 1
+export RUSTFLAGS = -C relocation-model=pic
+
+# Debian builds have no network. Cargo.toml pulls smithay from git, which cargo
+# cannot fetch offline, so deps are pre-vendored and both crates.io and the
+# smithay git source are redirected at the vendor directory. Regenerate with
+# `cargo vendor` against the pinned Cargo.lock if it is ever bumped.
+export CARGO_HOME = $(CURDIR)/.cargo-home
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	mkdir -p .cargo
+	cp $(CURDIR)/debian/cargo-config.toml .cargo/config.toml
+	# resources/xfce-wayland-protocols is a git submodule holding custom XFCE
+	# Wayland protocol XML. It is NOT in the release tarball, and the build
+	# refers to it by relative path from src/protocols/*.rs, so it has to land
+	# at exactly this path or compilation fails.
+	test -d resources/xfce-wayland-protocols || \
+		(echo "ERROR: resources/xfce-wayland-protocols missing — unpack the" \
+		      "xfce-wayland-protocols tarball there (see debian/README.source)" && false)
+
+override_dh_auto_build:
+	cargo build --release --offline \
+		--no-default-features \
+		--features udev,egl,xwayland,smithay/renderer_pixman,smithay/renderer_gl
+
+override_dh_auto_install:
+	install -Dm755 target/release/xfwl4 \
+		debian/xfwl4/usr/bin/xfwl4
+	install -Dm644 resources/defaults \
+		debian/xfwl4/usr/share/xfce4/xfwl4/defaults
+
+# The test suite needs a live compositor session; skip like the RPM's --nocheck.
+override_dh_auto_test:

@@ -1,0 +1,16 @@
+# Redirects both crates.io and the smithay git dependency at the vendored
+# directory, so the build works with networking disabled. Must match the
+# smithay rev pinned in Cargo.lock — the RPM spec carries the same block.
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/smithay/smithay?rev=4645e03d6bd9377aa368de20e91d69951450392d"]
+git = "https://github.com/smithay/smithay"
+rev = "4645e03d6bd9377aa368de20e91d69951450392d"
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"
+
+[net]
+offline = true

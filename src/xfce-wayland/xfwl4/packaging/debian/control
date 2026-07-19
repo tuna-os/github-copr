@@ -1,0 +1,50 @@
+Source: xfwl4
+Section: x11
+Priority: optional
+Maintainer: TunaOS Bot <bot@tunaos.org>
+# Covers flounder (Debian trixie), flounder-sid (Debian sid) and grouper
+# (Ubuntu resolute) from one source package — all three ship XFCE 4.20+, whose
+# xfce4-panel already depends on libgtk-layer-shell0 and libwayland-client0, so
+# xfwl4 is the only missing piece of a Wayland-only XFCE on any of them.
+Build-Depends: debhelper-compat (= 13),
+               cargo,
+               rustc (>= 1.85),
+               pkg-config,
+               libdrm-dev,
+               libinput-dev,
+               libgbm-dev,
+               libseat-dev,
+               libxkbcommon-dev,
+               libpixman-1-dev,
+               libwayland-dev,
+               wayland-protocols,
+               libgtk-3-dev,
+               libgdk-pixbuf-2.0-dev,
+               libdisplay-info-dev,
+               libsm-dev,
+               libstartup-notification0-dev,
+               libsystemd-dev,
+# xfconf-sys / libxfce4ui-sys / libxfce4kbd-private-sys link against these via
+# pkg-config (confirmed from Cargo.lock's dependency tree).
+               libxfconf-0-dev,
+               libxfce4ui-2-dev,
+# Without this, gettext-sys's build.rs builds its own GNU gettext in-tree and
+# then fails to link libintl_gettext. See GETTEXT_SYSTEM in debian/rules.
+               gettext
+Standards-Version: 4.7.0
+Homepage: https://gitlab.xfce.org/xfce/xfwl4
+Rules-Requires-Root: no
+
+Package: xfwl4
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+# xfwl4 is only the compositor; a usable session still needs the XFCE pieces,
+# which the distro already ships in Wayland-capable form.
+Recommends: xfce4-session, xfce4-panel
+Description: Wayland compositor for Xfce4
+ xfwl4 is a Wayland compositor for Xfce4 built on Smithay. It provides both
+ winit (nested) and TTY (udev+egl) backends.
+ .
+ It is the one component missing from a Wayland-only XFCE session on Debian
+ and Ubuntu: XFCE 4.20 added upstream Wayland support, so the panel, session,
+ settings and desktop packages already work under a Wayland compositor.

@@ -1,0 +1,8 @@
+xfwl4 (4.21.0-1) unstable; urgency=medium
+
+  * Initial package: Wayland compositor for XFCE.
+    Packaged so flounder/flounder-sid/grouper can ship a Wayland-only XFCE
+    session — it is the only piece Debian and Ubuntu are missing, since their
+    XFCE 4.20 packages are already Wayland-capable.
+
+ -- TunaOS Bot <bot@tunaos.org>  Sun, 19 Jul 2026 09:00:00 +0000
