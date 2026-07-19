@@ -31,17 +31,28 @@
 target: fedora-44-x86_64
 r2_path: xfce/44-x86_64
 
+# Verified by building the whole chain on fedora:44 (EXIT=0, produced
+# xfwl4-4.21.0-1.fc44.x86_64.rpm). Exactly three packages are needed, and each
+# one is here because a crate probe demanded it, not by analogy with EL10:
+#
+#   xfconf-sys                 needs libxfconf-0 >= 4.21.2   (Fedora has 4.20.0)
+#   libxfce4kbd-private-sys    needs ...-3      >= 4.21.4   (Fedora has 4.20.2)
+#
+# Our specs sit just above both floors (xfconf 4.21.2, libxfce4ui 4.21.7).
+#
+# NOT libxfce4util: our spec builds 4.20.1, which is OLDER than Fedora's
+# 4.20.2 — including it would attempt a downgrade. NOT libxfce4windowing:
+# Fedora's 4.20.4 satisfies every probe, so building ours would replace a
+# distro package for nothing. EL10's tier list cannot be copied wholesale to a
+# distro that already ships half the stack.
 tiers:
-  # Same chain as build-order-xfce.yml: util -> xfconf -> ui -> compositor.
   - name: xfce-core-libs
     packages:
-      - path: src/xfce-wayland/libxfce4util
       - path: src/xfce-wayland/xfconf
 
   - name: xfce-ui-libs
     packages:
       - path: src/xfce-wayland/libxfce4ui
-      - path: src/xfce-wayland/libxfce4windowing
 
   - name: xfce-compositor
     packages:

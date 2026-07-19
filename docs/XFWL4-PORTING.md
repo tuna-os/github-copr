@@ -65,10 +65,32 @@ Measured from the base images in `.github/build-config.yml` (tunaOS repo).
 Fedora is measured from a real build; Debian/Ubuntu from `apt-cache policy
 libxfce4ui-2-dev`; Gentoo from packages.gentoo.org.
 
-### What "4.21 core libs" means
+### What "4.21 core libs" means — measured on Fedora
 
-`libxfce4util` -> `xfconf` -> `libxfce4ui` -> `xfwl4`, the same dependency
-chain EL10 already builds in `build-order-xfce.yml`. Those packages carry the
+Building the chain on fedora:44 settles it at **three packages**, each present
+because a crate probe demanded it:
+
+| Crate | Probe requirement | Fedora ships | We build |
+|---|---|---|---|
+| `xfconf-sys` | `libxfconf-0 >= 4.21.2` | 4.20.0 | **xfconf 4.21.2** |
+| `libxfce4kbd-private-sys` | `libxfce4kbd-private-3 >= 4.21.4` | 4.20.2 | **libxfce4ui 4.21.7** |
+| — | — | — | **xfwl4 4.21.0** |
+
+Result: `xfwl4-4.21.0-1.fc44.x86_64.rpm`, EXIT=0.
+
+Two packages are deliberately NOT in that set, and the reasons generalise:
+
+- **`libxfce4util`** — our spec builds 4.20.1, *older* than Fedora's 4.20.2.
+  Including it attempts a downgrade.
+- **`libxfce4windowing`** — Fedora's 4.20.4 satisfies every probe, so building
+  ours replaces a distro package for nothing.
+
+EL10 builds the full stack because EL10 ships none of it. A distro that
+already ships half the stack needs only the pieces below a version floor, so
+EL10's tier list cannot be copied wholesale — the per-distro set has to be
+derived from the probes, which means building.
+
+Those packages carry the
 distro's own names, so shipping them means TunaOS supplies a *newer* XFCE core
 than the distro does. dnf/apt treat that as an upgrade rather than a conflict
 (4.21.9 > 4.20.2), but it is a real maintenance commitment: TunaOS then owns
