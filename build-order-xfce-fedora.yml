@@ -7,15 +7,23 @@
 #   EL10 ships essentially no XFCE, so build-order-xfce.yml builds the entire
 #   stack from source — 20+ packages across 8 tiers.
 #
-#   Fedora 44 already ships XFCE 4.20, and 4.20 is the release that landed
-#   upstream Wayland support. Fedora's own xfce4-panel already links
-#   libgtk-layer-shell.so.0 and libwayland-client.so.0; greetd, gtkgreet and
-#   cage are all in Fedora proper. Rebuilding any of that here would mean
-#   shipping worse-tested duplicates of packages Fedora already maintains.
+#   Fedora 44 ships XFCE 4.20, the release that landed upstream Wayland
+#   support, so its xfce4-panel already links libgtk-layer-shell and
+#   libwayland-client, and greetd/gtkgreet/cage are all in Fedora proper.
 #
-# The one genuine gap is xfwl4, the Rust/Smithay Wayland compositor from the
-# hanthor/xfce-wayland port, which no distro packages. That is the whole
-# manifest.
+# This manifest originally built xfwl4 alone on that basis. A real build
+# proved that wrong: xfwl4 4.21.0's -sys crates pin
+#
+#   libxfce4kbd-private-3 >= 4.21.4
+#
+# and Fedora 44 has 4.20.2, so the pkg-config probe fails before compilation
+# starts. Package presence was never evidence of version adequacy.
+#
+# So the 4.21 core libraries have to be built too, in the same dependency
+# order EL10 uses. Note what that means: these carry Fedora's own package
+# names, so TunaOS ships a NEWER XFCE core than Fedora does. dnf treats it as
+# an upgrade rather than a conflict (4.21.x > 4.20.2), but TunaOS then owns
+# those libraries on Fedora until Fedora reaches 4.21/4.22.
 #
 # Consumed by scripts/build-chain.sh, which derives %{dist} (.fc44) from the
 # target below — see derive_dist().
@@ -24,6 +32,17 @@ target: fedora-44-x86_64
 r2_path: xfce/44-x86_64
 
 tiers:
+  # Same chain as build-order-xfce.yml: util -> xfconf -> ui -> compositor.
+  - name: xfce-core-libs
+    packages:
+      - path: src/xfce-wayland/libxfce4util
+      - path: src/xfce-wayland/xfconf
+
+  - name: xfce-ui-libs
+    packages:
+      - path: src/xfce-wayland/libxfce4ui
+      - path: src/xfce-wayland/libxfce4windowing
+
   - name: xfce-compositor
     packages:
       - path: src/xfce-wayland/xfwl4
