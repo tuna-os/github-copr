@@ -78,7 +78,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -152,7 +152,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -225,7 +225,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -298,7 +298,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -371,7 +371,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -444,7 +444,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -521,7 +521,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -601,7 +601,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -679,7 +679,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -753,7 +753,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -828,7 +828,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -905,7 +905,7 @@ jobs:
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}

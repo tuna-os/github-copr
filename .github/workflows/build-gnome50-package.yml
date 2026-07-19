@@ -79,7 +79,7 @@ jobs:
           curl -fsSL https://rclone.org/install.sh | sudo bash
 
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
