@@ -1,0 +1,24 @@
+Building this package
+=====================
+
+Two artifacts must be staged into the source tree before building, because
+neither is in the upstream release tarball and the build has no network:
+
+1. resources/xfce-wayland-protocols/
+   A git submodule of custom XFCE Wayland protocol XML. Unpack
+   https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/<rev>/...tar.gz
+   there with --strip-components=1. src/protocols/*.rs reference it by
+   relative path via wayland_scanner::generate_*!, so the path is exact.
+
+2. vendor/
+   Cargo.toml pulls smithay from git, which cargo cannot fetch offline.
+   Produce with `cargo vendor` against the pinned Cargo.lock. debian/rules
+   installs debian/cargo-config.toml as .cargo/config.toml to redirect both
+   crates.io and the smithay git source at it.
+
+Keep the pinned smithay rev in debian/cargo-config.toml identical to the one
+in ../../xfwl4.spec — they must describe the same build.
+
+An upstream patch is also required (see debian/patches): the cfg gate on
+WlrBufferConstraints.dma omits the udev feature while three call sites guard
+it under udev, so a udev-only build does not compile without it.
