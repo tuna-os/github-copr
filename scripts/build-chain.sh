@@ -350,8 +350,15 @@ build_package_podman() {
             # Only /builddir: that is what mock writes results into.
             # /local-repo is a HOST-mounted directory that mock merely reads as
             # a repo, and chowning it to the in-container builder uid locked the
-            # runner out of its own workspace — createrepo_c then failed with
-            # "Permission denied" creating .repodata.
+            # runner out of its own workspace, so createrepo_c could not create
+            # .repodata there.
+            #
+            # NOTE: never put a double quote in this string, not even inside a
+            # comment. It is passed as bash -exc from the host shell, so a
+            # literal double quote closes it early; bash then gets the script
+            # as two arguments, treats the second as $0, and silently drops
+            # everything after the break. A quoted phrase in this very comment
+            # did that and turned the whole container step into a no-op.
             chown -R builder /builddir 2>/dev/null || true
             # Use flock to ensure only one process runs mock at a time
             # because they share mock chroot initialization.
