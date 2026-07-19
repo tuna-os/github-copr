@@ -24,6 +24,25 @@ RUN dnf install -y \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
+# The base image is pinned to fedora:41, so mock-core-configs above is
+# whatever version F41's own repos shipped — frozen at that point in time.
+# fedora-44-x86_64.cfg only became a real, stable chroot config once F44
+# itself branched off rawhide; the F41-era package still symlinks it to
+# fedora-rawhide-x86_64.cfg, so "fedora-44-ci" silently built against
+# whatever mirrorlist rawhide resolved to, not the F44 repos the manifest's
+# --dist .fc44 implies. F41's updates-testing does not help — checked, it
+# tops out at the same 43.3-1 as stable.
+#
+# The fix is to install this one package against F44's OWN repos via
+# --releasever, which is the release where fedora-44-x86_64.cfg stopped
+# being a symlink. mock-core-configs itself has no real deps, but it needs a
+# newer distribution-gpg-keys (>= 1.117) than F41 ships, so plain rpm -i
+# cannot resolve that — dnf against the F44 repos does, and --best keeps it
+# from silently settling for an older, still-broken candidate.
+RUN dnf --releasever=44 install -y --best mock-core-configs \
+    && rm -rf /var/cache/dnf \
+    && test ! -L /etc/mock/fedora-44-x86_64.cfg
+
 COPY centos-stream-10-ci.cfg /etc/mock/centos-stream-10-ci.cfg
 COPY centos-stream-10-ci-gnome49.cfg /etc/mock/centos-stream-10-ci-gnome49.cfg
 COPY centos-stream-10-ci-gnome50.cfg /etc/mock/centos-stream-10-ci-gnome50.cfg
