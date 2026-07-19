@@ -1,0 +1,6 @@
+xfconf (4.21.2-1) unstable; urgency=medium
+
+  * Initial package: newer xfconf required by the xfwl4 Wayland compositor
+    build, which trixie's 4.20.0 cannot satisfy.
+
+ -- TunaOS Bot <bot@tunaos.org>  Sun, 19 Jul 2026 16:00:00 +0000

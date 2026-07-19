@@ -1,0 +1,6 @@
+libxfce4ui (4.21.7-1) unstable; urgency=medium
+
+  * Initial package: newer libxfce4ui required by the xfwl4 Wayland
+    compositor build, which trixie's 4.20.1 cannot satisfy.
+
+ -- TunaOS Bot <bot@tunaos.org>  Sun, 19 Jul 2026 16:30:00 +0000

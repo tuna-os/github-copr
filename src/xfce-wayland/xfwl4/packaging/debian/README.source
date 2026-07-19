@@ -16,9 +16,49 @@ neither is in the upstream release tarball and the build has no network:
    installs debian/cargo-config.toml as .cargo/config.toml to redirect both
    crates.io and the smithay git source at it.
 
-Keep the pinned smithay rev in debian/cargo-config.toml identical to the one
-in ../../xfwl4.spec — they must describe the same build.
-
 An upstream patch is also required (see debian/patches): the cfg gate on
 WlrBufferConstraints.dma omits the udev feature while three call sites guard
-it under udev, so a udev-only build does not compile without it.
+it under udev, so a udev-only build does not compile without it. This needs
+debian/source/format to be "3.0 (quilt)" or dpkg-source silently never
+applies it — confirmed by building without that file present: no error, no
+warning, the patch is simply not there and the build fails at the dma field
+instead, which looks like a different bug entirely.
+
+
+Debian trixie (rustc 1.85) cannot build this commit — verified, not assumed
+=============================================================================
+
+Built end to end on trixie against real trixie repos (not vendored — cargo
+was allowed to fetch, to isolate the actual blocker). Two independent
+version floors, both confirmed by building rather than inferred from specs:
+
+1. `image` is a DIRECT dependency pinned `^0.25.1`. The pinned Cargo.lock
+   resolves 0.25.10, whose MSRV is rustc 1.88; trixie ships 1.85. Fixed by
+   `cargo update -p image --precise 0.25.1`, which still satisfies the
+   `^0.25.1` constraint and has a lower MSRV. Confirmed 0.25.1 through
+   0.25.6 all resolve; 0.25.1 was used.
+
+   This means trixie needs its OWN vendor tarball, not the RPM/Fedora one —
+   Fedora's rustc (1.96) has no trouble with 0.25.10, and re-vendoring here
+   would downgrade it for no reason on that base.
+
+2. Past that, xfwl4's OWN code fails: src/core/input_handler.rs calls
+   `argv0.display()` on an OsStr, using `OsStr::display()`, a library
+   feature not yet stabilized on rustc 1.85 (error: "use of unstable
+   library feature os_str_display"). This is not a dependency version
+   problem — it is xfwl4's pinned commit requiring a newer rustc than
+   trixie ships, full stop. No packaging change fixes it; either xfwl4
+   gains a rustc-1.85-compatible formatting call upstream, or trixie needs
+   a newer rustc than its own repos provide.
+
+So flounder (Debian trixie) is blocked on this commit's own MSRV, not on
+anything in this packaging.
+
+Debian sid / Ubuntu — evidenced, not yet build-verified
+=========================================================
+sid ships rustc 1.95.0, Ubuntu resolute ships 1.93.1 (both measured
+directly) — comfortably past both floors above. flounder-sid and grouper
+should build against the STANDARD vendor tree (same one the RPM spec uses,
+image=0.25.10 and all), with no need for the trixie-specific downgrade.
+This is a strong expectation from the version numbers, not a build that has
+actually been run — do not read it as verified until someone builds it.

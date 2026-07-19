@@ -1,0 +1,7 @@
+usr/include/xfce4/libxfce4ui-2/
+usr/include/xfce4/libxfce4kbd-private-3/
+usr/lib/*/libxfce4ui*.so
+usr/lib/*/libxfce4kbd-private*.so
+usr/lib/*/pkgconfig/*.pc
+usr/lib/*/girepository-1.0/*.typelib
+usr/share/gir-1.0/*.gir

@@ -28,6 +28,11 @@ Build-Depends: debhelper-compat (= 13),
 # pkg-config (confirmed from Cargo.lock's dependency tree).
                libxfconf-0-dev,
                libxfce4ui-2-dev,
+# libxfce4util-1.0.pc: not itself linked by xfwl4, but xfconf-sys and
+# libxfce4ui-sys's pkg-config probes transitively require it and dpkg does
+# not pull -dev packages in for their pkg-config Requires, only their
+# library Depends.
+               libxfce4util-dev,
 # Without this, gettext-sys's build.rs builds its own GNU gettext in-tree and
 # then fails to link libintl_gettext. See GETTEXT_SYSTEM in debian/rules.
                gettext

@@ -1,0 +1,8 @@
+usr/lib/*/libxfconf*.so.*
+usr/lib/*/xfce4/xfconf/xfconfd
+usr/bin/xfconf-query
+usr/lib/*/gio/modules/libxfconfgsettingsbackend.so
+usr/lib/systemd/user/xfconfd.service
+usr/share/dbus-1/services/*.service
+usr/share/bash-completion/completions/xfconf-query
+usr/share/locale/*/LC_MESSAGES/xfconf.mo
