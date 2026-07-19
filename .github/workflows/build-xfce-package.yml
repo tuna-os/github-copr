@@ -43,9 +43,30 @@ jobs:
           else
             BASE="${PR_BASE_SHA:-${BEFORE_SHA}}"
             HEAD="${CURRENT_SHA}"
+            # A "package" here means a directory holding an RPM spec this
+            # workflow's build-chain.sh can build — nothing else. The old
+            # version treated ANY changed file under src/xfce-wayland/ as a
+            # package by stripping its last path component, with no check
+            # that a spec existed there. Debian packaging added under
+            # src/xfce-wayland/*/packaging/debian/ matched that pattern,
+            # build-chain.sh built 0 RPMs for it (there is no .spec there),
+            # and the workflow still ran createrepo_c + rclone sync on the
+            # resulting empty local-repo — which overwrote the entire
+            # published EL10 xfce repo on R2 with nothing. Real incident,
+            # 2026-07-19: repo.tunaos.org/xfce/10-stream-x86_64 went from 98
+            # packages to 0 from a single push that never should have
+            # triggered a build here at all.
+            #
+            # So a candidate dir only counts if it contains a .spec file
+            # directly — the same thing find_spec() in build-chain.sh
+            # ultimately requires, checked here before a container is even
+            # started.
             CHANGED=$(git diff --name-only "${BASE}" "${HEAD}" | \
               grep '^src/xfce-wayland/' | \
               sed 's|/[^/]*$||' | sort -u | \
+              while read -r d; do
+                compgen -G "${d}/*.spec" >/dev/null 2>&1 && echo "$d"
+              done | \
               python3 -c "import sys,json; dirs=sys.stdin.read().splitlines(); print(json.dumps(dirs))")
             PACKAGES="${CHANGED}"
           fi
@@ -98,6 +119,34 @@ jobs:
           endpoint = ${R2_ENDPOINT}
           EOF
 
+      # Seed local-repo with the CURRENTLY PUBLISHED repo before building.
+      # Without this, local-repo starts empty, build-chain.sh adds only the
+      # one package this matrix cell builds, and "Sync to R2" below makes the
+      # bucket match that local-repo EXACTLY — deleting every other already-
+      # published package. That is the 2026-07-19 incident: a run that built
+      # 0 packages synced an empty repo over the real one, but the same sync
+      # semantics make ANY single-package build destructive without this
+      # seed step, not just a zero-package one.
+      #
+      # copy, not sync: this direction must never delete local files that
+      # simply don't exist in R2 yet (there are none at this point anyway,
+      # since local-repo starts empty, but copy is the correct verb for
+      # "pull in what's there" regardless).
+      - name: Seed local repo from the published state
+        env:
+          R2_BUCKET: ${{ env.R2_BUCKET }}
+          R2_REPO_PATH: ${{ env.R2_REPO_PATH }}
+        run: |
+          mkdir -p "${HOME}/local-repo"
+          rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" "${HOME}/local-repo/" \
+            --progress --transfers 8
+
+      # Marks "now" so Sign/Refuse-empty below can tell this run's output
+      # apart from the seeded, already-published, already-signed RPMs that
+      # now also live in local-repo.
+      - name: Mark build start
+        run: touch "${HOME}/build-start-marker"
+
       - name: Build package
         run: |
           ./scripts/build-chain.sh \
@@ -109,12 +158,34 @@ jobs:
 
       - name: Sign RPMs
         run: |
-          find "${HOME}/local-repo" -name '*.rpm' ! -name '*.src.rpm' | \
+          # -newer the marker: sign only what THIS run produced. Without it,
+          # every already-signed, seeded RPM gets re-signed on every build —
+          # wasted work at best, and rpmsign is not guaranteed idempotent on
+          # an already-signed file.
+          find "${HOME}/local-repo" -name '*.rpm' ! -name '*.src.rpm' -newer "${HOME}/build-start-marker" | \
             xargs -r rpmsign --addsign \
               --define "_gpg_name ${GPG_FINGERPRINT}" \
               --define "_signature gpg" \
               --define "__gpg_sign_cmd %{__gpg} gpg --force-v3-sigs --digest-algo=sha256 --batch --no-verbose --no-armor --pinentry-mode loopback --passphrase '' %{__gpg_sign_opt} %{__plaintext_filename}| %{__gpg_path} --import-options import-show --import 2>&1" \
               --define "__gpg /usr/bin/gpg"
+
+      # Hard stop before anything below can touch R2. This is the guard that
+      # actually would have prevented the 2026-07-19 incident: even if
+      # change-detection is ever wrong again in some new way, an empty
+      # local-repo must never reach rclone sync, which makes the R2 bucket
+      # match its source EXACTLY — sync on empty means delete everything.
+      - name: Refuse to publish an empty result
+        run: |
+          # Also scoped to this run's output, not the seeded total — the
+          # question this guard answers is "did THIS run build anything",
+          # not "does local-repo have RPMs in it" (it always will, now that
+          # it is seeded).
+          RPM_COUNT=$(find "${HOME}/local-repo" -name '*.rpm' ! -name '*.src.rpm' -newer "${HOME}/build-start-marker" | wc -l)
+          echo "RPMs built this run: ${RPM_COUNT}"
+          if [[ "${RPM_COUNT}" -eq 0 ]]; then
+            echo "::error::0 RPMs produced — refusing to run createrepo_c/rclone sync. A sync here would DELETE the published repo, not merely fail to update it."
+            exit 1
+          fi
 
       - name: Update local repo metadata
         run: |
