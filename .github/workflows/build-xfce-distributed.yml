@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Configure rclone
@@ -66,13 +66,13 @@ jobs:
           - src/xfce-wayland/xfce4-dev-tools
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -84,7 +84,7 @@ jobs:
           name: repo-0
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .mock-cache
           key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
@@ -150,13 +150,13 @@ jobs:
           - src/xfce-wayland/wlr-protocols
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -168,7 +168,7 @@ jobs:
           name: repo-1
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .mock-cache
           key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
@@ -234,13 +234,13 @@ jobs:
           - src/xfce-wayland/xfconf
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -252,7 +252,7 @@ jobs:
           name: repo-2
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .mock-cache
           key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
@@ -318,13 +318,13 @@ jobs:
           - src/xfce-wayland/libxfce4windowing
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -336,7 +336,7 @@ jobs:
           name: repo-3
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .mock-cache
           key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
@@ -402,13 +402,13 @@ jobs:
           - src/xfce-wayland/exo
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -420,7 +420,7 @@ jobs:
           name: repo-4
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .mock-cache
           key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
@@ -489,13 +489,13 @@ jobs:
           - src/xfce-wayland/tumbler
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -507,7 +507,7 @@ jobs:
           name: repo-5
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .mock-cache
           key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
@@ -572,13 +572,13 @@ jobs:
           - src/xfce-wayland/xfdesktop
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -590,7 +590,7 @@ jobs:
           name: repo-6
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .mock-cache
           key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
@@ -655,13 +655,13 @@ jobs:
           - src/xfce-wayland/xfwl4
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -673,7 +673,7 @@ jobs:
           name: repo-7
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .mock-cache
           key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
@@ -743,13 +743,13 @@ jobs:
           - src/xfce-wayland/xfce4-taskmanager
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -761,7 +761,7 @@ jobs:
           name: repo-8
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .mock-cache
           key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
@@ -833,13 +833,13 @@ jobs:
           - src/xfce-wayland/xfce4-genmon-plugin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -851,7 +851,7 @@ jobs:
           name: repo-9
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .mock-cache
           key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
@@ -916,13 +916,13 @@ jobs:
           - src/xfce-wayland/xfce4-wayland
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -934,7 +934,7 @@ jobs:
           name: repo-10
           path: local-repo
       - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .mock-cache
           key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}
@@ -994,7 +994,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install dependencies
         run: 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf
 
@@ -1008,7 +1008,7 @@ jobs:
           path: local-repo
       - name: Import GPG key
         id: import-gpg
-        uses: crazy-max/ghaction-import-gpg@v6
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}

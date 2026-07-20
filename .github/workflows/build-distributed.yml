@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Configure rclone
@@ -72,13 +72,13 @@ jobs:
           - src/deps/selinux-policy
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -149,13 +149,13 @@ jobs:
           - src/deps/gi-docgen
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -222,13 +222,13 @@ jobs:
           - src/gnome-50/glib2
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -298,13 +298,13 @@ jobs:
           - src/deps/fontconfig
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -371,13 +371,13 @@ jobs:
           - src/deps/cairo
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -444,13 +444,13 @@ jobs:
           - src/gnome-50/gobject-introspection
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -517,13 +517,13 @@ jobs:
           - src/gnome-50/glib2
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -590,13 +590,13 @@ jobs:
           - src/gnome-50/gobject-introspection
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -667,13 +667,13 @@ jobs:
           - src/deps/libsoup
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -743,13 +743,13 @@ jobs:
           - src/gnome-50/gjs
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -820,13 +820,13 @@ jobs:
           - src/deps/libgda
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -896,13 +896,13 @@ jobs:
           - src/deps/vte291
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -969,13 +969,13 @@ jobs:
           - src/deps/malcontent
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -1043,13 +1043,13 @@ jobs:
           - src/gnome-50/mutter
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -1118,13 +1118,13 @@ jobs:
           - src/gnome-50/nautilus
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -1193,13 +1193,13 @@ jobs:
           - src/gnome-50/gdm
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -1266,13 +1266,13 @@ jobs:
           - src/gnome-50/gnome-initial-setup
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install host dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
       - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -1334,7 +1334,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install dependencies
         run: 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf
 
@@ -1348,7 +1348,7 @@ jobs:
           path: local-repo
       - name: Import GPG key
         id: import-gpg
-        uses: crazy-max/ghaction-import-gpg@v6
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
