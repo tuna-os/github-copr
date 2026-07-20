@@ -51,7 +51,7 @@ jobs:
 
           '
       - name: Upload initial repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-0
           path: local-repo
@@ -85,7 +85,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-0
           path: local-repo
@@ -104,7 +104,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-base-tools-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -116,12 +116,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-0
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-base-tools-*
@@ -130,7 +130,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-1
           path: local-repo
@@ -162,7 +162,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-1
           path: local-repo
@@ -181,7 +181,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-build-tools-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -193,12 +193,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-1
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-build-tools-*
@@ -207,7 +207,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-2
           path: local-repo
@@ -235,7 +235,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-2
           path: local-repo
@@ -254,7 +254,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-glib2-bootstrap-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -266,12 +266,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-2
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-glib2-bootstrap-*
@@ -280,7 +280,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-3
           path: local-repo
@@ -311,7 +311,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-3
           path: local-repo
@@ -330,7 +330,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-bootstrap-libs-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -342,12 +342,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-3
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-bootstrap-libs-*
@@ -356,7 +356,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-4
           path: local-repo
@@ -384,7 +384,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-4
           path: local-repo
@@ -403,7 +403,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-cairo-layer-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -415,12 +415,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-4
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-cairo-layer-*
@@ -429,7 +429,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-5
           path: local-repo
@@ -457,7 +457,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-5
           path: local-repo
@@ -476,7 +476,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-gi-bootstrap-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -488,12 +488,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-5
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-gi-bootstrap-*
@@ -502,7 +502,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-6
           path: local-repo
@@ -530,7 +530,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-6
           path: local-repo
@@ -549,7 +549,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-glib2-full-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -561,12 +561,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-6
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-glib2-full-*
@@ -575,7 +575,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-7
           path: local-repo
@@ -603,7 +603,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-7
           path: local-repo
@@ -622,7 +622,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-gi-full-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -634,12 +634,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-7
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-gi-full-*
@@ -648,7 +648,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-8
           path: local-repo
@@ -680,7 +680,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-8
           path: local-repo
@@ -699,7 +699,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-core-libraries-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -711,12 +711,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-8
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-core-libraries-*
@@ -725,7 +725,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-9
           path: local-repo
@@ -756,7 +756,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-9
           path: local-repo
@@ -775,7 +775,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-system-tools-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -787,12 +787,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-9
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-system-tools-*
@@ -801,7 +801,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-10
           path: local-repo
@@ -833,7 +833,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-10
           path: local-repo
@@ -852,7 +852,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-gtk-core-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -864,12 +864,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-10
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-gtk-core-*
@@ -878,7 +878,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-11
           path: local-repo
@@ -909,7 +909,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-11
           path: local-repo
@@ -928,7 +928,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-desktop-foundations-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -940,12 +940,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-11
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-desktop-foundations-*
@@ -954,7 +954,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-12
           path: local-repo
@@ -982,7 +982,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-12
           path: local-repo
@@ -1001,7 +1001,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-parental-controls-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -1013,12 +1013,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-12
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-parental-controls-*
@@ -1027,7 +1027,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-13
           path: local-repo
@@ -1056,7 +1056,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-13
           path: local-repo
@@ -1075,7 +1075,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-shell-foundations-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -1087,12 +1087,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-13
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-shell-foundations-*
@@ -1101,7 +1101,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-14
           path: local-repo
@@ -1131,7 +1131,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-14
           path: local-repo
@@ -1150,7 +1150,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-gnome-shell-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -1162,12 +1162,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-14
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-gnome-shell-*
@@ -1176,7 +1176,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-15
           path: local-repo
@@ -1206,7 +1206,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-15
           path: local-repo
@@ -1225,7 +1225,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-session-layer-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -1237,12 +1237,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-15
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-session-layer-*
@@ -1251,7 +1251,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-16
           path: local-repo
@@ -1279,7 +1279,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-16
           path: local-repo
@@ -1298,7 +1298,7 @@ jobs:
           '
       - name: Upload RPMs
         if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms-post-session-${{ strategy.job-index }}
           path: new-rpms/*.rpm
@@ -1310,12 +1310,12 @@ jobs:
       - name: Install createrepo_c
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Download previous repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-16
           path: local-repo
       - name: Download new RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: rpms-post-session-*
@@ -1324,7 +1324,7 @@ jobs:
       - name: Update repo
         run: createrepo_c --update local-repo
       - name: Upload updated repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repo-17
           path: local-repo
@@ -1342,7 +1342,7 @@ jobs:
 
           '
       - name: Download final repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: repo-17
           path: local-repo
