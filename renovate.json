@@ -1,11 +1,621 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": [
+    "config:recommended"
+  ],
   "automerge": true,
   "packageRules": [
     {
-      "matchUpdateTypes": ["major", "minor", "patch", "pin", "digest"],
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
       "automerge": true
+    },
+    {
+      "description": "Upstream package source pins (commits/versions this repo packages) still automerge, but only once the real mock/podman build for that package passes as a required status check \u2014 a bare version bump alone has repeatedly hidden real breakage (new MSRV, new/dropped files) that only a build catches. See build-xfce-fedora.yml / build-xfce-package.yml / build-fprintd-validation.yml / build-xfce-arch-validation.yml path triggers.",
+      "matchDepTypes": [
+        "upstream-source"
+      ],
+      "automerge": true,
+      "platformAutomerge": true
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "xfconf: tracks gitlab.xfce.org/xfce/xfconf's master branch (no stable release yet \u2014 xfwl4's crates require post-4.20 development commits).",
+      "fileMatch": [
+        "^src/xfce-wayland/xfconf/xfconf\\.spec$",
+        "^src/xfce-wayland/xfconf/packaging/arch/PKGBUILD$"
+      ],
+      "matchStrings": [
+        "(?:%global commit\\s+|_commit=)(?<currentDigest>[a-f0-9]{40})"
+      ],
+      "currentValueTemplate": "master",
+      "datasourceTemplate": "git-refs",
+      "depNameTemplate": "xfconf",
+      "depTypeTemplate": "upstream-source",
+      "packageNameTemplate": "https://gitlab.xfce.org/xfce/xfconf"
+    },
+    {
+      "customType": "regex",
+      "description": "libxfce4ui: tracks gitlab.xfce.org/xfce/libxfce4ui's master branch \u2014 same reason as xfconf, xfwl4 needs libxfce4kbd-private-3 >= 4.21.4.",
+      "fileMatch": [
+        "^src/xfce-wayland/libxfce4ui/libxfce4ui\\.spec$",
+        "^src/xfce-wayland/libxfce4ui/packaging/arch/PKGBUILD$"
+      ],
+      "matchStrings": [
+        "(?:%global commit\\s+|_commit=)(?<currentDigest>[a-f0-9]{40})"
+      ],
+      "currentValueTemplate": "master",
+      "datasourceTemplate": "git-refs",
+      "depNameTemplate": "libxfce4ui",
+      "depTypeTemplate": "upstream-source",
+      "packageNameTemplate": "https://gitlab.xfce.org/xfce/libxfce4ui"
+    },
+    {
+      "customType": "regex",
+      "description": "xfwl4: tracks gitlab.xfce.org/xfce/xfwl4's main branch \u2014 pre-1.0 compositor, no tagged releases to pin to instead.",
+      "fileMatch": [
+        "^src/xfce-wayland/xfwl4/xfwl4\\.spec$",
+        "^src/xfce-wayland/xfwl4/packaging/arch/PKGBUILD$"
+      ],
+      "matchStrings": [
+        "(?:%global commit\\s+|(?<!protocols)_commit=)(?<currentDigest>[a-f0-9]{40})"
+      ],
+      "currentValueTemplate": "main",
+      "datasourceTemplate": "git-refs",
+      "depNameTemplate": "xfwl4",
+      "depTypeTemplate": "upstream-source",
+      "packageNameTemplate": "https://gitlab.xfce.org/xfce/xfwl4"
+    },
+    {
+      "customType": "regex",
+      "description": "fprintd: real version tags exist (unlike the xfce packages above), so track those directly instead of a branch tip.",
+      "fileMatch": [
+        "^src/deps/fprintd/fprintd\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>[\\d.]+)"
+      ],
+      "datasourceTemplate": "git-tags",
+      "depNameTemplate": "fprintd",
+      "depTypeTemplate": "upstream-source",
+      "packageNameTemplate": "https://gitlab.freedesktop.org/libfprint/fprintd",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "description": "libfprint: real version tags exist, tracked the same way as fprintd.",
+      "fileMatch": [
+        "^src/deps/libfprint/libfprint\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>[\\d.]+)"
+      ],
+      "datasourceTemplate": "git-tags",
+      "depNameTemplate": "libfprint",
+      "depTypeTemplate": "upstream-source",
+      "packageNameTemplate": "https://gitlab.freedesktop.org/libfprint/libfprint",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "description": "avahi: tracks avahi/avahi (github-releases).",
+      "fileMatch": [
+        "^src/deps/avahi/avahi\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "avahi",
+      "packageNameTemplate": "avahi/avahi",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "colord-gtk: tracks hughsie/colord-gtk (github-releases).",
+      "fileMatch": [
+        "^src/deps/colord-gtk/colord-gtk\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "colord-gtk",
+      "packageNameTemplate": "hughsie/colord-gtk",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "evolution-data-server: tracks GNOME/evolution-data-server (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/evolution-data-server/evolution-data-server\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "evolution-data-server",
+      "packageNameTemplate": "GNOME/evolution-data-server",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "flatpak: tracks flatpak/flatpak (github-releases).",
+      "fileMatch": [
+        "^src/deps/flatpak/flatpak\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "flatpak",
+      "packageNameTemplate": "flatpak/flatpak",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "fontconfig: tracks fontconfig/fontconfig (gitlab-tags).",
+      "fileMatch": [
+        "^src/deps/fontconfig/fontconfig\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-tags",
+      "depNameTemplate": "fontconfig",
+      "packageNameTemplate": "fontconfig/fontconfig",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.freedesktop.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gdk-pixbuf2: tracks GNOME/gdk-pixbuf (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/gdk-pixbuf2/gdk-pixbuf2\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gdk-pixbuf2",
+      "packageNameTemplate": "GNOME/gdk-pixbuf",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gi-docgen: tracks gi-docgen (pypi).",
+      "fileMatch": [
+        "^src/deps/gi-docgen/gi-docgen\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "gi-docgen",
+      "packageNameTemplate": "gi-docgen",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "glycin: tracks GNOME/glycin (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/glycin/glycin\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "glycin",
+      "packageNameTemplate": "GNOME/glycin",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gnome-autoar: tracks GNOME/gnome-autoar (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/gnome-autoar/gnome-autoar\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-autoar",
+      "packageNameTemplate": "GNOME/gnome-autoar",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gnome-online-accounts: tracks GNOME/gnome-online-accounts (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/gnome-online-accounts/gnome-online-accounts\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-online-accounts",
+      "packageNameTemplate": "GNOME/gnome-online-accounts",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gnome-user-share: tracks GNOME/gnome-user-share (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/gnome-user-share/gnome-user-share\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-user-share",
+      "packageNameTemplate": "GNOME/gnome-user-share",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gsound: tracks GNOME/gsound (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/gsound/gsound\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gsound",
+      "packageNameTemplate": "GNOME/gsound",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gtk4: tracks GNOME/gtk (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/gtk4/gtk4\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gtk4",
+      "packageNameTemplate": "GNOME/gtk",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "harfbuzz: tracks harfbuzz/harfbuzz (github-releases).",
+      "fileMatch": [
+        "^src/deps/harfbuzz/harfbuzz\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "harfbuzz",
+      "packageNameTemplate": "harfbuzz/harfbuzz",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "icu: tracks unicode-org/icu (github-releases).",
+      "fileMatch": [
+        "^src/deps/icu/icu\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "icu",
+      "packageNameTemplate": "unicode-org/icu",
+      "depTypeTemplate": "upstream-source",
+      "extractVersionTemplate": "^release-(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "description": "libdecor: tracks libdecor/libdecor (gitlab-tags).",
+      "fileMatch": [
+        "^src/deps/libdecor/libdecor\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-tags",
+      "depNameTemplate": "libdecor",
+      "packageNameTemplate": "libdecor/libdecor",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.freedesktop.org"
+    },
+    {
+      "customType": "regex",
+      "description": "libei: tracks libinput/libei (gitlab-tags).",
+      "fileMatch": [
+        "^src/deps/libei/libei\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-tags",
+      "depNameTemplate": "libei",
+      "packageNameTemplate": "libinput/libei",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.freedesktop.org"
+    },
+    {
+      "customType": "regex",
+      "description": "libgda: tracks GNOME/libgda (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/libgda/libgda\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "libgda",
+      "packageNameTemplate": "GNOME/libgda",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "libgexiv2: tracks GNOME/gexiv2 (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/libgexiv2/libgexiv2\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "libgexiv2",
+      "packageNameTemplate": "GNOME/gexiv2",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "libglib-testing: tracks pwithnall/libglib-testing (gitlab-tags).",
+      "fileMatch": [
+        "^src/deps/libglib-testing/libglib-testing\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-tags",
+      "depNameTemplate": "libglib-testing",
+      "packageNameTemplate": "pwithnall/libglib-testing",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "libical: tracks libical/libical (github-releases).",
+      "fileMatch": [
+        "^src/deps/libical/libical\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "libical",
+      "packageNameTemplate": "libical/libical",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "libsoup: tracks GNOME/libsoup (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/libsoup/libsoup\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "libsoup",
+      "packageNameTemplate": "GNOME/libsoup",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "localsearch: tracks GNOME/localsearch (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/localsearch/localsearch\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "localsearch",
+      "packageNameTemplate": "GNOME/localsearch",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "meson: tracks mesonbuild/meson (github-releases).",
+      "fileMatch": [
+        "^src/deps/meson/meson\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "meson",
+      "packageNameTemplate": "mesonbuild/meson",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "pango: tracks GNOME/pango (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/pango/pango\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "pango",
+      "packageNameTemplate": "GNOME/pango",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "pango-fresh: tracks GNOME/pango (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/pango-fresh/pango-fresh\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "pango-fresh",
+      "packageNameTemplate": "GNOME/pango",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "python-dbusmock: tracks python-dbusmock (pypi).",
+      "fileMatch": [
+        "^src/deps/python-dbusmock/python-dbusmock\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "python-dbusmock",
+      "packageNameTemplate": "python-dbusmock",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "python-smartypants: tracks smartypants (pypi).",
+      "fileMatch": [
+        "^src/deps/python-smartypants/python-smartypants\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "python-smartypants",
+      "packageNameTemplate": "smartypants",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "python-typogrify: tracks typogrify (pypi).",
+      "fileMatch": [
+        "^src/deps/python-typogrify/python-typogrify\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "python-typogrify",
+      "packageNameTemplate": "typogrify",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "tecla: tracks GNOME/tecla (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/tecla/tecla\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "tecla",
+      "packageNameTemplate": "GNOME/tecla",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "tinysparql: tracks GNOME/tinysparql (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/tinysparql/tinysparql\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "tinysparql",
+      "packageNameTemplate": "GNOME/tinysparql",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "umockdev: tracks martinpitt/umockdev (github-releases).",
+      "fileMatch": [
+        "^src/deps/umockdev/umockdev\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "umockdev",
+      "packageNameTemplate": "martinpitt/umockdev",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "vte291: tracks GNOME/vte (gitlab-releases).",
+      "fileMatch": [
+        "^src/deps/vte291/vte291\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "vte291",
+      "packageNameTemplate": "GNOME/vte",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "wayland-protocols: tracks wayland/wayland-protocols (gitlab-tags).",
+      "fileMatch": [
+        "^src/deps/wayland-protocols/wayland-protocols\\.spec$"
+      ],
+      "matchStrings": [
+        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
+      ],
+      "datasourceTemplate": "gitlab-tags",
+      "depNameTemplate": "wayland-protocols",
+      "packageNameTemplate": "wayland/wayland-protocols",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.freedesktop.org"
+    },
+    {
+      "customType": "regex",
+      "description": "selinux-policy: tracks fedora-selinux/selinux-policy's rawhide branch (commit-pinned, no stable release tags used here).",
+      "fileMatch": [
+        "^src/deps/selinux-policy/selinux-policy\\.spec$"
+      ],
+      "matchStrings": [
+        "%global commit\\s+(?<currentDigest>[a-f0-9]{40})"
+      ],
+      "currentValueTemplate": "rawhide",
+      "datasourceTemplate": "git-refs",
+      "depNameTemplate": "selinux-policy",
+      "depTypeTemplate": "upstream-source",
+      "packageNameTemplate": "https://github.com/fedora-selinux/selinux-policy"
     }
   ]
 }
