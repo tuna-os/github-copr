@@ -1,0 +1,51 @@
+# Maintainer: TunaOS Bot <bot@tunaos.org>
+#
+# xfconf for marlin (Arch). Arch's repo package is 4.20.0; xfwl4's
+# libxfce4kbd-private-sys and xfconf-sys crates pin >= 4.21.4/4.21.2
+# respectively (measured by building against Fedora and Debian's stock
+# packages, both of which fail the same way). Pinned to the same commit
+# ../../../xfconf.spec builds, so every TunaOS variant ships an identical
+# xfconf.
+#
+# Unlike Debian/Fedora, vala is left enabled: Arch's libxfce4util ships
+# /usr/share/vala/vapi/libxfce4util-1.0.vapi (Debian and Fedora only ship
+# the .gir), so vapigen has what it needs and there is nothing to disable.
+
+pkgname=xfconf
+pkgver=4.21.2
+pkgrel=1
+_commit=a6f0a7aa9073f9d8a0935cee73c0da52b6e49660
+pkgdesc="Xfce configuration daemon and library"
+arch=('x86_64')
+url="https://gitlab.xfce.org/xfce/xfconf"
+license=('GPL-2.0-or-later')
+depends=('glib2' 'dbus' 'libxfce4util')
+# glib-genmarshal lives in glib2-devel, not glib2 itself — meson's
+# glib-2.0 dependency probe needs it at configure time even though it is
+# never linked into the final binary.
+makedepends=('meson' 'ninja' 'gobject-introspection' 'vala' 'intltool' 'gettext' 'glib2-devel')
+provides=('libxfconf-0.so')
+source=("xfconf-${_commit}.tar.gz::${url}/-/archive/${_commit}/xfconf-${_commit}.tar.gz")
+# SKIP is a scaffold placeholder — fill in before this is trusted.
+sha256sums=('SKIP')
+
+pkgver() {
+	echo "$pkgver"
+}
+
+build() {
+	cd "xfconf-${_commit}"
+	arch-meson . build
+	meson compile -C build
+}
+
+# Same D-Bus-needs-a-session gap as the Debian/RPM builds: meson test tries
+# to launch xfconfd against dbus-launch, which has nothing to autolaunch
+# into inside makepkg's chroot. No `check()` function is defined for the
+# same reason the RPM spec and Debian rules both skip tests.
+
+package() {
+	cd "xfconf-${_commit}"
+	meson install -C build --destdir "$pkgdir"
+	install -Dm644 COPYING "$pkgdir/usr/share/licenses/$pkgname/COPYING"
+}
