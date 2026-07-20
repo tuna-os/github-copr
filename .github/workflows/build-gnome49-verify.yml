@@ -239,7 +239,7 @@ jobs:
           PYEOF
 
       - name: Upload login screen screenshot
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: gdm-login-screen-gnome49
@@ -464,7 +464,7 @@ jobs:
           PYEOF
 
       - name: Upload login screen screenshot
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: gdm-login-screen-gnome49-copr
