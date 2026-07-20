@@ -89,10 +89,18 @@ jobs:
       - name: Mark build start
         run: touch "${{ github.workspace }}/build-start-marker"
 
+      # --image is required: build-chain.sh's MOCK_RUNNER_IMAGE default is
+      # hardcoded to the x86_64 tag, and this workflow's own MOCK_RUNNER_IMAGE
+      # env var above was decorative until this line — nothing in the script
+      # ever reads that env var. Confirmed by a real run: without --image,
+      # podman pulled :centos-stream-10 (amd64) onto this arm64 runner, and
+      # spectool (an amd64 binary with no qemu-user binfmt registered here)
+      # failed with "Exec format error" on both tiers.
       - name: Build libfprint + fprintd
         run: |
           ./scripts/build-chain.sh \
             --backend podman \
+            --image "${MOCK_RUNNER_IMAGE}" \
             --manifest build-order-fprintd-aarch64.yml \
             --mock-config centos-stream-10-ci-aarch64 \
             --local-repo "${LOCAL_REPO}" \
