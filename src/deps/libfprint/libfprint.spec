@@ -68,7 +68,11 @@ Headers and pkgconfig files for building applications against libfprint.
 %{_libdir}/girepository-1.0/*.typelib
 %{_udevhwdbdir}/60-autosuspend-libfprint-2.hwdb
 %{_udevrulesdir}/70-libfprint-2.rules
-%{_datadir}/metainfo/org.freedesktop.libfprint.metainfo.xml
+# NOT %{_datadir}/metainfo/org.freedesktop.libfprint.metainfo.xml — that
+# file is in Fedora's rawhide spec (1.94.10) but does not exist anywhere in
+# the 1.94.8 tarball; a real mock build failed on it (RPM_BUILD_ROOT missing
+# the file) before this was caught, confirming the two versions' Fedora
+# specs are not interchangeable line-for-line.
 
 %files devel
 %doc HACKING.md
