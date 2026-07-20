@@ -15,6 +15,14 @@ on:
   pull_request:
     paths:
       - 'src/xfce-wayland/xfwl4/**'
+      # xfconf and libxfce4ui are the two "4.21 core lib" tiers this chain
+      # builds before xfwl4 (see docs/XFWL4-PORTING.md) — a Renovate bump
+      # to either was previously invisible to this workflow's path filter,
+      # so a broken xfconf/libxfce4ui commit could only surface once xfwl4
+      # itself failed to build against it, several steps too late to say
+      # which package actually regressed.
+      - 'src/xfce-wayland/xfconf/xfconf.spec'
+      - 'src/xfce-wayland/libxfce4ui/libxfce4ui.spec'
       - 'build-order-xfce-fedora.yml'
       - 'mock/fedora-44-ci.cfg'
   push:
@@ -22,6 +30,8 @@ on:
       - main
     paths:
       - 'src/xfce-wayland/xfwl4/**'
+      - 'src/xfce-wayland/xfconf/xfconf.spec'
+      - 'src/xfce-wayland/libxfce4ui/libxfce4ui.spec'
       - 'build-order-xfce-fedora.yml'
       - 'mock/fedora-44-ci.cfg'
   workflow_dispatch:
