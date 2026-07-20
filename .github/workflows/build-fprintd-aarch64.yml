@@ -1,0 +1,136 @@
+# Real aarch64 build + publish for libfprint + fprintd — unblocks
+# cosmic-greeter on EL10 aarch64 (tunaOS#732). See build-order-fprintd.yml's
+# comments for why these two packages are needed at all; this workflow is
+# the aarch64 counterpart to build-fprintd-validation.yml's x86_64
+# throwaway pass, except this one actually publishes.
+#
+# Runs on a native aarch64 GitHub-hosted runner (ubuntu-24.04-arm) against
+# ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64 — the aarch64 build
+# of the same mock-runner image build-xfce-package.yml already uses for
+# x86_64 (build-mock-runner.yml, separate tag not a multi-arch manifest).
+name: fprintd (aarch64)
+
+on:
+  pull_request:
+    paths:
+      - 'src/deps/libfprint/**'
+      - 'src/deps/fprintd/**'
+      - 'build-order-fprintd-aarch64.yml'
+      - 'mock/centos-stream-10-ci-aarch64.cfg'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/deps/libfprint/**'
+      - 'src/deps/fprintd/**'
+      - 'build-order-fprintd-aarch64.yml'
+      - 'mock/centos-stream-10-ci-aarch64.cfg'
+  workflow_dispatch:
+
+env:
+  R2_BUCKET: bluefin
+  R2_REPO_PATH: fprintd/10-stream-aarch64
+  LOCAL_REPO: ${{ github.workspace }}/local-repo
+  MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+
+jobs:
+  build:
+    name: libfprint + fprintd (centos-stream-10-aarch64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q podman createrepo-c rpm gpg gpgconf
+
+      - name: Import GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_committer_name: RPM Builder
+          git_committer_email: rpm-signing@tunaos.org
+
+      - name: Install rclone
+        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Configure rclone for R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = ${R2_ENDPOINT}
+          EOF
+
+      # Seed even though this R2 prefix is new — build-xfce-package.yml's
+      # 2026-07-19 incident (see its own "Seed local repo" step) was caused
+      # by exactly this step being absent, so it's here from the start
+      # rather than added after this prefix accumulates something to lose.
+      - name: Seed local repo from the published state
+        run: |
+          mkdir -p "${LOCAL_REPO}"
+          rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" "${LOCAL_REPO}/" \
+            --progress --transfers 8
+
+      - name: Mark build start
+        run: touch "${{ github.workspace }}/build-start-marker"
+
+      - name: Build libfprint + fprintd
+        run: |
+          ./scripts/build-chain.sh \
+            --backend podman \
+            --manifest build-order-fprintd-aarch64.yml \
+            --mock-config centos-stream-10-ci-aarch64 \
+            --local-repo "${LOCAL_REPO}" \
+            --force
+
+      - name: Configure RPM macros
+        run: |
+          echo "%_signature gpg" > ~/.rpmmacros
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
+
+      - name: Sign RPMs
+        run: |
+          find "${LOCAL_REPO}" -name '*.rpm' ! -name '*.src.rpm' -newer "${{ github.workspace }}/build-start-marker" | \
+            xargs -r rpmsign --addsign
+
+      - name: Refuse to publish an empty result
+        run: |
+          RPM_COUNT=$(find "${LOCAL_REPO}" -name '*.rpm' ! -name '*.src.rpm' | wc -l)
+          if [[ "${RPM_COUNT}" -eq 0 ]]; then
+            echo "::error::0 RPMs produced — refusing to run createrepo_c/rclone sync. A sync here would DELETE the published repo, not merely fail to update it."
+            exit 1
+          fi
+
+      - name: Update local repo metadata
+        run: createrepo_c --update "${LOCAL_REPO}"
+
+      - name: Publish to R2
+        if: github.event_name != 'pull_request'
+        run: |
+          rclone sync "${LOCAL_REPO}/" \
+            "r2:${R2_BUCKET}/${R2_REPO_PATH}/" \
+            --progress --transfers 8
+
+      - name: Upload RPMs as artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fprintd-aarch64
+          path: local-repo/*.rpm
+          if-no-files-found: warn

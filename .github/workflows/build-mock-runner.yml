@@ -50,3 +50,40 @@ jobs:
 
       - name: Inspect
         run: podman images "${IMAGE}:${TAG}" --format "{{.Repository}}:{{.Tag}}  {{.Size}}"
+
+  # Separate tag, not a multi-arch manifest under :centos-stream-10 — mock's
+  # own chroot content (pulled at build time via use_bootstrap_image) is
+  # already architecture-agnostic per-run, so there is no correctness reason
+  # to fuse the two into one manifest list, and keeping them as distinct tags
+  # means an aarch64-only rebuild never touches the x86_64 image other
+  # workflows already depend on.
+  build-and-push-aarch64:
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build image
+        run: |
+          podman build \
+            --pull=always \
+            -f mock/Containerfile \
+            -t "${IMAGE}:${TAG}-aarch64" \
+            -t "${IMAGE}:${TAG}-aarch64-${{ github.sha }}" \
+            mock/
+
+      - name: Push image
+        run: |
+          podman push "${IMAGE}:${TAG}-aarch64"
+          podman push "${IMAGE}:${TAG}-aarch64-${{ github.sha }}"
+
+      - name: Inspect
+        run: podman images "${IMAGE}:${TAG}-aarch64" --format "{{.Repository}}:{{.Tag}}  {{.Size}}"

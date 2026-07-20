@@ -44,6 +44,7 @@ RUN dnf --releasever=44 install -y --best mock-core-configs \
     && test ! -L /etc/mock/fedora-44-x86_64.cfg
 
 COPY centos-stream-10-ci.cfg /etc/mock/centos-stream-10-ci.cfg
+COPY centos-stream-10-ci-aarch64.cfg /etc/mock/centos-stream-10-ci-aarch64.cfg
 COPY centos-stream-10-ci-gnome49.cfg /etc/mock/centos-stream-10-ci-gnome49.cfg
 COPY centos-stream-10-ci-gnome50.cfg /etc/mock/centos-stream-10-ci-gnome50.cfg
 # Fedora chroot for xfwl4. Fedora already ships a Wayland-capable XFCE 4.20,
