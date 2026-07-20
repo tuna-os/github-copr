@@ -1,0 +1,40 @@
+# Maintainer: TunaOS Bot <bot@tunaos.org>
+#
+# libxfce4ui for marlin (Arch). Arch's repo package is 4.20.2; xfwl4's
+# libxfce4kbd-private-sys crate pins >= 4.21.4. Pinned to the same commit
+# ../../../libxfce4ui.spec builds.
+
+pkgname=libxfce4ui
+pkgver=4.21.7
+pkgrel=1
+_commit=c07644b91e627341452c881392bf417d4dbc0031
+pkgdesc="Widget library for Xfce, including libxfce4kbd-private"
+arch=('x86_64')
+url="https://gitlab.xfce.org/xfce/libxfce4ui"
+license=('GPL-2.0-or-later' 'LGPL-2.1-or-later')
+depends=('gtk3' 'libxfce4util' 'xfconf' 'libsm' 'startup-notification'
+         'libgtop' 'libepoxy' 'libgudev')
+# glib2-devel: glib-genmarshal, needed by meson's glib-2.0 probe at
+# configure time (see xfconf's PKGBUILD — same upstream meson.build pattern).
+makedepends=('meson' 'ninja' 'gobject-introspection' 'vala' 'intltool' 'gettext' 'glib2-devel')
+provides=('libxfce4ui-2.so' 'libxfce4kbd-private-3.so')
+source=("libxfce4ui-${_commit}.tar.gz::${url}/-/archive/${_commit}/libxfce4ui-${_commit}.tar.gz")
+sha256sums=('SKIP')
+
+pkgver() {
+	echo "$pkgver"
+}
+
+build() {
+	cd "libxfce4ui-${_commit}"
+	arch-meson . build
+	meson compile -C build
+}
+
+# No check(): same D-Bus-needs-a-session gap as xfconf's PKGBUILD.
+
+package() {
+	cd "libxfce4ui-${_commit}"
+	meson install -C build --destdir "$pkgdir"
+	install -Dm644 COPYING "$pkgdir/usr/share/licenses/$pkgname/COPYING"
+}

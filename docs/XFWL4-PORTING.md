@@ -154,11 +154,32 @@ Skeleton: `packaging/opensuse/`.
 
 All three share one source package. Skeleton: `packaging/debian/`.
 
-### 5. Arch (marlin) — PKGBUILD
+### 5. Arch (marlin) — PKGBUILD — built, measured
 
-AUR `xfwl4-git` exists and tracks git rather than the 4.21.0 release. Prefer our
-own PKGBUILD pinned to the same commit the RPM uses, so all variants ship the
-identical compositor. Skeleton: `packaging/arch/`.
+AUR `xfwl4-git` exists and tracks git rather than the 4.21.0 release. We
+package our own, pinned to the same commit the RPM and .deb both build, so
+every variant ships the identical compositor.
+
+Confirmed by a real `makepkg` build (Arch container, `xfconf` +
+`libxfce4ui` installed locally via `pacman -U` ahead of the compositor
+build): same three-package set as Fedora, no fourth package needed.
+
+- `xfconf` 4.21.2-1 — `makedepends` needed `glib2-devel` in addition to
+  `glib2`: `glib-genmarshal` lives in the `-devel` split, and meson's
+  `glib-2.0` probe wants it at configure time even though nothing links
+  against it.
+- `libxfce4ui` 4.21.7-1 — same `glib2-devel` fix applied pre-emptively.
+- `xfwl4` 4.21.0-1 — built clean once the two above were installed;
+  `pkg-config --modversion libxfconf-0` / `libxfce4kbd-private-3` confirmed
+  the local packages satisfied both probes before `makepkg` ran.
+
+Unlike Debian and Fedora, Arch's `libxfce4util` ships a `.vapi` (not just a
+`.gir`), so vala did not need to be disabled — one less workaround than the
+other two ecosystems needed.
+
+`makepkg` builds with the network up, so `cargo fetch` works directly for
+xfwl4's `smithay` git dependency — no vendor tarball step like the RPM/deb
+builds need.
 
 ## What makes xfwl4 harder than a normal Rust package
 
