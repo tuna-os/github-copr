@@ -1,0 +1,21 @@
+# Build Order Manifest for fprintd + libfprint on EL10 aarch64 — the real
+# aarch64 build, not the x86_64 spec-validation pass in
+# build-order-fprintd.yml. Same specs, same pinned versions (libfprint
+# 1.94.8, fprintd 1.94.5) — only the mock target and runner architecture
+# differ. See build-order-fprintd.yml for why these two packages exist at
+# all (CentOS Stream 10 doesn't build either for aarch64).
+#
+# r2_path is real this time: this is what tunaOS's build-config.yml will
+# need to consume to re-enable cosmic on EL10 aarch64 (tunaOS#732).
+
+target: centos-stream-10-aarch64
+r2_path: fprintd/10-stream-aarch64
+
+tiers:
+  - name: fprint-core
+    packages:
+      - path: src/deps/libfprint
+
+  - name: fprint-service
+    packages:
+      - path: src/deps/fprintd
