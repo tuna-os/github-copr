@@ -224,6 +224,15 @@ jobs:
           exit 1
 
       - name: Take login screen screenshot via VNC
+        # Best-effort: the real verification (GDM active, gnome-shell
+        # stable, no crash signatures) already passed above. This step
+        # was previously unguarded and, when the VNC port lookup came up
+        # empty, would hang until the job's 45-minute timeout killed the
+        # whole job — turning a cosmetic screenshot into the difference
+        # between green and red on every PR. continue-on-error so a
+        # missing screenshot never overrides the real result.
+        timeout-minutes: 3
+        continue-on-error: true
         run: |
           VNC_DISPLAY=$(cat /proc/$(pgrep -f 'qemu.*gnome49-verify' | head -1)/cmdline \
             | tr '\0' '\n' | grep -oP '(?<=vnc=127\.0\.0\.1:)\d+' || echo "0")
@@ -449,6 +458,15 @@ jobs:
           exit 1
 
       - name: Take login screen screenshot via VNC
+        # Best-effort: the real verification (GDM active, gnome-shell
+        # stable, no crash signatures) already passed above. This step
+        # was previously unguarded and, when the VNC port lookup came up
+        # empty, would hang until the job's 45-minute timeout killed the
+        # whole job — turning a cosmetic screenshot into the difference
+        # between green and red on every PR. continue-on-error so a
+        # missing screenshot never overrides the real result.
+        timeout-minutes: 3
+        continue-on-error: true
         run: |
           VNC_DISPLAY=$(cat /proc/$(pgrep -f 'qemu.*gnome49-verify-copr' | head -1)/cmdline \
             | tr '\0' '\n' | grep -oP '(?<=vnc=127\.0\.0\.1:)\d+' || echo "0")
