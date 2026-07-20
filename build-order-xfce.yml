@@ -70,6 +70,17 @@ tiers:
     packages:
       - path: src/xfce-wayland/xfwl4
 
+  # Tier 4b: Greeter. gtkgreet only needs gtk3 + json-c (EL10 base) and
+  # gtk-layer-shell (tier xfce-layer-shell), so it could build much earlier —
+  # it sits here to keep the greeter next to the compositor it fronts.
+  # Being GTK3 it inherits the XFCE GTK/icon/cursor theme, which is the point:
+  # greetd's stock agreety would drop to a shell with no session and no theme.
+  # Hosted by cage (already in EL10 base) — see the xfce manifest's greetd
+  # config.toml.
+  - name: xfce-greeter
+    packages:
+      - path: src/xfce-wayland/gtkgreet
+
   # Tier 5: Applications that depend on xfce4-panel / desktop-core.
   - name: xfce-apps
     packages:
