@@ -1,0 +1,10 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --buildsystem=meson
+
+# Same reason as xfconf's debian/rules: Debian's *-dev packages don't ship
+# the .vapi files vapigen needs, so vala (default 'auto') fails the build
+# when it detects vapigen but can't find what it depends on.
+override_dh_auto_configure:
+	dh_auto_configure -- -Dvala=disabled

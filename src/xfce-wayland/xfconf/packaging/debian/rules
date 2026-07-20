@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --buildsystem=meson
+
+# Debian's libxfce4util-dev ships Libxfce4util-1.0.gir but no .vapi, and
+# xfconf's meson.build defaults vala to 'auto' — it detects vapigen, tries to
+# generate xfconf's own vapi against that missing file, and fails the whole
+# build. EL10/Fedora don't hit this because those libxfce4util-devel packages
+# do ship the vapi. Nothing downstream in this stack needs Vala bindings, so
+# disable it rather than chase a GIR-derived vapi that would need
+# regenerating on every libxfce4util bump.
+override_dh_auto_configure:
+	dh_auto_configure -- -Dvala=disabled

@@ -1,0 +1,37 @@
+Source: xfconf
+Section: x11
+Priority: optional
+Maintainer: TunaOS Bot <bot@tunaos.org>
+# Debian trixie ships xfconf 4.20.0; xfwl4's libxfce4kbd-private-sys and
+# xfconf-sys crates pin >= 4.21.2/4.21.4 respectively, so the stock package
+# cannot satisfy the compositor build. Mirrors ../../xfconf.spec.
+Build-Depends: debhelper-compat (= 13),
+               meson,
+               ninja-build,
+               pkg-config,
+               libglib2.0-dev,
+               libdbus-1-dev,
+               libxfce4util-dev,
+               gobject-introspection,
+               libgirepository1.0-dev,
+               intltool,
+               gettext
+Standards-Version: 4.7.0
+Homepage: https://gitlab.xfce.org/xfce/xfconf
+Rules-Requires-Root: no
+
+Package: libxfconf-0-4
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Xfce configuration daemon and library
+ Xfce configuration daemon and library. Required by all Xfce components.
+
+Package: libxfconf-0-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libxfconf-0-4 (= ${binary:Version}), ${misc:Depends}
+Description: Development files for libxfconf
+ Headers, pkgconfig, GObject-Introspection typelib, and Vala bindings for
+ building against xfconf.

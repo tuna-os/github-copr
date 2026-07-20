@@ -1,0 +1,42 @@
+Source: libxfce4ui
+Section: x11
+Priority: optional
+Maintainer: TunaOS Bot <bot@tunaos.org>
+# Debian trixie ships libxfce4ui 4.20.1; xfwl4's libxfce4kbd-private-sys
+# crate pins >= 4.21.4. Mirrors ../../libxfce4ui.spec.
+Build-Depends: debhelper-compat (= 13),
+               meson,
+               ninja-build,
+               pkg-config,
+               libgtk-3-dev,
+               libxfce4util-dev,
+               libxfconf-0-dev,
+               libsm-dev,
+               libstartup-notification0-dev,
+               libgtop2-dev,
+               libepoxy-dev,
+               libgudev-1.0-dev,
+               gobject-introspection,
+               libgirepository1.0-dev,
+               intltool,
+               gettext
+Standards-Version: 4.7.0
+Homepage: https://gitlab.xfce.org/xfce/libxfce4ui
+Rules-Requires-Root: no
+
+Package: libxfce4ui-2
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Widget library for Xfce
+ Widgets and utilities shared across Xfce components, including
+ libxfce4kbd-private (keyboard shortcut editor plumbing xfwl4 links against).
+
+Package: libxfce4ui-2-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libxfce4ui-2 (= ${binary:Version}), ${misc:Depends}
+Description: Development files for libxfce4ui
+ Headers, pkgconfig, and GObject-Introspection typelib for building
+ against libxfce4ui, including libxfce4kbd-private.

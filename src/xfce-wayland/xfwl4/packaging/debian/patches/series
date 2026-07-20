@@ -1,3 +1,1 @@
-# Same patch the RPM applies; copy 0001-fix-dma-cfg-gate-for-udev-backend.patch
-# from ../../ when wiring this up for real.
 0001-fix-dma-cfg-gate-for-udev-backend.patch

@@ -1,0 +1,5 @@
+usr/include/xfce4/xfconf-0/
+usr/lib/*/libxfconf*.so
+usr/lib/*/pkgconfig/*.pc
+usr/lib/*/girepository-1.0/*.typelib
+usr/share/gir-1.0/*.gir

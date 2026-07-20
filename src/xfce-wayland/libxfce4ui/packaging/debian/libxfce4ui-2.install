@@ -1,0 +1,11 @@
+etc/xdg/xfce4/xfconf/xfce-perchannel-xml/*
+usr/bin/xfce4-about
+usr/bin/xfce-desktop-item-edit
+usr/bin/xfce-open
+usr/lib/*/libxfce4ui*.so.*
+usr/lib/*/libxfce4kbd-private*.so.*
+usr/share/applications/xfce4-about.desktop
+usr/share/icons/hicolor/*/apps/org.xfce.about.*
+usr/share/icons/hicolor/*/apps/xfce4-logo.*
+usr/share/locale/*/LC_MESSAGES/libxfce4ui.mo
+usr/share/pixmaps/libxfce4ui/*
