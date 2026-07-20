@@ -1,0 +1,34 @@
+# Build Order Manifest for fprintd + libfprint on EL10 aarch64.
+#
+# Neither package is built for aarch64 in CentOS Stream 10's own repos —
+# only x86_64. That makes cosmic-greeter (hard dependency: fprintd-pam)
+# uninstallable on aarch64, which is why tunaOS pinned cosmic to
+# linux/amd64 + linux/amd64/v2 only (tunaOS .github/build-config.yml).
+#
+# Fedora builds both for aarch64 with no ExclusiveArch restriction, so this
+# is a genuine RHEL/CentOS packaging gap, not an upstream limitation.
+# Verified by comparing CentOS Stream 10's AppStream (x86_64 only) against
+# Fedora 44's aarch64 repo, which carries libfprint-1.94.10 and
+# fprintd-pam-1.94.5 for aarch64.
+#
+# Pinned to 1.94.8 (libfprint) / 1.94.5 (fprintd) — the exact versions
+# already shipping in CentOS Stream 10's x86_64 repos, so both
+# architectures carry an identical fprintd/libfprint rather than
+# introducing version skew between arches.
+#
+# target/r2_path below are for the x86_64 validation pass (these packages
+# already exist on x86_64, so this tier only proves the specs are correct —
+# see docs/FPRINTD-AARCH64.md). The aarch64 target that actually matters
+# needs its own manifest once aarch64 build infra exists in this repo.
+
+target: centos-stream-10-x86_64
+r2_path: fprintd-validation/10-stream-x86_64
+
+tiers:
+  - name: fprint-core
+    packages:
+      - path: src/deps/libfprint
+
+  - name: fprint-service
+    packages:
+      - path: src/deps/fprintd
