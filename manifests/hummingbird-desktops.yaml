@@ -1,0 +1,29 @@
+# Project-owned desktop RPM source catalog for Hummingbird. No COPR entries.
+schema: 1
+target:
+  id: hummingbird-20251124-x86_64
+  baseurl: https://packages.redhat.com/api/pulp-content/public-hummingbird/$arch/
+  r2_path: hummingbird/20251124-x86_64
+  dist: .fc43
+
+desktops:
+  gnome:
+    release: "50"
+    sources: [{local: src/gnome-50}, {local: src/deps}]
+    required_packages: [gdm, gjs, gnome-control-center, gnome-initial-setup, gnome-session, gnome-settings-daemon, gnome-shell, mutter, nautilus, xdg-desktop-portal-gnome]
+  kde:
+    release: latest
+    sources: [{fedora_distgit: plasma-desktop}, {fedora_distgit: plasma-workspace}, {fedora_distgit: kde-cli-tools}, {fedora_distgit: plasma-systemsettings}, {fedora_distgit: sddm}, {fedora_distgit: xdg-desktop-portal-kde}]
+    required_packages: [plasma-desktop, plasma-workspace, plasma-systemsettings, sddm, xdg-desktop-portal-kde]
+  cosmic:
+    release: latest
+    sources: [{fedora_distgit: cosmic-session}, {fedora_distgit: cosmic-comp}, {fedora_distgit: cosmic-greeter}, {fedora_distgit: cosmic-settings}, {fedora_distgit: xdg-desktop-portal-cosmic}]
+    required_packages: [cosmic-session, cosmic-comp, cosmic-greeter, cosmic-settings, xdg-desktop-portal-cosmic]
+  niri:
+    release: latest
+    sources: [{fedora_distgit: niri}, {upstream_rpm: https://github.com/outfoxxed/quickshell}, {upstream_rpm: https://github.com/AvengeMedia/DankMaterialShell}, {fedora_distgit: greetd}]
+    required_packages: [niri, quickshell, dms, dms-cli, dms-greeter, greetd]
+  xfce:
+    release: "4.21"
+    sources: [{local: src/xfce-wayland}]
+    required_packages: [xfconf, libxfce4ui, xfwl4]

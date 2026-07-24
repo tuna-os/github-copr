@@ -1,0 +1,79 @@
+name: Build Hummingbird desktops
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Sign and publish the resulting RPM repository
+        type: boolean
+        default: false
+
+env:
+  R2_BUCKET: bluefin
+  R2_REPO_PATH: hummingbird/20251124-x86_64
+  MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install build tools
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm gpg gpgconf
+
+      - name: Pull mock runner
+        run: podman pull "${MOCK_RUNNER_IMAGE}"
+
+      - name: Configure R2 access
+        if: inputs.publish
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf <<EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = ${R2_ENDPOINT}
+          EOF
+          mkdir -p local-repo-hummingbird
+          rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo-hummingbird/ || true
+
+      - name: Build project-owned RPMs
+        run: |
+          ./scripts/build-chain.sh \
+            --manifest build-order-hummingbird-desktops.yml \
+            --mock-config hummingbird-ci \
+            --local-repo "$PWD/local-repo-hummingbird" \
+            --jobs 2 --force
+
+      - name: Sign RPMs and publish
+        if: inputs.publish
+        uses: crazy-max/ghaction-import-gpg@v7
+        id: import-gpg
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Publish signed rpm-md repository
+        if: inputs.publish
+        run: |
+          echo "%_signature gpg" > ~/.rpmmacros
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          find local-repo-hummingbird -name '*.rpm' ! -name '*.src.rpm' -print0 | xargs -0 -r rpmsign --addsign
+          createrepo_c --update local-repo-hummingbird
+          rclone sync local-repo-hummingbird/ "r2:${R2_BUCKET}/${R2_REPO_PATH}/"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: hummingbird-rpms
+          path: local-repo-hummingbird
+          if-no-files-found: warn

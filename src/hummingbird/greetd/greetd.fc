@@ -1,0 +1,7 @@
+# SELinux file labels for greetd
+# vim: ts=8 noet
+/etc/greetd(/.*)?			gen_context(system_u:object_r:xdm_etc_t,s0)
+/usr/bin/greetd			--	gen_context(system_u:object_r:xdm_exec_t,s0)
+/var/lib/greetd(/.*)?			gen_context(system_u:object_r:xdm_var_lib_t,s0)
+/var/run/greetd[^/]*\.sock	-s	gen_context(system_u:object_r:xdm_var_run_t,s0)
+/var/run/greetd\.run		--	gen_context(system_u:object_r:xdm_var_run_t,s0)

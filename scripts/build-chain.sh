@@ -114,6 +114,10 @@ derive_dist() {
             err "tracks Fedora's next release (e.g. .fc45); pass --dist"
             exit 1
             ;;
+        # Hummingbird's current bootc base is ABI-compatible with Fedora 43.
+        # Keep this explicit instead of deriving it from a build host, so an
+        # update of the runner cannot silently change RPM compatibility.
+        hummingbird-20251124*)   echo ".fc43" ;;
         fedora-*)                 echo ".fc${target#fedora-}" | sed 's/-.*//' ;;
         centos-stream-10*|epel-10*|almalinux*-10*) echo ".el10" ;;
         centos-stream-9*|epel-9*) echo ".el9" ;;

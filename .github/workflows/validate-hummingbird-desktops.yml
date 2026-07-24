@@ -1,0 +1,17 @@
+name: Validate Hummingbird desktop catalog
+on:
+  pull_request:
+    paths: [manifests/hummingbird-desktops.yaml, scripts/validate-hummingbird-catalog.py]
+  push:
+    branches: [main]
+    paths: [manifests/hummingbird-desktops.yaml, scripts/validate-hummingbird-catalog.py]
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.12"}
+      - run: pip install --disable-pip-version-check PyYAML
+      - run: python3 scripts/validate-hummingbird-catalog.py manifests/hummingbird-desktops.yaml

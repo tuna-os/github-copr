@@ -1,0 +1,13 @@
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/pop-os/dbus-settings-bindings"]
+git = "https://github.com/pop-os/dbus-settings-bindings"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/pop-os/launch-pad"]
+git = "https://github.com/pop-os/launch-pad"
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"

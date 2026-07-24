@@ -1,0 +1,74 @@
+# Build order for the project-owned Hummingbird desktop repository.
+# Every RPM is sourced from this repository or Fedora dist-git; no COPR repo
+# is enabled in the mock build root or resulting image.
+target: hummingbird-20251124-x86_64
+r2_path: hummingbird/20251124-x86_64
+
+tiers:
+  # GNOME 50 bootstrap. These specs are project-maintained Fedora Rawhide
+  # imports; EL10-only compatibility packages are intentionally excluded.
+  - name: gnome-build-tools
+    packages:
+      - path: src/deps/meson
+      - path: src/deps/autoconf
+      - path: src/deps/wayland-protocols
+      - path: src/deps/gi-docgen
+      - path: src/deps/harfbuzz
+      - path: src/deps/fontconfig
+  - name: gnome-glib-bootstrap
+    packages:
+      - path: src/gnome-50/glib2
+        spec_override: glib2-bootstrap.spec
+  - name: gnome-gi-bootstrap
+    packages:
+      - path: src/gnome-50/gobject-introspection
+        spec_override: gobject-introspection-bootstrap.spec
+  - name: gnome-foundations
+    packages:
+      - path: src/gnome-50/glib2
+      - path: src/gnome-50/gobject-introspection
+      - path: src/deps/pango
+      - path: src/deps/libsoup
+      - path: src/deps/pipewire
+      - path: src/gnome-50/gjs
+      - path: src/gnome-50/gtk4
+      - path: src/gnome-50/gsettings-desktop-schemas
+      - path: src/gnome-50/gnome-desktop3
+  - name: gnome-desktop
+    packages:
+      - path: src/gnome-50/libadwaita
+      - path: src/gnome-50/xdg-desktop-portal
+      - path: src/gnome-50/gnome-settings-daemon
+      - path: src/gnome-50/mutter
+      - path: src/gnome-50/gnome-shell
+      - path: src/gnome-50/gnome-session
+      - path: src/gnome-50/gnome-control-center
+      - path: src/gnome-50/nautilus
+      - path: src/gnome-50/xdg-desktop-portal-gnome
+      - path: src/gnome-50/gdm
+      - path: src/gnome-50/gnome-initial-setup
+  - name: display-managers
+    packages:
+      - path: src/hummingbird/greetd
+      - path: src/hummingbird/sddm
+  - name: niri
+    packages:
+      - path: src/hummingbird/niri
+  - name: kde-foundations
+    packages:
+      - path: src/hummingbird/plasma-workspace
+      - path: src/hummingbird/kde-cli-tools
+      - path: src/hummingbird/xdg-desktop-portal-kde
+  - name: kde-desktop
+    packages:
+      - path: src/hummingbird/plasma-desktop
+      - path: src/hummingbird/plasma-systemsettings
+  - name: cosmic-foundations
+    packages:
+      - path: src/hummingbird/cosmic-comp
+      - path: src/hummingbird/cosmic-session
+      - path: src/hummingbird/xdg-desktop-portal-cosmic
+  - name: cosmic-desktop
+    packages:
+      - path: src/hummingbird/cosmic-settings
+      - path: src/hummingbird/cosmic-greeter

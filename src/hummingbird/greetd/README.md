@@ -1,0 +1,3 @@
+# greetd
+
+The greetd package

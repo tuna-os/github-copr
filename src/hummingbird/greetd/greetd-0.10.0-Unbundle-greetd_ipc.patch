@@ -1,0 +1,63 @@
+From 6e7b5a796afb2342150c7995d57a817eae1bb939 Mon Sep 17 00:00:00 2001
+From: Aleksei Bavshin <alebastr89@gmail.com>
+Date: Sat, 20 Apr 2024 10:25:41 -0700
+Subject: [PATCH greetd] Unbundle greetd_ipc
+
+---
+ Cargo.toml           | 2 +-
+ agreety/Cargo.toml   | 2 +-
+ fakegreet/Cargo.toml | 2 +-
+ greetd/Cargo.toml    | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 6ce029c..35fa7f0 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -9,4 +9,4 @@ incremental = false
+ codegen-units = 1
+ 
+ [workspace]
+-members = ["inish", "greetd_ipc", "greetd", "agreety", "fakegreet"]
++members = ["inish", "greetd", "agreety", "fakegreet"]
+diff --git a/agreety/Cargo.toml b/agreety/Cargo.toml
+index 31457e1..ce49e4c 100644
+--- a/agreety/Cargo.toml
++++ b/agreety/Cargo.toml
+@@ -8,7 +8,7 @@ homepage = "https://kl.wtf/projects/agreety"
+ repository = "https://git.sr.ht/~kennylevinsen/greetd/"
+ 
+ [dependencies]
+-greetd_ipc = { path = "../greetd_ipc", features = ["sync-codec"]}
++greetd_ipc = { version = "0.10.0", features = ["sync-codec"]}
+ inish = { path = "../inish"}
+ rpassword = "5.0"
+ getopts = "0.2"
+diff --git a/fakegreet/Cargo.toml b/fakegreet/Cargo.toml
+index a2e7e75..79fd76b 100644
+--- a/fakegreet/Cargo.toml
++++ b/fakegreet/Cargo.toml
+@@ -9,6 +9,6 @@ repository = "https://git.sr.ht/~kennylevinsen/greetd/"
+ 
+ [dependencies]
+ serde = { version = "1.0", features = ["derive"] }
+-greetd_ipc = { path = "../greetd_ipc", features = ["tokio-codec"] }
++greetd_ipc = { version = "0.10.0", features = ["tokio-codec"] }
+ tokio = { version = "1.5", features = ["process", "macros", "time", "net", "rt"] }
+ thiserror = "1.0"
+diff --git a/greetd/Cargo.toml b/greetd/Cargo.toml
+index ec0c6e6..73d32ef 100644
+--- a/greetd/Cargo.toml
++++ b/greetd/Cargo.toml
+@@ -15,7 +15,7 @@ nix = { version = "0.27", features = ["ioctl", "signal", "user", "fs", "mman"] }
+ pam-sys = "0.5.6"
+ serde = { version = "1.0", features = ["derive"] }
+ serde_json = "1.0"
+-greetd_ipc = { path = "../greetd_ipc", features = ["tokio-codec"] }
++greetd_ipc = { version = "0.10.0", features = ["tokio-codec"] }
+ inish = { path = "../inish" }
+ libc = "0.2"
+ tokio = { version = "1", features = ["net", "sync", "macros", "signal", "rt", "io-util", "time"] }
+-- 
+2.44.0
+
