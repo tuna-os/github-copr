@@ -194,7 +194,14 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     # Tideforge's Go, Cargo, and data renderers do not produce RPM-compatible
     # debug-source payloads. EL10's automatic debug subpackage otherwise fails
     # with an empty debugsource list after a successful build.
-    rpm_preamble = "%global debug_package %{nil}\n" if recipe["build_system"] in {"go", "cargo", "data"} else ""
+    rpm_preamble = ""
+    if recipe["build_system"] in {"go", "data"}:
+        rpm_preamble = "%global debug_package %{nil}\n"
+    elif recipe["build_system"] == "cargo":
+        # Cargo can still trigger EL10's debug-source generation even after
+        # disabling binary debug packages, while release builds omit source
+        # debug data entirely.
+        rpm_preamble = "%global debug_package %{nil}\n%global _debugsource_packages 0\n"
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
 Release:        {recipe.get('release', 1)}%{{?dist}}
