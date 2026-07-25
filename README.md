@@ -1,102 +1,87 @@
 # TunaOS Packages
 
-`tunaos-packages` is the GitHub-hosted package factory for TunaOS. It replaces
-runtime COPR/PPA dependencies with source-controlled, tested packages published
-to TunaOS repositories. GitHub Actions builds and tests; Cloudflare R2 serves
-the resulting rpm-md/APT/Pacman repositories. ORAS is reserved for immutable
-source, SBOM, and provenance bundles—not live package-manager endpoints.
+`tunaos-packages` is TunaOS's source-controlled package repository. It owns
+the native packaging, patches, build ordering, validation, signing, and
+publication work needed to ship curated desktop stacks independently of
+third-party repositories.
 
-## Status
+## Current state
 
-| Target | Format | Status |
-| --- | --- | --- |
-| EL10 | RPM / rpm-md | Active production pipeline |
-| Ubuntu Resolute | DEB / APT | Native packaging foundation |
-| Debian Trixie | DEB / APT | Native packaging foundation |
-| openSUSE Tumbleweed | RPM / rpm-md | Build scaffold |
-| Arch | pkg.tar.zst / Pacman | Build scaffold |
+The active production implementation is the native EL10 RPM build chain for
+GNOME and XFWL4. Package specifications and EL10 compatibility fixes live in
+`src/`; build order is declared in `build-order*.yml`; GitHub Actions invokes
+`scripts/build-chain.sh` in isolated Mock environments.
 
-The target contract and repository paths live in
-[`manifests/package-factory.yaml`](manifests/package-factory.yaml).
+The project is migrating publication to GitHub Actions and Cloudflare R2. Any
+remaining COPR projects are compatibility/bootstrap infrastructure, not a
+desired end state. They will remain available until their GitHub/R2 replacement
+has passed build, staged-install, and desktop runtime gates. Do not remove or
+rewrite the native GNOME EL10 specs while that migration is incomplete.
 
-## How it works
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the currently deployed RPM/R2
+pipeline and [COPR-AUDIT.md](COPR-AUDIT.md) for the historical package-source
+inventory.
+
+## How a package moves through the repository
 
 ```text
-upstream source + pinned checksum
+upstream source + native packaging/patches
         ↓
-native spec/control/PKGBUILD (or experimental Tideforge recipe)
+build-order manifest
         ↓
-GitHub Actions target build → staged repository install → desktop smoke test
+GitHub Actions + Mock build environment
         ↓
-sign + publish only after every gate passes
+repository install and desktop/runtime validation
+        ↓
+sign and publish to the TunaOS repository
 ```
 
-TunaOS consumes only its staged or promoted repositories. An upstream COPR,
-PPA, or image filesystem is never a runtime package source.
+The build chain is deliberately native for the difficult EL10 GNOME bootstrap:
+it supports RPM scriptlets, file triggers, SELinux policy, bootstrap variants,
+and dependency workarounds that a generic recipe format does not yet model.
 
-## Package classes
+## Repository layout
 
-- `src/gnome-50/` and `src/deps/` contain the established native EL10 RPM
-  pipeline. GNOME 50's bootstrap cycle and `gnome50-el10-compat` remain native
-  RPM work because they use patches, scriptlets, file triggers, SELinux policy,
-  and EL10-specific dependency workarounds.
-- `src/xfce-wayland/` is the native XFCE/XFWL4 build chain.
-- `packages/<name>/package.yaml` is the experimental Tideforge single-recipe
-  path. It currently validates source pins and renders native RPM/DEB metadata;
-  it is not a promotion path until build/install/runtime parity is proven.
+| Path | Purpose |
+| --- | --- |
+| `src/gnome-50/`, `src/deps/` | Native EL10 GNOME RPM specs, patches, and source metadata |
+| `src/xfce-wayland/` | Native XFCE/XFWL4 RPM packaging |
+| `build-order.yml` | GNOME 50 bootstrap/build dependency order |
+| `build-order-xfce*.yml` | XFCE/XFWL4 build order for EL10 and Fedora |
+| `scripts/build-chain.sh` | Shared local/CI RPM build engine |
+| `.github/workflows/` | Per-package, distributed, validation, signing, and publication workflows |
+| `manifests/hummingbird-desktops.yaml` | Fedora Hummingbird desktop RPM catalog |
 
-## Desktop queues
+## Adding or changing a package
 
-Dependency trees describe source order. Target queues describe native packaging
-and release gates for each distro:
+1. Prefer the target distribution's package when it already meets TunaOS's
+   version and integration requirements.
+2. Add or update the native spec, patches, and source metadata under `src/`.
+3. Place the package in the correct build-order manifest, after its build-time
+   dependencies.
+4. Build it in the declared Mock target and install it from the staged
+   repository.
+5. Add a focused runtime/desktop gate before promoting it to users.
 
-- [`GNOME`](manifests/dependency-trees/gnome.yaml) / [target queues](manifests/target-queues/gnome.yaml)
-- [`Niri + DMS`](manifests/dependency-trees/niri.yaml) / [target queues](manifests/target-queues/niri.yaml)
-- [`XFCE + XFWL4`](manifests/dependency-trees/xfce.yaml) / [target queues](manifests/target-queues/xfce.yaml)
-- [`COSMIC`](manifests/dependency-trees/cosmic.yaml)
-- [`Aurora KDE`](manifests/dependency-trees/kde.yaml)
-
-Queues are intentionally target-native. For example, latest GNOME on Debian
-gets Debian packages; it does not inherit EL10's SELinux/PAM compatibility
-package or RPM triggers.
-
-## Add a package
-
-1. Add it to the appropriate dependency tree and target queue.
-2. Prefer an existing distro package. Otherwise import source with an upstream
-   revision/tag, license review, and SHA-256.
-3. For a straightforward project, copy `packages/_template/package.yaml`.
-   Keep genuinely different dependency names in target overrides.
-4. For EL10 backports requiring patches, RPM scriptlets, triggers, SELinux, or
-   bootstrap ordering, add/maintain a native spec under `src/` instead.
-5. Add build, staged-install, and session/runtime gates before promotion.
-
-Useful local checks:
+Useful local commands:
 
 ```bash
-python3 scripts/validate-package-factory.py manifests/package-factory.yaml
-python3 scripts/tideforge.py validate packages/niri/package.yaml
-python3 scripts/verify-tideforge-source.py packages/niri/package.yaml
-python3 -m pytest tests/ -q
+just --list
+python3 scripts/parse-build-order.py build-order.yml --validate
+./scripts/build-chain.sh --help
 ```
 
-## Stable source updates
+## Tideforge and cross-distro packaging
 
-`Bump Stable Package Sources` runs weekly. It tracks the latest non-prerelease
-GitHub release, updates a recipe's version/source/checksum atomically, and
-opens a PR. It never publishes directly: normal build, staged-install, and
-desktop gates still control release.
+Tideforge is being developed on a separate, in-progress package-factory branch
+as a single-recipe abstraction for straightforward packages across RPM, DEB,
+and Pacman targets. It must prove source, build, install, and runtime parity
+before it replaces any native EL10 GNOME packaging. Native specs remain the
+authoritative production path for EL10-specific compatibility work until then.
 
-## Promotion policy
+## Release policy
 
-An artifact can reach a stable TunaOS repository only after it:
-
-1. verifies its source checksum;
-2. builds in the declared native target;
-3. installs from a staged repository;
-4. passes relevant desktop/session checks; and
-5. is signed and promoted by CI.
-
-See [`docs/PACKAGE_FACTORY.md`](docs/PACKAGE_FACTORY.md) for the detailed
-contract and [`docs/UPSTREAM_PARITY.md`](docs/UPSTREAM_PARITY.md) for the
-Bluefin, Aurora, and Zirconium parity inventory.
+Packages are promoted only after their source and packaging are reviewed, the
+target build succeeds, the staged repository installs cleanly, and the relevant
+desktop/session validation passes. Automated source updates should open review
+PRs; they must never publish directly.
