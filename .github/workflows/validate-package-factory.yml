@@ -6,6 +6,8 @@ on:
       - manifests/package-factory.yaml
       - scripts/validate-package-factory.py
       - scripts/tideforge.py
+      - scripts/verify-tideforge-source.py
+      - packages/**
       - docs/PACKAGE_FACTORY.md
       - packaging/**
       - .github/workflows/validate-package-factory.yml
@@ -15,6 +17,8 @@ on:
       - manifests/package-factory.yaml
       - scripts/validate-package-factory.py
       - scripts/tideforge.py
+      - scripts/verify-tideforge-source.py
+      - packages/**
       - docs/PACKAGE_FACTORY.md
       - packaging/**
   workflow_dispatch:
@@ -38,6 +42,7 @@ jobs:
           shopt -s nullglob
           for recipe in packages/*/package.yaml; do
             python3 scripts/tideforge.py validate "$recipe"
+            python3 scripts/verify-tideforge-source.py "$recipe"
             while IFS= read -r target; do
               output="$(mktemp -d)"
               python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$output"
