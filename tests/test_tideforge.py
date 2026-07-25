@@ -132,6 +132,14 @@ def test_recipe_installs_reviewed_source_directories(recipe: dict) -> None:
     assert "cp -a qml/. $pkgdir/usr/share/demo/" in tideforge.render(recipe, "arch")["PKGBUILD"]
 
 
+def test_deb_rooted_source_directory_excludes_generated_debian_metadata(recipe: dict) -> None:
+    recipe["build_system"] = "data"
+    recipe["source"]["directory"] = "."
+    recipe["install"] = {"directories": [{"source": ".", "destination": "usr/share/demo"}]}
+    rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    assert '[ "$entry" = "./debian" ] && continue' in rules
+
+
 def test_rpm_rooted_release_archive_gets_a_safe_build_directory(recipe: dict) -> None:
     recipe["build_system"] = "data"
     recipe["source"]["directory"] = "."

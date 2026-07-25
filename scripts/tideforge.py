@@ -71,11 +71,20 @@ def install_commands(recipe: dict, destination_root: str) -> str:
     return "\n".join(commands)
 
 
-def install_directories(recipe: dict, destination_root: str) -> str:
+def install_directories(recipe: dict, destination_root: str, *, exclude_generated_debian: bool = False) -> str:
     commands: list[str] = []
     for item in recipe.get("install", {}).get("directories", []):
         commands.append(f"install -d {destination_root}/{item['destination']}")
-        commands.append(f"cp -a {item['source']}/. {destination_root}/{item['destination']}/")
+        # Debian's package staging directory lives below the unpacked source.
+        # A release archive rooted at `.` would otherwise recursively copy that
+        # generated directory into its own destination during dh_auto_install.
+        if exclude_generated_debian and item["source"] == ".":
+            commands.append(
+                f'for entry in ./* ./.??*; do [ "$entry" = "./debian" ] && continue; '
+                f'[ -e "$entry" ] || continue; cp -a "$entry" {destination_root}/{item["destination"]}/; done'
+            )
+        else:
+            commands.append(f"cp -a {item['source']}/. {destination_root}/{item['destination']}/")
     return "\n".join(commands)
 
 
@@ -259,7 +268,7 @@ Rules-Requires-Root: no
         rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\t:\n\noverride_dh_auto_install:\n\t:\n"
     else:
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem={buildsystem}\n"
-    extra_install = "\n".join(filter(None, [install_commands(recipe, f"debian/{recipe['name']}"), install_directories(recipe, f"debian/{recipe['name']}")]))
+    extra_install = "\n".join(filter(None, [install_commands(recipe, f"debian/{recipe['name']}"), install_directories(recipe, f"debian/{recipe['name']}", exclude_generated_debian=True)]))
     if extra_install:
         rules = rules.rstrip() + "\n\t" + extra_install.replace("\n", "\n\t") + "\n"
     changelog = f"{recipe['name']} ({recipe['version']}-{recipe.get('release', 1)}) {target}; urgency=medium\n\n  * Generated from package.yaml.\n\n -- TunaOS Package Factory <packages@tunaos.org>  Thu, 01 Jan 1970 00:00:00 +0000\n"
