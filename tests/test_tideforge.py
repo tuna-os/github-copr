@@ -111,7 +111,7 @@ def test_data_rpm_disables_empty_automatic_debug_packages(recipe: dict) -> None:
 def test_cargo_rpm_disables_empty_automatic_debug_packages(recipe: dict) -> None:
     recipe["build_system"] = "cargo"
     spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
-    assert spec.startswith("%global debug_package %{nil}\n%global _debugsource_packages 0\nName:")
+    assert spec.startswith("%global debug_package %{nil}\n%undefine _debugsource_packages\nName:")
 
 
 def test_recipe_renders_go_builds(recipe: dict) -> None:
