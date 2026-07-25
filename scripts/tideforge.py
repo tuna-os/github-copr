@@ -191,9 +191,10 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         else f"%autosetup -n {source_directory}"
     )
     extra_install = "\n".join(filter(None, [install_commands(recipe, "%{buildroot}"), install_directories(recipe, "%{buildroot}")]))
-    # Go and data-only packages do not create ELF debug information.  EL10's
-    # automatic debug subpackage then fails with an empty debugsource list.
-    rpm_preamble = "%global debug_package %{nil}\n" if recipe["build_system"] in {"go", "data"} else ""
+    # Tideforge's Go, Cargo, and data renderers do not produce RPM-compatible
+    # debug-source payloads. EL10's automatic debug subpackage otherwise fails
+    # with an empty debugsource list after a successful build.
+    rpm_preamble = "%global debug_package %{nil}\n" if recipe["build_system"] in {"go", "cargo", "data"} else ""
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
 Release:        {recipe.get('release', 1)}%{{?dist}}
