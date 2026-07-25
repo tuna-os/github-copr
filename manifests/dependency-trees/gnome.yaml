@@ -1,7 +1,20 @@
 schema: 1
-tree: bluefin-updates
+tree: gnome-latest
 targets: [el10, ubuntu, debian]
-roots: [uupd]
+roots: [gnome-shell, mutter, gdm, gnome-session, uupd]
 nodes:
+  # Shared upstream source graph. EL10 consumes its existing native RPM specs
+  # plus compatibility overlays; Debian/Ubuntu consume generated Debian source
+  # packages and never inherit EL10 scriptlets, SELinux policy, or triggers.
+  glib2: {source: GNOME/glib, needs: [gobject-introspection-bootstrap]}
+  gobject-introspection-bootstrap: {source: GNOME/gobject-introspection, needs: [glib2-bootstrap]}
+  glib2-bootstrap: {source: GNOME/glib, needs: []}
+  gobject-introspection: {source: GNOME/gobject-introspection, needs: [glib2]}
+  gtk4: {source: GNOME/gtk, needs: [glib2, gobject-introspection]}
+  libadwaita: {source: GNOME/libadwaita, needs: [gtk4]}
+  mutter: {source: GNOME/mutter, needs: [gtk4, gobject-introspection]}
+  gnome-shell: {source: GNOME/gnome-shell, needs: [mutter, gobject-introspection]}
+  gnome-session: {source: GNOME/gnome-session, needs: [gtk4]}
+  gdm: {source: GNOME/gdm, needs: [gnome-shell, gnome-session]}
   uupd: {source: ublue-os/uupd, needs: [cargo-toolchain]}
   cargo-toolchain: {kind: distro-build-dependency}
