@@ -1,0 +1,24 @@
+schema: 1
+name: quickshell
+version: "0.3.0"
+release: 1
+summary: Flexible QtQuick-based desktop shell toolkit
+description: A QtQuick desktop shell toolkit required by DankMaterialShell and TunaOS's Niri experience.
+license: LGPL-3.0-or-later
+source:
+  url: https://github.com/quickshell-mirror/quickshell/archive/refs/tags/v0.3.0.tar.gz
+  sha256: 5229069b0f1d375f34b0a04a4e6a69156e2f010995d9ec5a943793424e589b5d
+  directory: quickshell-0.3.0
+build_system: cmake
+dependencies:
+  build:
+    common: [cmake, gcc-c++]
+    targets:
+      el10: [qt6-qtbase-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, jemalloc-devel]
+      ubuntu: [qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libjemalloc-dev]
+      debian: [qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libjemalloc-dev]
+      opensuse-tumbleweed: [cmake, gcc-c++, qt6-base-private-devel, qt6-declarative-devel, qt6-wayland-devel, qt6-shadertools-devel, pipewire-devel, pam-devel, polkit-devel, jemalloc-devel]
+      arch: [cmake, gcc, qt6-base, qt6-declarative, qt6-wayland, qt6-shadertools, pipewire, pam, polkit, jemalloc]
+files:
+  common: [usr/bin/quickshell]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

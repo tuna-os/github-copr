@@ -4,7 +4,7 @@ targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
 roots: [niri, dms, dms-greeter]
 nodes:
   niri: {source: niri-wm/niri, needs: [cargo-toolchain, wayland-stack, libseat]}
-  quickshell: {source: outfoxxed/quickshell, needs: [qt6-wayland, wayland-stack]}
+  quickshell: {source: quickshell-mirror/quickshell, needs: [qt6-wayland, wayland-stack]}
   dms: {source: AvengeMedia/DankMaterialShell, needs: [quickshell]}
   dms-greeter: {source: AvengeMedia/DankMaterialShell, needs: [dms, greetd]}
   iio-niri: {source: zirconium-dev/zirconium, needs: [niri]}
