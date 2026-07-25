@@ -173,7 +173,8 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     )
     source_directory = recipe["source"].get("directory", f"%{{name}}-%{{version}}")
     extra_install = "\n".join(filter(None, [install_commands(recipe, "%{buildroot}"), install_directories(recipe, "%{buildroot}")]))
-    spec = f"""Name:           {recipe['name']}
+    rpm_preamble = "%global debug_package %{nil}\n" if recipe["build_system"] == "go" else ""
+    spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
 Release:        {recipe.get('release', 1)}%{{?dist}}
 Summary:        {recipe['summary']}

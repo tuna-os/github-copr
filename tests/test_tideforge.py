@@ -96,6 +96,12 @@ def test_rpm_changelog_uses_a_valid_rpm_date(recipe: dict) -> None:
     assert "* Sat Jul 25 2026 TunaOS Package Factory" in spec
 
 
+def test_go_rpm_disables_empty_automatic_debug_packages(recipe: dict) -> None:
+    recipe["build_system"] = "go"
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert spec.startswith("%global debug_package %{nil}\nName:")
+
+
 def test_recipe_renders_go_builds(recipe: dict) -> None:
     recipe["build_system"] = "go"
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
