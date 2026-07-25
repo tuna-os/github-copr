@@ -201,7 +201,7 @@ jobs:
           $(limactl shell gnome50-verify -- sudo journalctl -u gdm --no-pager -n 30 2>/dev/null || echo "(journal unavailable)")
           \`\`\`
           BODYEOF
-          gh issue create --repo tuna-os/github-copr \
+          gh issue create --repo tuna-os/tunaos-packages \
             --title "gnome-shell crash-loop regression (dev-repo CI catch)" \
             --body-file /tmp/issue-body.md \
             --label "bug" \
@@ -438,7 +438,7 @@ jobs:
           $(limactl shell gnome50-verify-copr -- sudo journalctl -u gdm --no-pager -n 30 2>/dev/null || echo "(journal unavailable)")
           \`\`\`
           BODYEOF
-          gh issue create --repo tuna-os/github-copr \
+          gh issue create --repo tuna-os/tunaos-packages \
             --title "gnome-shell crash-loop regression (GNOME 50 COPR CI catch)" \
             --body-file /tmp/issue-body.md \
             --label "bug" \
