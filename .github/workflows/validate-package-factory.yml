@@ -4,7 +4,10 @@ on:
   pull_request:
     paths:
       - manifests/package-factory.yaml
+      - manifests/dependency-trees/**
+      - manifests/target-queues/**
       - scripts/validate-package-factory.py
+      - scripts/validate-target-queues.py
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
       - packages/**
@@ -15,7 +18,10 @@ on:
     branches: [main]
     paths:
       - manifests/package-factory.yaml
+      - manifests/dependency-trees/**
+      - manifests/target-queues/**
       - scripts/validate-package-factory.py
+      - scripts/validate-target-queues.py
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
       - packages/**
@@ -36,6 +42,7 @@ jobs:
           python-version: '3.14'
       - run: pip install pyyaml
       - run: python3 scripts/validate-package-factory.py manifests/package-factory.yaml
+      - run: python3 scripts/validate-target-queues.py
       - name: Validate and render Tideforge recipes
         run: |
           set -euo pipefail

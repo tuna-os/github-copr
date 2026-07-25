@@ -1,12 +1,17 @@
 schema: 1
 tree: xfce-wayland
-targets: [el10, fedora]
-roots: [xfce4-wayland]
+targets: [el10, fedora, debian, arch]
+roots: [xfce4-wayland, xfwl4]
 nodes:
-  xfce4-wayland: {source: tuna-os/xfce-wayland, needs: [xfconf, xfce4-session, xfce4-panel, xfdesktop]}
+  xfce4-wayland: {source: tuna-os/xfce-wayland, needs: [xfconf, xfce4-session, xfce4-panel, xfdesktop, xfwl4]}
+  xfwl4: {source: xfce/xfwl4, needs: [libxfce4ui, cargo-toolchain, wayland-stack]}
+  libxfce4ui: {source: xfce/libxfce4ui, needs: [xfconf, libxfce4util]}
   xfconf: {source: xfce/xfconf, needs: [glib2, dbus]}
   xfce4-session: {source: xfce/xfce4-session, needs: [xfconf]}
   xfce4-panel: {source: xfce/xfce4-panel, needs: [xfconf]}
   xfdesktop: {source: xfce/xfdesktop, needs: [xfconf]}
   glib2: {kind: distro-or-factory-package}
   dbus: {kind: distro-build-dependency}
+  libxfce4util: {kind: distro-or-factory-package}
+  cargo-toolchain: {kind: distro-build-dependency}
+  wayland-stack: {kind: distro-build-dependency}
