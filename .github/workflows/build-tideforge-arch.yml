@@ -1,0 +1,50 @@
+name: Build Tideforge Arch package
+
+on:
+  pull_request:
+    paths:
+      - packages/niri/package.yaml
+      - scripts/tideforge.py
+      - scripts/verify-tideforge-source.py
+      - scripts/compare-official-package.py
+      - scripts/validate-built-arch-package.py
+      - .github/workflows/build-tideforge-arch.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-niri:
+    name: Niri (Arch, unpatched)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - run: python3 scripts/tideforge.py validate packages/niri/package.yaml
+      - run: python3 scripts/verify-tideforge-source.py packages/niri/package.yaml
+      - run: python3 scripts/tideforge.py render packages/niri/package.yaml --target arch --output .tideforge/arch/niri
+      - name: Build generated PKGBUILD
+        run: |
+          set -euo pipefail
+          mkdir -p .tideforge/arch/niri/artifacts
+          docker run --rm --volume "$PWD/.tideforge/arch/niri:/work" --workdir /work docker.io/library/archlinux:latest bash -lc '
+            set -euo pipefail
+            pacman -Syu --noconfirm
+            pacman -S --needed --noconfirm base-devel cargo rust clang git pkgconf libxkbcommon libinput libseat wayland-protocols cairo glib2 libdisplay-info libpipewire mesa pango pixman seatd systemd
+            useradd --create-home builder
+            chown -R builder:builder /work
+            su builder -s /bin/bash -c "cd /work && PKGDEST=/work/artifacts makepkg --nodeps --noconfirm"
+            pacman -Qip /work/artifacts/*.pkg.tar.* > /work/artifacts/package-info.txt
+          '
+      - run: python3 scripts/validate-built-arch-package.py packages/niri/package.yaml .tideforge/arch/niri/artifacts/package-info.txt
+      - run: python3 scripts/compare-official-package.py packages/niri/package.yaml --strict
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: niri-arch-unpatched
+          path: .tideforge/arch/niri/artifacts/
+          if-no-files-found: warn
