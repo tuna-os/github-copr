@@ -149,7 +149,8 @@ jobs:
 
       - name: Smoke test — install RPM in CentOS Stream 10
         run: |
-          RPM=$(find local-repo -name '*.rpm' ! -name '*-debuginfo-*' ! -name '*-debugsource-*' 2>/dev/null | head -1)
+          # Podman requires an absolute host path for a file bind mount.
+          RPM=$(find "$PWD/local-repo" -name '*.rpm' ! -name '*-debuginfo-*' ! -name '*-debugsource-*' 2>/dev/null | head -1)
           if [[ -z "${RPM}" ]]; then
             echo "No non-debug RPM found to test"
             exit 0
