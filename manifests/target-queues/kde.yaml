@@ -1,0 +1,10 @@
+# Aurora KDE additions currently have a native EL10 RPM path. The upstream
+# Plasma desktop remains a distro package; this queue models only TunaOS-owned
+# additions and their promotion gates.
+schema: 1
+queues:
+  el10:
+    format: rpm
+    implementation: native-spec
+    roots: [krunner-bazaar, ublue-os-selinux-workarounds, oversteer-udev]
+    gates: [mock-build, rpm-md-stage-install, plasma-session-smoke, selinux-enforcing]

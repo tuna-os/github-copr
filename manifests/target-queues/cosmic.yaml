@@ -1,0 +1,21 @@
+# Native build queues for the shared COSMIC source graph. COSMIC's Rust stack
+# remains target-native: an EL10 RPM never receives Debian packaging metadata.
+schema: 1
+queues:
+  el10:
+    format: rpm
+    implementation: native-spec
+    roots: [cosmic-session, cosmic-greeter]
+    gates: [mock-build, rpm-md-stage-install, greetd-login, cosmic-session-smoke]
+  ubuntu:
+    format: deb
+    implementation: tideforge-debian
+    suite: resolute
+    roots: [cosmic-session, cosmic-greeter]
+    gates: [container-build, apt-stage-install, greetd-login, cosmic-session-smoke]
+  debian:
+    format: deb
+    implementation: tideforge-debian
+    suite: trixie
+    roots: [cosmic-session, cosmic-greeter]
+    gates: [container-build, apt-stage-install, greetd-login, cosmic-session-smoke]
