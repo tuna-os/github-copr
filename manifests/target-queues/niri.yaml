@@ -20,10 +20,10 @@ queues:
   opensuse-tumbleweed:
     format: rpm
     implementation: tideforge-rpm
-    roots: [niri, quickshell, dms, dms-cli, dgop, danksearch]
+    roots: [niri, quickshell, dms, dms-cli, dms-greeter, dgop, danksearch]
     gates: [container-build, rpm-md-stage-install, niri-session-smoke]
   arch:
     format: pkg.tar.zst
     implementation: tideforge-pkgbuild
-    roots: [niri, quickshell, dms, dms-cli, dgop, danksearch]
+    roots: [niri, quickshell, dms, dms-cli, dms-greeter, dgop, danksearch]
     gates: [container-build, pacman-stage-install, niri-session-smoke]

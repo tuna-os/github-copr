@@ -102,6 +102,12 @@ def test_go_rpm_disables_empty_automatic_debug_packages(recipe: dict) -> None:
     assert spec.startswith("%global debug_package %{nil}\nName:")
 
 
+def test_data_rpm_disables_empty_automatic_debug_packages(recipe: dict) -> None:
+    recipe["build_system"] = "data"
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert spec.startswith("%global debug_package %{nil}\nName:")
+
+
 def test_recipe_renders_go_builds(recipe: dict) -> None:
     recipe["build_system"] = "go"
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
@@ -124,6 +130,14 @@ def test_recipe_installs_reviewed_source_directories(recipe: dict) -> None:
     recipe["install"] = {"directories": [{"source": "qml", "destination": "usr/share/demo"}]}
     assert "cp -a qml/. %{buildroot}/usr/share/demo/" in tideforge.render(recipe, "el10")["hello-tuna.spec"]
     assert "cp -a qml/. $pkgdir/usr/share/demo/" in tideforge.render(recipe, "arch")["PKGBUILD"]
+
+
+def test_rpm_rooted_release_archive_gets_a_safe_build_directory(recipe: dict) -> None:
+    recipe["build_system"] = "data"
+    recipe["source"]["directory"] = "."
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "%setup -q -c -n %{name}-%{version}" in spec
+    assert "%autosetup -n ." not in spec
 
 
 def test_go_recipe_uses_declared_module_and_binary(recipe: dict) -> None:

@@ -172,8 +172,19 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         for subpackage in rpm_output.get("subpackages", [])
     )
     source_directory = recipe["source"].get("directory", f"%{{name}}-%{{version}}")
+    # Release assets sometimes contain files directly at archive root rather
+    # than a conventional name-version directory.  RPM's %autosetup cannot
+    # safely use `-n .` (it attempts `rm -rf .`).  Create an isolated build
+    # directory before unpacking such sources instead.
+    prep = (
+        "%setup -q -c -n %{name}-%{version}"
+        if source_directory == "."
+        else f"%autosetup -n {source_directory}"
+    )
     extra_install = "\n".join(filter(None, [install_commands(recipe, "%{buildroot}"), install_directories(recipe, "%{buildroot}")]))
-    rpm_preamble = "%global debug_package %{nil}\n" if recipe["build_system"] == "go" else ""
+    # Go and data-only packages do not create ELF debug information.  EL10's
+    # automatic debug subpackage then fails with an empty debugsource list.
+    rpm_preamble = "%global debug_package %{nil}\n" if recipe["build_system"] in {"go", "data"} else ""
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
 Release:        {recipe.get('release', 1)}%{{?dist}}
@@ -189,7 +200,7 @@ Source0:        {recipe['source']['url']}
 {subpackage_definitions}
 
 %prep
-%autosetup -n {source_directory}
+{prep}
 
 %build
 {build}
