@@ -25,6 +25,9 @@ upstream commit/tag, license, patches, and target compatibility. TunaOS rebuilds
 the package itself; it never enables an upstream COPR, PPA, or binary repository
 in a produced image.
 
+The current Bluefin, Aurora, and Zirconium parity inventory and delivery order
+are maintained in [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).
+
 ## Promotion contract
 
 Every candidate must build in the target buildroot, pass package tests, install

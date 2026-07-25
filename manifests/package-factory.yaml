@@ -13,6 +13,9 @@ upstreams:
   - id: ublue-aurora
     url: https://github.com/ublue-os/aurora
     license_review: required
+  - id: zirconium
+    url: https://github.com/zirconium-dev/zirconium
+    license_review: required
 
 targets:
   el10:
