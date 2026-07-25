@@ -201,7 +201,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         # Cargo can still trigger EL10's debug-source generation even after
         # disabling binary debug packages, while release builds omit source
         # debug data entirely.
-        rpm_preamble = "%global debug_package %{nil}\n%undefine _debugsource_packages\n"
+        rpm_preamble = "%global debug_package %{nil}\n%undefine _enable_debug_packages\n%undefine _debugsource_packages\n"
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
 Release:        {recipe.get('release', 1)}%{{?dist}}
