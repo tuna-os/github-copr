@@ -160,6 +160,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         build = f"cd {workdir}\ncargo build --release --locked{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
+    runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
     rpm_output = recipe.get("outputs", {}).get("rpm", {})
     files = "\n".join(f"/{path.lstrip('/')}" for path in rpm_output.get("files", recipe["files"]["common"]))
     subpackage_definitions = "\n".join(
@@ -179,6 +180,7 @@ Summary:        {recipe['summary']}
 License:        {recipe['license']}
 Source0:        {recipe['source']['url']}
 {requires}
+{runtime_requires}
 
 %description
 {recipe['description']}
@@ -211,10 +213,11 @@ def render_deb(recipe: dict, target: str) -> dict[str, str]:
     build_deps = ", ".join(target_dependencies(recipe, target))
     deb_output = recipe.get("outputs", {}).get("deb", {})
     binary_packages = deb_output.get("packages", [{"name": recipe["name"], "summary": recipe["summary"], "description": recipe["description"], "files": recipe["files"]["common"]}])
+    recipe_runtime_dependencies = target_runtime_dependencies(recipe, target)
     package_stanzas = "\n".join(
         f"""Package: {package['name']}
 Architecture: any
-Depends: ${{shlibs:Depends}}, ${{misc:Depends}}
+Depends: {', '.join(['${shlibs:Depends}', '${misc:Depends}', *recipe_runtime_dependencies, *package.get('depends', [])])}
 Description: {package.get('summary', recipe['summary'])}
  {package.get('description', recipe['description'])}
 """

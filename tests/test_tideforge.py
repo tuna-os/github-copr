@@ -82,6 +82,15 @@ def test_arch_pkgbuild_includes_runtime_dependencies(recipe: dict) -> None:
     assert "depends=('glibc' 'libinput>=1.0')" in rendered
 
 
+def test_rpm_and_deb_preserve_runtime_dependencies(recipe: dict) -> None:
+    recipe["dependencies"]["runtime"] = {"common": ["dbus"], "targets": {"el10": ["bluez"], "ubuntu": ["bluez"]}}
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "ubuntu")["debian/control"]
+    assert "Requires:       dbus" in rpm
+    assert "Requires:       bluez" in rpm
+    assert "Depends: ${shlibs:Depends}, ${misc:Depends}, dbus, bluez" in deb
+
+
 def test_recipe_renders_go_builds(recipe: dict) -> None:
     recipe["build_system"] = "go"
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
