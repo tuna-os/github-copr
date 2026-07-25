@@ -52,6 +52,13 @@ packages/<name>/
 Existing `src/` packages are migrated incrementally; they remain build inputs
 until their package directories are moved without changing the published NVR.
 
+## Target-native overlays
+
+Source graphs can be shared, but package metadata and compatibility work cannot.
+For example, the GNOME queue in `manifests/target-queues/gnome.yaml` keeps the
+EL10 bootstrap/spec and SELinux compatibility overlay native to RPM while
+Debian Trixie and Ubuntu render and test DEB packages independently.
+
 ## Tideforge: experimental single-recipe workflow
 
 Tideforge is developed in parallel with the established native RPM/DEB

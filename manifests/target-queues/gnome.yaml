@@ -1,0 +1,23 @@
+# Native build queues for the shared GNOME source graph.  A queue item is only
+# promoted after all of its listed target gates pass; package metadata is never
+# shared across distro families.
+schema: 1
+queues:
+  el10:
+    format: rpm
+    implementation: native-spec
+    build_order: build-order.yml
+    compatibility_overlay: src/deps/gnome50-el10-compat
+    gates: [mock-build, rpm-md-stage-install, gnome-session-smoke, selinux-enforcing]
+  ubuntu:
+    format: deb
+    implementation: tideforge-debian
+    suite: resolute
+    roots: [glib2, gobject-introspection, gtk4, libadwaita, mutter, gnome-shell, gnome-session, gdm]
+    gates: [container-build, apt-stage-install, gnome-session-smoke]
+  debian:
+    format: deb
+    implementation: tideforge-debian
+    suite: trixie
+    roots: [glib2, gobject-introspection, gtk4, libadwaita, mutter, gnome-shell, gnome-session, gdm]
+    gates: [container-build, apt-stage-install, gnome-session-smoke]

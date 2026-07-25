@@ -1,0 +1,25 @@
+schema: 1
+queues:
+  el10:
+    format: rpm
+    implementation: native-spec
+    build_order: build-order-xfce.yml
+    roots: [xfwl4, xfce4-wayland, gtkgreet]
+    gates: [mock-build, rpm-md-stage-install, greetd-login, xfce-wayland-session-smoke]
+  fedora:
+    format: rpm
+    implementation: native-spec
+    build_order: build-order-xfce-fedora.yml
+    roots: [xfconf, libxfce4ui, xfwl4]
+    gates: [container-build, rpm-md-stage-install, xfce-wayland-session-smoke]
+  debian:
+    format: deb
+    implementation: tideforge-debian
+    suite: trixie
+    roots: [xfconf, libxfce4ui, xfwl4]
+    gates: [container-build, apt-stage-install, xfce-wayland-session-smoke]
+  arch:
+    format: pkg.tar.zst
+    implementation: native-pkgbuild
+    roots: [xfconf, libxfce4ui, xfwl4]
+    gates: [container-build, pacman-stage-install, xfce-wayland-session-smoke]
