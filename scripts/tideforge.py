@@ -18,7 +18,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ROOT / "manifests" / "package-factory.yaml"
-VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go"}
+VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data"}
 
 
 def fail(message: str) -> None:
@@ -54,6 +54,14 @@ def install_commands(recipe: dict, destination_root: str) -> str:
     return "\n".join(commands)
 
 
+def install_directories(recipe: dict, destination_root: str) -> str:
+    commands: list[str] = []
+    for item in recipe.get("install", {}).get("directories", []):
+        commands.append(f"install -d {destination_root}/{item['destination']}")
+        commands.append(f"cp -a {item['source']}/. {destination_root}/{item['destination']}/")
+    return "\n".join(commands)
+
+
 def validate(recipe: dict, target: str | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
@@ -80,7 +88,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
         fail(f"recipe does not enable target: {target}")
     if not recipe["files"].get("common"):
         fail("files.common must list installed paths")
-    for item in recipe.get("install", {}).get("files", []):
+    for item in recipe.get("install", {}).get("files", []) + recipe.get("install", {}).get("directories", []):
         if not isinstance(item, dict) or not isinstance(item.get("source"), str) or not isinstance(item.get("destination"), str):
             fail("install.files entries need source and destination")
         if item["source"].startswith("/") or item["destination"].startswith("/") or ".." in Path(item["source"]).parts or ".." in Path(item["destination"]).parts:
@@ -96,6 +104,8 @@ def rpm_build_lines(build_system: str) -> tuple[str, str]:
         return "%cargo_build", "%cargo_install"
     if build_system == "go":
         return "go build -buildmode=pie -trimpath -mod=readonly -o %{name} .", "install -Dm0755 %{name} %{buildroot}%{_bindir}/%{name}"
+    if build_system == "data":
+        return ":", ":"
     return "%cmake\n%cmake_build", "%cmake_install"
 
 
@@ -113,7 +123,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         for subpackage in rpm_output.get("subpackages", [])
     )
     source_directory = recipe["source"].get("directory", f"%{{name}}-%{{version}}")
-    extra_install = install_commands(recipe, "%{buildroot}")
+    extra_install = "\n".join(filter(None, [install_commands(recipe, "%{buildroot}"), install_directories(recipe, "%{buildroot}")]))
     spec = f"""Name:           {recipe['name']}
 Version:        {recipe['version']}
 Release:        {recipe.get('release', 1)}%{{?dist}}
@@ -177,9 +187,11 @@ Rules-Requires-Root: no
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcargo build --release --locked\n\noverride_dh_auto_install:\n\tinstall -Dm0755 target/release/{recipe['name']} debian/{recipe['name']}/usr/bin/{recipe['name']}\n"
     elif recipe["build_system"] == "go":
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tgo build -buildmode=pie -trimpath -mod=readonly -o {recipe['name']} .\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {recipe['name']} debian/{recipe['name']}/usr/bin/{recipe['name']}\n"
+    elif recipe["build_system"] == "data":
+        rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\t:\n\noverride_dh_auto_install:\n\t:\n"
     else:
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem={buildsystem}\n"
-    extra_install = install_commands(recipe, f"debian/{recipe['name']}")
+    extra_install = "\n".join(filter(None, [install_commands(recipe, f"debian/{recipe['name']}"), install_directories(recipe, f"debian/{recipe['name']}")]))
     if extra_install:
         rules = rules.rstrip() + "\n\t" + extra_install.replace("\n", "\n\t") + "\n"
     changelog = f"{recipe['name']} ({recipe['version']}-{recipe.get('release', 1)}) {target}; urgency=medium\n\n  * Generated from package.yaml.\n\n -- TunaOS Package Factory <packages@tunaos.org>  Thu, 01 Jan 1970 00:00:00 +0000\n"
@@ -211,6 +223,9 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     elif recipe["build_system"] == "go":
         build = f"go build -buildmode=pie -trimpath -mod=readonly -o {recipe['name']} ."
         install = f"install -Dm0755 {recipe['name']} \"$pkgdir/usr/bin/{recipe['name']}\""
+    elif recipe["build_system"] == "data":
+        build = ":"
+        install = ":"
     elif recipe["build_system"] == "meson":
         build = "arch-meson build\n  meson compile -C build"
         install = "DESTDIR=\"$pkgdir\" meson install -C build"
@@ -220,7 +235,7 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     else:
         build = "cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr\n  cmake --build build"
         install = "DESTDIR=\"$pkgdir\" cmake --install build"
-    extra_install = install_commands(recipe, "$pkgdir")
+    extra_install = "\n".join(filter(None, [install_commands(recipe, "$pkgdir"), install_directories(recipe, "$pkgdir")]))
     if extra_install:
         install = f"{install}\n  {extra_install.replace(chr(10), chr(10) + '  ')}"
     pkgbuild = f"""# Generated by Tideforge; target-specific dependencies remain in package.yaml.

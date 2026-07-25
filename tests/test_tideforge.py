@@ -97,3 +97,10 @@ def test_recipe_installs_reviewed_source_files(recipe: dict) -> None:
     assert "install -Dm0644 demo.service %{buildroot}/usr/lib/systemd/system/demo.service" in tideforge.render(recipe, "el10")["hello-tuna.spec"]
     assert "install -Dm0644 demo.service debian/hello-tuna/usr/lib/systemd/system/demo.service" in tideforge.render(recipe, "debian")["debian/rules"]
     assert "install -Dm0644 demo.service $pkgdir/usr/lib/systemd/system/demo.service" in tideforge.render(recipe, "arch")["PKGBUILD"]
+
+
+def test_recipe_installs_reviewed_source_directories(recipe: dict) -> None:
+    recipe["build_system"] = "data"
+    recipe["install"] = {"directories": [{"source": "qml", "destination": "usr/share/demo"}]}
+    assert "cp -a qml/. %{buildroot}/usr/share/demo/" in tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "cp -a qml/. $pkgdir/usr/share/demo/" in tideforge.render(recipe, "arch")["PKGBUILD"]
