@@ -25,9 +25,11 @@ jobs:
           - package: uupd
             target: el10
             install_name: uupd
+            smoke: uupd --help
           - package: xfconf
             target: el10
             install_name: xfconf
+            smoke: xfconf-query --version
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -74,6 +76,7 @@ jobs:
             createrepo_c /tmp/tideforge-rpms
             dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --enablerepo=tideforge ${{ matrix.install_name }}
             rpm -q ${{ matrix.install_name }}
+            ${{ matrix.smoke }}
           '
       - uses: actions/upload-artifact@v6
         if: always()
@@ -93,18 +96,22 @@ jobs:
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
             install_name: uupd
+            smoke: uupd --help
           - package: xfconf
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
             install_name: libxfconf-0-4
+            smoke: xfconf-query --version
           - package: uupd
             target: debian
             image: docker.io/library/debian:sid
             install_name: uupd
+            smoke: uupd --help
           - package: xfconf
             target: debian
             image: docker.io/library/debian:sid
             install_name: libxfconf-0-4
+            smoke: xfconf-query --version
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -173,6 +180,7 @@ jobs:
             apt-get update -qq
             apt-get install -y ${{ matrix.install_name }}
             dpkg-query -W ${{ matrix.install_name }}
+            ${{ matrix.smoke }}
           '
       - uses: actions/upload-artifact@v6
         if: always()
