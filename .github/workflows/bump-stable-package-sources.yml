@@ -1,0 +1,32 @@
+name: Bump Stable Package Sources
+
+on:
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  niri:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - run: python3 scripts/bump-github-release-recipe.py packages/niri/package.yaml --repo niri-wm/niri
+      - run: python3 scripts/tideforge.py validate packages/niri/package.yaml
+      - uses: peter-evans/create-pull-request@v8
+        with:
+          branch: automation/bump-niri-stable
+          delete-branch: true
+          title: 'chore(niri): bump to latest stable release'
+          commit-message: 'chore(niri): bump to latest stable release'
+          body: |
+            Automated stable-source bump. CI must render, build, stage-install,
+            and pass the Niri desktop smoke gate before this can merge.
+          labels: dependencies, package-factory
