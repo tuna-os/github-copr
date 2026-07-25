@@ -189,6 +189,9 @@ jobs:
           with tarfile.open(archive) as tar:
               tar.extractall(root / "source")
           source = root / "source" / recipe["source"].get("directory", f"{recipe['name']}-{recipe['version']}")
+          if not source.is_dir():
+              raise SystemExit(f"declared source directory does not exist: {source}")
+          (root / "source-dir").write_text("/work/" + source.relative_to(root).as_posix() + "\n")
           (source / "debian").mkdir(parents=True, exist_ok=True)
           for path in (root / "rendered" / "debian").rglob("*"):
               if path.is_file():
@@ -207,7 +210,7 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
             apt-get install -y --no-install-recommends build-essential ca-certificates devscripts equivs
-            cd /work/source/*
+            cd "$(cat /work/source-dir)"
             mk-build-deps --install --remove --tool "apt-get -y --no-install-recommends" debian/control
             dpkg-buildpackage -us -uc -b
             mkdir -p /work/artifacts
