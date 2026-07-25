@@ -5,6 +5,7 @@ on:
     paths:
       - packages/uupd/package.yaml
       - packages/xfconf/package.yaml
+      - packages/greetd/package.yaml
       - packages/dms/package.yaml
       - packages/dms-greeter/package.yaml
       - manifests/package-factory.yaml
@@ -80,6 +81,10 @@ jobs:
             target: el10
             install_name: xfconf
             smoke: xfconf-query --version
+          - package: greetd
+            target: el10
+            install_name: greetd
+            smoke: greetd --help
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -152,6 +157,11 @@ jobs:
             image: docker.io/library/ubuntu:26.04
             install_name: libxfconf-0-4
             smoke: xfconf-query --version
+          - package: greetd
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: greetd
+            smoke: greetd --help
           - package: uupd
             target: debian
             image: docker.io/library/debian:sid
@@ -162,6 +172,11 @@ jobs:
             image: docker.io/library/debian:sid
             install_name: libxfconf-0-4
             smoke: xfconf-query --version
+          - package: greetd
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: greetd
+            smoke: greetd --help
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
