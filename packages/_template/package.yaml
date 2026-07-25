@@ -1,0 +1,25 @@
+# One TunaOS package recipe renders native packaging for every selected target.
+# Target overrides are for genuinely different dependency names only; do not
+# duplicate a whole spec/control/PKGBUILD just to add one dependency.
+schema: 1
+name: example-tool
+version: "1.0.0"
+release: 1
+summary: Example command-line tool
+description: Example package recipe for the TunaOS package factory.
+license: Apache-2.0
+source:
+  url: https://example.invalid/example-tool-1.0.0.tar.gz
+  sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+build_system: meson
+dependencies:
+  build:
+    common: [gcc, pkgconf-pkg-config, meson, ninja-build]
+    targets:
+      el10: [systemd-rpm-macros]
+      ubuntu: [debhelper-compat]
+      debian: [debhelper-compat]
+files:
+  common:
+    - usr/bin/example-tool
+targets: [el10, ubuntu, debian]

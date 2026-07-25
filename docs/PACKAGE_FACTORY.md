@@ -48,3 +48,24 @@ packages/<name>/
 
 Existing `src/` packages are migrated incrementally; they remain build inputs
 until their package directories are moved without changing the published NVR.
+
+## Tideforge: experimental single-recipe workflow
+
+Tideforge is developed in parallel with the established native RPM/DEB
+pipelines. Those native pipelines remain the production distribution path until
+Tideforge renders equivalent artifacts and passes the same build, install, and
+runtime gates.
+
+Use `packages/_template/package.yaml` as the only author-maintained recipe.
+`scripts/tideforge.py` validates the recipe, shows its per-target build plan,
+and renders native RPM or Debian packaging:
+
+```bash
+python3 scripts/tideforge.py validate packages/my-package/package.yaml
+python3 scripts/tideforge.py plan packages/my-package/package.yaml --target el10
+python3 scripts/tideforge.py render packages/my-package/package.yaml --target ubuntu --output out/ubuntu
+```
+
+The tool emits target-native files because the package managers require them,
+but maintainers edit one recipe. A target override is limited to the dependency
+or build difference that cannot be made portable.

@@ -5,6 +5,7 @@ on:
     paths:
       - manifests/package-factory.yaml
       - scripts/validate-package-factory.py
+      - scripts/tideforge.py
       - docs/PACKAGE_FACTORY.md
       - packaging/**
       - .github/workflows/validate-package-factory.yml
@@ -13,6 +14,7 @@ on:
     paths:
       - manifests/package-factory.yaml
       - scripts/validate-package-factory.py
+      - scripts/tideforge.py
       - docs/PACKAGE_FACTORY.md
       - packaging/**
   workflow_dispatch:
