@@ -138,7 +138,7 @@ def test_deb_rooted_source_directory_excludes_generated_debian_metadata(recipe: 
     recipe["source"]["directory"] = "."
     recipe["install"] = {"directories": [{"source": ".", "destination": "usr/share/demo"}]}
     rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
-    assert '[ "$entry" = "./debian" ] && continue' in rules
+    assert '[ "$$entry" = "./debian" ] && continue' in rules
     assert "debian/hello-tuna.install" not in tideforge.render(recipe, "ubuntu")
 
 

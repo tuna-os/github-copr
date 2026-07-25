@@ -80,8 +80,8 @@ def install_directories(recipe: dict, destination_root: str, *, exclude_generate
         # generated directory into its own destination during dh_auto_install.
         if exclude_generated_debian and item["source"] == ".":
             commands.append(
-                f'for entry in ./* ./.??*; do [ "$entry" = "./debian" ] && continue; '
-                f'[ -e "$entry" ] || continue; cp -a "$entry" {destination_root}/{item["destination"]}/; done'
+                f'for entry in ./* ./.??*; do [ "$$entry" = "./debian" ] && continue; '
+                f'[ -e "$$entry" ] || continue; cp -a "$$entry" {destination_root}/{item["destination"]}/; done'
             )
         else:
             commands.append(f"cp -a {item['source']}/. {destination_root}/{item['destination']}/")
