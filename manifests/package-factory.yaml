@@ -66,7 +66,7 @@ dependency_catalog:
   rust: {el10: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], opensuse-tumbleweed: [rust, cargo], arch: [rust]}
   c-compiler: {el10: [gcc], ubuntu: [build-essential], debian: [build-essential], opensuse-tumbleweed: [gcc], arch: [base-devel]}
   cpp-compiler: {el10: [gcc-c++], ubuntu: [g++], debian: [g++], opensuse-tumbleweed: [gcc-c++], arch: [base-devel]}
-  pkg-config: {el10: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], opensuse-tumbleweed: [pkg-config], arch: [pkgconf]}
+  pkg-config: {el10: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], arch: [pkgconf]}
   cmake: {el10: [cmake], ubuntu: [cmake], debian: [cmake], opensuse-tumbleweed: [cmake], arch: [cmake]}
   gettext: {el10: [gettext], ubuntu: [gettext], debian: [gettext], opensuse-tumbleweed: [gettext-tools], arch: [gettext]}
   dbus: {el10: [dbus], ubuntu: [dbus], debian: [dbus], opensuse-tumbleweed: [dbus-1], arch: [dbus]}

@@ -37,7 +37,7 @@ for package in "$@"; do
 done""",
     "opensuse-tumbleweed": """zypper --non-interactive refresh >/dev/null
 for package in "$@"; do
-  zypper --non-interactive info "$package" >/dev/null 2>&1 && status=available || status=missing
+  zypper --non-interactive --no-refresh info "$package" >/dev/null 2>&1 && status=available || status=missing
   printf 'RESULT\\t%s\\t%s\\n' "$package" "$status"
 done""",
     "arch": """pacman -Sy --noconfirm >/dev/null
