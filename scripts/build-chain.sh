@@ -22,6 +22,7 @@
 #   --jobs <N>           Parallel jobs within a tier (default: nproc/2)
 #   --tier <name>        Only build a specific tier
 #   --package <path>     Only build a specific package path
+#   --with-checks        Run the RPM %check section (release-gate mode)
 #   --dry-run            Print what would be built without building
 
 set -euo pipefail
@@ -45,6 +46,7 @@ FILTER_TIER=""
 FILTER_PACKAGE=""
 DRY_RUN=false
 FORCE=false
+WITH_CHECKS=false
 
 usage() {
     echo "Usage: $0 [options]"
@@ -60,6 +62,7 @@ usage() {
     echo "  --jobs <N>           Parallel jobs within a tier (default: nproc/2)"
     echo "  --tier <name>        Only build a specific tier"
     echo "  --package <path>     Only build a specific package path"
+    echo "  --with-checks        Run the RPM %check section"
     echo "  --dry-run            Print what would be built without building"
     echo "  --force              Force rebuild even if package exists in repo"
     echo "  -h, --help           Show this help message"
@@ -81,6 +84,7 @@ while [[ $# -gt 0 ]]; do
         --jobs)        JOBS="$2";        shift 2 ;;
         --tier)        FILTER_TIER="$2"; shift 2 ;;
         --package)     FILTER_PACKAGE="$2"; shift 2 ;;
+        --with-checks)  WITH_CHECKS=true; shift ;;
         --dry-run)     DRY_RUN=true;     shift ;;
         --force)       FORCE=true;       shift ;;
         *)
@@ -336,6 +340,9 @@ build_package_podman() {
         MOCK_CACHE_ARGS=(-v "${MOCK_CACHE_DIR}:/var/cache/mock:Z")
     fi
 
+    local mock_check_flag="--nocheck"
+    $WITH_CHECKS && mock_check_flag=""
+
     podman run --rm --privileged \
         --pull=always \
         -v "${builddir}:/builddir:Z" \
@@ -373,7 +380,7 @@ build_package_podman() {
                     --rebuild /builddir/SRPMS/*.src.rpm \\
                     --resultdir=/builddir/results \\
                     --define 'dist ${DIST}' \\
-                    --nocheck \\
+                    ${mock_check_flag} \\
                     --no-clean \\
                     --no-cleanup-after || {
                         echo 'ERROR: mock failed. Printing build.log:';
@@ -463,13 +470,16 @@ build_package_mock() {
     # locked to prevent parallel jobs from corrupting it.
     flock "${LOCAL_REPO}/repo.lock" -c "createrepo_c --update \"${LOCAL_REPO}\""
 
+    local mock_check_flag="--nocheck"
+    $WITH_CHECKS && mock_check_flag=""
+
     flock "${LOCAL_REPO}/repo.lock" -c "
         mock -r \"${MOCK_CONFIG}\" \\
             --uniqueext=\"${pkg_name}\" \\
             --rebuild \"$srpm\" \\
             --resultdir=\"$resultdir\" \\
             --define \"dist ${DIST}\" \\
-            --nocheck \\
+            ${mock_check_flag} \\
             --no-clean \\
             --no-cleanup-after || {
                 echo 'ERROR: mock failed. Printing build.log:';
@@ -702,6 +712,7 @@ main() {
     log "  Jobs:       ${JOBS}"
     [[ -n "$FILTER_TIER" ]]    && log "  Tier filter: ${FILTER_TIER}"
     [[ -n "$FILTER_PACKAGE" ]] && log "  Pkg filter:  ${FILTER_PACKAGE}"
+    $WITH_CHECKS && log "  RPM %check: enabled"
 
     if ! $DRY_RUN; then
         case "$BACKEND" in

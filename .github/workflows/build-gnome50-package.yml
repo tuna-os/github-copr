@@ -1,9 +1,10 @@
 name: GNOME 50 Package Build (Incremental)
 
 on:
+  # This inexpensive detect job runs on every PR so the stable gate job can
+  # be a repository-wide required check.  It exits successfully when no
+  # GNOME 50 source changed; a GNOME update runs the full EL10 gate below.
   pull_request:
-    paths:
-      - 'src/gnome-50/**'
   push:
     branches:
       - main
@@ -120,10 +121,13 @@ jobs:
             --manifest build-order.yml \
             --mock-config centos-stream-10-ci-gnome50 \
             --package "${{ matrix.package }}" \
+            --with-checks \
             --force
 
       - name: Import GPG key and sign
-        if: github.event_name != 'pull_request'
+        # Only a protected main push may sign a release. Workflow dispatches
+        # are test-only so candidate builds cannot publish accidentally.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: crazy-max/ghaction-import-gpg@v7
         id: import-gpg
         with:
@@ -131,7 +135,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Sign new RPMs
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           echo "%_signature gpg" > ~/.rpmmacros
           echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
@@ -139,7 +143,7 @@ jobs:
           createrepo_c --update local-repo
 
       - name: Upload updated package to R2
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           rclone sync local-repo/ "r2:${R2_BUCKET}/${R2_REPO_PATH}/"
 
@@ -160,7 +164,7 @@ jobs:
           echo "Smoke test passed: RPM installs cleanly on CentOS Stream 10"
 
       - name: Upload RPMs as artifact (PR builds)
-        if: github.event_name == 'pull_request'
+        if: github.event_name != 'push' || github.ref != 'refs/heads/main'
         uses: actions/upload-artifact@v7
         with:
           name: rpms-${{ strategy.job-index }}
@@ -169,7 +173,10 @@ jobs:
 
   verify-login:
     needs: [detect-changes, build]
-    if: ${{ github.event_name == 'pull_request' && needs.detect-changes.outputs.has_session_package == 'true' }}
+    # A library-only bump can still make the GNOME session fail at runtime.
+    # Boot every GNOME 50 update in an EL10 VM; do not limit this to the
+    # obvious session packages such as mutter and gnome-shell.
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -285,3 +292,26 @@ jobs:
       - name: Stop Lima VM
         if: always()
         run: limactl stop gnome50-pr-test --force || true
+
+  # Keep this job name stable: it is the branch-protection context that
+  # Renovate waits for.  A green package build alone is insufficient; the
+  # candidate must also boot GDM and keep gnome-shell alive on EL10.
+  el10-release-gate:
+    needs: [detect-changes, build, verify-login]
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require build and runtime verification
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          LOGIN_RESULT: ${{ needs.verify-login.result }}
+          PACKAGES: ${{ needs.detect-changes.outputs.packages }}
+        run: |
+          if [[ "${PACKAGES}" = '[]' ]]; then
+            echo "No GNOME 50 source changed; EL10 GNOME release gate not applicable."
+            exit 0
+          fi
+          test "${PACKAGES}" != '[]'
+          test "${BUILD_RESULT}" = 'success'
+          test "${LOGIN_RESULT}" = 'success'
+          echo "EL10 build, RPM %check, install, GDM boot, and greeter-stability gates passed."
