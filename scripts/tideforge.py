@@ -278,8 +278,14 @@ Rules-Requires-Root: no
         "debian/changelog": changelog,
         "debian/source/format": "3.0 (quilt)\n",
     }
-    for package in binary_packages:
-        rendered[f"debian/{package['name']}.install"] = "\n".join(package.get("files", recipe["files"]["common"])) + "\n"
+    # Tideforge's Go, Cargo, and data renderers install directly into
+    # debian/<binary-package>.  A .install file would make dh_install search
+    # debian/tmp for those same files and fail the package build.  Native
+    # build-system packages retain .install metadata for dh_auto_install.
+    direct_install = recipe["build_system"] in {"cargo", "go", "data"} or bool(recipe.get("install"))
+    if not direct_install:
+        for package in binary_packages:
+            rendered[f"debian/{package['name']}.install"] = "\n".join(package.get("files", recipe["files"]["common"])) + "\n"
     return rendered
 
 

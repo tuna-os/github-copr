@@ -15,4 +15,5 @@ nodes:
   wayland-stack: {kind: distro-build-dependency}
   libseat: {kind: distro-build-dependency}
   qt6-wayland: {kind: distro-build-dependency}
-  greetd: {kind: distro-or-factory-package}
+  greetd: {source: kennylevinsen/greetd, needs: [cargo-toolchain, pam-dev]}
+  pam-dev: {kind: distro-build-dependency}

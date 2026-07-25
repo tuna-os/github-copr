@@ -116,6 +116,7 @@ def test_recipe_renders_go_builds(recipe: dict) -> None:
     assert "go build -buildmode=pie" in rpm
     assert "go build -buildmode=pie" in deb
     assert "go build -buildmode=pie" in arch
+    assert "debian/hello-tuna.install" not in tideforge.render(recipe, "debian")
 
 
 def test_recipe_installs_reviewed_source_files(recipe: dict) -> None:
@@ -138,6 +139,7 @@ def test_deb_rooted_source_directory_excludes_generated_debian_metadata(recipe: 
     recipe["install"] = {"directories": [{"source": ".", "destination": "usr/share/demo"}]}
     rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
     assert '[ "$entry" = "./debian" ] && continue' in rules
+    assert "debian/hello-tuna.install" not in tideforge.render(recipe, "ubuntu")
 
 
 def test_rpm_rooted_release_archive_gets_a_safe_build_directory(recipe: dict) -> None:
