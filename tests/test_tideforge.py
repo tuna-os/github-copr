@@ -51,3 +51,15 @@ def test_recipe_rejects_unknown_target(recipe: dict) -> None:
     recipe["targets"] = ["imaginary"]
     with pytest.raises(SystemExit):
         tideforge.validate(recipe)
+
+
+def test_recipe_renders_subpackages(recipe: dict) -> None:
+    recipe["outputs"] = {
+        "rpm": {"subpackages": [{"name": "devel", "summary": "Headers", "files": ["usr/include/demo"]}]},
+        "deb": {"packages": [{"name": "libdemo0", "files": ["usr/lib/libdemo.so.0"]}]},
+    }
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "ubuntu")
+    assert "%package devel" in rpm
+    assert "Package: libdemo0" in deb["debian/control"]
+    assert "debian/libdemo0.install" in deb

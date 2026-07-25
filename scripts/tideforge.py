@@ -81,7 +81,17 @@ def rpm_build_lines(build_system: str) -> tuple[str, str]:
 def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     build, install = rpm_build_lines(recipe["build_system"])
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
-    files = "\n".join(f"/{path.lstrip('/')}" for path in recipe["files"]["common"])
+    rpm_output = recipe.get("outputs", {}).get("rpm", {})
+    files = "\n".join(f"/{path.lstrip('/')}" for path in rpm_output.get("files", recipe["files"]["common"]))
+    subpackage_definitions = "\n".join(
+        f"%package {subpackage['name']}\nSummary: {subpackage['summary']}\n\n%description {subpackage['name']}\n{subpackage.get('description', subpackage['summary'])}\n"
+        for subpackage in rpm_output.get("subpackages", [])
+    )
+    subpackage_files = "\n".join(
+        f"%files {subpackage['name']}\n" + "\n".join(f"/{path.lstrip('/')}" for path in subpackage["files"]) + "\n"
+        for subpackage in rpm_output.get("subpackages", [])
+    )
+    source_directory = recipe["source"].get("directory", f"%{{name}}-%{{version}}")
     spec = f"""Name:           {recipe['name']}
 Version:        {recipe['version']}
 Release:        {recipe.get('release', 1)}%{{?dist}}
@@ -93,8 +103,10 @@ Source0:        {recipe['source']['url']}
 %description
 {recipe['description']}
 
+{subpackage_definitions}
+
 %prep
-%autosetup -n %{{name}}-%{{version}}
+%autosetup -n {source_directory}
 
 %build
 {build}
@@ -105,6 +117,8 @@ Source0:        {recipe['source']['url']}
 %files
 {files}
 
+{subpackage_files}
+
 %changelog
 * Thu Jan 01 1970 TunaOS Package Factory <packages@tunaos.org> - {recipe['version']}-{recipe.get('release', 1)}
 - Generated from package.yaml
@@ -114,6 +128,17 @@ Source0:        {recipe['source']['url']}
 
 def render_deb(recipe: dict, target: str) -> dict[str, str]:
     build_deps = ", ".join(target_dependencies(recipe, target))
+    deb_output = recipe.get("outputs", {}).get("deb", {})
+    binary_packages = deb_output.get("packages", [{"name": recipe["name"], "summary": recipe["summary"], "description": recipe["description"], "files": recipe["files"]["common"]}])
+    package_stanzas = "\n".join(
+        f"""Package: {package['name']}
+Architecture: any
+Depends: ${{shlibs:Depends}}, ${{misc:Depends}}
+Description: {package.get('summary', recipe['summary'])}
+ {package.get('description', recipe['description'])}
+"""
+        for package in binary_packages
+    )
     control = f"""Source: {recipe['name']}
 Section: misc
 Priority: optional
@@ -122,23 +147,20 @@ Build-Depends: debhelper-compat (= 13){', ' if build_deps else ''}{build_deps}
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
 
-Package: {recipe['name']}
-Architecture: any
-Depends: ${{shlibs:Depends}}, ${{misc:Depends}}
-Description: {recipe['summary']}
- {recipe['description']}
+{package_stanzas}
 """
     buildsystem = {"meson": "meson", "autotools": "autoconf", "cmake": "cmake"}[recipe["build_system"]]
     rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem={buildsystem}\n"
     changelog = f"{recipe['name']} ({recipe['version']}-{recipe.get('release', 1)}) {target}; urgency=medium\n\n  * Generated from package.yaml.\n\n -- TunaOS Package Factory <packages@tunaos.org>  Thu, 01 Jan 1970 00:00:00 +0000\n"
-    install = "\n".join(recipe["files"]["common"]) + "\n"
-    return {
+    rendered = {
         "debian/control": control,
         "debian/rules": rules,
         "debian/changelog": changelog,
         "debian/source/format": "3.0 (quilt)\n",
-        f"debian/{recipe['name']}.install": install,
     }
+    for package in binary_packages:
+        rendered[f"debian/{package['name']}.install"] = "\n".join(package.get("files", recipe["files"]["common"])) + "\n"
+    return rendered
 
 
 def render(recipe: dict, target: str) -> dict[str, str]:

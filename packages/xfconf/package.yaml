@@ -1,0 +1,53 @@
+schema: 1
+name: xfconf
+version: "4.21.2"
+release: 6
+summary: Xfce configuration daemon and library
+description: Xfce configuration daemon and library required by Xfce components.
+license: GPL-2.0-or-later
+source:
+  url: https://gitlab.xfce.org/xfce/xfconf/-/archive/a6f0a7aa9073f9d8a0935cee73c0da52b6e49660/xfconf-a6f0a7aa9073f9d8a0935cee73c0da52b6e49660.tar.gz
+  sha256: b1ac015013b4c6b1f39ff487c05eecba2ff3ac1153868db067e0ffde1f2f337a
+  directory: xfconf-a6f0a7aa9073f9d8a0935cee73c0da52b6e49660
+build_system: meson
+dependencies:
+  build:
+    common: [meson, ninja-build, pkg-config, intltool, gettext]
+    targets:
+      el10: [gcc, glib2-devel, dbus-devel, libxfce4util-devel, gobject-introspection-devel, vala]
+      ubuntu: [debhelper-compat, libglib2.0-dev, libdbus-1-dev, libxfce4util-dev, gobject-introspection, libgirepository1.0-dev]
+      debian: [debhelper-compat, libglib2.0-dev, libdbus-1-dev, libxfce4util-dev, gobject-introspection, libgirepository1.0-dev]
+files:
+  common: [usr/bin/xfconf-query]
+targets: [el10, ubuntu, debian]
+outputs:
+  rpm:
+    files:
+      - usr/lib64/libxfconf*.so.*
+      - usr/lib64/xfce4/xfconf/xfconfd
+      - usr/bin/xfconf-query
+      - usr/lib64/gio/modules/libxfconfgsettingsbackend.so
+      - usr/share/bash-completion/completions/xfconf-query
+      - usr/lib/systemd/user/xfconfd.service
+      - usr/share/dbus-1/services/*.service
+    subpackages:
+      - name: devel
+        summary: Development files for xfconf
+        description: Headers, pkgconfig, introspection, and Vala bindings for xfconf.
+        files:
+          - usr/include/xfce4/xfconf-0/xfconf/
+          - usr/lib64/libxfconf*.so
+          - usr/lib64/pkgconfig/*.pc
+          - usr/lib64/girepository-1.0/*.typelib
+          - usr/share/gir-1.0/*.gir
+          - usr/share/vala/vapi/*
+  deb:
+    packages:
+      - name: libxfconf-0-4
+        summary: Xfce configuration daemon and library
+        description: Xfce configuration daemon and library required by Xfce components.
+        files: [usr/lib/*/libxfconf*.so.*, usr/lib/*/xfce4/xfconf/xfconfd, usr/bin/xfconf-query]
+      - name: libxfconf-0-dev
+        summary: Development files for libxfconf
+        description: Headers, pkgconfig, introspection, and Vala bindings for xfconf.
+        files: [usr/include/xfce4/xfconf-0/xfconf/, usr/lib/*/libxfconf*.so, usr/lib/*/pkgconfig/*.pc]

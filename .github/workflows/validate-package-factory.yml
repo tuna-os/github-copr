@@ -32,3 +32,16 @@ jobs:
           python-version: '3.14'
       - run: pip install pyyaml
       - run: python3 scripts/validate-package-factory.py manifests/package-factory.yaml
+      - name: Validate and render Tideforge recipes
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for recipe in packages/*/package.yaml; do
+            python3 scripts/tideforge.py validate "$recipe"
+            while IFS= read -r target; do
+              output="$(mktemp -d)"
+              python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$output"
+              test -n "$(find "$output" -type f -print -quit)"
+              find "$output" -depth -delete
+            done < <(python3 -c 'import sys,yaml; print("\n".join(yaml.safe_load(open(sys.argv[1]))["targets"]))' "$recipe")
+          done
