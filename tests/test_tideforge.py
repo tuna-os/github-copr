@@ -91,6 +91,11 @@ def test_rpm_and_deb_preserve_runtime_dependencies(recipe: dict) -> None:
     assert "Depends: ${shlibs:Depends}, ${misc:Depends}, dbus, bluez" in deb
 
 
+def test_rpm_changelog_uses_a_valid_rpm_date(recipe: dict) -> None:
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "* Sat Jul 25 2026 TunaOS Package Factory" in spec
+
+
 def test_recipe_renders_go_builds(recipe: dict) -> None:
     recipe["build_system"] = "go"
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]

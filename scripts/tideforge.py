@@ -203,7 +203,7 @@ Source0:        {recipe['source']['url']}
 {subpackage_files}
 
 %changelog
-* Thu Jan 01 1970 TunaOS Package Factory <packages@tunaos.org> - {recipe['version']}-{recipe.get('release', 1)}
+* Sat Jul 25 2026 TunaOS Package Factory <packages@tunaos.org> - {recipe['version']}-{recipe.get('release', 1)}
 - Generated from package.yaml
 """
     return {f"{recipe['name']}.spec": spec}
