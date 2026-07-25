@@ -16,13 +16,7 @@ build:
   binary: dms
 dependencies:
   build:
-    common: [go]
-    targets:
-      el10: [golang]
-      ubuntu: [golang-go]
-      debian: [golang-go]
-      opensuse-tumbleweed: [go]
-      arch: [go]
+    capabilities: [go]
   runtime:
     common: [dms, quickshell]
 files:
