@@ -166,7 +166,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     elif recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
-        build = f"cd {workdir}\ncargo build --release --locked{selector}"
+        build = f"cd {workdir}\nCARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
@@ -191,17 +191,12 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         else f"%autosetup -n {source_directory}"
     )
     extra_install = "\n".join(filter(None, [install_commands(recipe, "%{buildroot}"), install_directories(recipe, "%{buildroot}")]))
-    # Tideforge's Go, Cargo, and data renderers do not produce RPM-compatible
-    # debug-source payloads. EL10's automatic debug subpackage otherwise fails
-    # with an empty debugsource list after a successful build.
+    # Tideforge's Go and data renderers do not produce RPM-compatible
+    # debug-source payloads. Cargo builds retain debuginfo so native RPM debug
+    # packages can be generated normally.
     rpm_preamble = ""
     if recipe["build_system"] in {"go", "data"}:
         rpm_preamble = "%global debug_package %{nil}\n"
-    elif recipe["build_system"] == "cargo":
-        # Cargo can still trigger EL10's debug-source generation even after
-        # disabling binary debug packages, while release builds omit source
-        # debug data entirely.
-        rpm_preamble = "%global debug_package %{nil}\n%undefine _enable_debug_packages\n%undefine _debugsource_packages\n"
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
 Release:        {recipe.get('release', 1)}%{{?dist}}
@@ -266,7 +261,7 @@ Rules-Requires-Root: no
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && cargo build --release --locked{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n"
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -311,7 +306,7 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
-        build = f"cd {workdir}\n  cargo build --release --locked{selector}"
+        build = f"cd {workdir}\n  CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} \"$pkgdir/usr/bin/{binary}\""
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")

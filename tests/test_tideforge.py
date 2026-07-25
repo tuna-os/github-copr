@@ -108,10 +108,10 @@ def test_data_rpm_disables_empty_automatic_debug_packages(recipe: dict) -> None:
     assert spec.startswith("%global debug_package %{nil}\nName:")
 
 
-def test_cargo_rpm_disables_empty_automatic_debug_packages(recipe: dict) -> None:
+def test_cargo_rpm_retains_native_debug_packages(recipe: dict) -> None:
     recipe["build_system"] = "cargo"
     spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
-    assert spec.startswith("%global debug_package %{nil}\n%undefine _enable_debug_packages\n%undefine _debugsource_packages\nName:")
+    assert not spec.startswith("%global debug_package")
 
 
 def test_recipe_renders_go_builds(recipe: dict) -> None:
@@ -169,9 +169,9 @@ def test_cargo_recipe_uses_declared_workspace_and_binary(recipe: dict) -> None:
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
     deb = tideforge.render(recipe, "debian")["debian/rules"]
     arch = tideforge.render(recipe, "arch")["PKGBUILD"]
-    assert "cd service\ncargo build --release --locked --package daemon" in rpm
+    assert "cd service\nCARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked --package daemon" in rpm
     assert "service/target/release/demo-daemon" in deb
-    assert "cd service\n  cargo build --release --locked --package daemon" in arch
+    assert "cd service\n  CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked --package daemon" in arch
 
 
 def test_dependency_capabilities_resolve_to_native_target_packages(recipe: dict) -> None:
