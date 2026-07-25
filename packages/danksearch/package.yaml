@@ -1,0 +1,21 @@
+schema: 1
+name: danksearch
+version: "0.3.2"
+release: 1
+summary: Dank Linux indexed filesystem search
+description: Fast indexed filesystem search service and command-line client for the Dank Linux desktop suite.
+license: MIT
+source:
+  url: https://github.com/AvengeMedia/danksearch/archive/refs/tags/v0.3.2.tar.gz
+  sha256: 9454a2935c149ca3eb64106d59c266f513daff90438bac8b58e3a66b477521a9
+  directory: danksearch-0.3.2
+build_system: go
+build:
+  go_package: ./cmd/dsearch
+  binary: dsearch
+dependencies:
+  build:
+    capabilities: [go]
+files:
+  common: [usr/bin/dsearch]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

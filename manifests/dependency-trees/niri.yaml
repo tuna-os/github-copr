@@ -1,13 +1,15 @@
 schema: 1
 tree: niri-dms
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
-roots: [niri, dms, dms-greeter]
+roots: [niri, dms, dms-cli, dms-greeter, dgop, danksearch, iio-niri]
 nodes:
   niri: {source: niri-wm/niri, needs: [cargo-toolchain, wayland-stack, libseat]}
   quickshell: {source: quickshell-mirror/quickshell, needs: [qt6-wayland, wayland-stack]}
   dms: {source: AvengeMedia/DankMaterialShell, needs: [quickshell]}
   dms-cli: {source: AvengeMedia/DankMaterialShell, needs: [dms]}
   dms-greeter: {source: AvengeMedia/DankMaterialShell, needs: [dms, greetd]}
+  dgop: {source: AvengeMedia/dgop, needs: []}
+  danksearch: {source: AvengeMedia/danksearch, needs: []}
   iio-niri: {source: Zhaith-Izaliel/iio-niri, needs: [niri]}
   cargo-toolchain: {kind: distro-build-dependency}
   wayland-stack: {kind: distro-build-dependency}

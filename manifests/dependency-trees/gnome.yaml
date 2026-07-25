@@ -16,5 +16,6 @@ nodes:
   gnome-shell: {source: GNOME/gnome-shell, needs: [mutter, gobject-introspection]}
   gnome-session: {source: GNOME/gnome-session, needs: [gtk4]}
   gdm: {source: GNOME/gdm, needs: [gnome-shell, gnome-session]}
-  uupd: {source: ublue-os/uupd, needs: [cargo-toolchain]}
+  uupd: {source: ublue-os/uupd, needs: [go-toolchain]}
   cargo-toolchain: {kind: distro-build-dependency}
+  go-toolchain: {kind: distro-build-dependency}

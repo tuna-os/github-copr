@@ -1,0 +1,21 @@
+schema: 1
+name: dgop
+version: "0.2.3"
+release: 1
+summary: Dank Linux system and process monitor
+description: Command-line and REST API system monitor used by the Dank Linux desktop suite.
+license: MIT
+source:
+  url: https://github.com/AvengeMedia/dgop/archive/refs/tags/v0.2.3.tar.gz
+  sha256: afd2f9542ce25c739b13d6213fdfbc5493bce537d5afec309b4df945e318ff1a
+  directory: dgop-0.2.3
+build_system: go
+build:
+  go_package: ./cmd/dgop
+  binary: dgop
+dependencies:
+  build:
+    capabilities: [go]
+files:
+  common: [usr/bin/dgop]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
