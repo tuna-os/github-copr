@@ -1,260 +1,102 @@
 # TunaOS Packages
 
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
-[![Security Policy](https://img.shields.io/badge/Security-Policy-7b68ee.svg)](SECURITY.md)
+`tunaos-packages` is the GitHub-hosted package factory for TunaOS. It replaces
+runtime COPR/PPA dependencies with source-controlled, tested packages published
+to TunaOS repositories. GitHub Actions builds and tests; Cloudflare R2 serves
+the resulting rpm-md/APT/Pacman repositories. ORAS is reserved for immutable
+source, SBOM, and provenance bundles—not live package-manager endpoints.
 
-The TunaOS cross-distro package factory. It builds, tests, signs, and publishes
-project-owned RPM and DEB repositories from GitHub Actions to Cloudflare R2.
+## Status
 
-See [the package-factory contract](docs/PACKAGE_FACTORY.md) for supported
-targets, upstream-source policy, and the migration away from COPRs and PPAs.
+| Target | Format | Status |
+| --- | --- | --- |
+| EL10 | RPM / rpm-md | Active production pipeline |
+| Ubuntu Resolute | DEB / APT | Native packaging foundation |
+| Debian Trixie | DEB / APT | Native packaging foundation |
+| openSUSE Tumbleweed | RPM / rpm-md | Build scaffold |
+| Arch | pkg.tar.zst / Pacman | Build scaffold |
 
-The first active repository is GNOME 50 for EL10. Most packages are imported
-from Fedora dist-git; EL10-specific fixes remain maintained in this repository.
+The target contract and repository paths live in
+[`manifests/package-factory.yaml`](manifests/package-factory.yaml).
 
-## Quick Install
+## How it works
+
+```text
+upstream source + pinned checksum
+        ↓
+native spec/control/PKGBUILD (or experimental Tideforge recipe)
+        ↓
+GitHub Actions target build → staged repository install → desktop smoke test
+        ↓
+sign + publish only after every gate passes
+```
+
+TunaOS consumes only its staged or promoted repositories. An upstream COPR,
+PPA, or image filesystem is never a runtime package source.
+
+## Package classes
+
+- `src/gnome-50/` and `src/deps/` contain the established native EL10 RPM
+  pipeline. GNOME 50's bootstrap cycle and `gnome50-el10-compat` remain native
+  RPM work because they use patches, scriptlets, file triggers, SELinux policy,
+  and EL10-specific dependency workarounds.
+- `src/xfce-wayland/` is the native XFCE/XFWL4 build chain.
+- `packages/<name>/package.yaml` is the experimental Tideforge single-recipe
+  path. It currently validates source pins and renders native RPM/DEB metadata;
+  it is not a promotion path until build/install/runtime parity is proven.
+
+## Desktop queues
+
+Dependency trees describe source order. Target queues describe native packaging
+and release gates for each distro:
+
+- [`GNOME`](manifests/dependency-trees/gnome.yaml) / [target queues](manifests/target-queues/gnome.yaml)
+- [`Niri + DMS`](manifests/dependency-trees/niri.yaml) / [target queues](manifests/target-queues/niri.yaml)
+- [`XFCE + XFWL4`](manifests/dependency-trees/xfce.yaml) / [target queues](manifests/target-queues/xfce.yaml)
+- [`COSMIC`](manifests/dependency-trees/cosmic.yaml)
+- [`Aurora KDE`](manifests/dependency-trees/kde.yaml)
+
+Queues are intentionally target-native. For example, latest GNOME on Debian
+gets Debian packages; it does not inherit EL10's SELinux/PAM compatibility
+package or RPM triggers.
+
+## Add a package
+
+1. Add it to the appropriate dependency tree and target queue.
+2. Prefer an existing distro package. Otherwise import source with an upstream
+   revision/tag, license review, and SHA-256.
+3. For a straightforward project, copy `packages/_template/package.yaml`.
+   Keep genuinely different dependency names in target overrides.
+4. For EL10 backports requiring patches, RPM scriptlets, triggers, SELinux, or
+   bootstrap ordering, add/maintain a native spec under `src/` instead.
+5. Add build, staged-install, and session/runtime gates before promotion.
+
+Useful local checks:
 
 ```bash
-dnf -y install dnf-plugins-core
-dnf config-manager --add-repo https://repo.tunaos.org/gnome50/10-stream-x86_64/
-dnf -y install gnome-shell gdm mutter gnome-session nautilus gnome50-el10-compat
+python3 scripts/validate-package-factory.py manifests/package-factory.yaml
+python3 scripts/tideforge.py validate packages/niri/package.yaml
+python3 scripts/verify-tideforge-source.py packages/niri/package.yaml
+python3 -m pytest tests/ -q
 ```
 
-## Architecture
+## Stable source updates
 
-```
-Fedora dist-git / Bluefin / Aurora source metadata ──▶┐
-TunaOS packaging and patches                           ├──▶ GitHub Actions
-                                                        └──▶ signed R2 repositories
-```
+`Bump Stable Package Sources` runs weekly. It tracks the latest non-prerelease
+GitHub release, updates a recipe's version/source/checksum atomically, and
+opens a PR. It never publishes directly: normal build, staged-install, and
+desktop gates still control release.
 
-- **~50 packages** pull directly from Fedora Rawhide dist-git — no local spec needed.
-- **8 packages** require a modified spec checked into this repo (see below).
-- **1 package** (`gnome50-el10-compat`) is EL10-specific, not in Fedora at all.
+## Promotion policy
 
-Historical migration notes are tracked in [`COPR-AUDIT.md`](COPR-AUDIT.md).
+An artifact can reach a stable TunaOS repository only after it:
 
-## Modified Specs (Diverge from Rawhide)
+1. verifies its source checksum;
+2. builds in the declared native target;
+3. installs from a staged repository;
+4. passes relevant desktop/session checks; and
+5. is signed and promoted by CI.
 
-These packages cannot use Fedora Rawhide dist-git directly and must be built from the
-specs in this repository. Each entry documents exactly what was changed and why.
-
----
-
-### `glib2` — `src/gnome-50/glib2/`
-
-**Build method:** SRPM upload
-**Our version:** 2.87.3 · **Rawhide:** 2.87.5
-
-Changes from rawhide required for EL10:
-
-- **Manual meson invocation** — replaced `%meson` / `%meson_build` / `%meson_install`
-  macros with explicit `meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain`
-  calls. The `BuildSystem: meson` macro had EL10 compatibility issues.
-- **Simplified BuildRequires** — removed `pkgconfig(gi-docgen)`, `/usr/bin/rst2man`,
-  `shared-mime-info`, `dbus-daemon`, `update-desktop-database` (not available or needed
-  on EL10 at build time). Added `BuildRequires: gobject-introspection-devel` in their place.
-- **Added `%transfiletriggerin` scriptlets** — runs `glib-compile-schemas` when schemas
-  are installed. EL10's stock `%post` scriptlets from mock-installed RPMs may not fire;
-  this ensures schemas are always compiled.
-- **Removed `Conflicts: gobject-introspection < 1.79.1`** — avoids complications with
-  EL10's stock gobject-introspection version.
-- **Version lag** — currently at 2.87.3; rawhide is at 2.87.5. Needs rebasing.
-
----
-
-### `gdm` — `src/gnome-50/gdm/`
-
-**Build method:** SCM (`just copr-scm-build src/gnome-50/gdm`)
-**Our version:** 50~rc · **Rawhide:** 50~rc (same)
-
-Changes from rawhide required for EL10:
-
-- **Added `Requires: gnome50-el10-compat`** — pulls in the PAM fix for GDM's dynamic
-  greeter user allocation on EL10. GDM 50 allocates greeter users (`gdm-greeter-N`)
-  dynamically via systemd's Varlink userdb API. EL10's `pam_unix.so` calls `unix_chkpwd`
-  which cannot resolve these dynamic users, returning `PAM_AUTHINFO_UNAVAIL` and
-  preventing the greeter session from launching. `gnome50-el10-compat` overrides
-  `/etc/pam.d/systemd-user` with `account required pam_permit.so` to work around this.
-
-> This is the only change from rawhide. All patches, build flags, and install sections
-> are identical to Fedora's GDM spec.
-
----
-
-### `gjs` — `src/gnome-50/gjs/`
-
-**Build method:** SCM (`just copr-scm-build src/gnome-50/gjs`)
-**Our version:** 1.87.90 · **Rawhide:** 1.87.90 (same)
-
-Changes from rawhide required for EL10:
-
-- **Tests disabled** (`%bcond_with tests`) — rawhide unconditionally runs the gjs test
-  suite via `xwfb-run`, which requires `xwayland-run`, `dbus-x11`, `mesa-dri-drivers`,
-  and `mutter` at build time. None of these are available in the EL10 COPR buildroot.
-  All test BuildRequires and the `%meson_test` call are gated behind `%{with tests}`,
-  which defaults to off.
-- **Manual meson invocation** — same pattern as glib2: explicit `meson setup` instead
-  of `%meson` macro, for EL10 compat.
-
-> `gjs-bootstrap.spec` also exists in the same directory for breaking the circular dep
-> with mutter during initial bootstrapping. `just copr-scm-build` automatically selects
-> `gjs.spec` (non-bootstrap).
-
----
-
-### `gnome-desktop3` — `src/gnome-50/gnome-desktop3/`
-
-**Build method:** SCM (`just copr-scm-build src/gnome-50/gnome-desktop3`)
-**Our version:** 44.5 · **Rawhide:** 44.5 (same)
-
-Changes from rawhide required for EL10:
-
-- **Removed `BuildRequires: pkgconfig(gtk+-3.0)`** — gtk3 is not available in EL10's
-  COPR build environment.
-- **Added `-Dlegacy_library=false`** to meson options — disables `libgnome-desktop-3`
-  (the legacy gtk3 library). Without this, the build fails trying to link against gtk3.
-  The gtk4 library (`libgnome-desktop-4`) is still built normally and is what GNOME 50
-  packages actually use.
-- **Removed `Requires: gnome-desktop3` from gnome-desktop4 subpackage** — since the
-  base package no longer ships a runtime library.
-- **Removed `%files` entries for `libgnome-desktop-3*`** — not built.
-
----
-
-### `gtk4` — `src/gnome-50/gtk4/`
-
-**Build method:** SCM (`just copr-scm-build src/gnome-50/gtk4`)
-**Our version:** 4.21.6-2 · **Rawhide:** 4.21.6 (same upstream)
-
-Changes from rawhide required for EL10 (all gated behind `%if !0%{?rhel}`):
-
-- **Gated `BuildRequires: pkgconfig(gstreamer-player-1.0)`** — `gstreamer1-plugins-bad-free-devel`
-  depends on `libgtk-3.so.0`, which is not available in EL10.
-- **Added `-Dmedia-gstreamer=disabled`** — the gstreamer media backend uses a `gstreamer-full`
-  meson wrap that isn't available in the EL10 COPR buildroot. With `--wrap-mode=nodownload`
-  enforced, meson would error out trying to fetch it. Gated behind `%if 0%{?rhel}`.
-- **Gated `Requires: gstreamer1-plugins-bad-free-libs`** — runtime dep dropped on EL10
-  since the gstreamer backend is disabled.
-
----
-
-### `tinysparql` — `src/deps/tinysparql/`
-
-**Build method:** SCM (`just copr-scm-build src/deps/tinysparql`)
-**Our version:** 3.11~rc · **Rawhide:** 3.11~rc (same)
-
-Changes from rawhide required for EL10 (all gated behind `%if !0%{?rhel}`):
-
-- **Gated `BuildRequires: asciidoc`** — `asciidoc` requires `source-highlight`, which
-  requires `libboost_regex.so.1.83.0`. EL10 ships boost with an ABI-incompatible version
-  and `source-highlight` has not been rebuilt against it, so the dep chain is broken.
-- **Gated `-Dman-pages` meson option** — man page generation requires `asciidoc`.
-  On EL10 the option is set to `disabled`; on Fedora it uses `auto`.
-- **Gated `%files` entries for `tinysparql*.1` man pages** — not generated on EL10.
-
----
-
-### `gnome-autoar` — `src/deps/gnome-autoar/`
-
-**Build method:** SCM (`just copr-scm-build src/deps/gnome-autoar`)
-**Our version:** 0.4.5-4 · **Rawhide:** 0.4.5 (same upstream)
-
-Changes from rawhide required for EL10:
-
-- **Added `-Dgtk=false`** — disables the `gnome-autoar-gtk` widget subpackage, which
-  requires `gtk+-3.0`. gtk3 is not in EL10.
-- **Added `-Dvapi=false`** — disables Vala bindings (tied to the gtk widget).
-- **Added `-Dgtk_doc=false` and `-Dtests=false`** — removes unnecessary gtk-doc and
-  test dependencies.
-- **Removed `BuildRequires: pkgconfig(gtk+-3.0)` and `vala`**.
-- **Removed `%files` entries** for `libgnome-autoar-gtk-0*`, `GnomeAutoarGtk-0.1.*`,
-  vala bindings, and gtk-doc.
-
-> nautilus uses `gnome-autoar-0` (the core archive library), not the gtk widget.
-> Disabling gtk has no functional impact.
-
----
-
-### `gnome50-el10-compat` — `src/deps/gnome50-el10-compat/`
-
-**Build method:** SRPM upload
-**Not in Fedora** — EL10-specific workaround package
-
-This package ships runtime fixes required to run GNOME 50 on EL10 that do not apply
-to Fedora:
-
-- **`/etc/pam.d/systemd-user` override** — replaces the account phase with
-  `account required pam_permit.so`. EL10's `pam_unix` calls `unix_chkpwd` which cannot
-  resolve GDM 50's dynamically-allocated greeter users (`gdm-greeter-N`), causing
-  `PAM_AUTHINFO_UNAVAIL` and a broken greeter session.
-
-- **SELinux policy modules** installed via `semodule -X 300`:
-  - `gdm-gnome50.pp` — allows `xdm_t` to create/unlink sockets in
-    `systemd_userdbd_runtime_t` directories, write `passwd_file_t`, create `etc_t`
-    files. EL10's stock `xdm_t` policy does not permit GDM 50's Varlink userdb socket.
-  - `gdm-userdb-connect.pp` — allows `systemd_userdbd_t`, `chkpwd_t`, and related
-    domains to connect to `xdm_t` unix sockets.
-
-> Install `gnome50-el10-compat` whenever you install `gdm`. It is automatically pulled
-> in as a dependency of the COPR-built `gdm` package.
-
----
-
-## Package Source Quick Reference
-
-```
-# Must use local spec (SCM or SRPM upload):
-
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-glib2               → SRPM   src/gnome-50/glib2/
-gdm                 → SCM    src/gnome-50/gdm/
-gjs                 → SCM    src/gnome-50/gjs/
-gtk4                → SCM    src/gnome-50/gtk4/
-gnome-desktop3      → SCM    src/gnome-50/gnome-desktop3/
-gnome-autoar        → SCM    src/deps/gnome-autoar/
-tinysparql          → SCM    src/deps/tinysparql/
-gnome50-el10-compat → SRPM   src/deps/gnome50-el10-compat/
-
-# Everything else uses Fedora Rawhide dist-git directly:
-
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-mutter, gnome-shell, gtk4, libadwaita, pipewire, pango, fontconfig,
-xdg-desktop-portal, xdg-desktop-portal-gnome, gobject-introspection,
-gsettings-desktop-schemas, gnome-session, gnome-control-center,
-gnome-settings-daemon, nautilus, meson, glycin, mozjs140, gi-docgen,
-localsearch, tinysparql, libnotify, avahi, cairo, blueprint-compiler, …
-```
-
-Full per-package audit with exact diffs: [`COPR-AUDIT.md`](COPR-AUDIT.md)
-
-## Local Development
-
-```bash
-just copr-build <package>                      # Build from Fedora Rawhide dist-git
-just copr-scm-build src/gnome-50/<package>     # Build from our modified spec
-just copr-scm-build src/deps/<package>         # Build from our modified spec
-
-just copr-status                               # Check recent build status
-just copr-logs <build-id>                      # Download and view build logs
-```
-
-See [`CLAUDE.md`](CLAUDE.md) for the full build workflow, known EL10 quirks, and
-debugging tips.
-
-## Known EL10 Runtime Issues
-
-All addressed by installing `gnome50-el10-compat`. See [`workarounds/README.md`](workarounds/README.md)
-for details.
-
-| Issue | Fix |
-|-------|-----|
-| SELinux: `xdm_t` policy blocks GDM 50's Varlink socket | Custom policy modules in `gnome50-el10-compat` |
-| PAM: `pam_unix` can't resolve dynamic greeter users | `/etc/pam.d/systemd-user` override |
-| GLib schemas not compiled after install | `%transfiletriggerin` in our `glib2` spec |
-| No Wayland by default | Set `WaylandEnable=true` in `/etc/gdm/custom.conf` |
-
-## License
-
-MIT
+See [`docs/PACKAGE_FACTORY.md`](docs/PACKAGE_FACTORY.md) for the detailed
+contract and [`docs/UPSTREAM_PARITY.md`](docs/UPSTREAM_PARITY.md) for the
+Bluefin, Aurora, and Zirconium parity inventory.
