@@ -5,6 +5,7 @@ on:
     paths:
       - packages/niri/package.yaml
       - packages/kairpods/package.yaml
+      - packages/krunner-bazaar/package.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
       - scripts/compare-official-package.py
@@ -22,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [niri, kairpods]
+        package: [niri, kairpods, krunner-bazaar]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -39,7 +40,7 @@ jobs:
           docker run --rm --volume "$PWD/.tideforge/arch/${{ matrix.package }}:/work" --workdir /work docker.io/library/archlinux:latest bash -lc '
             set -euo pipefail
             pacman -Syu --noconfirm
-            pacman -S --needed --noconfirm base-devel rust clang git pkgconf cairo glib2 glibc libdisplay-info gcc-libs libinput pipewire libxkbcommon mesa pango pixman seatd systemd dbus bluez bluez-libs
+            pacman -S --needed --noconfirm base-devel rust clang git pkgconf cairo glib2 glibc libdisplay-info gcc-libs libinput pipewire libxkbcommon mesa pango pixman seatd systemd dbus bluez bluez-libs cmake extra-cmake-modules kconfig krunner ki18n kcoreaddons qt6-base gettext
             useradd --create-home builder
             chown -R builder:builder /work
             su builder -s /bin/bash -c "cd /work && PKGDEST=/work/artifacts makepkg --nodeps --noconfirm"
