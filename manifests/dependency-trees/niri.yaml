@@ -6,6 +6,7 @@ nodes:
   niri: {source: niri-wm/niri, needs: [cargo-toolchain, wayland-stack, libseat]}
   quickshell: {source: quickshell-mirror/quickshell, needs: [qt6-wayland, wayland-stack]}
   dms: {source: AvengeMedia/DankMaterialShell, needs: [quickshell]}
+  dms-cli: {source: AvengeMedia/DankMaterialShell, needs: [dms]}
   dms-greeter: {source: AvengeMedia/DankMaterialShell, needs: [dms, greetd]}
   iio-niri: {source: zirconium-dev/zirconium, needs: [niri]}
   cargo-toolchain: {kind: distro-build-dependency}
