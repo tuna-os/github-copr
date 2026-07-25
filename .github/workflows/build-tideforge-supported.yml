@@ -5,6 +5,8 @@ on:
     paths:
       - packages/uupd/package.yaml
       - packages/xfconf/package.yaml
+      - packages/dms/package.yaml
+      - packages/dms-greeter/package.yaml
       - manifests/package-factory.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
@@ -15,6 +17,54 @@ permissions:
   contents: read
 
 jobs:
+  rpm-payload:
+    name: ${{ matrix.package }} (el10 RPM payload)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [dms, dms-greeter]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - name: Render and fetch the exact source archive
+        run: |
+          set -euo pipefail
+          recipe="packages/${{ matrix.package }}/package.yaml"
+          root="$PWD/.tideforge/rpm-payload/${{ matrix.package }}"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 - "$recipe" "$root/rpmbuild/SOURCES" <<'PY'
+          import sys
+          from pathlib import Path
+          from urllib.parse import urlparse
+          from urllib.request import urlretrieve
+          import yaml
+          recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
+          destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
+          urlretrieve(recipe["source"]["url"], destination)
+          PY
+      - name: Build generated RPM payload
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/rpm-payload/${{ matrix.package }}"
+          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install rpm-build rpmdevtools
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
+          '
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ${{ matrix.package }}-el10-rpm-payload
+          path: .tideforge/rpm-payload/${{ matrix.package }}/rpmbuild/RPMS/
+          if-no-files-found: warn
+
   rpm:
     name: ${{ matrix.package }} (${{ matrix.target }} RPM)
     runs-on: ubuntu-latest
