@@ -18,7 +18,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ROOT / "manifests" / "package-factory.yaml"
-VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo"}
+VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go"}
 
 
 def fail(message: str) -> None:
@@ -82,6 +82,8 @@ def rpm_build_lines(build_system: str) -> tuple[str, str]:
         return "%configure\n%make_build", "%make_install"
     if build_system == "cargo":
         return "%cargo_build", "%cargo_install"
+    if build_system == "go":
+        return "go build -buildmode=pie -trimpath -mod=readonly -o %{name} .", "install -Dm0755 %{name} %{buildroot}%{_bindir}/%{name}"
     return "%cmake\n%cmake_build", "%cmake_install"
 
 
@@ -159,6 +161,8 @@ Rules-Requires-Root: no
     buildsystem = {"meson": "meson", "autotools": "autoconf", "cmake": "cmake"}.get(recipe["build_system"])
     if recipe["build_system"] == "cargo":
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcargo build --release --locked\n\noverride_dh_auto_install:\n\tinstall -Dm0755 target/release/{recipe['name']} debian/{recipe['name']}/usr/bin/{recipe['name']}\n"
+    elif recipe["build_system"] == "go":
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tgo build -buildmode=pie -trimpath -mod=readonly -o {recipe['name']} .\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {recipe['name']} debian/{recipe['name']}/usr/bin/{recipe['name']}\n"
     else:
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem={buildsystem}\n"
     changelog = f"{recipe['name']} ({recipe['version']}-{recipe.get('release', 1)}) {target}; urgency=medium\n\n  * Generated from package.yaml.\n\n -- TunaOS Package Factory <packages@tunaos.org>  Thu, 01 Jan 1970 00:00:00 +0000\n"
@@ -187,6 +191,9 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     if recipe["build_system"] == "cargo":
         build = "cargo build --release --locked"
         install = f"install -Dm0755 target/release/{recipe['name']} \"$pkgdir/usr/bin/{recipe['name']}\""
+    elif recipe["build_system"] == "go":
+        build = f"go build -buildmode=pie -trimpath -mod=readonly -o {recipe['name']} ."
+        install = f"install -Dm0755 {recipe['name']} \"$pkgdir/usr/bin/{recipe['name']}\""
     elif recipe["build_system"] == "meson":
         build = "arch-meson build\n  meson compile -C build"
         install = "DESTDIR=\"$pkgdir\" meson install -C build"

@@ -80,3 +80,13 @@ def test_arch_pkgbuild_includes_runtime_dependencies(recipe: dict) -> None:
     recipe["dependencies"]["runtime"] = {"targets": {"arch": ["glibc", "libinput>=1.0"]}}
     rendered = tideforge.render(recipe, "arch")["PKGBUILD"]
     assert "depends=('glibc' 'libinput>=1.0')" in rendered
+
+
+def test_recipe_renders_go_builds(recipe: dict) -> None:
+    recipe["build_system"] = "go"
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "debian")["debian/rules"]
+    arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "go build -buildmode=pie" in rpm
+    assert "go build -buildmode=pie" in deb
+    assert "go build -buildmode=pie" in arch
