@@ -1,0 +1,11 @@
+schema: 1
+tree: aurora-kde
+targets: [el10]
+roots: [krunner-bazaar, ublue-os-selinux-workarounds, oversteer-udev]
+nodes:
+  krunner-bazaar: {source: ublue-os/packages, needs: [plasma-workspace, bazaar]}
+  ublue-os-selinux-workarounds: {source: ublue-os/packages, needs: [selinux-policy]}
+  oversteer-udev: {source: ublue-os/packages, needs: []}
+  plasma-workspace: {kind: distro-package}
+  bazaar: {kind: distro-or-factory-package}
+  selinux-policy: {kind: distro-or-factory-package}

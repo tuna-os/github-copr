@@ -1,0 +1,12 @@
+schema: 1
+tree: xfce-wayland
+targets: [el10, fedora]
+roots: [xfce4-wayland]
+nodes:
+  xfce4-wayland: {source: tuna-os/xfce-wayland, needs: [xfconf, xfce4-session, xfce4-panel, xfdesktop]}
+  xfconf: {source: xfce/xfconf, needs: [glib2, dbus]}
+  xfce4-session: {source: xfce/xfce4-session, needs: [xfconf]}
+  xfce4-panel: {source: xfce/xfce4-panel, needs: [xfconf]}
+  xfdesktop: {source: xfce/xfdesktop, needs: [xfconf]}
+  glib2: {kind: distro-or-factory-package}
+  dbus: {kind: distro-build-dependency}

@@ -1,0 +1,7 @@
+schema: 1
+tree: bluefin-updates
+targets: [el10, ubuntu, debian]
+roots: [uupd]
+nodes:
+  uupd: {source: ublue-os/uupd, needs: [cargo-toolchain]}
+  cargo-toolchain: {kind: distro-build-dependency}
