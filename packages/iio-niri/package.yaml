@@ -1,0 +1,26 @@
+schema: 1
+name: iio-niri
+version: "2.3.1"
+release: 1
+summary: Niri automatic screen rotation bridge
+description: Listens to iio-sensor-proxy and updates Niri output orientation for convertible devices.
+license: MIT
+source:
+  url: https://github.com/Zhaith-Izaliel/iio-niri/archive/refs/tags/v2.3.1.tar.gz
+  sha256: b30cb1934a9a0a8e1be3b0f89e37349b6b3f7f87d25a2a526d92dabf4a5a22b1
+  directory: iio-niri-2.3.1
+build_system: cargo
+dependencies:
+  build:
+    common: [cargo, rust]
+    targets:
+      el10: [gcc, pkgconfig, dbus-devel]
+      ubuntu: [debhelper-compat, pkg-config, libdbus-1-dev]
+      debian: [debhelper-compat, pkg-config, libdbus-1-dev]
+      opensuse-tumbleweed: [gcc, pkg-config, dbus-1-devel]
+      arch: [clang, rust]
+  runtime:
+    common: [niri, iio-sensor-proxy]
+files:
+  common: [usr/bin/iio-niri]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

@@ -8,7 +8,7 @@ nodes:
   dms: {source: AvengeMedia/DankMaterialShell, needs: [quickshell]}
   dms-cli: {source: AvengeMedia/DankMaterialShell, needs: [dms]}
   dms-greeter: {source: AvengeMedia/DankMaterialShell, needs: [dms, greetd]}
-  iio-niri: {source: zirconium-dev/zirconium, needs: [niri]}
+  iio-niri: {source: Zhaith-Izaliel/iio-niri, needs: [niri]}
   cargo-toolchain: {kind: distro-build-dependency}
   wayland-stack: {kind: distro-build-dependency}
   libseat: {kind: distro-build-dependency}
