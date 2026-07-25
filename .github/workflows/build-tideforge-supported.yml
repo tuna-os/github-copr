@@ -152,31 +152,53 @@ jobs:
             image: docker.io/library/ubuntu:26.04
             install_name: uupd
             smoke: uupd --help
+            clean_install: true
           - package: xfconf
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
             install_name: libxfconf-0-4
             smoke: xfconf-query --version
+            clean_install: true
           - package: greetd
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
             install_name: greetd
             smoke: greetd --help
+            clean_install: true
+          - package: dms
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            clean_install: false
+          - package: dms-greeter
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            clean_install: false
           - package: uupd
             target: debian
             image: docker.io/library/debian:sid
             install_name: uupd
             smoke: uupd --help
+            clean_install: true
           - package: xfconf
             target: debian
             image: docker.io/library/debian:sid
             install_name: libxfconf-0-4
             smoke: xfconf-query --version
+            clean_install: true
           - package: greetd
             target: debian
             image: docker.io/library/debian:sid
             install_name: greetd
             smoke: greetd --help
+            clean_install: true
+          - package: dms
+            target: debian
+            image: docker.io/library/debian:sid
+            clean_install: false
+          - package: dms-greeter
+            target: debian
+            image: docker.io/library/debian:sid
+            clean_install: false
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -232,6 +254,7 @@ jobs:
             cp ../*.deb /work/artifacts/
           '
       - name: Clean-install DEB from an ephemeral repository
+        if: matrix.clean_install
         run: |
           set -euo pipefail
           root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
