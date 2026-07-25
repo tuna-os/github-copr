@@ -174,6 +174,17 @@ def test_cargo_recipe_uses_declared_workspace_and_binary(recipe: dict) -> None:
     assert "cd service\n  CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked --package daemon" in arch
 
 
+def test_cmake_options_render_for_every_native_format(recipe: dict) -> None:
+    recipe["build_system"] = "cmake"
+    recipe["build"] = {"cmake_options": ["-DUSE_DEMO=OFF"]}
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "%cmake -DUSE_DEMO=OFF" in rpm
+    assert "dh_auto_configure -- -DUSE_DEMO=OFF" in deb
+    assert "cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr -DUSE_DEMO=OFF" in arch
+
+
 def test_dependency_capabilities_resolve_to_native_target_packages(recipe: dict) -> None:
     recipe["dependencies"]["build"] = {"capabilities": ["rust", "pkg-config"]}
     assert tideforge.target_dependencies(recipe, "el10") == ["rust", "cargo", "pkgconf-pkg-config"]

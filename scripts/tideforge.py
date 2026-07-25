@@ -92,6 +92,13 @@ def build_option(recipe: dict, option: str, default: str) -> str:
     return str(recipe.get("build", {}).get(option, default))
 
 
+def cmake_options(recipe: dict) -> str:
+    options = recipe.get("build", {}).get("cmake_options", [])
+    if not isinstance(options, list) or not all(isinstance(option, str) and option.startswith("-D") for option in options):
+        fail("build.cmake_options must be a list of CMake -D options")
+    return " ".join(options)
+
+
 def cargo_options(recipe: dict) -> tuple[str, str, str]:
     """Return the Cargo workspace directory, package selector, and binary."""
     return (
@@ -116,6 +123,8 @@ def validate(recipe: dict, target: str | None = None) -> None:
         fail("source.sha256 must be a 64-character lowercase SHA-256")
     if recipe["build_system"] not in VALID_BUILD_SYSTEMS:
         fail(f"build_system must be one of {sorted(VALID_BUILD_SYSTEMS)}")
+    if recipe["build_system"] == "cmake":
+        cmake_options(recipe)
     targets = load_targets()
     requested = recipe["targets"]
     if not isinstance(requested, list) or not requested:
@@ -141,7 +150,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
             fail("install.files paths must stay relative")
 
 
-def rpm_build_lines(build_system: str) -> tuple[str, str]:
+def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str, str]:
     if build_system == "meson":
         return "%meson\n%meson_build", "%meson_install"
     if build_system == "autotools":
@@ -152,11 +161,12 @@ def rpm_build_lines(build_system: str) -> tuple[str, str]:
         return "go build -buildmode=pie -trimpath -mod=readonly -o %{name} .", "install -Dm0755 %{name} %{buildroot}%{_bindir}/%{name}"
     if build_system == "data":
         return ":", ":"
-    return "%cmake\n%cmake_build", "%cmake_install"
+    options = cmake_options(recipe or {})
+    return f"%cmake {options}\n%cmake_build".rstrip(), "%cmake_install"
 
 
 def render_rpm(recipe: dict, target: str) -> dict[str, str]:
-    build, install = rpm_build_lines(recipe["build_system"])
+    build, install = rpm_build_lines(recipe["build_system"], recipe)
     if recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -270,7 +280,9 @@ Rules-Requires-Root: no
     elif recipe["build_system"] == "data":
         rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\t:\n\noverride_dh_auto_install:\n\t:\n"
     else:
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem={buildsystem}\n"
+        options = cmake_options(recipe) if recipe["build_system"] == "cmake" else ""
+        configure = f"\noverride_dh_auto_configure:\n\tdh_auto_configure -- {options}\n" if options else ""
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem={buildsystem}\n{configure}"
     extra_install = "\n".join(filter(None, [install_commands(recipe, f"debian/{recipe['name']}"), install_directories(recipe, f"debian/{recipe['name']}", exclude_generated_debian=True)]))
     if extra_install:
         rules = rules.rstrip() + "\n\t" + extra_install.replace("\n", "\n\t") + "\n"
@@ -324,7 +336,8 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
         build = "./configure --prefix=/usr\n  make"
         install = "make DESTDIR=\"$pkgdir\" install"
     else:
-        build = "cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr\n  cmake --build build"
+        options = cmake_options(recipe)
+        build = f"cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr {options}\n  cmake --build build".rstrip()
         install = "DESTDIR=\"$pkgdir\" cmake --install build"
     extra_install = "\n".join(filter(None, [install_commands(recipe, "$pkgdir"), install_directories(recipe, "$pkgdir")]))
     if extra_install:

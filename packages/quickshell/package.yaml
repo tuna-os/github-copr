@@ -10,11 +10,16 @@ source:
   sha256: 5229069b0f1d375f34b0a04a4e6a69156e2f010995d9ec5a943793424e589b5d
   directory: quickshell-0.3.0
 build_system: cmake
+build:
+  # EL10 carries no native jemalloc development package. Quickshell makes it
+  # optional upstream; use its standard allocator path until a native package
+  # becomes available.
+  cmake_options: [-DUSE_JEMALLOC=OFF]
 dependencies:
   build:
     common: [cmake, gcc-c++]
     targets:
-      el10: [qt6-qtbase-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, jemalloc-devel]
+      el10: [qt6-qtbase-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel]
       ubuntu: [qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libjemalloc-dev]
       debian: [qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libjemalloc-dev]
       opensuse-tumbleweed: [cmake, gcc-c++, qt6-base-private-devel, qt6-declarative-devel, qt6-wayland-devel, qt6-shadertools-devel, pipewire-devel, pam-devel, polkit-devel, jemalloc-devel]
