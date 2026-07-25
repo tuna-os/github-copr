@@ -40,9 +40,11 @@ def main() -> None:
     for target_id, target in targets.items():
         if target.get("status") not in {"supported", "scaffold"}:
             fail(f"{target_id}: status must be supported or scaffold")
-        for field in ("format", "architectures", "r2_path", "repository"):
+        for field in ("format", "architectures", "r2_path", "repository", "probe_image"):
             if not target.get(field):
                 fail(f"{target_id}: {field} is required")
+        if "/" not in target["probe_image"]:
+            fail(f"{target_id}: probe_image must be a fully-qualified container image")
         if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/")):
             fail(f"{target_id}: r2_path has an unsupported namespace")
         if not all(arch in {"x86_64", "aarch64", "amd64", "arm64"} for arch in target["architectures"]):

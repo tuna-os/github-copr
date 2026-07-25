@@ -12,15 +12,11 @@ source:
 build_system: cmake
 dependencies:
   build:
-    common: [cmake, gettext]
+    capabilities: [cmake, gettext, cpp-compiler, extra-cmake-modules, kf6-config-dev, kf6-runner-dev, kf6-i18n-dev, kf6-coreaddons-dev, qt6-base-dev]
     targets:
-      el10: [gcc-c++, extra-cmake-modules, kf6-kconfig-devel, kf6-krunner-devel, kf6-ki18n-devel, kf6-kcoreaddons-devel, qt6-qtbase-devel, kf6-rpm-macros]
-      ubuntu: [g++, extra-cmake-modules, libkf6config-dev, libkf6runner-dev, libkf6i18n-dev, libkf6coreaddons-dev, qt6-base-dev]
-      debian: [g++, extra-cmake-modules, libkf6config-dev, libkf6runner-dev, libkf6i18n-dev, libkf6coreaddons-dev, qt6-base-dev]
-      opensuse-tumbleweed: [gcc-c++, extra-cmake-modules, kf6-kconfig-devel, kf6-krunner-devel, kf6-ki18n-devel, kf6-kcoreaddons-devel, qt6-base-devel, gettext-tools]
-      arch: [extra-cmake-modules, kconfig, krunner, ki18n, kcoreaddons, qt6-base]
+      el10: [kf6-rpm-macros]
   runtime:
-    common: [flatpak]
+    capabilities: [flatpak]
 files:
   common:
     - usr/bin/bazaar-dbus-tool

@@ -122,3 +122,15 @@ def test_cargo_recipe_uses_declared_workspace_and_binary(recipe: dict) -> None:
     assert "cd service\ncargo build --release --locked --package daemon" in rpm
     assert "service/target/release/demo-daemon" in deb
     assert "cd service\n  cargo build --release --locked --package daemon" in arch
+
+
+def test_dependency_capabilities_resolve_to_native_target_packages(recipe: dict) -> None:
+    recipe["dependencies"]["build"] = {"capabilities": ["rust", "pkg-config"]}
+    assert tideforge.target_dependencies(recipe, "el10") == ["rust", "cargo", "pkgconf-pkg-config"]
+    assert tideforge.target_dependencies(recipe, "arch") == ["rust", "pkgconf"]
+
+
+def test_unknown_dependency_capability_is_rejected(recipe: dict) -> None:
+    recipe["dependencies"]["build"] = {"capabilities": ["imaginary-sdk"]}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)

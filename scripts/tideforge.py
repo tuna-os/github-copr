@@ -37,14 +37,31 @@ def load_targets() -> dict:
     return load_yaml(TARGETS)["targets"]
 
 
+def load_dependency_catalog() -> dict:
+    return load_yaml(TARGETS).get("dependency_catalog", {})
+
+
+def resolve_capabilities(capabilities: list[str], target: str) -> list[str]:
+    catalog = load_dependency_catalog()
+    packages: list[str] = []
+    for capability in capabilities:
+        if capability not in catalog:
+            fail(f"unknown dependency capability: {capability}")
+        target_packages = catalog[capability].get(target)
+        if not isinstance(target_packages, list) or not target_packages:
+            fail(f"dependency capability {capability} has no mapping for {target}")
+        packages.extend(target_packages)
+    return packages
+
+
 def target_dependencies(recipe: dict, target: str) -> list[str]:
     build = recipe.get("dependencies", {}).get("build", {})
-    return list(build.get("common", [])) + list(build.get("targets", {}).get(target, []))
+    return list(build.get("common", [])) + resolve_capabilities(list(build.get("capabilities", [])), target) + list(build.get("targets", {}).get(target, []))
 
 
 def target_runtime_dependencies(recipe: dict, target: str) -> list[str]:
     runtime = recipe.get("dependencies", {}).get("runtime", {})
-    return list(runtime.get("common", [])) + list(runtime.get("targets", {}).get(target, []))
+    return list(runtime.get("common", [])) + resolve_capabilities(list(runtime.get("capabilities", [])), target) + list(runtime.get("targets", {}).get(target, []))
 
 
 def install_commands(recipe: dict, destination_root: str) -> str:
@@ -99,6 +116,13 @@ def validate(recipe: dict, target: str | None = None) -> None:
             fail(f"unknown target: {item}")
     if target and target not in requested:
         fail(f"recipe does not enable target: {target}")
+    for dependency_kind in ("build", "runtime"):
+        dependency_data = recipe.get("dependencies", {}).get(dependency_kind, {})
+        capabilities = dependency_data.get("capabilities", [])
+        if not isinstance(capabilities, list) or not all(isinstance(item, str) for item in capabilities):
+            fail(f"dependencies.{dependency_kind}.capabilities must be a list of capability names")
+        for requested_target in requested:
+            resolve_capabilities(capabilities, requested_target)
     if not recipe["files"].get("common"):
         fail("files.common must list installed paths")
     for item in recipe.get("install", {}).get("files", []) + recipe.get("install", {}).get("directories", []):

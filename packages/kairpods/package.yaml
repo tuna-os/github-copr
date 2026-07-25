@@ -16,15 +16,9 @@ build:
   binary: kairpodsd
 dependencies:
   build:
-    common: [cargo, rust, pkg-config]
-    targets:
-      el10: [gcc, pkgconf-pkg-config, dbus-devel, bluez-libs-devel]
-      ubuntu: [build-essential, pkg-config, libdbus-1-dev, libbluetooth-dev]
-      debian: [build-essential, pkg-config, libdbus-1-dev, libbluetooth-dev]
-      opensuse-tumbleweed: [gcc, pkg-config, dbus-1-devel, bluez-devel]
-      arch: [base-devel, pkgconf, dbus, bluez-libs]
+    capabilities: [rust, c-compiler, pkg-config, dbus-dev, bluez-dev]
   runtime:
-    common: [dbus, bluez]
+    capabilities: [dbus, bluez]
 files:
   common: [usr/bin/kairpodsd, usr/lib/systemd/user/kairpodsd.service, usr/share/plasma/plasmoids/org.kairpods.plasma]
 install:

@@ -76,6 +76,17 @@ python3 scripts/tideforge.py plan packages/my-package/package.yaml --target el10
 python3 scripts/tideforge.py render packages/my-package/package.yaml --target ubuntu --output out/ubuntu
 ```
 
+Before adding a native dependency spelling to the catalog or promoting a
+recipe, probe it in the actual target container. This resolves recipe
+capabilities (for example `dbus-dev`) to native package names and checks the
+live repository metadata without installing anything into the host:
+
+```bash
+python3 scripts/probe-target-dependencies.py packages/my-package/package.yaml --dry-run
+python3 scripts/probe-target-dependencies.py packages/my-package/package.yaml --target el10
+python3 scripts/probe-target-dependencies.py packages/my-package/package.yaml --json
+```
+
 The tool emits target-native files because the package managers require them,
 but maintainers edit one recipe. A target override is limited to the dependency
 or build difference that cannot be made portable.
