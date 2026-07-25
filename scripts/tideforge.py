@@ -66,6 +66,15 @@ def build_option(recipe: dict, option: str, default: str) -> str:
     return str(recipe.get("build", {}).get(option, default))
 
 
+def cargo_options(recipe: dict) -> tuple[str, str, str]:
+    """Return the Cargo workspace directory, package selector, and binary."""
+    return (
+        build_option(recipe, "working_directory", "."),
+        build_option(recipe, "cargo_package", ""),
+        build_option(recipe, "binary", recipe["name"]),
+    )
+
+
 def validate(recipe: dict, target: str | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
@@ -121,6 +130,11 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         package = build_option(recipe, "go_package", ".")
         build = f"cd {workdir}\ngo build -buildmode=pie -trimpath -mod=readonly -o {binary} {package}"
         install = f"install -Dm0755 {workdir}/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
+    elif recipe["build_system"] == "cargo":
+        workdir, cargo_package, binary = cargo_options(recipe)
+        selector = f" --package {cargo_package}" if cargo_package else ""
+        build = f"cd {workdir}\ncargo build --release --locked{selector}"
+        install = f"install -Dm0755 {workdir}/target/release/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     rpm_output = recipe.get("outputs", {}).get("rpm", {})
     files = "\n".join(f"/{path.lstrip('/')}" for path in rpm_output.get("files", recipe["files"]["common"]))
@@ -194,7 +208,9 @@ Rules-Requires-Root: no
 """
     buildsystem = {"meson": "meson", "autotools": "autoconf", "cmake": "cmake"}.get(recipe["build_system"])
     if recipe["build_system"] == "cargo":
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcargo build --release --locked\n\noverride_dh_auto_install:\n\tinstall -Dm0755 target/release/{recipe['name']} debian/{recipe['name']}/usr/bin/{recipe['name']}\n"
+        workdir, cargo_package, binary = cargo_options(recipe)
+        selector = f" --package {cargo_package}" if cargo_package else ""
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && cargo build --release --locked{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -231,8 +247,10 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     source_name = f"{recipe['name']}-{recipe['version']}.tar.gz"
     source = recipe["source"]["url"]
     if recipe["build_system"] == "cargo":
-        build = "cargo build --release --locked"
-        install = f"install -Dm0755 target/release/{recipe['name']} \"$pkgdir/usr/bin/{recipe['name']}\""
+        workdir, cargo_package, binary = cargo_options(recipe)
+        selector = f" --package {cargo_package}" if cargo_package else ""
+        build = f"cd {workdir}\n  cargo build --release --locked{selector}"
+        install = f"install -Dm0755 {workdir}/target/release/{binary} \"$pkgdir/usr/bin/{binary}\""
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])

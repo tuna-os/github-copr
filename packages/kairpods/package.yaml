@@ -1,0 +1,37 @@
+schema: 1
+name: kairpods
+version: "0.2.2"
+release: 1
+summary: AirPods integration service and Plasma widget
+description: User D-Bus service and Plasma widget for AirPods battery, controls, and media integration.
+license: GPL-3.0-or-later
+source:
+  url: https://github.com/can1357/kAirPods/archive/refs/tags/v0.2.2.tar.gz
+  sha256: bdc60d10749f4383ab71da9f9360e15541be59984bd68b8a6f06842560d6313b
+  directory: kAirPods-0.2.2
+build_system: cargo
+build:
+  working_directory: service
+  cargo_package: kairpodsd
+  binary: kairpodsd
+dependencies:
+  build:
+    common: [cargo, rust, pkg-config]
+    targets:
+      el10: [gcc, pkgconf-pkg-config, dbus-devel, bluez-libs-devel]
+      ubuntu: [build-essential, pkg-config, libdbus-1-dev, libbluetooth-dev]
+      debian: [build-essential, pkg-config, libdbus-1-dev, libbluetooth-dev]
+      opensuse-tumbleweed: [gcc, pkg-config, dbus-1-devel, bluez-devel]
+      arch: [base-devel, pkgconf, dbus, bluez-libs]
+  runtime:
+    common: [dbus, bluez]
+files:
+  common: [usr/bin/kairpodsd, usr/lib/systemd/user/kairpodsd.service, usr/share/plasma/plasmoids/org.kairpods.plasma]
+install:
+  files:
+    - source: service/systemd/user/kairpodsd.service
+      destination: usr/lib/systemd/user/kairpodsd.service
+  directories:
+    - source: plasmoid
+      destination: usr/share/plasma/plasmoids/org.kairpods.plasma
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

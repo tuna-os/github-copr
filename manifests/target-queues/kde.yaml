@@ -6,5 +6,5 @@ queues:
   el10:
     format: rpm
     implementation: native-spec
-    roots: [krunner-bazaar, ublue-os-selinux-workarounds, oversteer-udev]
+    roots: [krunner-bazaar, ublue-os-selinux-workarounds, oversteer-udev, kairpods]
     gates: [mock-build, rpm-md-stage-install, plasma-session-smoke, selinux-enforcing]

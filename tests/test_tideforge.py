@@ -111,3 +111,14 @@ def test_go_recipe_uses_declared_module_and_binary(recipe: dict) -> None:
     recipe["build"] = {"working_directory": "core", "go_package": "./cmd/demo", "binary": "demo"}
     assert "cd core\ngo build" in tideforge.render(recipe, "el10")["hello-tuna.spec"]
     assert "core/demo" in tideforge.render(recipe, "arch")["PKGBUILD"]
+
+
+def test_cargo_recipe_uses_declared_workspace_and_binary(recipe: dict) -> None:
+    recipe["build_system"] = "cargo"
+    recipe["build"] = {"working_directory": "service", "cargo_package": "daemon", "binary": "demo-daemon"}
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "debian")["debian/rules"]
+    arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "cd service\ncargo build --release --locked --package daemon" in rpm
+    assert "service/target/release/demo-daemon" in deb
+    assert "cd service\n  cargo build --release --locked --package daemon" in arch
