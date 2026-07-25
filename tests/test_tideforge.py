@@ -63,3 +63,20 @@ def test_recipe_renders_subpackages(recipe: dict) -> None:
     assert "%package devel" in rpm
     assert "Package: libdemo0" in deb["debian/control"]
     assert "debian/libdemo0.install" in deb
+
+
+def test_recipe_renders_arch_pkgbuild(recipe: dict) -> None:
+    recipe["build_system"] = "cargo"
+    recipe["targets"] = ["arch"]
+    recipe["dependencies"]["build"]["targets"]["arch"] = ["pkgconf"]
+    rendered = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "pkgname=hello-tuna" in rendered
+    assert "cargo build --release --locked" in rendered
+    assert "pkgconf" in rendered
+
+
+def test_arch_pkgbuild_includes_runtime_dependencies(recipe: dict) -> None:
+    recipe["targets"] = ["arch"]
+    recipe["dependencies"]["runtime"] = {"targets": {"arch": ["glibc", "libinput>=1.0"]}}
+    rendered = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "depends=('glibc' 'libinput>=1.0')" in rendered

@@ -10,7 +10,9 @@ on:
       - scripts/validate-target-queues.py
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
+      - scripts/compare-official-package.py
       - packages/**
+      - docs/PATCH_POLICY.md
       - docs/PACKAGE_FACTORY.md
       - packaging/**
       - .github/workflows/validate-package-factory.yml
@@ -24,7 +26,9 @@ on:
       - scripts/validate-target-queues.py
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
+      - scripts/compare-official-package.py
       - packages/**
+      - docs/PATCH_POLICY.md
       - docs/PACKAGE_FACTORY.md
       - packaging/**
   workflow_dispatch:
@@ -57,3 +61,5 @@ jobs:
               find "$output" -depth -delete
             done < <(python3 -c 'import sys,yaml; print("\n".join(yaml.safe_load(open(sys.argv[1]))["targets"]))' "$recipe")
           done
+      - name: Compare Niri with Arch metadata
+        run: python3 scripts/compare-official-package.py packages/niri/package.yaml --strict

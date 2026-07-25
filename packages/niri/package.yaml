@@ -17,6 +17,11 @@ dependencies:
       el10: [gcc, pkgconfig, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
       ubuntu: [debhelper-compat, pkg-config, libxkbcommon-dev, libinput-dev, libseat-dev, libwayland-dev]
       debian: [debhelper-compat, pkg-config, libxkbcommon-dev, libinput-dev, libseat-dev, libwayland-dev]
+      opensuse-tumbleweed: [gcc, pkg-config, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
+      arch: [base-devel, pkgconf, libxkbcommon, libinput, libseat, wayland-protocols]
+  runtime:
+    targets:
+      arch: [cairo, glib2, glibc, libdisplay-info, libgcc, libinput, libpipewire, libxkbcommon, mesa, pango, pixman, seatd, systemd-libs, xdg-desktop-portal-impl]
 files:
   common: [usr/bin/niri]
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
