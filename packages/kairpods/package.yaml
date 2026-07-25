@@ -16,7 +16,7 @@ build:
   binary: kairpodsd
 dependencies:
   build:
-    capabilities: [rust, c-compiler, pkg-config, dbus-dev, bluez-dev]
+    capabilities: [rust, c-compiler, pkg-config, dbus-dev, bluez-dev, lmdb-dev]
   runtime:
     capabilities: [dbus, bluez]
 files:
