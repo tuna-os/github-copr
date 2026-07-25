@@ -1,0 +1,50 @@
+# TunaOS package-factory target contract.
+#
+# A source is imported from its upstream, rebuilt here, tested against one of
+# these targets, signed by TunaOS, and then promoted to the matching R2 path.
+# Upstreams are source/provenance inputs only; their binaries and repositories
+# are never enabled on a TunaOS image.
+schema: 1
+
+upstreams:
+  - id: ublue-bluefin
+    url: https://github.com/ublue-os/bluefin
+    license_review: required
+  - id: ublue-aurora
+    url: https://github.com/ublue-os/aurora
+    license_review: required
+
+targets:
+  el10:
+    status: supported
+    format: rpm
+    buildroot: centos-stream-10
+    architectures: [x86_64, aarch64]
+    r2_path: rpm/el10/{arch}
+    repository: rpm-md
+  ubuntu:
+    status: supported
+    format: deb
+    suites: [resolute]
+    architectures: [amd64, arm64]
+    r2_path: apt/ubuntu/{suite}/{arch}
+    repository: apt
+  debian:
+    status: supported
+    format: deb
+    suites: [sid]
+    architectures: [amd64, arm64]
+    r2_path: apt/debian/{suite}/{arch}
+    repository: apt
+  opensuse-tumbleweed:
+    status: scaffold
+    format: rpm
+    architectures: [x86_64, aarch64]
+    r2_path: rpm/opensuse-tumbleweed/{arch}
+    repository: rpm-md
+  arch:
+    status: scaffold
+    format: pkg.tar.zst
+    architectures: [x86_64, aarch64]
+    r2_path: pacman/arch/{arch}
+    repository: pacman

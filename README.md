@@ -1,37 +1,39 @@
-# GNOME 50 for CentOS Stream 10
+# TunaOS Packages
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 [![Security Policy](https://img.shields.io/badge/Security-Policy-7b68ee.svg)](SECURITY.md)
 
-RPM packages bringing GNOME 50 to CentOS Stream 10 (EL10), hosted on
-[COPR](https://copr.fedorainfracloud.org/coprs/jreilly1821/c10s-gnome-50/).
+The TunaOS cross-distro package factory. It builds, tests, signs, and publishes
+project-owned RPM and DEB repositories from GitHub Actions to Cloudflare R2.
 
-Packages are built in COPR (`jreilly1821/c10s-gnome-50`) targeting `epel-10-x86_64`.
-Most packages build directly from Fedora Rawhide dist-git. A small set require local spec
-modifications to work on EL10 — those are documented below.
+See [the package-factory contract](docs/PACKAGE_FACTORY.md) for supported
+targets, upstream-source policy, and the migration away from COPRs and PPAs.
+
+The first active repository is GNOME 50 for EL10. Most packages are imported
+from Fedora dist-git; EL10-specific fixes remain maintained in this repository.
 
 ## Quick Install
 
 ```bash
 dnf -y install dnf-plugins-core
-dnf copr enable -y jreilly1821/c10s-gnome-50
+dnf config-manager --add-repo https://repo.tunaos.org/gnome50/10-stream-x86_64/
 dnf -y install gnome-shell gdm mutter gnome-session nautilus gnome50-el10-compat
 ```
 
 ## Architecture
 
 ```
-Fedora Rawhide dist-git  ──▶┐
-                             ├──▶  COPR (epel-10-x86_64)  ──▶  repo.tunaos.org
-Our GitHub repo (main)   ──▶┘
+Fedora dist-git / Bluefin / Aurora source metadata ──▶┐
+TunaOS packaging and patches                           ├──▶ GitHub Actions
+                                                        └──▶ signed R2 repositories
 ```
 
 - **~50 packages** pull directly from Fedora Rawhide dist-git — no local spec needed.
 - **8 packages** require a modified spec checked into this repo (see below).
 - **1 package** (`gnome50-el10-compat`) is EL10-specific, not in Fedora at all.
 
-Build method per package is tracked in [`COPR-AUDIT.md`](COPR-AUDIT.md).
+Historical migration notes are tracked in [`COPR-AUDIT.md`](COPR-AUDIT.md).
 
 ## Modified Specs (Diverge from Rawhide)
 

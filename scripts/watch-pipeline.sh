@@ -13,7 +13,7 @@ set -euo pipefail
 
 WORKFLOW_BOOTSTRAP="build-gnome49-distributed.yml"
 WORKFLOW_PACKAGE="build-gnome49-package.yml"
-REPO="tuna-os/github-copr"
+REPO="tuna-os/tunaos-packages"
 BRANCH="gnome-49-pipeline"
 
 cmd="${1:-status}"

@@ -38,9 +38,9 @@ response to any behavior that they deem inappropriate, threatening, offensive,
 or harmful.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the project maintainer via [GitHub Issues](https://github.com/tuna-os/github-copr/issues)
+reported to the project maintainer via [GitHub Issues](https://github.com/tuna-os/tunaos-packages/issues)
 with the subject prefix "[CoC]" or privately via the
-[Security Advisory](https://github.com/tuna-os/github-copr/security/advisories/new) form.
+[Security Advisory](https://github.com/tuna-os/tunaos-packages/security/advisories/new) form.
 All complaints will be reviewed and investigated promptly and fairly.
 
 ## Attribution

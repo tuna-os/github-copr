@@ -1,0 +1,32 @@
+name: Validate Package Factory
+
+on:
+  pull_request:
+    paths:
+      - manifests/package-factory.yaml
+      - scripts/validate-package-factory.py
+      - docs/PACKAGE_FACTORY.md
+      - packaging/**
+      - .github/workflows/validate-package-factory.yml
+  push:
+    branches: [main]
+    paths:
+      - manifests/package-factory.yaml
+      - scripts/validate-package-factory.py
+      - docs/PACKAGE_FACTORY.md
+      - packaging/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - run: python3 scripts/validate-package-factory.py manifests/package-factory.yaml
