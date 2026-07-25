@@ -90,3 +90,10 @@ def test_recipe_renders_go_builds(recipe: dict) -> None:
     assert "go build -buildmode=pie" in rpm
     assert "go build -buildmode=pie" in deb
     assert "go build -buildmode=pie" in arch
+
+
+def test_recipe_installs_reviewed_source_files(recipe: dict) -> None:
+    recipe["install"] = {"files": [{"source": "demo.service", "destination": "usr/lib/systemd/system/demo.service"}]}
+    assert "install -Dm0644 demo.service %{buildroot}/usr/lib/systemd/system/demo.service" in tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "install -Dm0644 demo.service debian/hello-tuna/usr/lib/systemd/system/demo.service" in tideforge.render(recipe, "debian")["debian/rules"]
+    assert "install -Dm0644 demo.service $pkgdir/usr/lib/systemd/system/demo.service" in tideforge.render(recipe, "arch")["PKGBUILD"]

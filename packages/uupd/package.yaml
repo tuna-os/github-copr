@@ -20,5 +20,10 @@ dependencies:
       opensuse-tumbleweed: [go]
       arch: [go]
 files:
-  common: [usr/bin/uupd]
+  common: [usr/bin/uupd, usr/lib/systemd/system/uupd.service, usr/lib/systemd/system/uupd-manual.service, usr/lib/udev/rules.d/uupd.rules]
+install:
+  files:
+    - {source: uupd.service, destination: usr/lib/systemd/system/uupd.service}
+    - {source: uupd-manual.service, destination: usr/lib/systemd/system/uupd-manual.service}
+    - {source: uupd.rules, destination: usr/lib/udev/rules.d/uupd.rules}
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
