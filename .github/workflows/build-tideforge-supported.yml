@@ -25,6 +25,7 @@ on:
       - packages/gtkgreet/package.yaml
       - packages/gtk-layer-shell/package.yaml
       - packages/cosmic-comp/package.yaml
+      - packages/cosmic-settings-daemon/package.yaml
       - packages/cosmic-session/package.yaml
       - packages/cosmic-settings/package.yaml
       - manifests/package-factory.yaml
@@ -48,7 +49,7 @@ jobs:
         # requires the remaining runtime closure, which is not all
         # factory-built yet. This still makes every source/vendor/toolchain
         # regression block updates before any of these recipes can be promoted.
-        package: [dms, dms-cli, dms-greeter, cosmic-comp, cosmic-session, cosmic-settings]
+        package: [dms, dms-cli, dms-greeter, cosmic-comp, cosmic-settings-daemon, cosmic-session, cosmic-settings]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

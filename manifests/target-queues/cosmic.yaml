@@ -5,17 +5,17 @@ queues:
   el10:
     format: rpm
     implementation: native-spec
-    roots: [cosmic-comp, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
+    roots: [cosmic-comp, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
     gates: [mock-build, rpm-md-stage-install, greetd-login, cosmic-session-smoke]
   ubuntu:
     format: deb
     implementation: tideforge-debian
     suite: resolute
-    roots: [cosmic-comp, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
+    roots: [cosmic-comp, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
     gates: [container-build, apt-stage-install, greetd-login, cosmic-session-smoke]
   debian:
     format: deb
     implementation: tideforge-debian
     suite: trixie
-    roots: [cosmic-comp, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
+    roots: [cosmic-comp, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
     gates: [container-build, apt-stage-install, greetd-login, cosmic-session-smoke]
