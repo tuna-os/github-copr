@@ -10,6 +10,7 @@ on:
       - scripts/validate-target-queues.py
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
+      - scripts/fetch-tideforge-sources.py
       - scripts/compare-official-package.py
       - packages/**
       - docs/PATCH_POLICY.md

@@ -25,6 +25,7 @@ on:
       - manifests/package-factory.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
+      - scripts/fetch-tideforge-sources.py
       - .github/workflows/build-tideforge-supported.yml
   workflow_dispatch:
 
@@ -54,16 +55,7 @@ jobs:
           python3 scripts/verify-tideforge-source.py "$recipe"
           python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
-          python3 - "$recipe" "$root/rpmbuild/SOURCES" <<'PY'
-          import sys
-          from pathlib import Path
-          from urllib.parse import urlparse
-          from urllib.request import urlretrieve
-          import yaml
-          recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
-          destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
-          urlretrieve(recipe["source"]["url"], destination)
-          PY
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
       - name: Build generated RPM payload
         run: |
           set -euo pipefail
@@ -152,16 +144,7 @@ jobs:
           python3 scripts/verify-tideforge-source.py "$recipe"
           python3 scripts/tideforge.py render "$recipe" --target "${{ matrix.target }}" --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
-          python3 - "$recipe" "$root/rpmbuild/SOURCES" <<'PY'
-          import sys
-          from pathlib import Path
-          from urllib.parse import urlparse
-          from urllib.request import urlretrieve
-          import yaml
-          recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
-          destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
-          urlretrieve(recipe["source"]["url"], destination)
-          PY
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
       - name: Build generated RPM with only declared BuildRequires
         run: |
           set -euo pipefail
@@ -683,6 +666,7 @@ jobs:
           python3 - "$recipe" "$root" <<'PY'
           import sys
           import tarfile
+          import hashlib
           from pathlib import Path
           from urllib.request import urlretrieve
           import yaml
@@ -690,11 +674,32 @@ jobs:
           root = Path(sys.argv[2])
           archive = root / "source.tar.gz"
           urlretrieve(recipe["source"]["url"], archive)
+          if hashlib.file_digest(archive.open("rb"), "sha256").hexdigest() != recipe["source"]["sha256"]:
+              raise SystemExit("checksum mismatch for primary source")
           with tarfile.open(archive) as tar:
               tar.extractall(root / "source")
           source = root / "source" / recipe["source"].get("directory", f"{recipe['name']}-{recipe['version']}")
           if not source.is_dir():
               raise SystemExit(f"declared source directory does not exist: {source}")
+          # Reconstruct checksum-locked source closures (for example upstream
+          # submodules) in the same paths used by the RPM/Pacman renderers.
+          for index, extra in enumerate(recipe.get("sources", []), start=1):
+              extra_archive = root / f"source-{index}.tar"
+              urlretrieve(extra["url"], extra_archive)
+              if hashlib.file_digest(extra_archive.open("rb"), "sha256").hexdigest() != extra["sha256"]:
+                  raise SystemExit(f"checksum mismatch for auxiliary source {index}")
+              destination = source / extra["destination"]
+              destination.mkdir(parents=True, exist_ok=True)
+              strip = extra.get("strip_components", 1)
+              with tarfile.open(extra_archive) as tar:
+                  members = []
+                  for member in tar.getmembers():
+                      parts = Path(member.name).parts[strip:]
+                      if not parts or ".." in parts or Path(*parts).is_absolute():
+                          continue
+                      member.name = str(Path(*parts))
+                      members.append(member)
+                  tar.extractall(destination, members=members, filter="data")
           (root / "source-dir").write_text("/work/" + source.relative_to(root).as_posix() + "\n")
           (source / "debian").mkdir(parents=True, exist_ok=True)
           for path in (root / "rendered" / "debian").rglob("*"):

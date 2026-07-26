@@ -11,6 +11,14 @@ license: Apache-2.0
 source:
   url: https://example.invalid/example-tool-1.0.0.tar.gz
   sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+# Optional, checksum-pinned source closure (for example, an upstream
+# submodule).  It is unpacked into the primary source tree before the build.
+# sources:
+#   - url: https://example.invalid/vendor-1.0.0.tar.gz
+#     sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+#     filename: vendor.tar.gz
+#     destination: third-party/vendor
+#     strip_components: 1
 build_system: meson
 dependencies:
   build:

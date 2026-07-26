@@ -91,6 +91,14 @@ The tool emits target-native files because the package managers require them,
 but maintainers edit one recipe. A target override is limited to the dependency
 or build difference that cannot be made portable.
 
+When an upstream source archive omits required git submodules, use the optional
+`sources` list rather than an unpinned clone in a build command. Each auxiliary
+archive has an HTTPS URL, SHA-256, filename, destination below the primary
+source tree, and optional `strip_components`. Tideforge renders those archives
+as native RPM/Pacman sources and extracts them before the build. This keeps a
+complex source closure reviewable and reproducible; a recipe is not eligible
+for promotion until its target CI builds the complete closure.
+
 Cargo recipes build with `--locked` by default.  An upstream release with a
 demonstrably stale *root-package* entry in an otherwise pinned `Cargo.lock` may
 set `build.cargo_locked: false`, but it must include a specific

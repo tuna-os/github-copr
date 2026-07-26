@@ -226,6 +226,45 @@ def build_environment(recipe: dict) -> str:
     return " ".join(assignments)
 
 
+def source_entries(recipe: dict) -> list[dict]:
+    """Return the primary source followed by pinned auxiliary source trees.
+
+    ``source`` remains the build root for compatibility.  ``sources`` is for
+    source closures such as upstream git submodules: every entry is an archive
+    with a checksum and an explicit destination below that build root.
+    """
+    entries = [dict(recipe["source"])]
+    extras = recipe.get("sources", [])
+    if not isinstance(extras, list):
+        fail("sources must be a list")
+    entries.extend(dict(item) if isinstance(item, dict) else item for item in extras)
+    return entries
+
+
+def source_filename(source: dict, index: int) -> str:
+    filename = source.get("filename")
+    if filename is None:
+        filename = Path(source["url"].split("?", 1)[0]).name
+    if not isinstance(filename, str) or not filename or Path(filename).name != filename:
+        fail("source.filename must be a plain filename")
+    return filename
+
+
+def validate_source(source: dict, *, auxiliary: bool) -> None:
+    if not isinstance(source, dict) or not source.get("url", "").startswith("https://"):
+        fail("source.url must use HTTPS")
+    if not re.fullmatch(r"[0-9a-f]{64}", str(source.get("sha256", ""))):
+        fail("source.sha256 must be a 64-character lowercase SHA-256")
+    source_filename(source, 0)
+    if auxiliary:
+        destination = source.get("destination")
+        if not isinstance(destination, str) or not destination or destination.startswith("/") or ".." in Path(destination).parts:
+            fail("auxiliary sources require a relative destination")
+        strip_components = source.get("strip_components", 1)
+        if not isinstance(strip_components, int) or strip_components < 0:
+            fail("auxiliary source.strip_components must be a non-negative integer")
+
+
 def validate(recipe: dict, target: str | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
@@ -234,11 +273,8 @@ def validate(recipe: dict, target: str | None = None) -> None:
             fail(f"{field} is required")
     if not re.fullmatch(r"[a-z0-9][a-z0-9+._-]*", str(recipe["name"])):
         fail("name must be a lowercase package identifier")
-    source = recipe["source"]
-    if not source.get("url", "").startswith("https://"):
-        fail("source.url must use HTTPS")
-    if not re.fullmatch(r"[0-9a-f]{64}", str(source.get("sha256", ""))):
-        fail("source.sha256 must be a 64-character lowercase SHA-256")
+    for index, source in enumerate(source_entries(recipe)):
+        validate_source(source, auxiliary=index > 0)
     if recipe["build_system"] not in VALID_BUILD_SYSTEMS:
         fail(f"build_system must be one of {sorted(VALID_BUILD_SYSTEMS)}")
     if recipe["build_system"] == "cmake":
@@ -343,6 +379,14 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         if source_directory == "."
         else f"%autosetup -n {source_directory}"
     )
+    auxiliary_sources = source_entries(recipe)[1:]
+    if auxiliary_sources:
+        unpack_auxiliary = "\n".join(
+            f"mkdir -p {shlex.quote(source['destination'])}\n"
+            f"tar --extract --file %{{SOURCE{index}}} --strip-components={source.get('strip_components', 1)} --directory {shlex.quote(source['destination'])}"
+            for index, source in enumerate(auxiliary_sources, start=1)
+        )
+        prep = f"{prep}\n{unpack_auxiliary}"
     extra_install = "\n".join(filter(None, [install_commands(recipe, "%{buildroot}"), install_directories(recipe, "%{buildroot}")]))
     # Tideforge's Go and data renderers do not produce RPM-compatible
     # debug-source payloads. Cargo builds retain debuginfo so native RPM debug
@@ -355,8 +399,8 @@ Version:        {recipe['version']}
 Release:        {recipe.get('release', 1)}%{{?dist}}
 Summary:        {recipe['summary']}
 License:        {recipe['license']}
-Source0:        {recipe['source']['url']}
-{requires}
+Source0:        {source_filename(recipe['source'], 0)}::{recipe['source']['url']}
+{''.join(f"Source{index}:        {source_filename(source, index)}::{source['url']}\\n" for index, source in enumerate(auxiliary_sources, start=1))}{requires}
 {runtime_requires}
 
 %description
@@ -468,7 +512,7 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     source_directory = recipe["source"].get("directory", f"{recipe['name']}-{recipe['version']}")
     makedepends = " ".join(f"'{dependency}'" for dependency in target_dependencies(recipe, target))
     depends = " ".join(f"'{dependency}'" for dependency in target_runtime_dependencies(recipe, target))
-    source_name = f"{recipe['name']}-{recipe['version']}.tar.gz"
+    sources = source_entries(recipe)
     source = recipe["source"]["url"]
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
@@ -500,6 +544,14 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     extra_install = "\n".join(filter(None, [install_commands(recipe, "$pkgdir"), install_directories(recipe, "$pkgdir")]))
     if extra_install:
         install = f"{install}\n  {extra_install.replace(chr(10), chr(10) + '  ')}"
+    source_lines = "\n".join(
+        f"  '{source_filename(item, index)}::{item['url']}'" for index, item in enumerate(sources)
+    )
+    checksum_lines = "\n".join(f"  '{item['sha256']}'" for item in sources)
+    auxiliary_prepare = "\n  ".join(
+        f"mkdir -p {shlex.quote(item['destination'])}\n  tar --extract --file \"$srcdir/{source_filename(item, index)}\" --strip-components={item.get('strip_components', 1)} --directory {shlex.quote(item['destination'])}"
+        for index, item in enumerate(sources[1:], start=1)
+    )
     pkgbuild = f"""# Generated by Tideforge; target-specific dependencies remain in package.yaml.
 pkgname={recipe['name']}
 pkgver={recipe['version']}
@@ -510,11 +562,16 @@ url={source!r}
 license=({recipe['license']!r})
 makedepends=({makedepends})
 depends=({depends})
-source=('{source_name}::{source}')
-sha256sums=('{recipe['source']['sha256']}')
+source=(
+{source_lines}
+)
+sha256sums=(
+{checksum_lines}
+)
 
 build() {{
   cd \"$srcdir/{source_directory}\"
+  {auxiliary_prepare}
   {build}
 }}
 

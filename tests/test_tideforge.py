@@ -75,6 +75,28 @@ def test_recipe_renders_arch_pkgbuild(recipe: dict) -> None:
     assert "pkgconf" in rendered
 
 
+def test_recipe_renders_pinned_auxiliary_source_closure(recipe: dict) -> None:
+    recipe["sources"] = [{
+        "url": "https://example.com/vendor-1.0.tar.gz",
+        "sha256": "b" * 64,
+        "filename": "vendor.tar.gz",
+        "destination": "third-party/vendor",
+        "strip_components": 1,
+    }]
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "Source1:        vendor.tar.gz::https://example.com/vendor-1.0.tar.gz" in rpm
+    assert "tar --extract --file %{SOURCE1} --strip-components=1 --directory third-party/vendor" in rpm
+    assert "'vendor.tar.gz::https://example.com/vendor-1.0.tar.gz'" in arch
+    assert "tar --extract --file \"$srcdir/vendor.tar.gz\" --strip-components=1 --directory third-party/vendor" in arch
+
+
+def test_auxiliary_source_requires_safe_destination(recipe: dict) -> None:
+    recipe["sources"] = [{"url": "https://example.com/vendor.tar.gz", "sha256": "b" * 64, "destination": "../vendor"}]
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
 def test_arch_pkgbuild_includes_runtime_dependencies(recipe: dict) -> None:
     recipe["targets"] = ["arch"]
     recipe["dependencies"]["runtime"] = {"targets": {"arch": ["glibc", "libinput>=1.0"]}}

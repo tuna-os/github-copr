@@ -14,6 +14,7 @@ on:
       - packages/oversteer-udev/package.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
+      - scripts/fetch-tideforge-sources.py
       - scripts/compare-official-package.py
       - scripts/validate-built-arch-package.py
       - .github/workflows/build-tideforge-arch.yml
