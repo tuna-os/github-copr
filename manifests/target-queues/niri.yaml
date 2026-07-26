@@ -25,5 +25,5 @@ queues:
   arch:
     format: pkg.tar.zst
     implementation: tideforge-pkgbuild
-    roots: [niri, quickshell, greetd, dms, dms-cli, dms-greeter, dgop, danksearch]
+    roots: [niri, quickshell, greetd, dms, dms-cli, dms-greeter, dgop, danksearch, dankcalendar]
     gates: [container-build, pacman-stage-install, niri-session-smoke]
