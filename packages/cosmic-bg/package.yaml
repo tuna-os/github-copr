@@ -1,0 +1,46 @@
+schema: 1
+name: cosmic-bg
+version: "1.4.0"
+release: 1
+summary: Background manager for the COSMIC desktop environment
+description: >-
+  COSMIC background manager. TunaOS image branding owns the selected default
+  background rather than embedding another distribution's artwork here.
+license: Apache-2.0 AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-bg/archive/epoch-1.4.0.tar.gz
+  sha256: 401b1753d5dfa2c45b00eac34dd5a675dcd02d5e9c7ee7cd3676cf37c2242d30
+  directory: cosmic-bg-epoch-1.4.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-bg/vendor-1.4.0.tar.gz/sha512/a0345fa5183eb62a151722325c5270c082884f006aafd5105040952d18cc86e47ab94dfdeeec22c95ea335c522bc7fd41790830ba5c6ebc78341ae5d1e104d53/vendor-1.4.0.tar.gz
+    sha256: faf10b349b6cd3ddb00a1a929495650feda971ebbc159fb0e479b6d42d75103b
+    filename: cosmic-bg-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-bg/raw/rawhide/f/vendor-config-1.4.0.toml
+    sha256: 870439c52213fb327efc82db883dfca36c6dd0acb0668001285085d41dd9e1b2
+    filename: cosmic-bg-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: ed65f7d3dc9e3d4af3cd65244a966e01bff0f730
+    VERGEN_GIT_COMMIT_DATE: "2026-07-07 17:03:22 -0400"
+  commands: [cargo build --release --offline --frozen]
+dependencies:
+  build:
+    capabilities: [rust]
+    targets:
+      el10: [cargo, lld, just, wayland-devel, libxkbcommon-devel, desktop-backgrounds-compat, libdav1d-devel]
+  runtime:
+    targets:
+      el10: [cosmic-icon-theme >= 1.4.0, desktop-backgrounds-compat]
+files:
+  common:
+    - usr/bin/cosmic-bg
+    - usr/share/cosmic/com.system76.CosmicBackground/v1/all
+    - usr/share/cosmic/com.system76.CosmicBackground/v1/backgrounds
+install:
+  commands: ["just rootdir={destdir} prefix=/usr install"]
+targets: [el10]
