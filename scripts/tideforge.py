@@ -415,7 +415,7 @@ Rules-Requires-Root: no
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
         environment = " ".join(filter(None, [build_environment(recipe), "CARGO_PROFILE_RELEASE_DEBUG=1"]))
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && {environment} cargo build --release{cargo_lock_flag(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n"
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && {environment} cargo build --release{cargo_lock_flag(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n\noverride_dh_dwz:\n\t:\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -424,7 +424,7 @@ Rules-Requires-Root: no
         prelude = "\n".join(f"\t{command}" for command in prepare.splitlines())
         if prelude:
             prelude += "\n"
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n{prelude}\tcd {workdir} && {with_build_environment(recipe, go_build_command(recipe, binary, package))}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/{binary} debian/{recipe['name']}/usr/bin/{binary}\n"
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n{prelude}\tcd {workdir} && {with_build_environment(recipe, go_build_command(recipe, binary, package))}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/{binary} debian/{recipe['name']}/usr/bin/{binary}\n\noverride_dh_dwz:\n\t:\n"
     elif recipe["build_system"] == "data":
         rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\t:\n\noverride_dh_auto_install:\n\t:\n"
     else:

@@ -71,8 +71,26 @@ jobs:
             # to prove pacman's dependency solver and payload installation.
             # Keep the repository definition out of /etc: hosted container
             # engines may user-map root and make that image file read-only.
-            cp /etc/pacman.conf /tmp/tideforge-pacman.conf
-            printf "\\n[tideforge]\\nSigLevel = Optional TrustAll\\nServer = file:///var/lib/tideforge\\n" >> /tmp/tideforge-pacman.conf
+            # Recent Arch container images no longer guarantee that a copied
+            # /etc/pacman.conf survives the hosted container user mapping.
+            # Generate the small, complete test configuration instead of
+            # modifying or copying image-owned configuration files.
+            cat > /tmp/tideforge-pacman.conf <<'EOF'
+            [options]
+            Architecture = auto
+            SigLevel = Required DatabaseOptional
+            LocalFileSigLevel = Optional
+
+            [core]
+            Include = /etc/pacman.d/mirrorlist
+
+            [extra]
+            Include = /etc/pacman.d/mirrorlist
+
+            [tideforge]
+            SigLevel = Optional TrustAll
+            Server = file:///var/lib/tideforge
+            EOF
             pacman --config /tmp/tideforge-pacman.conf -Sy --noconfirm
             pacman --config /tmp/tideforge-pacman.conf -S --noconfirm ${{ matrix.package }}
             pacman -Q ${{ matrix.package }}

@@ -72,6 +72,7 @@ jobs:
             set -euo pipefail
             dnf -y install dnf-plugins-core rpm-build rpmdevtools
             dnf config-manager --set-enabled crb
+            dnf -y builddep /work/rpmbuild/SPECS/*.spec
             rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
           '
       - uses: actions/upload-artifact@v6

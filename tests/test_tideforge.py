@@ -122,6 +122,7 @@ def test_recipe_renders_go_builds(recipe: dict) -> None:
     assert "go build -buildmode=pie" in rpm
     assert "go build -buildmode=pie" in deb
     assert "go build -buildmode=pie" in arch
+    assert "override_dh_dwz:\n\t:" in deb
     assert "debian/hello-tuna.install" not in tideforge.render(recipe, "debian")
 
 
