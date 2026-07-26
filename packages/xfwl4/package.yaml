@@ -1,0 +1,59 @@
+schema: 1
+name: xfwl4
+version: "4.21.0"
+release: 1
+summary: Wayland compositor for Xfce4
+description: >-
+  Xfce Wayland compositor built on Smithay/wlroots for the TunaOS XFCE desktop.
+license: GPL-3.0-or-later AND Apache-2.0 AND MIT
+source:
+  url: https://gitlab.xfce.org/xfce/xfwl4/-/archive/465880f67b5705136895bf69c60e2178ad351856/xfwl4-465880f67b5705136895bf69c60e2178ad351856.tar.gz
+  sha256: 4507f6ea9da24dc756df4ac02441a3b7452187ba64bce8893eaf1cbe62a0850b
+  directory: xfwl4-465880f67b5705136895bf69c60e2178ad351856
+# Cargo's vendor tree and XFCE protocol submodule are part of the source
+# closure, never network fetches at package-build time.
+sources:
+  - url: https://github.com/tuna-os/tunaos-packages/releases/download/xfwl4-vendor-465880f6/vendor.tar.gz
+    sha256: 646ec8c01132b0d10bc33521cfee7da9fd9ba1de1c97bd097b77d40b42c9aa58
+    filename: xfwl4-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/6082cfa492154aec266527193bf8f6142ab14977/xfce-wayland-protocols-6082cfa492154aec266527193bf8f6142ab14977.tar.gz
+    sha256: bb6f9d5ad772c9114b6f15fd2c288fd344e07e1ccfd61e23890ae5c501c953cc
+    filename: xfce-wayland-protocols.tar.gz
+    destination: resources/xfce-wayland-protocols
+build_system: cargo
+build:
+  cargo_package: xfwl4
+  binary: xfwl4
+  cargo_no_default_features: true
+  cargo_features: [udev, egl, xwayland, smithay/renderer_pixman, smithay/renderer_gl]
+  cargo_offline: true
+  environment:
+    RUSTFLAGS: -C relocation-model=pic
+    GETTEXT_SYSTEM: "1"
+  cargo_config: |
+    [source.crates-io]
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/smithay/smithay?rev=4645e03d6bd9377aa368de20e91d69951450392d"]
+    git = "https://github.com/smithay/smithay"
+    rev = "4645e03d6bd9377aa368de20e91d69951450392d"
+    replace-with = "vendored-sources"
+
+    [source.vendored-sources]
+    directory = "vendor"
+
+    [net]
+    offline = true
+dependencies:
+  build:
+    capabilities: [rust, c-compiler, pkg-config]
+    targets:
+      el10: [libdrm-devel, libinput-devel, mesa-libgbm-devel, libseat-devel, libxkbcommon-devel, pixman-devel, wayland-devel, wayland-protocols-devel, gtk3-devel, gdk-pixbuf2-devel, libdisplay-info-devel, libSM-devel, systemd-devel, startup-notification-devel, xfconf-devel, libxfce4ui-devel, gettext-devel]
+files:
+  common: [usr/bin/xfwl4, usr/share/xfce4/xfwl4/defaults]
+install:
+  directories:
+    - {source: resources/defaults, destination: usr/share/xfce4/xfwl4/defaults}
+targets: [el10]

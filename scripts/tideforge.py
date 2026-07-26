@@ -168,6 +168,33 @@ def cargo_lock_flag(recipe: dict) -> str:
     return " --locked"
 
 
+def cargo_build_flags(recipe: dict) -> str:
+    """Return validated feature and offline flags for a Cargo source closure."""
+    build = recipe.get("build", {})
+    features = build.get("cargo_features", [])
+    if not isinstance(features, list) or not all(isinstance(feature, str) and re.fullmatch(r"[A-Za-z0-9_./-]+", feature) for feature in features):
+        fail("build.cargo_features must be a list of Cargo feature names")
+    no_default = build.get("cargo_no_default_features", False)
+    offline = build.get("cargo_offline", False)
+    if not isinstance(no_default, bool) or not isinstance(offline, bool):
+        fail("build.cargo_no_default_features and build.cargo_offline must be booleans")
+    return (
+        (" --no-default-features" if no_default else "")
+        + (f" --features {shlex.quote(','.join(features))}" if features else "")
+        + (" --offline" if offline else "")
+    )
+
+
+def cargo_config_commands(recipe: dict) -> str:
+    """Render a reviewed Cargo source-replacement configuration when needed."""
+    config = recipe.get("build", {}).get("cargo_config", "")
+    if not isinstance(config, str):
+        fail("build.cargo_config must be a string")
+    if not config:
+        return ""
+    return f"mkdir -p .cargo\nprintf %s {shlex.quote(config)} > .cargo/config.toml"
+
+
 def prepare_commands(recipe: dict) -> str:
     """Return source-root preparation commands declared by a trusted recipe."""
     commands = recipe.get("build", {}).get("prepare", [])
@@ -284,6 +311,8 @@ def validate(recipe: dict, target: str | None = None) -> None:
         meson_options(recipe)
     if recipe["build_system"] == "cargo":
         cargo_lock_flag(recipe)
+        cargo_build_flags(recipe)
+        cargo_config_commands(recipe)
     if recipe["build_system"] == "go":
         go_options(recipe)
         go_module_mode(recipe)
@@ -355,7 +384,8 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
         environment = " ".join(filter(None, [build_environment(recipe), "CARGO_PROFILE_RELEASE_DEBUG=1"]))
-        build = f"cd {workdir}\n{environment} cargo build --release{cargo_lock_flag(recipe)}{selector}"
+        prelude = "\n".join(filter(None, [prepare_commands(recipe), cargo_config_commands(recipe)]))
+        build = f"cd {workdir}\n{prelude + chr(10) if prelude else ''}{environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
@@ -400,7 +430,7 @@ Release:        {recipe.get('release', 1)}%{{?dist}}
 Summary:        {recipe['summary']}
 License:        {recipe['license']}
 Source0:        {source_filename(recipe['source'], 0)}::{recipe['source']['url']}
-{''.join(f"Source{index}:        {source_filename(source, index)}::{source['url']}\\n" for index, source in enumerate(auxiliary_sources, start=1))}{requires}
+{''.join(f"Source{index}:        {source_filename(source, index)}::{source['url']}\n" for index, source in enumerate(auxiliary_sources, start=1))}{requires}
 {runtime_requires}
 
 %description
@@ -459,7 +489,11 @@ Rules-Requires-Root: no
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
         environment = " ".join(filter(None, [build_environment(recipe), "CARGO_PROFILE_RELEASE_DEBUG=1"]))
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && {environment} cargo build --release{cargo_lock_flag(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n\noverride_dh_dwz:\n\t:\n"
+        prelude = "\n".join(filter(None, [prepare_commands(recipe), cargo_config_commands(recipe)]))
+        prelude = "\n".join(f"\t{command}" for command in prelude.splitlines())
+        if prelude:
+            prelude += "\n"
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && :\n{prelude}\tcd {workdir} && {environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n\noverride_dh_dwz:\n\t:\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -518,7 +552,8 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
         environment = " ".join(filter(None, [build_environment(recipe), "CARGO_PROFILE_RELEASE_DEBUG=1"]))
-        build = f"cd {workdir}\n  {environment} cargo build --release{cargo_lock_flag(recipe)}{selector}"
+        prelude = "\n  ".join(filter(None, [prepare_commands(recipe), cargo_config_commands(recipe)]))
+        build = f"cd {workdir}\n  {prelude + chr(10) + '  ' if prelude else ''}{environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} \"$pkgdir/usr/bin/{binary}\""
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")

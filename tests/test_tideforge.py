@@ -86,6 +86,7 @@ def test_recipe_renders_pinned_auxiliary_source_closure(recipe: dict) -> None:
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
     arch = tideforge.render(recipe, "arch")["PKGBUILD"]
     assert "Source1:        vendor.tar.gz::https://example.com/vendor-1.0.tar.gz" in rpm
+    assert "\\nSource" not in rpm
     assert "tar --extract --file %{SOURCE1} --strip-components=1 --directory third-party/vendor" in rpm
     assert "'vendor.tar.gz::https://example.com/vendor-1.0.tar.gz'" in arch
     assert "tar --extract --file \"$srcdir/vendor.tar.gz\" --strip-components=1 --directory third-party/vendor" in arch
@@ -247,6 +248,30 @@ def test_cargo_recipe_renders_validated_build_environment(recipe: dict) -> None:
     for target in ("el10", "debian", "arch"):
         rendered = "\n".join(tideforge.render(recipe, target).values())
         assert "RUSTFLAGS='-C link-arg=-lexample' CARGO_PROFILE_RELEASE_DEBUG=1 cargo build" in rendered
+
+
+def test_cargo_recipe_renders_locked_vendor_closure(recipe: dict) -> None:
+    recipe["build_system"] = "cargo"
+    recipe["build"] = {
+        "cargo_no_default_features": True,
+        "cargo_features": ["udev", "smithay/renderer_gl"],
+        "cargo_offline": True,
+        "cargo_config": '[source.crates-io]\nreplace-with = "vendored-sources"\n',
+    }
+    for target in ("el10", "debian", "arch"):
+        rendered = "\n".join(tideforge.render(recipe, target).values())
+        assert "mkdir -p .cargo" in rendered
+        assert "cargo build --release --locked --no-default-features --features udev,smithay/renderer_gl --offline" in rendered
+
+
+def test_cargo_recipe_rejects_invalid_closure_configuration(recipe: dict) -> None:
+    recipe["build_system"] = "cargo"
+    recipe["build"] = {"cargo_features": ["invalid feature"]}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+    recipe["build"] = {"cargo_offline": "yes"}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
 
 
 def test_build_environment_rejects_unsafe_names_and_non_string_values(recipe: dict) -> None:
