@@ -1,0 +1,52 @@
+schema: 1
+name: cosmic-settings-daemon
+version: "1.4.0"
+release: 1
+summary: Settings daemon for the COSMIC desktop environment
+description: >-
+  COSMIC settings daemon, system actions, and policy integration for the
+  TunaOS Hummingbird desktop.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-settings-daemon/archive/epoch-1.4.0.tar.gz
+  sha256: 83057e054570d26e8106b2069f9bbef9c20cb0f6ead18e259a66465f13c3b2df
+  directory: cosmic-settings-daemon-epoch-1.4.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-settings-daemon/vendor-1.4.0.tar.gz/sha512/1f78b9ae57a50e2c950f60b15b33786c7180df1b729c6fe9c93c54643bc7a404bea496b045f70d02cc9057ef2ee640ac974de9c7b1b3c70c2e5b205a809de5d8/vendor-1.4.0.tar.gz
+    sha256: 85c875c47174424f3cf65dcf3a0e0024da76891452ae11243d2d000981f52f91
+    filename: cosmic-settings-daemon-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-settings-daemon/raw/rawhide/f/vendor-config-1.4.0.toml
+    sha256: 8e2c27d504d55e03a6942b0b5a01421d2d141a249295b7c3465f5c943e334a1d
+    filename: cosmic-settings-daemon-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+  - url: https://src.fedoraproject.org/rpms/cosmic-settings-daemon/raw/rawhide/f/sound-theme-freedesktop.patch
+    sha256: b54c4c40815770b329f6128ed556b3279d1e2346ad64b53d2e020851ef65c0ee
+    filename: cosmic-settings-daemon-sound-theme.patch
+    destination: patches/sound-theme-freedesktop.patch
+    extract: false
+build_system: custom
+build:
+  prepare: [patch -p1 < patches/sound-theme-freedesktop.patch]
+  environment:
+    VERGEN_GIT_SHA: e6ca13522a64227371bbd39bcfdffab3bb34d9b3
+    VERGEN_GIT_COMMIT_DATE: "2026-07-21 14:44:57 +0200"
+  commands: [cargo build --release --offline --frozen --bin cosmic-settings-daemon]
+dependencies:
+  build:
+    capabilities: [rust, pam-dev]
+    targets:
+      el10: [cargo, lld, just, patch, systemd-devel, libudev-devel, libinput-devel, wayland-devel, clang-devel, libxkbcommon-devel, pulseaudio-utils, pipewire-devel, openssl-devel]
+  runtime:
+    targets:
+      el10: [acpid, adw-gtk3-theme, sound-theme-freedesktop]
+files:
+  common:
+    - usr/bin/cosmic-settings-daemon
+    - usr/share/cosmic/com.system76.CosmicSettings.Shortcuts/v1/system_actions
+    - usr/share/polkit-1/rules.d/cosmic-settings-daemon.rules
+install:
+  commands: ["make install DESTDIR={destdir} prefix=/usr"]
+targets: [el10]

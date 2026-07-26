@@ -1,11 +1,12 @@
 schema: 1
 tree: cosmic
 targets: [el10, ubuntu, debian]
-roots: [cosmic-session, cosmic-greeter, xdg-desktop-portal-cosmic]
+roots: [cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
 nodes:
   cosmic-session: {source: pop-os/cosmic-epoch, needs: [cosmic-comp, cosmic-settings, xdg-desktop-portal-cosmic, greetd]}
   cosmic-comp: {source: pop-os/cosmic-comp, needs: [cargo-toolchain, wayland-stack]}
-  cosmic-settings: {source: pop-os/cosmic-settings, needs: [cargo-toolchain]}
+  cosmic-settings: {source: pop-os/cosmic-settings, needs: [cosmic-settings-daemon, cosmic-randr, cargo-toolchain]}
+  cosmic-settings-daemon: {source: pop-os/cosmic-settings-daemon, needs: [cargo-toolchain, wayland-stack]}
   cosmic-greeter: {source: pop-os/cosmic-greeter, needs: [greetd]}
   xdg-desktop-portal-cosmic: {source: pop-os/xdg-desktop-portal-cosmic, needs: [cosmic-comp, cosmic-settings]}
   cargo-toolchain: {kind: distro-build-dependency}
