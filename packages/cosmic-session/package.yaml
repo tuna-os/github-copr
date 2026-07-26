@@ -16,22 +16,13 @@ sources:
     filename: cosmic-session-vendor.tar.gz
     destination: .
     strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-session/raw/rawhide/f/vendor-config-1.4.0.toml
+    sha256: 559de0e88875d8b7d383467edb7bb381247f52701c801ee680995499e258a808
+    filename: cosmic-session-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
 build_system: custom
 build:
-  cargo_config: |
-    [source.crates-io]
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/pop-os/dbus-settings-bindings"]
-    git = "https://github.com/pop-os/dbus-settings-bindings"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/pop-os/launch-pad"]
-    git = "https://github.com/pop-os/launch-pad"
-    replace-with = "vendored-sources"
-
-    [source.vendored-sources]
-    directory = "vendor"
   environment:
     VERGEN_GIT_SHA: b5ef6c0c0d68762b2991e4f5906cc70599e2f1fc
     VERGEN_GIT_COMMIT_DATE: "2026-07-02 12:45:52 -0700"
