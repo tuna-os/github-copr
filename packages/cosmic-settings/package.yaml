@@ -1,0 +1,49 @@
+schema: 1
+name: cosmic-settings
+version: "1.4.0"
+release: 1
+summary: Settings app for the COSMIC desktop environment
+description: COSMIC settings application and desktop preferences integration.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-settings/archive/epoch-1.4.0.tar.gz
+  sha256: 2b31755a67834f029389504cd92b495bdf7e8f55cbfaf7a67cc7d55a9831f671
+  directory: cosmic-settings-epoch-1.4.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-settings/vendor-1.4.0.tar.gz/sha512/b4b47e3fe2c7337fc60fa1141011f78813038f31dfa5eae40a16f669618c1db5c99c5e63ebe30a05a127e76da23a853f549b164ce81b9ca923ab667be44561c7/vendor-1.4.0.tar.gz
+    sha256: 2e31b7eedc4f1225622d1de0190a59dbf08c92eed5e3c5f26f1003c75f4efe43
+    filename: cosmic-settings-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-settings/raw/rawhide/f/vendor-config-1.4.0.toml
+    sha256: 98a7fb81a7b36e88725d4502eeb8254e9eff41176581297be2f3dd246d76a9bd
+    filename: cosmic-settings-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: c2624965bc06eb9d39bbd2d549543fad99754c07
+    VERGEN_GIT_COMMIT_DATE: "2026-07-21 11:15:52 -0600"
+  commands: [cargo build --release --offline --frozen]
+dependencies:
+  build:
+    capabilities: [rust]
+    targets:
+      el10: [cargo, lld, just, libinput-devel, wayland-devel, libxkbcommon-devel, systemd-devel, desktop-file-utils, pipewire-devel, clang, libdav1d-devel]
+  runtime:
+    targets:
+      el10: [cosmic-icon-theme >= 1.4.0, nm-connection-editor, accountsservice, cosmic-settings-daemon >= 1.4.0, cosmic-randr >= 1.4.0, gettext, iso-codes, NetworkManager, ppd-service]
+files:
+  common:
+    - usr/bin/cosmic-settings
+    - usr/share/applications/com.system76.CosmicSettings*.desktop
+    - usr/share/metainfo/com.system76.CosmicSettings.metainfo.xml
+    - usr/share/cosmic/com.system76.*
+    - usr/share/icons/hicolor/*/apps/com.system76.CosmicSettings.svg
+    - usr/share/icons/hicolor/scalable/status/illustration-*.svg
+    - usr/share/polkit-1/rules.d/cosmic-settings.rules
+    - usr/share/polkit-1/actions/com.system76.CosmicSettings.Users.policy
+install:
+  commands: ["just rootdir={destdir} install"]
+targets: [el10]
