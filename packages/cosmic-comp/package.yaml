@@ -15,73 +15,13 @@ sources:
     filename: cosmic-comp-vendor.tar.gz
     destination: .
     strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-comp/raw/rawhide/f/vendor-config-1.4.0.toml
+    sha256: b0999a83483c6e0b0d8d3884b09bd7d968220a725996524d9d514f8f56bdb5c3
+    filename: cosmic-comp-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
 build_system: custom
 build:
-  cargo_config: |
-    [source.crates-io]
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/Drakulix/id-tree.git?branch=feature/copy_clone"]
-    git = "https://github.com/Drakulix/id-tree.git"
-    branch = "feature/copy_clone"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/iced-rs/cryoglyph.git?rev=e429a025df36ab8145708acb309080ae3deec17a"]
-    git = "https://github.com/iced-rs/cryoglyph.git"
-    rev = "e429a025df36ab8145708acb309080ae3deec17a"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/jackpot51/rust-atomicwrites"]
-    git = "https://github.com/jackpot51/rust-atomicwrites"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/pop-os//cosmic-protocols?branch=main"]
-    git = "https://github.com/pop-os//cosmic-protocols"
-    branch = "main"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/pop-os/cosmic-randr/"]
-    git = "https://github.com/pop-os/cosmic-randr/"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/pop-os/cosmic-settings-daemon"]
-    git = "https://github.com/pop-os/cosmic-settings-daemon"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/pop-os/dbus-settings-bindings"]
-    git = "https://github.com/pop-os/dbus-settings-bindings"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/pop-os/freedesktop-icons"]
-    git = "https://github.com/pop-os/freedesktop-icons"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/pop-os/libcosmic"]
-    git = "https://github.com/pop-os/libcosmic"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/pop-os/smithay-clipboard?tag=sctk-0.20"]
-    git = "https://github.com/pop-os/smithay-clipboard"
-    tag = "sctk-0.20"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/pop-os/softbuffer?tag=cosmic-4.0"]
-    git = "https://github.com/pop-os/softbuffer"
-    tag = "cosmic-4.0"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/pop-os/window_clipboard.git?tag=sctk-0.20"]
-    git = "https://github.com/pop-os/window_clipboard.git"
-    tag = "sctk-0.20"
-    replace-with = "vendored-sources"
-
-    [source."git+https://github.com/smithay/smithay.git?rev=1ed69cb"]
-    git = "https://github.com/smithay/smithay.git"
-    rev = "1ed69cb"
-    replace-with = "vendored-sources"
-
-    [source.vendored-sources]
-    directory = "vendor"
   environment:
     VERGEN_GIT_SHA: 4d370cdf92b5d96d78032593947f4ad9eae793bf
     VERGEN_GIT_COMMIT_DATE: "2026-07-21 22:22:07 +0200"
