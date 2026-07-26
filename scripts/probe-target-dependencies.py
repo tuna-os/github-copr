@@ -61,12 +61,26 @@ def native_dependencies(recipe: dict, target: str) -> list[str]:
     return list(dict.fromkeys(dependencies))
 
 
-def podman_command(image: str, target: str, packages: list[str]) -> list[str]:
-    return ["podman", "run", "--rm", image, "bash", "-euc", QUERY_SCRIPTS[target], "tideforge-probe", *packages]
+def repository_setup(target: str, repositories: list[str]) -> str:
+    """Return target-native setup for repositories used only while building."""
+    if target != "el10":
+        return ""
+    commands: list[str] = []
+    if "epel" in repositories:
+        commands.append("dnf -qy install epel-release")
+    if "crb" in repositories:
+        commands.append("dnf -qy install dnf-plugins-core")
+        commands.append("dnf config-manager --set-enabled crb")
+    return "\n".join(commands) + ("\n" if commands else "")
 
 
-def probe(image: str, target: str, packages: list[str]) -> tuple[dict[str, str], str]:
-    completed = subprocess.run(podman_command(image, target, packages), text=True, capture_output=True, check=False)
+def podman_command(image: str, target: str, packages: list[str], repositories: list[str] | None = None) -> list[str]:
+    script = repository_setup(target, repositories or []) + QUERY_SCRIPTS[target]
+    return ["podman", "run", "--rm", image, "bash", "-euc", script, "tideforge-probe", *packages]
+
+
+def probe(image: str, target: str, packages: list[str], repositories: list[str]) -> tuple[dict[str, str], str]:
+    completed = subprocess.run(podman_command(image, target, packages, repositories), text=True, capture_output=True, check=False)
     if completed.returncode:
         raise RuntimeError(completed.stderr.strip() or completed.stdout.strip() or f"podman exited {completed.returncode}")
     result: dict[str, str] = {}
@@ -93,12 +107,14 @@ def main() -> None:
     failed = False
     for target in targets:
         packages = native_dependencies(recipe, target)
-        image = factory["targets"][target]["probe_image"]
+        target_data = factory["targets"][target]
+        image = target_data["probe_image"]
+        repositories = target_data.get("build_repositories", [])
         if args.dry_run:
             report[target] = {"image": image, "dependencies": packages, "status": "not-run"}
             continue
         try:
-            results, stderr = probe(image, target, packages)
+            results, stderr = probe(image, target, packages, repositories)
         except RuntimeError as error:
             report[target] = {"image": image, "dependencies": packages, "status": "probe-error", "error": str(error)}
             failed = True

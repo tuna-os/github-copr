@@ -1,10 +1,12 @@
 schema: 1
 tree: xfce-wayland
 targets: [el10, fedora, debian, arch]
-roots: [xfce4-wayland, xfwl4]
+roots: [xfce4-wayland, xfwl4, gtkgreet]
 nodes:
   xfce4-wayland: {source: tuna-os/xfce-wayland, needs: [xfconf, xfce4-session, xfce4-panel, xfdesktop, xfwl4]}
   xfwl4: {source: xfce/xfwl4, needs: [libxfce4ui, cargo-toolchain, wayland-stack]}
+  gtkgreet: {source: kennylevinsen/gtkgreet, needs: [greetd, gtk-layer-shell, cage]}
+  gtk-layer-shell: {source: wmww/gtk-layer-shell, needs: [meson, gtk3, wayland-stack]}
   libxfce4ui: {source: xfce/libxfce4ui, needs: [xfconf, libxfce4util]}
   xfconf: {source: xfce/xfconf, needs: [glib2, dbus]}
   xfce4-session: {source: xfce/xfce4-session, needs: [xfconf]}
@@ -15,3 +17,5 @@ nodes:
   libxfce4util: {kind: distro-or-factory-package}
   cargo-toolchain: {kind: distro-build-dependency}
   wayland-stack: {kind: distro-build-dependency}
+  gtk3: {kind: distro-build-dependency}
+  cage: {kind: distro-package}

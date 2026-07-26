@@ -24,6 +24,12 @@ def test_el10_probe_requires_a_repoquery_result() -> None:
     assert "grep -q ." in probe.QUERY_SCRIPTS["el10"]
 
 
+def test_el10_probe_enables_declared_build_repositories() -> None:
+    command = probe.podman_command("example.invalid/el10:latest", "el10", ["scdoc"], ["epel", "crb"])
+    assert "dnf -qy install epel-release" in command[6]
+    assert "dnf config-manager --set-enabled crb" in command[6]
+
+
 def test_native_dependencies_resolve_catalog_capabilities() -> None:
     recipe = {
         "dependencies": {

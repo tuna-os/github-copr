@@ -22,6 +22,8 @@ on:
       - packages/danksearch/package.yaml
       - packages/kairpods/package.yaml
       - packages/oversteer-udev/package.yaml
+      - packages/gtkgreet/package.yaml
+      - packages/gtk-layer-shell/package.yaml
       - manifests/package-factory.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
@@ -129,6 +131,10 @@ jobs:
             target: el10
             install_name: oversteer-udev
             smoke: find /usr/lib/udev/rules.d -name \*oversteer\* -print -quit | grep -q .
+          - package: gtk-layer-shell
+            target: el10
+            install_name: gtk-layer-shell-devel
+            smoke: pkg-config --modversion gtk-layer-shell-0 && test -f /usr/include/gtk-layer-shell/gtk-layer-shell.h
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
