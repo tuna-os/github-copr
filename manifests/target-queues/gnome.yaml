@@ -13,11 +13,11 @@ queues:
     format: deb
     implementation: tideforge-debian
     suite: resolute
-    roots: [glib2, gobject-introspection, gtk4, libadwaita, mutter, gnome-shell, gnome-session, gdm]
+    roots: [glib2, gobject-introspection, gtk4, libadwaita, mutter, gnome-shell, gnome-session, gdm, bazaar]
     gates: [container-build, apt-stage-install, gnome-session-smoke]
   debian:
     format: deb
     implementation: tideforge-debian
     suite: trixie
-    roots: [glib2, gobject-introspection, gtk4, libadwaita, mutter, gnome-shell, gnome-session, gdm]
+    roots: [glib2, gobject-introspection, gtk4, libadwaita, mutter, gnome-shell, gnome-session, gdm, bazaar]
     gates: [container-build, apt-stage-install, gnome-session-smoke]

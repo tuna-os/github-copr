@@ -9,6 +9,7 @@ on:
       - packages/dgop/package.yaml
       - packages/danksearch/package.yaml
       - packages/dankcalendar/package.yaml
+      - packages/bazaar/package.yaml
       - packages/oversteer-udev/package.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
@@ -27,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [niri, kairpods, krunner-bazaar, dgop, danksearch, dankcalendar, oversteer-udev]
+        package: [niri, kairpods, krunner-bazaar, dgop, danksearch, dankcalendar, bazaar, oversteer-udev]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

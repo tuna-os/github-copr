@@ -1,0 +1,37 @@
+schema: 1
+name: bazaar
+version: "0.9.1"
+release: 1
+summary: Curated Flatpak application store
+description: >-
+  Native GTK application store used by the Bluefin and Aurora desktop
+  experiences to discover and install Flatpak applications.
+license: GPL-3.0-or-later
+source:
+  url: https://github.com/bazaar-org/bazaar/archive/refs/tags/v0.9.1.tar.gz
+  sha256: 1b2783845b183a9cea87048e582dcbdd71d7771a7f65f89d7ec8a563af2d550f
+  directory: bazaar-0.9.1
+build_system: meson
+dependencies:
+  build:
+    common: [meson, pkg-config]
+    targets:
+      # Bazaar 0.9 requires GTK 4.22 and libadwaita 1.8.  Those versions are
+      # supplied by the current GNOME targets below, not stock EL10.  EL10 is
+      # enabled only after the Tideforge GNOME 50 repository is staged.
+      ubuntu: [build-essential, gettext, libgtk-4-dev, libadwaita-1-dev, libdex-1-dev, libflatpak-dev, libappstream-dev, libxmlb-dev, libyaml-dev, libsoup-3.0-dev, libjson-glib-dev, libglycin-2-dev, libglycin-gtk4-2-dev, libwebkitgtk-6.0-dev, libsecret-1-dev, libproxy-dev, libmalcontent-0-dev, libgtksourceview-5-dev, blueprint-compiler, libmd4c-dev, libxml2-utils]
+      debian: [build-essential, gettext, libgtk-4-dev, libadwaita-1-dev, libdex-1-dev, libflatpak-dev, libappstream-dev, libxmlb-dev, libyaml-dev, libsoup-3.0-dev, libjson-glib-dev, libglycin-2-dev, libglycin-gtk4-2-dev, libwebkitgtk-6.0-dev, libsecret-1-dev, libproxy-dev, libmalcontent-0-dev, libgtksourceview-5-dev, blueprint-compiler, libmd4c-dev, libxml2-utils]
+      arch: [base-devel, meson, gettext, gtk4, libadwaita, libdex, flatpak, appstream, libxmlb, libyaml, libsoup3, json-glib, glycin, glycin-gtk4, webkitgtk-6.0, libsecret, libproxy, malcontent, gtksourceview-5, blueprint-compiler, md4c, libxml2]
+  runtime:
+    capabilities: [flatpak]
+files:
+  common:
+    - usr/bin/bazaar
+    - usr/bin/bazaar-dl-worker
+    - usr/bin/bazaar-refresh-worker
+    - usr/share/applications/io.github.kolunmi.Bazaar.desktop
+    - usr/share/metainfo/io.github.kolunmi.Bazaar.metainfo.xml
+    - usr/lib*/systemd/user/io.github.kolunmi.Bazaar.service
+    - usr/share/dbus-1/services/io.github.kolunmi.Bazaar.service
+    - usr/share/gnome-shell/search-providers/io.github.kolunmi.Bazaar.search-provider.ini
+targets: [ubuntu, debian, arch]
