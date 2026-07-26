@@ -64,7 +64,10 @@ jobs:
             # repo-add writes a compressed archive, so expose it under the name
             # the file:// repository client actually requests.
             cp /tmp/tideforge.db.tar.gz /var/lib/tideforge/tideforge.db
-            printf "\\n[tideforge]\\nServer = file:///var/lib/tideforge\\n" >> /etc/pacman.conf
+            # CI artifacts are deliberately unsigned. Production promotion has
+            # a separate signing gate; this isolated repository exists solely
+            # to prove pacman's dependency solver and payload installation.
+            printf "\\n[tideforge]\\nSigLevel = Optional TrustAll\\nServer = file:///var/lib/tideforge\\n" >> /etc/pacman.conf
             pacman -Sy --noconfirm
             pacman -S --noconfirm ${{ matrix.package }}
             pacman -Q ${{ matrix.package }}
