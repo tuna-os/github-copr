@@ -3,11 +3,12 @@ tree: cosmic
 targets: [el10, ubuntu, debian]
 roots: [cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
 nodes:
-  cosmic-session: {source: pop-os/cosmic-epoch, needs: [cosmic-bg, cosmic-comp, cosmic-idle, cosmic-notifications, cosmic-settings, xdg-desktop-portal-cosmic, greetd]}
+  cosmic-session: {source: pop-os/cosmic-epoch, needs: [cosmic-bg, cosmic-comp, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-settings, xdg-desktop-portal-cosmic, greetd]}
   cosmic-bg: {source: pop-os/cosmic-bg, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
   cosmic-icon-theme: {source: pop-os/cosmic-icons, needs: [pop-icon-theme]}
   cosmic-idle: {source: pop-os/cosmic-idle, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
   cosmic-notifications: {source: pop-os/cosmic-notifications, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
+  cosmic-osd: {source: pop-os/cosmic-osd, needs: [cosmic-icon-theme, cargo-toolchain, pipewire-stack, wayland-stack]}
   pop-icon-theme: {source: pop-os/icon-theme, needs: [meson-toolchain]}
   cosmic-comp: {source: pop-os/cosmic-comp, needs: [cargo-toolchain, wayland-stack]}
   cosmic-settings: {source: pop-os/cosmic-settings, needs: [cosmic-settings-daemon, cosmic-randr, cargo-toolchain]}
@@ -17,4 +18,5 @@ nodes:
   cargo-toolchain: {kind: distro-build-dependency}
   meson-toolchain: {kind: distro-build-dependency}
   wayland-stack: {kind: distro-build-dependency}
+  pipewire-stack: {kind: distro-runtime-dependency}
   greetd: {kind: distro-or-factory-package}

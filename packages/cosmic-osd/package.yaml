@@ -1,0 +1,41 @@
+schema: 1
+name: cosmic-osd
+version: "1.4.0"
+release: 1
+summary: On-screen displays for COSMIC
+description: COSMIC on-screen display service for TunaOS.
+license: Apache-2.0 AND GPL-3.0-or-later AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-osd/archive/epoch-1.4.0.tar.gz
+  sha256: 5ea21a076bc177fba888b2a5eb4e70d7524b4db0351a6e99d6d9bee4222267b2
+  directory: cosmic-osd-epoch-1.4.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-osd/vendor-1.4.0.tar.gz/sha512/785ff1ee334ff0f18428f8f8f701b561eeeedddff64f83ffb2825a803f59365849f2b5492ae7e97b0a72cfe474128e30ad8c9d24f5254b927752368bf4feb77e/vendor-1.4.0.tar.gz
+    sha256: 15179b87dabe0fb738c6559d30271d68765e4ec9745b363fd5a4235553ddff7c
+    filename: cosmic-osd-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-osd/raw/rawhide/f/vendor-config-1.4.0.toml
+    sha256: 4e555acd8c2c9b90a55800e2f7c90603031b1c642f7188397ec26795c1407086
+    filename: cosmic-osd-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: ce431b4d710a198b13298c96d22fe5ccaadb1943
+    VERGEN_GIT_COMMIT_DATE: "2026-07-09 17:32:50 -0600"
+  commands: ["just polkit-agent-helper-1=/usr/lib/polkit-1/polkit-agent-helper-1 build-release --offline --frozen"]
+dependencies:
+  build:
+    capabilities: [rust]
+    targets:
+      el10: [cargo, clang, clang-devel, just, libinput-devel, libxkbcommon-devel, lld, pipewire-devel, pulseaudio-libs-devel, systemd-devel, wayland-devel]
+  runtime:
+    targets:
+      el10: [cosmic-icon-theme >= 1.4.0, pulseaudio-utils]
+files:
+  common: [usr/bin/cosmic-osd]
+install:
+  commands: ["just rootdir={destdir} prefix=/usr install"]
+targets: [el10]
