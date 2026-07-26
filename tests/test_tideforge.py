@@ -98,6 +98,20 @@ def test_auxiliary_source_requires_safe_destination(recipe: dict) -> None:
         tideforge.validate(recipe)
 
 
+def test_recipe_renders_checksum_locked_auxiliary_file(recipe: dict) -> None:
+    recipe["sources"] = [{
+        "url": "https://example.com/vendor-config.toml",
+        "sha256": "b" * 64,
+        "filename": "vendor-config.toml",
+        "destination": ".cargo/config.toml",
+        "extract": False,
+    }]
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "install -Dm0644 %{SOURCE1} .cargo/config.toml" in rpm
+    assert 'install -Dm0644 "$srcdir/vendor-config.toml" .cargo/config.toml' in arch
+
+
 def test_arch_pkgbuild_includes_runtime_dependencies(recipe: dict) -> None:
     recipe["targets"] = ["arch"]
     recipe["dependencies"]["runtime"] = {"targets": {"arch": ["glibc", "libinput>=1.0"]}}

@@ -739,6 +739,7 @@ jobs:
           import sys
           import tarfile
           import hashlib
+          import shutil
           from pathlib import Path
           from urllib.request import urlretrieve
           import yaml
@@ -761,6 +762,10 @@ jobs:
               if hashlib.file_digest(extra_archive.open("rb"), "sha256").hexdigest() != extra["sha256"]:
                   raise SystemExit(f"checksum mismatch for auxiliary source {index}")
               destination = source / extra["destination"]
+              if not extra.get("extract", True):
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copyfile(extra_archive, destination)
+                  continue
               destination.mkdir(parents=True, exist_ok=True)
               strip = extra.get("strip_components", 1)
               with tarfile.open(extra_archive) as tar:
