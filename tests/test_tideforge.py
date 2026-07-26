@@ -185,6 +185,23 @@ def test_cargo_recipe_uses_declared_workspace_and_binary(recipe: dict) -> None:
     assert "cd service\n  CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked --package daemon" in arch
 
 
+def test_cargo_recipe_renders_validated_build_environment(recipe: dict) -> None:
+    recipe["build_system"] = "cargo"
+    recipe["build"] = {"environment": {"RUSTFLAGS": "-C link-arg=-lexample"}}
+    for target in ("el10", "debian", "arch"):
+        rendered = "\n".join(tideforge.render(recipe, target).values())
+        assert "RUSTFLAGS='-C link-arg=-lexample' CARGO_PROFILE_RELEASE_DEBUG=1 cargo build" in rendered
+
+
+def test_build_environment_rejects_unsafe_names_and_non_string_values(recipe: dict) -> None:
+    recipe["build"] = {"environment": {"bad-name": "value"}}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+    recipe["build"] = {"environment": {"RUSTFLAGS": 1}}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
 def test_cargo_recipe_can_explicitly_repair_a_root_lockfile_version(recipe: dict) -> None:
     recipe["build_system"] = "cargo"
     recipe["build"] = {

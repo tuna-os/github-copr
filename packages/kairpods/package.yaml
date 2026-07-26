@@ -14,11 +14,15 @@ build:
   working_directory: service
   cargo_package: kairpodsd
   binary: kairpodsd
+  # lmdb-master-sys 0.2.5 omits its static-link directive with current Cargo.
+  # Link the distro LMDB explicitly until upstream releases a compatible crate.
+  environment:
+    RUSTFLAGS: -C link-arg=-llmdb
 dependencies:
   build:
     capabilities: [rust, c-compiler, pkg-config, dbus-dev, bluez-dev, lmdb-dev]
   runtime:
-    capabilities: [dbus, bluez]
+    capabilities: [dbus, bluez, lmdb]
 files:
   common: [usr/bin/kairpodsd, usr/lib/systemd/user/kairpodsd.service, usr/share/plasma/plasmoids/org.kairpods.plasma]
 install:

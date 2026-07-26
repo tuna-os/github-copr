@@ -79,6 +79,7 @@ dependency_catalog:
   bluez: {el10: [bluez-libs], ubuntu: [bluez], debian: [bluez], opensuse-tumbleweed: [bluez], arch: [bluez]}
   bluez-dev: {el10: [bluez-libs-devel], ubuntu: [libbluetooth-dev], debian: [libbluetooth-dev], opensuse-tumbleweed: [bluez-devel], arch: [bluez-libs]}
   lmdb-dev: {el10: [lmdb-devel], ubuntu: [liblmdb-dev], debian: [liblmdb-dev], opensuse-tumbleweed: [lmdb-devel], arch: [lmdb]}
+  lmdb: {el10: [lmdb-libs], ubuntu: [liblmdb0], debian: [liblmdb0], opensuse-tumbleweed: [lmdb], arch: [lmdb]}
   pam-dev: {el10: [pam-devel], ubuntu: [libpam0g-dev], debian: [libpam0g-dev], opensuse-tumbleweed: [pam-devel], arch: [pam]}
   flatpak: {el10: [flatpak], ubuntu: [flatpak], debian: [flatpak], opensuse-tumbleweed: [flatpak], arch: [flatpak]}
   extra-cmake-modules: {el10: [extra-cmake-modules], ubuntu: [extra-cmake-modules], debian: [extra-cmake-modules], opensuse-tumbleweed: [extra-cmake-modules], arch: [extra-cmake-modules]}

@@ -168,6 +168,25 @@ def cargo_lock_flag(recipe: dict) -> str:
     return " --locked"
 
 
+def build_environment(recipe: dict) -> str:
+    """Return validated shell assignments declared by a recipe.
+
+    This is intentionally small: it covers upstream build workarounds without
+    turning a declarative recipe into an arbitrary shell-script escape hatch.
+    """
+    environment = recipe.get("build", {}).get("environment", {})
+    if not isinstance(environment, dict):
+        fail("build.environment must be a mapping")
+    assignments: list[str] = []
+    for name, value in environment.items():
+        if not isinstance(name, str) or not re.fullmatch(r"[A-Z_][A-Z0-9_]*", name):
+            fail("build.environment keys must be uppercase shell variable names")
+        if not isinstance(value, str):
+            fail("build.environment values must be strings")
+        assignments.append(f"{name}={shlex.quote(value)}")
+    return " ".join(assignments)
+
+
 def validate(recipe: dict, target: str | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
@@ -190,6 +209,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
         meson_options(recipe)
     if recipe["build_system"] == "cargo":
         cargo_lock_flag(recipe)
+    build_environment(recipe)
     debug_package_enabled(recipe)
     autoreconf_enabled(recipe)
     configure_options(recipe)
@@ -252,7 +272,8 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     elif recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
-        build = f"cd {workdir}\nCARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release{cargo_lock_flag(recipe)}{selector}"
+        environment = " ".join(filter(None, [build_environment(recipe), "CARGO_PROFILE_RELEASE_DEBUG=1"]))
+        build = f"cd {workdir}\n{environment} cargo build --release{cargo_lock_flag(recipe)}{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
@@ -347,7 +368,8 @@ Rules-Requires-Root: no
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release{cargo_lock_flag(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n"
+        environment = " ".join(filter(None, [build_environment(recipe), "CARGO_PROFILE_RELEASE_DEBUG=1"]))
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && {environment} cargo build --release{cargo_lock_flag(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -401,7 +423,8 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
-        build = f"cd {workdir}\n  CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release{cargo_lock_flag(recipe)}{selector}"
+        environment = " ".join(filter(None, [build_environment(recipe), "CARGO_PROFILE_RELEASE_DEBUG=1"]))
+        build = f"cd {workdir}\n  {environment} cargo build --release{cargo_lock_flag(recipe)}{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} \"$pkgdir/usr/bin/{binary}\""
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
