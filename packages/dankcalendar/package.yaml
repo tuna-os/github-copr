@@ -1,0 +1,44 @@
+schema: 1
+name: dankcalendar
+version: "0.2.7"
+release: 1
+summary: Dank Linux calendar with local, online, and CalDAV accounts
+description: Native calendar service and embedded Quickshell interface curated for the Dank/Niri desktop experience.
+license: MIT
+source:
+  # This tagged source release vendors Go modules and the DankCommon submodule.
+  # It is source material, not the separately published dcal binaries.
+  url: https://github.com/AvengeMedia/dankcalendar/releases/download/v0.2.7/dankcalendar-0.2.7.tar.gz
+  sha256: b52a2d5f5c876d4c737c2e785890ac935ebb81657375c2a50d766de55bdb7a1e
+  directory: dankcalendar-0.2.7
+build_system: go
+build:
+  working_directory: core
+  go_package: ./cmd/dcal
+  binary: dcal
+  # Populate go:embed input from the bundled Quickshell and DankCommon source.
+  prepare: [make -C core sync-shell]
+  go_tags: [withshell]
+  go_ldflags: [-s, -w, -X, main.Version=0.2.7]
+  environment:
+    CGO_ENABLED: "0"
+dependencies:
+  build:
+    capabilities: [go, c-compiler]
+  runtime:
+    targets:
+      arch: [quickshell]
+files:
+  common:
+    - usr/bin/dcal
+    - usr/lib/systemd/user/dcal.service
+    - usr/share/applications/com.danklinux.dankcalendar.desktop
+    - usr/share/icons/hicolor/scalable/apps/com.danklinux.dankcalendar.svg
+    - usr/share/metainfo/com.danklinux.dankcalendar.metainfo.xml
+install:
+  files:
+    - {source: assets/systemd/dcal.service, destination: usr/lib/systemd/user/dcal.service}
+    - {source: assets/com.danklinux.dankcalendar.desktop, destination: usr/share/applications/com.danklinux.dankcalendar.desktop}
+    - {source: assets/com.danklinux.dankcalendar.svg, destination: usr/share/icons/hicolor/scalable/apps/com.danklinux.dankcalendar.svg}
+    - {source: assets/com.danklinux.dankcalendar.metainfo.xml, destination: usr/share/metainfo/com.danklinux.dankcalendar.metainfo.xml}
+targets: [arch]

@@ -168,6 +168,38 @@ def cargo_lock_flag(recipe: dict) -> str:
     return " --locked"
 
 
+def prepare_commands(recipe: dict) -> str:
+    """Return source-root preparation commands declared by a trusted recipe."""
+    commands = recipe.get("build", {}).get("prepare", [])
+    if not isinstance(commands, list) or not all(isinstance(command, str) and command.strip() for command in commands):
+        fail("build.prepare must be a list of non-empty commands")
+    return "\n".join(commands)
+
+
+def go_options(recipe: dict) -> tuple[str, str]:
+    """Return validated Go build tag and linker-flag arguments."""
+    tags = recipe.get("build", {}).get("go_tags", [])
+    if not isinstance(tags, list) or not all(isinstance(tag, str) and re.fullmatch(r"[A-Za-z0-9_.-]+", tag) for tag in tags):
+        fail("build.go_tags must be a list of Go build tags")
+    ldflags = recipe.get("build", {}).get("go_ldflags", [])
+    if not isinstance(ldflags, list) or not all(isinstance(flag, str) and flag for flag in ldflags):
+        fail("build.go_ldflags must be a list of non-empty linker flags")
+    tag_arg = f" -tags {shlex.quote(','.join(tags))}" if tags else ""
+    ldflags_arg = f" -ldflags {shlex.quote(' '.join(ldflags))}" if ldflags else ""
+    return tag_arg, ldflags_arg
+
+
+def go_build_command(recipe: dict, binary: str, package: str) -> str:
+    """Render the portable Go build invocation for a recipe."""
+    tags, ldflags = go_options(recipe)
+    return f"go build -buildmode=pie -trimpath -mod=readonly{tags}{ldflags} -o {binary} {package}"
+
+
+def with_build_environment(recipe: dict, command: str) -> str:
+    environment = build_environment(recipe)
+    return f"{environment} {command}" if environment else command
+
+
 def build_environment(recipe: dict) -> str:
     """Return validated shell assignments declared by a recipe.
 
@@ -209,6 +241,9 @@ def validate(recipe: dict, target: str | None = None) -> None:
         meson_options(recipe)
     if recipe["build_system"] == "cargo":
         cargo_lock_flag(recipe)
+    if recipe["build_system"] == "go":
+        go_options(recipe)
+    prepare_commands(recipe)
     build_environment(recipe)
     debug_package_enabled(recipe)
     autoreconf_enabled(recipe)
@@ -254,7 +289,7 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
     if build_system == "cargo":
         return "%cargo_build", "%cargo_install"
     if build_system == "go":
-        return "go build -buildmode=pie -trimpath -mod=readonly -o %{name} .", "install -Dm0755 %{name} %{buildroot}%{_bindir}/%{name}"
+        return go_build_command(recipe or {}, "%{name}", "."), "install -Dm0755 %{name} %{buildroot}%{_bindir}/%{name}"
     if build_system == "data":
         return ":", ":"
     options = " ".join(filter(None, [cmake_generator(recipe or {}), cmake_options(recipe or {})]))
@@ -263,11 +298,14 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
 
 def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     build, install = rpm_build_lines(recipe["build_system"], recipe)
+    prepare = prepare_commands(recipe)
+    if prepare:
+        build = f"{prepare}\n{build}"
     if recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
         package = build_option(recipe, "go_package", ".")
-        build = f"cd {workdir}\ngo build -buildmode=pie -trimpath -mod=readonly -o {binary} {package}"
+        build = f"{prepare + chr(10) if prepare else ''}cd {workdir}\n{with_build_environment(recipe, go_build_command(recipe, binary, package))}"
         install = f"install -Dm0755 {workdir}/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
     elif recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
@@ -374,7 +412,11 @@ Rules-Requires-Root: no
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
         package = build_option(recipe, "go_package", ".")
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && go build -buildmode=pie -trimpath -mod=readonly -o {binary} {package}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/{binary} debian/{recipe['name']}/usr/bin/{binary}\n"
+        prepare = prepare_commands(recipe)
+        prelude = "\n".join(f"\t{command}" for command in prepare.splitlines())
+        if prelude:
+            prelude += "\n"
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n{prelude}\tcd {workdir} && {with_build_environment(recipe, go_build_command(recipe, binary, package))}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/{binary} debian/{recipe['name']}/usr/bin/{binary}\n"
     elif recipe["build_system"] == "data":
         rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\t:\n\noverride_dh_auto_install:\n\t:\n"
     else:
@@ -430,7 +472,8 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
         package = build_option(recipe, "go_package", ".")
-        build = f"cd {workdir}\n  go build -buildmode=pie -trimpath -mod=readonly -o {binary} {package}"
+        prepare = prepare_commands(recipe)
+        build = f"{prepare + chr(10) if prepare else ''}cd {workdir}\n  {with_build_environment(recipe, go_build_command(recipe, binary, package))}"
         install = f"install -Dm0755 {workdir}/{binary} \"$pkgdir/usr/bin/{binary}\""
     elif recipe["build_system"] == "data":
         build = ":"

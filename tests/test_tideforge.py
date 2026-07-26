@@ -125,6 +125,35 @@ def test_recipe_renders_go_builds(recipe: dict) -> None:
     assert "debian/hello-tuna.install" not in tideforge.render(recipe, "debian")
 
 
+def test_go_recipe_renders_prepare_tags_and_linker_flags(recipe: dict) -> None:
+    recipe["build_system"] = "go"
+    recipe["build"] = {
+        "working_directory": "core",
+        "go_package": "./cmd/demo",
+        "binary": "demo",
+        "prepare": ["make -C core sync-assets"],
+        "go_tags": ["embedded", "wayland"],
+        "go_ldflags": ["-s", "-w"],
+    }
+    for target in ("el10", "debian", "arch"):
+        rendered = "\n".join(tideforge.render(recipe, target).values())
+        assert "make -C core sync-assets" in rendered
+        assert "go build -buildmode=pie -trimpath -mod=readonly -tags embedded,wayland -ldflags '-s -w' -o demo ./cmd/demo" in rendered
+
+
+def test_go_recipe_rejects_invalid_prepare_and_build_options(recipe: dict) -> None:
+    recipe["build_system"] = "go"
+    recipe["build"] = {"prepare": [""]}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+    recipe["build"] = {"go_tags": ["invalid tag"]}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+    recipe["build"] = {"go_ldflags": [1]}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
 def test_recipe_installs_reviewed_source_files(recipe: dict) -> None:
     recipe["install"] = {"files": [{"source": "demo.service", "destination": "usr/lib/systemd/system/demo.service"}]}
     assert "install -Dm0644 demo.service %{buildroot}/usr/lib/systemd/system/demo.service" in tideforge.render(recipe, "el10")["hello-tuna.spec"]
