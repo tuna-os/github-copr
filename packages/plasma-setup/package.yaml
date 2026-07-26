@@ -1,0 +1,36 @@
+schema: 1
+name: plasma-setup
+version: "6.7.3"
+release: 1
+summary: KDE Plasma first-boot setup wizard
+description: >-
+  KDE's upstream out-of-box experience for creating the first user and
+  configuring initial desktop settings. Replaces Aurora's staged COPR swap
+  with a source-built, TunaOS-owned package.
+license: BSD-2-Clause
+source:
+  url: https://invent.kde.org/plasma/plasma-setup/-/archive/v6.7.3/plasma-setup-v6.7.3.tar.gz
+  sha256: ae1b165ee4c3e6403f5c74b7b89da86cfe43308521534cbfe802a06a4da7a819
+  directory: plasma-setup-v6.7.3
+build_system: cmake
+dependencies:
+  build:
+    targets:
+      # Plasma Setup 6.7 requires Qt 6.10 and KDE Frameworks 6.26. Start
+      # with Arch's current Plasma stack; EL10 follows its staged latest-KDE
+      # repository rather than pretending stock EL10 is compatible.
+      arch: [base-devel, cmake, extra-cmake-modules, qt6-base, qt6-declarative, qt6-svg, kauth, kcoreaddons, ki18n, kpackage, kconfig, kscreen, plasma-workspace]
+  runtime:
+    targets:
+      arch: [plasma-workspace, kscreen, kpackage, kauth]
+files:
+  common:
+    - usr/lib/plasma-setup
+    - usr/lib/systemd/system/plasma-setup.service
+    - usr/share/polkit-1/rules.d/plasma-setup-polkit.rules
+    - usr/lib/sysusers.d/plasma-setup-sysuser.conf
+    - usr/lib/tmpfiles.d/plasma-setup-tmpfiles.conf
+    - usr/share/plasma-setup/plasma-setup.desktop
+    - usr/share/plasma-setup/kglobalaccelrc
+    - etc/xdg/plasmasetuprc
+targets: [arch]

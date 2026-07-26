@@ -8,3 +8,8 @@ queues:
     implementation: native-spec
     roots: [krunner-bazaar, oversteer-udev, kairpods]
     gates: [mock-build, rpm-md-stage-install, plasma-session-smoke]
+  arch:
+    format: pkg.tar.zst
+    implementation: tideforge-pkgbuild
+    roots: [krunner-bazaar, oversteer-udev, kairpods, plasma-setup]
+    gates: [container-build, pacman-stage-install, plasma-session-smoke]

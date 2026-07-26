@@ -1,11 +1,12 @@
 schema: 1
 tree: aurora-kde
-targets: [el10]
-roots: [krunner-bazaar, oversteer-udev, kairpods]
+targets: [el10, arch]
+roots: [krunner-bazaar, oversteer-udev, kairpods, plasma-setup]
 nodes:
   krunner-bazaar: {source: bazaar-org/krunner-bazaar, needs: [plasma-workspace, bazaar]}
   oversteer-udev: {source: berarma/oversteer, needs: []}
   kairpods: {source: can1357/kAirPods, needs: [kairpodsd, plasma-workspace, bluez, dbus]}
   kairpodsd: {source: can1357/kAirPods, needs: [bluez, dbus]}
+  plasma-setup: {source: plasma/plasma-setup, needs: [plasma-workspace, kscreen, kpackage, kauth]}
   plasma-workspace: {kind: distro-package}
   bazaar: {kind: distro-or-factory-package}
