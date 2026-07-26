@@ -1,0 +1,61 @@
+schema: 1
+name: cosmic-session
+version: "1.4.0"
+release: 1
+summary: Session manager for the COSMIC desktop environment
+description: >-
+  COSMIC session manager and session target for the TunaOS Hummingbird desktop.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-session/archive/epoch-1.4.0.tar.gz
+  sha256: 34d92d4113b08d8129d2bf5d16d3641fcc64e5c8cbb20df2c03700d06ec5fc2b
+  directory: cosmic-session-epoch-1.4.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-session/vendor-1.4.0.tar.gz/sha512/d4424916d3d12fdae8260f80d5e9b9a1d725ec70e1600f7d9104efaa7f445c1cadebb21b5fa4e6ebc65ba29c2c5107ace65b995c06c4c62219bbd7f7910b7563/vendor-1.4.0.tar.gz
+    sha256: dc00ed5951dfbbcdd13dc07f2165a05bf8c21a687cb5bfdf1f8187f2aa0f6df3
+    filename: cosmic-session-vendor.tar.gz
+    destination: .
+    strip_components: 0
+build_system: custom
+build:
+  cargo_config: |
+    [source.crates-io]
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/pop-os/dbus-settings-bindings"]
+    git = "https://github.com/pop-os/dbus-settings-bindings"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/pop-os/launch-pad"]
+    git = "https://github.com/pop-os/launch-pad"
+    replace-with = "vendored-sources"
+
+    [source.vendored-sources]
+    directory = "vendor"
+  environment:
+    VERGEN_GIT_SHA: b5ef6c0c0d68762b2991e4f5906cc70599e2f1fc
+    VERGEN_GIT_COMMIT_DATE: "2026-07-02 12:45:52 -0700"
+  commands: [cargo build --release --offline --frozen]
+dependencies:
+  build:
+    capabilities: [rust]
+    targets:
+      el10: [cargo, lld, just, desktop-file-utils]
+  runtime:
+    targets:
+      el10: [cosmic-app-library >= 1.4.0, cosmic-applets >= 1.4.0, cosmic-bg >= 1.4.0, cosmic-comp >= 1.4.0, cosmic-files >= 1.4.0, cosmic-greeter >= 1.4.0, cosmic-icons >= 1.4.0, cosmic-idle >= 1.4.0, cosmic-initial-setup >= 1.4.0, cosmic-launcher >= 1.4.0, cosmic-notifications >= 1.4.0, cosmic-osd >= 1.4.0, cosmic-panel >= 1.4.0, cosmic-randr >= 1.4.0, cosmic-screenshot >= 1.4.0, cosmic-settings >= 1.4.0, cosmic-settings-daemon >= 1.4.0, cosmic-term >= 1.4.0, cosmic-workspaces >= 1.4.0, xdg-desktop-portal-cosmic >= 1.4.0, open-sans-fonts, 'font(notosansmono)', xdg-user-dirs, system-cosmic-config]
+files:
+  common:
+    - usr/bin/cosmic-session
+    - usr/bin/start-cosmic
+    - usr/lib/systemd/user/cosmic-session.target
+    - usr/share/wayland-sessions/cosmic.desktop
+    - usr/share/applications/cosmic-mimeapps.list
+    - usr/share/dconf/profile/cosmic
+install:
+  commands:
+    - just rootdir={destdir} install
+  generated_files:
+    - destination: usr/share/dconf/profile/cosmic
+      content: "user-db:user\nsystem-db:local\n"
+targets: [el10]

@@ -19,7 +19,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ROOT / "manifests" / "package-factory.yaml"
-VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data"}
+VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data", "custom"}
 
 
 def fail(message: str) -> None:
@@ -203,6 +203,20 @@ def prepare_commands(recipe: dict) -> str:
     return "\n".join(commands)
 
 
+def custom_commands(recipe: dict, key: str, destination_root: str = "") -> str:
+    """Render reviewed commands for source projects with nonstandard tooling.
+
+    Tideforge still owns source provenance, dependencies, and native package
+    metadata. This narrow escape hatch is for upstream projects whose install
+    contract is legitimately `just`/`make`, rather than pretending they are a
+    simple one-binary Cargo package. `{destdir}` is expanded by each renderer.
+    """
+    commands = recipe.get("build" if key == "build" else "install", {}).get("commands", [])
+    if not isinstance(commands, list) or not commands or not all(isinstance(command, str) and command.strip() for command in commands):
+        fail(f"{key}.commands must be a non-empty list of commands")
+    return "\n".join(command.replace("{destdir}", destination_root) for command in commands)
+
+
 def go_options(recipe: dict) -> tuple[str, str]:
     """Return validated Go build tag and linker-flag arguments."""
     tags = recipe.get("build", {}).get("go_tags", [])
@@ -251,6 +265,14 @@ def build_environment(recipe: dict) -> str:
             fail("build.environment values must be strings")
         assignments.append(f"{name}={shlex.quote(value)}")
     return " ".join(assignments)
+
+
+def build_environment_exports(recipe: dict) -> str:
+    """Render shell exports when a custom build has several commands."""
+    environment = recipe.get("build", {}).get("environment", {})
+    # Reuse the normal validator before retaining quoted values intact.
+    build_environment(recipe)
+    return "\n".join(f"export {name}={shlex.quote(value)}" for name, value in environment.items())
 
 
 def source_entries(recipe: dict) -> list[dict]:
@@ -316,6 +338,10 @@ def validate(recipe: dict, target: str | None = None) -> None:
     if recipe["build_system"] == "go":
         go_options(recipe)
         go_module_mode(recipe)
+    if recipe["build_system"] == "custom":
+        custom_commands(recipe, "build")
+        custom_commands(recipe, "install", "{destdir}")
+        cargo_config_commands(recipe)
     prepare_commands(recipe)
     build_environment(recipe)
     debug_package_enabled(recipe)
@@ -365,6 +391,8 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
         return go_build_command(recipe or {}, "%{name}", "."), "install -Dm0755 %{name} %{buildroot}%{_bindir}/%{name}"
     if build_system == "data":
         return ":", ":"
+    if build_system == "custom":
+        return custom_commands(recipe or {}, "build"), custom_commands(recipe or {}, "install", "%{buildroot}")
     options = " ".join(filter(None, [cmake_generator(recipe or {}), cmake_options(recipe or {})]))
     return f"%cmake {options}\n%cmake_build".rstrip(), "%cmake_install"
 
@@ -387,6 +415,9 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         prelude = "\n".join(filter(None, [prepare_commands(recipe), cargo_config_commands(recipe)]))
         build = f"cd {workdir}\n{prelude + chr(10) if prelude else ''}{environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
+    elif recipe["build_system"] == "custom":
+        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
+        install = custom_commands(recipe, "install", "%{buildroot}")
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
     rpm_output = recipe.get("outputs", {}).get("rpm", {})
@@ -494,6 +525,10 @@ Rules-Requires-Root: no
         if prelude:
             prelude += "\n"
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && :\n{prelude}\tcd {workdir} && {environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n\noverride_dh_dwz:\n\t:\n"
+    elif recipe["build_system"] == "custom":
+        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
+        install = custom_commands(recipe, "install", f"debian/{recipe['name']}")
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\t{build.replace(chr(10), chr(10) + chr(9))}\n\noverride_dh_auto_install:\n\t{install.replace(chr(10), chr(10) + chr(9))}\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -530,7 +565,7 @@ Rules-Requires-Root: no
     # debian/<binary-package>.  A .install file would make dh_install search
     # debian/tmp for those same files and fail the package build.  Native
     # build-system packages retain .install metadata for dh_auto_install.
-    direct_install = recipe["build_system"] in {"cargo", "go", "data"} or bool(recipe.get("install"))
+    direct_install = recipe["build_system"] in {"cargo", "go", "data", "custom"} or bool(recipe.get("install"))
     if not direct_install:
         for package in binary_packages:
             rendered[f"debian/{package['name']}.install"] = "\n".join(package.get("files", recipe["files"]["common"])) + "\n"
@@ -565,6 +600,9 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     elif recipe["build_system"] == "data":
         build = ":"
         install = ":"
+    elif recipe["build_system"] == "custom":
+        build = "\n  ".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
+        install = custom_commands(recipe, "install", "$pkgdir")
     elif recipe["build_system"] == "meson":
         build = f"arch-meson build {meson_options(recipe)}\n  meson compile -C build".rstrip()
         install = "DESTDIR=\"$pkgdir\" meson install -C build"

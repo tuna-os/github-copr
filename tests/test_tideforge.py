@@ -207,6 +207,27 @@ def test_recipe_installs_generated_files(recipe: dict) -> None:
     assert "$pkgdir/usr/lib/pkgconfig/demo.pc" in arch
 
 
+def test_custom_recipe_renders_native_install_contract(recipe: dict) -> None:
+    recipe["build_system"] = "custom"
+    recipe["build"] = {"commands": ["cargo build --release --offline"], "environment": {"RUSTFLAGS": "-C relocation-model=pic"}}
+    recipe["install"] = {"commands": ["just rootdir={destdir} install"]}
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "debian")["debian/rules"]
+    arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "just rootdir=%{buildroot} install" in rpm
+    assert "export RUSTFLAGS='-C relocation-model=pic'" in rpm
+    assert "just rootdir=debian/hello-tuna install" in deb
+    assert "just rootdir=$pkgdir install" in arch
+
+
+def test_custom_recipe_requires_build_and_install_commands(recipe: dict) -> None:
+    recipe["build_system"] = "custom"
+    recipe["build"] = {"commands": []}
+    recipe["install"] = {"commands": ["make install DESTDIR={destdir}"]}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
 def test_deb_rooted_source_directory_excludes_generated_debian_metadata(recipe: dict) -> None:
     recipe["build_system"] = "data"
     recipe["source"]["directory"] = "."
