@@ -22,7 +22,11 @@ SPEC.loader.exec_module(tideforge)
 QUERY_SCRIPTS = {
     "el10": """dnf -qy makecache
 for package in "$@"; do
-  dnf -q repoquery --available "$package" >/dev/null 2>&1 && status=available || status=missing
+  if dnf -q repoquery --available "$package" | grep -q .; then
+    status=available
+  else
+    status=missing
+  fi
   printf 'RESULT\\t%s\\t%s\\n' "$package" "$status"
 done""",
     "ubuntu": """apt-get update -qq

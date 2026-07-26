@@ -19,6 +19,11 @@ def test_probe_command_uses_a_disposable_podman_container() -> None:
     assert "pacman -Si" in command[6]
 
 
+def test_el10_probe_requires_a_repoquery_result() -> None:
+    assert "repoquery --available" in probe.QUERY_SCRIPTS["el10"]
+    assert "grep -q ." in probe.QUERY_SCRIPTS["el10"]
+
+
 def test_native_dependencies_resolve_catalog_capabilities() -> None:
     recipe = {
         "dependencies": {
