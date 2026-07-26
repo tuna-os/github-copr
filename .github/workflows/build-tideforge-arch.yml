@@ -55,7 +55,7 @@ jobs:
       - name: Clean-install generated package from an ephemeral repository
         run: |
           set -euo pipefail
-          docker run --rm --volume "$PWD/.tideforge/arch/${{ matrix.package }}:/work:ro" docker.io/library/archlinux:latest bash -lc '
+          docker run --rm --user root --volume "$PWD/.tideforge/arch/${{ matrix.package }}:/work:ro" docker.io/library/archlinux:latest bash -lc '
             set -euo pipefail
             pacman -Sy --noconfirm pacman-contrib
             repo-add /tmp/tideforge.db.tar.gz /work/artifacts/*.pkg.tar.*
