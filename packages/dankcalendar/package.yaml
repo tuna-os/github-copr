@@ -20,6 +20,7 @@ build:
   prepare: [make -C core sync-shell]
   go_tags: [withshell]
   go_ldflags: [-s, -w, -X, main.Version=0.2.7]
+  go_module_mode: vendor
   environment:
     CGO_ENABLED: "0"
 dependencies:

@@ -68,9 +68,12 @@ jobs:
             # CI artifacts are deliberately unsigned. Production promotion has
             # a separate signing gate; this isolated repository exists solely
             # to prove pacman's dependency solver and payload installation.
-            printf "\\n[tideforge]\\nSigLevel = Optional TrustAll\\nServer = file:///var/lib/tideforge\\n" >> /etc/pacman.conf
-            pacman -Sy --noconfirm
-            pacman -S --noconfirm ${{ matrix.package }}
+            # Keep the repository definition out of /etc: hosted container
+            # engines may user-map root and make that image file read-only.
+            cp /etc/pacman.conf /tmp/tideforge-pacman.conf
+            printf "\\n[tideforge]\\nSigLevel = Optional TrustAll\\nServer = file:///var/lib/tideforge\\n" >> /tmp/tideforge-pacman.conf
+            pacman --config /tmp/tideforge-pacman.conf -Sy --noconfirm
+            pacman --config /tmp/tideforge-pacman.conf -S --noconfirm ${{ matrix.package }}
             pacman -Q ${{ matrix.package }}
           '
       - run: python3 scripts/validate-built-arch-package.py packages/${{ matrix.package }}/package.yaml .tideforge/arch/${{ matrix.package }}/artifacts/package-info.txt

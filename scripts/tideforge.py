@@ -189,10 +189,17 @@ def go_options(recipe: dict) -> tuple[str, str]:
     return tag_arg, ldflags_arg
 
 
+def go_module_mode(recipe: dict) -> str:
+    mode = recipe.get("build", {}).get("go_module_mode", "readonly")
+    if mode not in {"readonly", "vendor"}:
+        fail("build.go_module_mode must be readonly or vendor")
+    return mode
+
+
 def go_build_command(recipe: dict, binary: str, package: str) -> str:
     """Render the portable Go build invocation for a recipe."""
     tags, ldflags = go_options(recipe)
-    return f"go build -buildmode=pie -trimpath -mod=readonly{tags}{ldflags} -o {binary} {package}"
+    return f"go build -buildmode=pie -trimpath -mod={go_module_mode(recipe)}{tags}{ldflags} -o {binary} {package}"
 
 
 def with_build_environment(recipe: dict, command: str) -> str:
@@ -243,6 +250,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
         cargo_lock_flag(recipe)
     if recipe["build_system"] == "go":
         go_options(recipe)
+        go_module_mode(recipe)
     prepare_commands(recipe)
     build_environment(recipe)
     debug_package_enabled(recipe)

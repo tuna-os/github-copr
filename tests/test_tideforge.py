@@ -134,11 +134,12 @@ def test_go_recipe_renders_prepare_tags_and_linker_flags(recipe: dict) -> None:
         "prepare": ["make -C core sync-assets"],
         "go_tags": ["embedded", "wayland"],
         "go_ldflags": ["-s", "-w"],
+        "go_module_mode": "vendor",
     }
     for target in ("el10", "debian", "arch"):
         rendered = "\n".join(tideforge.render(recipe, target).values())
         assert "make -C core sync-assets" in rendered
-        assert "go build -buildmode=pie -trimpath -mod=readonly -tags embedded,wayland -ldflags '-s -w' -o demo ./cmd/demo" in rendered
+        assert "go build -buildmode=pie -trimpath -mod=vendor -tags embedded,wayland -ldflags '-s -w' -o demo ./cmd/demo" in rendered
 
 
 def test_go_recipe_rejects_invalid_prepare_and_build_options(recipe: dict) -> None:
@@ -150,6 +151,9 @@ def test_go_recipe_rejects_invalid_prepare_and_build_options(recipe: dict) -> No
     with pytest.raises(SystemExit):
         tideforge.validate(recipe)
     recipe["build"] = {"go_ldflags": [1]}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+    recipe["build"] = {"go_module_mode": "mod"}
     with pytest.raises(SystemExit):
         tideforge.validate(recipe)
 
