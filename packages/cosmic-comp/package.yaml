@@ -1,0 +1,105 @@
+schema: 1
+name: cosmic-comp
+version: "1.4.0"
+release: 1
+summary: Compositor for the COSMIC desktop environment
+description: COSMIC Wayland compositor for the TunaOS Hummingbird desktop.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-comp/archive/epoch-1.4.0.tar.gz
+  sha256: 713f2dfdfa0e1b6899a45fd7dec172fb0f299a60daff4a624b8432de43fa229b
+  directory: cosmic-comp-epoch-1.4.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-comp/vendor-1.4.0.tar.gz/sha512/c49695f78fd82bfaf836a5c6a7259fce51d9ba8914232f8ef6402b6858f1c8420c54e90bbead4c9d807d96faf1dbb3f9281ec3fff4077f3de29d418da6916003/vendor-1.4.0.tar.gz
+    sha256: 7979842db0a553b9c1f1e95521f320ce191c6e9ed212d4660c81e920e748d7b6
+    filename: cosmic-comp-vendor.tar.gz
+    destination: .
+    strip_components: 0
+build_system: custom
+build:
+  cargo_config: |
+    [source.crates-io]
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/Drakulix/id-tree.git?branch=feature/copy_clone"]
+    git = "https://github.com/Drakulix/id-tree.git"
+    branch = "feature/copy_clone"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/iced-rs/cryoglyph.git?rev=e429a025df36ab8145708acb309080ae3deec17a"]
+    git = "https://github.com/iced-rs/cryoglyph.git"
+    rev = "e429a025df36ab8145708acb309080ae3deec17a"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/jackpot51/rust-atomicwrites"]
+    git = "https://github.com/jackpot51/rust-atomicwrites"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/pop-os//cosmic-protocols?branch=main"]
+    git = "https://github.com/pop-os//cosmic-protocols"
+    branch = "main"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/pop-os/cosmic-randr/"]
+    git = "https://github.com/pop-os/cosmic-randr/"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/pop-os/cosmic-settings-daemon"]
+    git = "https://github.com/pop-os/cosmic-settings-daemon"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/pop-os/dbus-settings-bindings"]
+    git = "https://github.com/pop-os/dbus-settings-bindings"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/pop-os/freedesktop-icons"]
+    git = "https://github.com/pop-os/freedesktop-icons"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/pop-os/libcosmic"]
+    git = "https://github.com/pop-os/libcosmic"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/pop-os/smithay-clipboard?tag=sctk-0.20"]
+    git = "https://github.com/pop-os/smithay-clipboard"
+    tag = "sctk-0.20"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/pop-os/softbuffer?tag=cosmic-4.0"]
+    git = "https://github.com/pop-os/softbuffer"
+    tag = "cosmic-4.0"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/pop-os/window_clipboard.git?tag=sctk-0.20"]
+    git = "https://github.com/pop-os/window_clipboard.git"
+    tag = "sctk-0.20"
+    replace-with = "vendored-sources"
+
+    [source."git+https://github.com/smithay/smithay.git?rev=1ed69cb"]
+    git = "https://github.com/smithay/smithay.git"
+    rev = "1ed69cb"
+    replace-with = "vendored-sources"
+
+    [source.vendored-sources]
+    directory = "vendor"
+  environment:
+    VERGEN_GIT_SHA: 4d370cdf92b5d96d78032593947f4ad9eae793bf
+    VERGEN_GIT_COMMIT_DATE: "2026-07-21 22:22:07 +0200"
+    GIT_HASH: 4d370cdf92b5d96d78032593947f4ad9eae793bf
+  commands: [cargo build --release --offline --frozen]
+dependencies:
+  build:
+    capabilities: [rust]
+    targets:
+      el10: [cargo, lld, make, wayland-devel, libxkbcommon-devel, libglvnd-devel, libseat-devel, libinput-devel, mesa-libgbm-devel, pixman-devel, libdisplay-info-devel]
+  runtime:
+    targets:
+      el10: [libseat, libwayland-server, xorg-x11-server-Xwayland, cosmic-icon-theme >= 1.4.0]
+files:
+  common:
+    - usr/bin/cosmic-comp
+    - usr/share/cosmic/com.system76.CosmicSettings.Shortcuts/v1/defaults
+    - usr/share/cosmic/com.system76.CosmicSettings.WindowRules/v1/tiling_exception_defaults
+install:
+  commands: ["make install DESTDIR={destdir} prefix=/usr"]
+targets: [el10]
