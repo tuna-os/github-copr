@@ -24,6 +24,7 @@ on:
       - packages/oversteer-udev/package.yaml
       - packages/gtkgreet/package.yaml
       - packages/gtk-layer-shell/package.yaml
+      - packages/cosmic-comp/package.yaml
       - packages/cosmic-session/package.yaml
       - manifests/package-factory.yaml
       - scripts/tideforge.py
@@ -42,11 +43,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # COSMIC session is deliberately payload-only for now: a full staged
-        # install requires the remaining COSMIC runtime closure, which is not
-        # all factory-built yet.  This still makes every source/vendor/toolchain
-        # regression block updates before the recipe can be promoted.
-        package: [dms, dms-cli, dms-greeter, cosmic-session]
+        # COSMIC is deliberately payload-only for now: a full staged install
+        # requires the remaining runtime closure, which is not all
+        # factory-built yet. This still makes every source/vendor/toolchain
+        # regression block updates before either recipe can be promoted.
+        package: [dms, dms-cli, dms-greeter, cosmic-comp, cosmic-session]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
