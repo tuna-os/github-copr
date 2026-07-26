@@ -10,6 +10,10 @@ import sys
 import yaml
 
 
+ROOT = Path(__file__).resolve().parents[1]
+CATALOG = ROOT / "manifests" / "package-factory.yaml"
+
+
 def fail(message: str) -> None:
     print(f"ERROR: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -26,6 +30,21 @@ def dependency_names(values: list[str]) -> set[str]:
     return {re.split(r"[<>=: ]", value, maxsplit=1)[0] for value in values}
 
 
+def runtime_dependencies(recipe: dict) -> set[str]:
+    """Resolve both native and capability runtime requirements for Arch."""
+    runtime = recipe.get("dependencies", {}).get("runtime", {})
+    dependencies = list(runtime.get("common", [])) + list(runtime.get("targets", {}).get("arch", []))
+    catalog_data = yaml.safe_load(CATALOG.read_text())
+    catalog = catalog_data.get("dependency_catalog", {}) if isinstance(catalog_data, dict) else {}
+    for capability in runtime.get("capabilities", []):
+        mapping = catalog.get(capability, {})
+        packages = mapping.get("arch") if isinstance(mapping, dict) else None
+        if not isinstance(packages, list) or not all(isinstance(package, str) for package in packages):
+            fail(f"runtime capability has no Arch mapping: {capability}")
+        dependencies.extend(packages)
+    return dependency_names(dependencies)
+
+
 def validate(recipe: dict, info: str) -> None:
     if field(info, "Name") != recipe["name"]:
         fail("built package name does not match recipe")
@@ -33,8 +52,7 @@ def validate(recipe: dict, info: str) -> None:
         fail("built package version does not match recipe")
     if field(info, "Architecture") not in {"x86_64", "aarch64"}:
         fail("built package has an unsupported architecture")
-    runtime = recipe.get("dependencies", {}).get("runtime", {})
-    declared = dependency_names(list(runtime.get("common", [])) + list(runtime.get("targets", {}).get("arch", [])))
+    declared = runtime_dependencies(recipe)
     built = dependency_names(field(info, "Depends On").split())
     missing = declared - built
     if missing:

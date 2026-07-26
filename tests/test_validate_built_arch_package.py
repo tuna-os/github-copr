@@ -29,3 +29,22 @@ def test_accepts_built_package_with_declared_runtime_dependencies() -> None:
 def test_rejects_missing_runtime_dependency() -> None:
     with pytest.raises(SystemExit):
         validator.validate(RECIPE, INFO.replace("  libinput>=1.0", ""))
+
+
+def test_resolves_runtime_capabilities_from_the_package_factory_catalog() -> None:
+    recipe = {
+        "name": "niri",
+        "version": "26.04",
+        "dependencies": {"runtime": {"capabilities": ["dbus"]}},
+    }
+    validator.validate(recipe, INFO.replace("glibc  libinput>=1.0", "dbus"))
+
+
+def test_rejects_runtime_capability_missing_from_arch_metadata() -> None:
+    recipe = {
+        "name": "niri",
+        "version": "26.04",
+        "dependencies": {"runtime": {"capabilities": ["dbus"]}},
+    }
+    with pytest.raises(SystemExit):
+        validator.validate(recipe, INFO.replace("glibc  libinput>=1.0", ""))
