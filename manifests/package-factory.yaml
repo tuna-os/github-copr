@@ -26,6 +26,10 @@ targets:
     r2_path: rpm/el10/{arch}
     repository: rpm-md
     probe_image: quay.io/centos/centos:stream10
+    # CRB is a signed, target-native CentOS repository.  It supplies selected
+    # development headers (for example Qt private API metadata) during builds;
+    # it is never added to a produced TunaOS image.
+    build_repositories: [crb]
   ubuntu:
     status: supported
     format: deb

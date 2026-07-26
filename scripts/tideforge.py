@@ -11,6 +11,7 @@ import argparse
 import json
 from pathlib import Path
 import re
+import shlex
 import sys
 
 import yaml
@@ -68,6 +69,11 @@ def install_commands(recipe: dict, destination_root: str) -> str:
     commands: list[str] = []
     for item in recipe.get("install", {}).get("files", []):
         commands.append(f"install -Dm{item.get('mode', '0644')} {item['source']} {destination_root}/{item['destination']}")
+    for item in recipe.get("install", {}).get("generated_files", []):
+        destination = f"{destination_root}/{item['destination']}"
+        commands.append(f"install -d {Path(destination).parent}")
+        commands.append(f"printf %s {shlex.quote(item['content'])} > {destination}")
+        commands.append(f"chmod {item.get('mode', '0644')} {destination}")
     return "\n".join(commands)
 
 
@@ -99,6 +105,41 @@ def cmake_options(recipe: dict) -> str:
     return " ".join(options)
 
 
+def meson_options(recipe: dict) -> str:
+    options = recipe.get("build", {}).get("meson_options", [])
+    if not isinstance(options, list) or not all(isinstance(option, str) and option.startswith("-D") for option in options):
+        fail("build.meson_options must be a list of Meson -D options")
+    return " ".join(options)
+
+
+def cmake_generator(recipe: dict) -> str:
+    generator = recipe.get("build", {}).get("cmake_generator", "")
+    if generator not in {"", "Ninja"}:
+        fail("build.cmake_generator must be Ninja when set")
+    return f"-G {generator}" if generator else ""
+
+
+def debug_package_enabled(recipe: dict) -> bool:
+    enabled = recipe.get("build", {}).get("debug_package", True)
+    if not isinstance(enabled, bool):
+        fail("build.debug_package must be a boolean")
+    return enabled
+
+
+def autoreconf_enabled(recipe: dict) -> bool:
+    enabled = recipe.get("build", {}).get("autoreconf", False)
+    if not isinstance(enabled, bool):
+        fail("build.autoreconf must be a boolean")
+    return enabled
+
+
+def configure_options(recipe: dict) -> str:
+    options = recipe.get("build", {}).get("configure_options", [])
+    if not isinstance(options, list) or not all(isinstance(option, str) and option.startswith("--") for option in options):
+        fail("build.configure_options must be a list of configure -- options")
+    return " ".join(options)
+
+
 def cargo_options(recipe: dict) -> tuple[str, str, str]:
     """Return the Cargo workspace directory, package selector, and binary."""
     return (
@@ -106,6 +147,25 @@ def cargo_options(recipe: dict) -> tuple[str, str, str]:
         build_option(recipe, "cargo_package", ""),
         build_option(recipe, "binary", recipe["name"]),
     )
+
+
+def cargo_lock_flag(recipe: dict) -> str:
+    """Return Cargo's lockfile enforcement flag for a recipe.
+
+    Source releases should contain a lockfile that matches their manifest. A
+    small number of upstream archives have only their root package version out
+    of sync; those must declare an explicit reason before Tideforge permits
+    Cargo to repair that metadata while retaining the pinned dependency set.
+    """
+    locked = recipe.get("build", {}).get("cargo_locked", True)
+    if not isinstance(locked, bool):
+        fail("build.cargo_locked must be a boolean")
+    if not locked:
+        reason = recipe.get("build", {}).get("cargo_lock_reason", "")
+        if not isinstance(reason, str) or not reason.strip():
+            fail("build.cargo_locked=false requires build.cargo_lock_reason")
+        return ""
+    return " --locked"
 
 
 def validate(recipe: dict, target: str | None = None) -> None:
@@ -125,6 +185,14 @@ def validate(recipe: dict, target: str | None = None) -> None:
         fail(f"build_system must be one of {sorted(VALID_BUILD_SYSTEMS)}")
     if recipe["build_system"] == "cmake":
         cmake_options(recipe)
+        cmake_generator(recipe)
+    if recipe["build_system"] == "meson":
+        meson_options(recipe)
+    if recipe["build_system"] == "cargo":
+        cargo_lock_flag(recipe)
+    debug_package_enabled(recipe)
+    autoreconf_enabled(recipe)
+    configure_options(recipe)
     targets = load_targets()
     requested = recipe["targets"]
     if not isinstance(requested, list) or not requested:
@@ -148,20 +216,28 @@ def validate(recipe: dict, target: str | None = None) -> None:
             fail("install.files entries need source and destination")
         if item["source"].startswith("/") or item["destination"].startswith("/") or ".." in Path(item["source"]).parts or ".." in Path(item["destination"]).parts:
             fail("install.files paths must stay relative")
+    for item in recipe.get("install", {}).get("generated_files", []):
+        if not isinstance(item, dict) or not isinstance(item.get("destination"), str) or not isinstance(item.get("content"), str):
+            fail("install.generated_files entries need destination and content")
+        if item["destination"].startswith("/") or ".." in Path(item["destination"]).parts:
+            fail("install.generated_files destinations must stay relative")
 
 
 def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str, str]:
     if build_system == "meson":
-        return "%meson\n%meson_build", "%meson_install"
+        options = meson_options(recipe or {})
+        return f"%meson {options}\n%meson_build".rstrip(), "%meson_install"
     if build_system == "autotools":
-        return "%configure\n%make_build", "%make_install"
+        prefix = "autoreconf -fi\n" if autoreconf_enabled(recipe or {}) else ""
+        options = configure_options(recipe or {})
+        return f"{prefix}%configure {options}\n%make_build".rstrip(), "%make_install"
     if build_system == "cargo":
         return "%cargo_build", "%cargo_install"
     if build_system == "go":
         return "go build -buildmode=pie -trimpath -mod=readonly -o %{name} .", "install -Dm0755 %{name} %{buildroot}%{_bindir}/%{name}"
     if build_system == "data":
         return ":", ":"
-    options = cmake_options(recipe or {})
+    options = " ".join(filter(None, [cmake_generator(recipe or {}), cmake_options(recipe or {})]))
     return f"%cmake {options}\n%cmake_build".rstrip(), "%cmake_install"
 
 
@@ -176,7 +252,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     elif recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
-        build = f"cd {workdir}\nCARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked{selector}"
+        build = f"cd {workdir}\nCARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release{cargo_lock_flag(recipe)}{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
@@ -205,7 +281,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     # debug-source payloads. Cargo builds retain debuginfo so native RPM debug
     # packages can be generated normally.
     rpm_preamble = ""
-    if recipe["build_system"] in {"go", "data"}:
+    if recipe["build_system"] in {"go", "data"} or not debug_package_enabled(recipe):
         rpm_preamble = "%global debug_package %{nil}\n"
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
@@ -271,7 +347,7 @@ Rules-Requires-Root: no
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n"
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release{cargo_lock_flag(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -280,8 +356,15 @@ Rules-Requires-Root: no
     elif recipe["build_system"] == "data":
         rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\t:\n\noverride_dh_auto_install:\n\t:\n"
     else:
-        options = cmake_options(recipe) if recipe["build_system"] == "cmake" else ""
-        configure = f"\noverride_dh_auto_configure:\n\tdh_auto_configure -- {options}\n" if options else ""
+        options = " ".join(filter(None, [cmake_generator(recipe), cmake_options(recipe)])) if recipe["build_system"] == "cmake" else meson_options(recipe) if recipe["build_system"] == "meson" else ""
+        if options:
+            configure = f"\noverride_dh_auto_configure:\n\tdh_auto_configure -- {options}\n"
+        elif recipe["build_system"] == "autotools" and autoreconf_enabled(recipe):
+            configure = f"\noverride_dh_auto_configure:\n\tautoreconf -fi\n\tdh_auto_configure -- {configure_options(recipe)}\n"
+        elif recipe["build_system"] == "autotools" and configure_options(recipe):
+            configure = f"\noverride_dh_auto_configure:\n\tdh_auto_configure -- {configure_options(recipe)}\n"
+        else:
+            configure = ""
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem={buildsystem}\n{configure}"
     extra_install = "\n".join(filter(None, [install_commands(recipe, f"debian/{recipe['name']}"), install_directories(recipe, f"debian/{recipe['name']}", exclude_generated_debian=True)]))
     if extra_install:
@@ -318,7 +401,7 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
-        build = f"cd {workdir}\n  CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked{selector}"
+        build = f"cd {workdir}\n  CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release{cargo_lock_flag(recipe)}{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} \"$pkgdir/usr/bin/{binary}\""
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
@@ -330,13 +413,14 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
         build = ":"
         install = ":"
     elif recipe["build_system"] == "meson":
-        build = "arch-meson build\n  meson compile -C build"
+        build = f"arch-meson build {meson_options(recipe)}\n  meson compile -C build".rstrip()
         install = "DESTDIR=\"$pkgdir\" meson install -C build"
     elif recipe["build_system"] == "autotools":
-        build = "./configure --prefix=/usr\n  make"
+        prefix = "autoreconf -fi\n  " if autoreconf_enabled(recipe) else ""
+        build = f"{prefix}./configure --prefix=/usr {configure_options(recipe)}\n  make".rstrip()
         install = "make DESTDIR=\"$pkgdir\" install"
     else:
-        options = cmake_options(recipe)
+        options = " ".join(filter(None, [cmake_generator(recipe), cmake_options(recipe)]))
         build = f"cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr {options}\n  cmake --build build".rstrip()
         install = "DESTDIR=\"$pkgdir\" cmake --install build"
     extra_install = "\n".join(filter(None, [install_commands(recipe, "$pkgdir"), install_directories(recipe, "$pkgdir")]))

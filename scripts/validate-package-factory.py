@@ -49,6 +49,11 @@ def main() -> None:
             fail(f"{target_id}: r2_path has an unsupported namespace")
         if not all(arch in {"x86_64", "aarch64", "amd64", "arm64"} for arch in target["architectures"]):
             fail(f"{target_id}: unsupported architecture")
+        build_repositories = target.get("build_repositories", [])
+        if not isinstance(build_repositories, list) or not all(
+            isinstance(repository, str) and repository for repository in build_repositories
+        ):
+            fail(f"{target_id}: build_repositories must be a list of non-empty names")
     print("Package factory manifest: valid")
 
 

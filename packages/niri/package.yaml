@@ -14,7 +14,7 @@ dependencies:
   build:
     common: [cargo, rust]
     targets:
-      el10: [gcc, pkgconfig, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
+      el10: [gcc, clang-devel, pkgconfig, glib2-devel, cairo-devel, cairo-gobject-devel, pango-devel, pipewire-devel, libdrm-devel, mesa-libgbm-devel, libdisplay-info-devel, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
       ubuntu: [debhelper-compat, pkg-config, libxkbcommon-dev, libinput-dev, libseat-dev, libwayland-dev]
       debian: [debhelper-compat, pkg-config, libxkbcommon-dev, libinput-dev, libseat-dev, libwayland-dev]
       opensuse-tumbleweed: [gcc, pkg-config, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
@@ -24,7 +24,27 @@ dependencies:
       arch: [clang, git]
   runtime:
     targets:
+      el10: [libseat]
+      ubuntu: [libseat1]
+      debian: [libseat1]
+      opensuse-tumbleweed: [libseat1]
       arch: [cairo, glib2, glibc, libdisplay-info, libgcc, libinput, libpipewire, libxkbcommon, mesa, pango, pixman, seatd, systemd-libs, xdg-desktop-portal-impl]
+install:
+  # These are the upstream session integration assets.  Installing only the
+  # compositor binary leaves display managers and xdg-desktop-portal unable to
+  # discover a Niri session.
+  files:
+    - {source: resources/niri-session, destination: usr/bin/niri-session, mode: "0755"}
+    - {source: resources/niri.desktop, destination: usr/share/wayland-sessions/niri.desktop}
+    - {source: resources/niri-portals.conf, destination: usr/share/xdg-desktop-portal/niri-portals.conf}
+    - {source: resources/niri.service, destination: usr/lib/systemd/user/niri.service}
+    - {source: resources/niri-shutdown.target, destination: usr/lib/systemd/user/niri-shutdown.target}
 files:
-  common: [usr/bin/niri]
+  common:
+    - usr/bin/niri
+    - usr/bin/niri-session
+    - usr/share/wayland-sessions/niri.desktop
+    - usr/share/xdg-desktop-portal/niri-portals.conf
+    - usr/lib/systemd/user/niri.service
+    - usr/lib/systemd/user/niri-shutdown.target
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

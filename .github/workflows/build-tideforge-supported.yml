@@ -6,9 +6,22 @@ on:
       - packages/uupd/package.yaml
       - packages/xfconf/package.yaml
       - packages/greetd/package.yaml
+      - packages/cli11-devel/package.yaml
+      - packages/libunwind-devel/package.yaml
+      - packages/cpptrace-devel/package.yaml
+      - packages/ninja-build/package.yaml
+      - packages/wayland-protocols/package.yaml
+      - packages/libseat/package.yaml
+      - packages/niri/package.yaml
+      - packages/iio-niri/package.yaml
       - packages/dms/package.yaml
       - packages/dms-cli/package.yaml
       - packages/dms-greeter/package.yaml
+      - packages/quickshell/package.yaml
+      - packages/dgop/package.yaml
+      - packages/danksearch/package.yaml
+      - packages/kairpods/package.yaml
+      - packages/oversteer-udev/package.yaml
       - manifests/package-factory.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
@@ -57,7 +70,8 @@ jobs:
           root="$PWD/.tideforge/rpm-payload/${{ matrix.package }}"
           docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
-            dnf -y install rpm-build rpmdevtools
+            dnf -y install dnf-plugins-core rpm-build rpmdevtools
+            dnf config-manager --set-enabled crb
             rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
           '
       - uses: actions/upload-artifact@v6
@@ -86,6 +100,42 @@ jobs:
             target: el10
             install_name: greetd
             smoke: greetd --help
+          - package: cli11-devel
+            target: el10
+            install_name: cli11-devel
+            smoke: test -f /usr/include/CLI/CLI.hpp
+          - package: libunwind-devel
+            target: el10
+            install_name: libunwind-devel
+            smoke: test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h
+          - package: ninja-build
+            target: el10
+            install_name: ninja-build
+            smoke: ninja --version
+          - package: wayland-protocols
+            target: el10
+            install_name: wayland-protocols
+            smoke: pkg-config --atleast-version=1.41 wayland-protocols && test -f /usr/share/wayland-protocols/staging/ext-session-lock/ext-session-lock-v1.xml
+          - package: libseat
+            target: el10
+            install_name: libseat-devel
+            smoke: pkg-config --modversion libseat && seatd -h
+          - package: dgop
+            target: el10
+            install_name: dgop
+            smoke: dgop --help
+          - package: danksearch
+            target: el10
+            install_name: danksearch
+            smoke: dsearch --help
+          - package: kairpods
+            target: el10
+            install_name: kairpods
+            smoke: test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service
+          - package: oversteer-udev
+            target: el10
+            install_name: oversteer-udev
+            smoke: find /usr/lib/udev/rules.d -name \*oversteer\* -print -quit | grep -q .
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -118,6 +168,7 @@ jobs:
           docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
             dnf -y install dnf-plugins-core rpm-build
+            dnf config-manager --set-enabled crb
             dnf -y builddep /work/rpmbuild/SPECS/*.spec
             rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
           '
@@ -140,6 +191,364 @@ jobs:
           name: ${{ matrix.package }}-${{ matrix.target }}-rpm
           path: .tideforge/rpm/${{ matrix.package }}/rpmbuild/RPMS/
           if-no-files-found: warn
+
+  cpptrace-rpm:
+    name: cpptrace-devel (el10 RPM)
+    needs: rpm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - uses: actions/download-artifact@v7
+        with:
+          name: libunwind-devel-el10-rpm
+          path: .tideforge/cpptrace/prerequisite
+      - name: Render and fetch the exact cpptrace source archive
+        run: |
+          set -euo pipefail
+          recipe=packages/cpptrace-devel/package.yaml
+          root="$PWD/.tideforge/cpptrace"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 - "$recipe" "$root/rpmbuild/SOURCES" <<'PY'
+          import sys
+          from pathlib import Path
+          from urllib.parse import urlparse
+          from urllib.request import urlretrieve
+          import yaml
+          recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
+          destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
+          urlretrieve(recipe["source"]["url"], destination)
+          PY
+      - name: Build cpptrace with Tideforge libunwind
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/cpptrace"
+          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install dnf-plugins-core rpm-build createrepo_c
+            cp -a /work/prerequisite /tmp/tideforge-prerequisite
+            createrepo_c /tmp/tideforge-prerequisite
+            dnf -y install --nogpgcheck --repofrompath tideforge-prerequisite,file:///tmp/tideforge-prerequisite --enablerepo=tideforge-prerequisite libunwind-devel
+            dnf -y builddep /work/rpmbuild/SPECS/cpptrace-devel.spec
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/cpptrace-devel.spec
+          '
+      - name: Clean-install cpptrace and libunwind from an ephemeral repository
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/cpptrace"
+          docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install createrepo_c
+            mkdir -p /tmp/tideforge-rpms
+            cp -a /work/prerequisite/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
+            createrepo_c /tmp/tideforge-rpms
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --enablerepo=tideforge cpptrace-devel
+            rpm -q cpptrace-devel libunwind-devel
+            test -f /usr/include/cpptrace/cpptrace.hpp
+            test -f /usr/include/ctrace/ctrace.h
+            ldconfig -p | grep -F libcpptrace.so.1
+          '
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: cpptrace-devel-el10-rpm
+          path: .tideforge/cpptrace/rpmbuild/RPMS/
+          if-no-files-found: warn
+
+  quickshell-rpm:
+    name: quickshell (el10 RPM)
+    needs: [rpm, cpptrace-rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - uses: actions/download-artifact@v7
+        with:
+          name: cli11-devel-el10-rpm
+          path: .tideforge/quickshell/prerequisite
+      - uses: actions/download-artifact@v7
+        with:
+          name: libunwind-devel-el10-rpm
+          path: .tideforge/quickshell/prerequisite
+      - uses: actions/download-artifact@v7
+        with:
+          name: cpptrace-devel-el10-rpm
+          path: .tideforge/quickshell/prerequisite
+      - uses: actions/download-artifact@v7
+        with:
+          name: ninja-build-el10-rpm
+          path: .tideforge/quickshell/prerequisite
+      - uses: actions/download-artifact@v7
+        with:
+          name: wayland-protocols-el10-rpm
+          path: .tideforge/quickshell/prerequisite
+      - name: Render and fetch the exact Quickshell source archive
+        run: |
+          set -euo pipefail
+          recipe=packages/quickshell/package.yaml
+          root="$PWD/.tideforge/quickshell"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 - "$recipe" "$root/rpmbuild/SOURCES" <<'PY'
+          import sys
+          from pathlib import Path
+          from urllib.parse import urlparse
+          from urllib.request import urlretrieve
+          import yaml
+          recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
+          destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
+          urlretrieve(recipe["source"]["url"], destination)
+          PY
+      - name: Build Quickshell with Tideforge prerequisite packages
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/quickshell"
+          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install dnf-plugins-core rpm-build createrepo_c
+            dnf config-manager --set-enabled crb
+            cp -a /work/prerequisite /tmp/tideforge-prerequisite
+            createrepo_c /tmp/tideforge-prerequisite
+            dnf -y install --nogpgcheck --repofrompath tideforge-prerequisite,file:///tmp/tideforge-prerequisite --enablerepo=tideforge-prerequisite cli11-devel libunwind-devel cpptrace-devel ninja-build wayland-protocols
+            dnf -y builddep /work/rpmbuild/SPECS/quickshell.spec
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/quickshell.spec
+          '
+      - name: Clean-install Quickshell from an ephemeral repository
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/quickshell"
+          docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install createrepo_c
+            mkdir -p /tmp/tideforge-rpms
+            cp -a /work/prerequisite/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
+            createrepo_c /tmp/tideforge-rpms
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --enablerepo=tideforge quickshell
+            rpm -q quickshell
+            quickshell --help
+          '
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: quickshell-el10-rpm
+          path: .tideforge/quickshell/rpmbuild/RPMS/
+          if-no-files-found: warn
+
+  niri-rpm:
+    name: niri (el10 RPM)
+    needs: rpm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - uses: actions/download-artifact@v7
+        with:
+          name: libseat-el10-rpm
+          path: .tideforge/niri/prerequisite
+      - name: Render and fetch the exact Niri source archive
+        run: |
+          set -euo pipefail
+          recipe=packages/niri/package.yaml
+          root="$PWD/.tideforge/niri"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 - "$recipe" "$root/rpmbuild/SOURCES" <<'PY'
+          import sys
+          from pathlib import Path
+          from urllib.parse import urlparse
+          from urllib.request import urlretrieve
+          import yaml
+          recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
+          destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
+          urlretrieve(recipe["source"]["url"], destination)
+          PY
+      - name: Build Niri with Tideforge libseat
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/niri"
+          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install dnf-plugins-core rpm-build createrepo_c
+            dnf config-manager --set-enabled crb
+            cp -a /work/prerequisite /tmp/tideforge-prerequisite
+            createrepo_c /tmp/tideforge-prerequisite
+            dnf -y install --nogpgcheck --repofrompath tideforge-prerequisite,file:///tmp/tideforge-prerequisite --enablerepo=tideforge-prerequisite libseat-devel
+            dnf -y builddep /work/rpmbuild/SPECS/niri.spec
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/niri.spec
+          '
+      - name: Clean-install Niri and session integration from an ephemeral repository
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/niri"
+          docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install createrepo_c
+            mkdir -p /tmp/tideforge-rpms
+            cp -a /work/prerequisite/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
+            createrepo_c /tmp/tideforge-rpms
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --enablerepo=tideforge niri
+            rpm -q niri libseat
+            niri --help
+            test -x /usr/bin/niri-session
+            test -f /usr/share/wayland-sessions/niri.desktop
+            test -f /usr/share/xdg-desktop-portal/niri-portals.conf
+            test -f /usr/lib/systemd/user/niri.service
+            test -f /usr/lib/systemd/user/niri-shutdown.target
+          '
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: niri-el10-rpm
+          path: .tideforge/niri/rpmbuild/RPMS/
+          if-no-files-found: warn
+
+  iio-niri-rpm:
+    name: iio-niri (el10 RPM)
+    needs: [rpm, niri-rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - uses: actions/download-artifact@v7
+        with:
+          name: libseat-el10-rpm
+          path: .tideforge/iio-niri/prerequisite
+      - uses: actions/download-artifact@v7
+        with:
+          name: niri-el10-rpm
+          path: .tideforge/iio-niri/prerequisite
+      - name: Render and fetch the exact iio-niri source archive
+        run: |
+          set -euo pipefail
+          recipe=packages/iio-niri/package.yaml
+          root="$PWD/.tideforge/iio-niri"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 - "$recipe" "$root/rpmbuild/SOURCES" <<'PY'
+          import sys
+          from pathlib import Path
+          from urllib.parse import urlparse
+          from urllib.request import urlretrieve
+          import yaml
+          recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
+          destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
+          urlretrieve(recipe["source"]["url"], destination)
+          PY
+      - name: Build iio-niri with only declared BuildRequires
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/iio-niri"
+          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install dnf-plugins-core rpm-build
+            dnf config-manager --set-enabled crb
+            dnf -y builddep /work/rpmbuild/SPECS/iio-niri.spec
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/iio-niri.spec
+          '
+      - name: Clean-install iio-niri with the Tideforge Niri stack
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/iio-niri"
+          docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install createrepo_c
+            mkdir -p /tmp/tideforge-rpms
+            cp -a /work/prerequisite/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
+            createrepo_c /tmp/tideforge-rpms
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --enablerepo=tideforge iio-niri
+            rpm -q iio-niri niri libseat iio-sensor-proxy
+            iio-niri --help
+          '
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: iio-niri-el10-rpm
+          path: .tideforge/iio-niri/rpmbuild/RPMS/
+          if-no-files-found: warn
+
+  dms-stack-rpm:
+    name: DMS stack (el10 RPM integration)
+    needs: [rpm-payload, rpm, cpptrace-rpm, quickshell-rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: dms-el10-rpm-payload
+          path: .tideforge/dms-stack/rpms
+      - uses: actions/download-artifact@v7
+        with:
+          name: dms-cli-el10-rpm-payload
+          path: .tideforge/dms-stack/rpms
+      - uses: actions/download-artifact@v7
+        with:
+          name: dms-greeter-el10-rpm-payload
+          path: .tideforge/dms-stack/rpms
+      - uses: actions/download-artifact@v7
+        with:
+          name: quickshell-el10-rpm
+          path: .tideforge/dms-stack/rpms
+      - uses: actions/download-artifact@v7
+        with:
+          name: cli11-devel-el10-rpm
+          path: .tideforge/dms-stack/rpms
+      - uses: actions/download-artifact@v7
+        with:
+          name: libunwind-devel-el10-rpm
+          path: .tideforge/dms-stack/rpms
+      - uses: actions/download-artifact@v7
+        with:
+          name: cpptrace-devel-el10-rpm
+          path: .tideforge/dms-stack/rpms
+      - uses: actions/download-artifact@v7
+        with:
+          name: wayland-protocols-el10-rpm
+          path: .tideforge/dms-stack/rpms
+      - uses: actions/download-artifact@v7
+        with:
+          name: greetd-el10-rpm
+          path: .tideforge/dms-stack/rpms
+      - name: Clean-install the complete DMS stack from an ephemeral repository
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/dms-stack/rpms"
+          docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install createrepo_c util-linux
+            cp -a /work /tmp/tideforge-rpms
+            createrepo_c /tmp/tideforge-rpms
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --enablerepo=tideforge dms dms-cli dms-greeter
+            rpm -q dms dms-cli dms-greeter quickshell greetd
+            test -d /usr/share/dankmaterialshell
+            test -x /usr/bin/dms
+            test -x /usr/bin/dms-greeter
+            useradd --create-home tideforge-test
+            runuser -u tideforge-test -- dms --help
+          '
 
   deb:
     name: ${{ matrix.package }} (${{ matrix.target }} DEB)
@@ -170,10 +579,38 @@ jobs:
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
             clean_install: false
+          - package: dms-cli
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            clean_install: false
           - package: dms-greeter
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
             clean_install: false
+          - package: dgop
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: dgop
+            smoke: dgop --help
+            clean_install: true
+          - package: danksearch
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: danksearch
+            smoke: dsearch --help
+            clean_install: true
+          - package: kairpods
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: kairpods
+            smoke: test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service
+            clean_install: true
+          - package: oversteer-udev
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: oversteer-udev
+            smoke: find /usr/lib/udev/rules.d -name \*oversteer\* -print -quit | grep -q .
+            clean_install: true
           - package: uupd
             target: debian
             image: docker.io/library/debian:sid
@@ -196,10 +633,38 @@ jobs:
             target: debian
             image: docker.io/library/debian:sid
             clean_install: false
+          - package: dms-cli
+            target: debian
+            image: docker.io/library/debian:sid
+            clean_install: false
           - package: dms-greeter
             target: debian
             image: docker.io/library/debian:sid
             clean_install: false
+          - package: dgop
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: dgop
+            smoke: dgop --help
+            clean_install: true
+          - package: danksearch
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: danksearch
+            smoke: dsearch --help
+            clean_install: true
+          - package: kairpods
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: kairpods
+            smoke: test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service
+            clean_install: true
+          - package: oversteer-udev
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: oversteer-udev
+            smoke: find /usr/lib/udev/rules.d -name \*oversteer\* -print -quit | grep -q .
+            clean_install: true
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

@@ -10,6 +10,12 @@ source:
   sha256: b30cb1934a9a0a8e1be3b0f89e37349b6b3f7f87d25a2a526d92dabf4a5a22b1
   directory: iio-niri-2.3.1
 build_system: cargo
+build:
+  # Upstream's v2.3.1 archive retains the complete dependency lock set but its
+  # root package entry still says 2.3.0.  Cargo may repair that root metadata;
+  # all third-party dependency versions remain pinned by Cargo.lock.
+  cargo_locked: false
+  cargo_lock_reason: Upstream v2.3.1 Cargo.lock has a stale root-package version.
 dependencies:
   build:
     common: [cargo, rust]

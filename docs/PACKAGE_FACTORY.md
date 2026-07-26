@@ -90,3 +90,9 @@ python3 scripts/probe-target-dependencies.py packages/my-package/package.yaml --
 The tool emits target-native files because the package managers require them,
 but maintainers edit one recipe. A target override is limited to the dependency
 or build difference that cannot be made portable.
+
+Cargo recipes build with `--locked` by default.  An upstream release with a
+demonstrably stale *root-package* entry in an otherwise pinned `Cargo.lock` may
+set `build.cargo_locked: false`, but it must include a specific
+`build.cargo_lock_reason` and is accepted only after the resulting lockfile
+diff has been reviewed in the target build.

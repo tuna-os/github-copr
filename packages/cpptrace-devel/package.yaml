@@ -1,0 +1,35 @@
+schema: 1
+name: cpptrace-devel
+version: "1.0.4"
+release: 1
+summary: C++ stacktrace library development files
+description: C++ stacktrace library built with Tideforge libunwind for Quickshell crash handling.
+license: MIT
+source:
+  url: https://github.com/jeremy-rifkin/cpptrace/archive/refs/tags/v1.0.4.tar.gz
+  sha256: 5c9f5b301e903714a4d01f1057b9543fa540f7bfcc5e3f8bd1748e652e24f9ea
+  directory: cpptrace-1.0.4
+build_system: cmake
+build:
+  cmake_options: [-DCPPTRACE_BUILD_SHARED=ON, -DCPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE=ON, -DCPPTRACE_UNWIND_WITH_LIBUNWIND=ON]
+dependencies:
+  build:
+    common: [cmake, gcc-c++]
+    targets:
+      el10: [libunwind-devel]
+      ubuntu: [libunwind-dev]
+      debian: [libunwind-dev]
+      opensuse-tumbleweed: [libunwind-devel]
+      arch: [libunwind]
+files:
+  common: [usr/include/cpptrace, usr/include/ctrace]
+outputs:
+  rpm:
+    files: [usr/include/cpptrace, usr/include/ctrace, usr/lib64/libcpptrace.so*, usr/lib64/cmake/cpptrace]
+  deb:
+    packages:
+      - name: libcpptrace-dev
+        summary: C++ stacktrace library development files
+        description: C++ stacktrace library built with libunwind.
+        files: [usr/include/cpptrace, usr/include/ctrace, usr/lib/*/libcpptrace.so*, usr/lib/*/cmake/cpptrace]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

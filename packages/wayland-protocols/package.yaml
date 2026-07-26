@@ -1,0 +1,42 @@
+schema: 1
+name: wayland-protocols
+version: "1.49"
+release: 1
+summary: Wayland protocol definitions
+description: >-
+  Current Wayland protocol XML definitions required by Quickshell 0.3 and the
+  TunaOS Niri/DankMaterialShell desktop. EL10's native package predates the
+  protocol version required upstream.
+license: MIT
+source:
+  url: https://gitlab.freedesktop.org/wayland/wayland-protocols/-/archive/1.49/wayland-protocols-1.49.tar.gz
+  sha256: 8d94eee148db4d8111ccc0d4331de2f82d4b28c38e30eace9f052886480f7d86
+  directory: wayland-protocols-1.49
+build_system: data
+files:
+  common: [usr/share/wayland-protocols]
+install:
+  directories:
+    - {source: stable, destination: usr/share/wayland-protocols/stable}
+    - {source: staging, destination: usr/share/wayland-protocols/staging}
+    - {source: unstable, destination: usr/share/wayland-protocols/unstable}
+  generated_files:
+    - destination: usr/share/pkgconfig/wayland-protocols.pc
+      content: |
+        prefix=/usr
+        datarootdir=${prefix}/share
+        pkgdatadir=${pc_sysrootdir}${datarootdir}/wayland-protocols
+
+        Name: Wayland Protocols
+        Description: Wayland protocol files
+        Version: 1.49
+outputs:
+  rpm:
+    files: [usr/share/wayland-protocols, usr/share/pkgconfig/wayland-protocols.pc]
+  deb:
+    packages:
+      - name: wayland-protocols
+        summary: Wayland protocol definitions
+        description: Current Wayland protocol XML definitions.
+        files: [usr/share/wayland-protocols, usr/share/pkgconfig/wayland-protocols.pc]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

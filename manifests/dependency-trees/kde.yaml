@@ -1,13 +1,11 @@
 schema: 1
 tree: aurora-kde
 targets: [el10]
-roots: [krunner-bazaar, ublue-os-selinux-workarounds, oversteer-udev, kairpods]
+roots: [krunner-bazaar, oversteer-udev, kairpods]
 nodes:
   krunner-bazaar: {source: bazaar-org/krunner-bazaar, needs: [plasma-workspace, bazaar]}
-  ublue-os-selinux-workarounds: {source: ublue-os/packages, needs: [selinux-policy]}
   oversteer-udev: {source: berarma/oversteer, needs: []}
   kairpods: {source: can1357/kAirPods, needs: [kairpodsd, plasma-workspace, bluez, dbus]}
   kairpodsd: {source: can1357/kAirPods, needs: [bluez, dbus]}
   plasma-workspace: {kind: distro-package}
   bazaar: {kind: distro-or-factory-package}
-  selinux-policy: {kind: distro-or-factory-package}

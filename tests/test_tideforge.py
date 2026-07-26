@@ -139,6 +139,17 @@ def test_recipe_installs_reviewed_source_directories(recipe: dict) -> None:
     assert "cp -a qml/. $pkgdir/usr/share/demo/" in tideforge.render(recipe, "arch")["PKGBUILD"]
 
 
+def test_recipe_installs_generated_files(recipe: dict) -> None:
+    recipe["build_system"] = "data"
+    recipe["install"] = {"generated_files": [{"destination": "usr/lib/pkgconfig/demo.pc", "content": "Name: demo\\n"}]}
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "printf %s 'Name: demo" in rpm
+    assert "debian/hello-tuna/usr/lib/pkgconfig/demo.pc" in deb
+    assert "$pkgdir/usr/lib/pkgconfig/demo.pc" in arch
+
+
 def test_deb_rooted_source_directory_excludes_generated_debian_metadata(recipe: dict) -> None:
     recipe["build_system"] = "data"
     recipe["source"]["directory"] = "."
@@ -174,6 +185,36 @@ def test_cargo_recipe_uses_declared_workspace_and_binary(recipe: dict) -> None:
     assert "cd service\n  CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked --package daemon" in arch
 
 
+def test_cargo_recipe_can_explicitly_repair_a_root_lockfile_version(recipe: dict) -> None:
+    recipe["build_system"] = "cargo"
+    recipe["build"] = {
+        "cargo_locked": False,
+        "cargo_lock_reason": "Upstream archive lockfile has an outdated root package version.",
+    }
+    for target in ("el10", "debian", "arch"):
+        rendered = "\n".join(tideforge.render(recipe, target).values())
+        assert "cargo build --release --locked" not in rendered
+        assert "cargo build --release" in rendered
+
+
+def test_unlocked_cargo_recipe_requires_an_explicit_reason(recipe: dict) -> None:
+    recipe["build_system"] = "cargo"
+    recipe["build"] = {"cargo_locked": False}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
+def test_cargo_recipe_can_install_session_assets(recipe: dict) -> None:
+    recipe["build_system"] = "cargo"
+    recipe["install"] = {"files": [{"source": "resources/demo.desktop", "destination": "usr/share/wayland-sessions/demo.desktop"}]}
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "debian")["debian/rules"]
+    arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "install -Dm0644 resources/demo.desktop %{buildroot}/usr/share/wayland-sessions/demo.desktop" in rpm
+    assert "install -Dm0644 resources/demo.desktop debian/hello-tuna/usr/share/wayland-sessions/demo.desktop" in deb
+    assert "install -Dm0644 resources/demo.desktop $pkgdir/usr/share/wayland-sessions/demo.desktop" in arch
+
+
 def test_cmake_options_render_for_every_native_format(recipe: dict) -> None:
     recipe["build_system"] = "cmake"
     recipe["build"] = {"cmake_options": ["-DUSE_DEMO=OFF"]}
@@ -183,6 +224,28 @@ def test_cmake_options_render_for_every_native_format(recipe: dict) -> None:
     assert "%cmake -DUSE_DEMO=OFF" in rpm
     assert "dh_auto_configure -- -DUSE_DEMO=OFF" in deb
     assert "cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr -DUSE_DEMO=OFF" in arch
+
+
+def test_meson_options_render_for_every_native_format(recipe: dict) -> None:
+    recipe["build_system"] = "meson"
+    recipe["build"] = {"meson_options": ["-Ddemo=enabled"]}
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "%meson -Ddemo=enabled" in rpm
+    assert "dh_auto_configure -- -Ddemo=enabled" in deb
+    assert "arch-meson build -Ddemo=enabled" in arch
+
+
+def test_cmake_ninja_generator_renders_for_every_native_format(recipe: dict) -> None:
+    recipe["build_system"] = "cmake"
+    recipe["build"] = {"cmake_generator": "Ninja", "cmake_options": ["-DUSE_DEMO=OFF"]}
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "%cmake -G Ninja -DUSE_DEMO=OFF" in rpm
+    assert "dh_auto_configure -- -G Ninja -DUSE_DEMO=OFF" in deb
+    assert "cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr -G Ninja -DUSE_DEMO=OFF" in arch
 
 
 def test_dependency_capabilities_resolve_to_native_target_packages(recipe: dict) -> None:

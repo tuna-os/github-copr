@@ -1,0 +1,35 @@
+schema: 1
+name: libunwind-devel
+version: "1.8.1"
+release: 1
+summary: Portable stack-unwinding library development files
+description: Headers and shared libraries required to build cpptrace with signal-safe stack unwinding.
+license: MIT
+source:
+  url: https://github.com/libunwind/libunwind/archive/refs/tags/v1.8.1.tar.gz
+  sha256: 38833b7b1582db7d76485a62a213706c9252b3dab7380069fea5824e823d8e41
+  directory: libunwind-1.8.1
+build_system: autotools
+build:
+  autoreconf: true
+  configure_options: [--disable-tests]
+dependencies:
+  build:
+    common: [gcc-c++, autoconf, automake, libtool]
+    targets:
+      ubuntu: [build-essential, autoconf, automake, libtool]
+      debian: [build-essential, autoconf, automake, libtool]
+      opensuse-tumbleweed: [gcc-c++, autoconf, automake, libtool]
+      arch: [base-devel, autoconf, automake, libtool]
+files:
+  common: [usr/include/libunwind.h, usr/include/unwind.h]
+outputs:
+  rpm:
+    files: [usr/include/libunwind*.h, usr/include/unwind.h, usr/lib64/libunwind*.so*, usr/lib64/libunwind*.a, usr/lib64/pkgconfig/libunwind*.pc]
+  deb:
+    packages:
+      - name: libunwind-dev
+        summary: Portable stack-unwinding library development files
+        description: Headers and shared libraries for libunwind.
+        files: [usr/include/libunwind*.h, usr/include/unwind.h, usr/lib/*/libunwind*.so*, usr/lib/*/libunwind*.a, usr/lib/*/pkgconfig/libunwind*.pc]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

@@ -1,0 +1,45 @@
+schema: 1
+name: libseat
+version: "0.9.3"
+release: 1
+summary: Seat management library and seatd daemon
+description: >-
+  Seat management library and privileged seatd daemon required by the Niri
+  compositor on targets that do not ship libseat.
+license: MIT
+source:
+  url: https://github.com/kennylevinsen/seatd/archive/refs/tags/0.9.3.tar.gz
+  sha256: 302564d54d8e28191fadfd734f2675ecb0c9e0615a58011b89ef15dfa4dbaa96
+  directory: seatd-0.9.3
+build_system: meson
+build:
+  meson_options: [-Dlibseat-logind=systemd, -Dman-pages=disabled]
+dependencies:
+  build:
+    targets:
+      el10: [gcc, meson, ninja-build, pkgconf-pkg-config, systemd-devel]
+      ubuntu: [gcc, meson, ninja-build, pkg-config, libsystemd-dev]
+      debian: [gcc, meson, ninja-build, pkg-config, libsystemd-dev]
+      opensuse-tumbleweed: [gcc, meson, ninja, pkgconf-pkg-config, systemd-devel]
+      arch: [gcc, meson, ninja, pkgconf, systemd]
+files:
+  common: [usr/lib64/libseat.so.*, usr/bin/seatd, usr/bin/seatd-launch]
+outputs:
+  rpm:
+    files: [usr/lib64/libseat.so.*, usr/bin/seatd, usr/bin/seatd-launch]
+    subpackages:
+      - name: devel
+        summary: Development files for libseat
+        description: Headers and pkg-config metadata for building against libseat.
+        files: [usr/include/libseat.h, usr/lib64/libseat.so, usr/lib64/pkgconfig/libseat.pc]
+  deb:
+    packages:
+      - name: libseat1
+        summary: Seat management library and seatd daemon
+        description: Runtime library and seatd daemon for seat management.
+        files: [usr/lib/*/libseat.so.*, usr/bin/seatd, usr/bin/seatd-launch]
+      - name: libseat-dev
+        summary: Development files for libseat
+        description: Headers and pkg-config metadata for building against libseat.
+        files: [usr/include/libseat.h, usr/lib/*/libseat.so, usr/lib/*/pkgconfig/libseat.pc]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
