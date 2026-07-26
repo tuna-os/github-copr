@@ -27,6 +27,7 @@ on:
       - packages/cosmic-bg/package.yaml
       - packages/cosmic-comp/package.yaml
       - packages/cosmic-icon-theme/package.yaml
+      - packages/cosmic-idle/package.yaml
       - packages/cosmic-randr/package.yaml
       - packages/cosmic-settings-daemon/package.yaml
       - packages/cosmic-session/package.yaml
@@ -53,7 +54,7 @@ jobs:
         # requires the remaining runtime closure, which is not all
         # factory-built yet. This still makes every source/vendor/toolchain
         # regression block updates before any of these recipes can be promoted.
-        package: [dms, dms-cli, dms-greeter, pop-icon-theme, cosmic-icon-theme, cosmic-bg, cosmic-comp, cosmic-randr, cosmic-settings-daemon, cosmic-session, cosmic-settings]
+        package: [dms, dms-cli, dms-greeter, pop-icon-theme, cosmic-icon-theme, cosmic-bg, cosmic-comp, cosmic-idle, cosmic-randr, cosmic-settings-daemon, cosmic-session, cosmic-settings]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
