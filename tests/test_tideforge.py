@@ -61,8 +61,35 @@ def test_recipe_renders_subpackages(recipe: dict) -> None:
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
     deb = tideforge.render(recipe, "ubuntu")
     assert "%package devel" in rpm
+    # A subpackage that declares no `requires` must not leak a Requires: line.
+    devel_stanza = rpm.split("%package devel", 1)[1].split("%description devel", 1)[0]
+    assert "Requires:" not in devel_stanza
     assert "Package: libdemo0" in deb["debian/control"]
     assert "debian/libdemo0.install" in deb
+
+
+def test_recipe_subpackage_requires_pulls_in_main_package(recipe: dict) -> None:
+    # A -devel subpackage that ships only headers and the unversioned .so is
+    # useless without the runtime library and daemons in the main package.
+    # Declared `requires` must land inside the %package stanza (before its
+    # %description) so `dnf install <name>-devel` resolves the full closure --
+    # the libseat regression where installing libseat-devel alone left `seatd`
+    # missing and the smoke test exited 127.
+    recipe["outputs"] = {
+        "rpm": {
+            "subpackages": [
+                {
+                    "name": "devel",
+                    "summary": "Headers",
+                    "requires": ["%{name}%{?_isa} = %{version}-%{release}"],
+                    "files": ["usr/include/demo"],
+                }
+            ]
+        }
+    }
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    devel_stanza = rpm.split("%package devel", 1)[1].split("%description devel", 1)[0]
+    assert "Requires: %{name}%{?_isa} = %{version}-%{release}" in devel_stanza
 
 
 def test_recipe_renders_arch_pkgbuild(recipe: dict) -> None:

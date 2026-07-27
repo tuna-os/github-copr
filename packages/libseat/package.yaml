@@ -31,6 +31,7 @@ outputs:
       - name: devel
         summary: Development files for libseat
         description: Headers and pkg-config metadata for building against libseat.
+        requires: ["%{name}%{?_isa} = %{version}-%{release}"]
         files: [usr/include/libseat.h, usr/lib64/libseat.so, usr/lib64/pkgconfig/libseat.pc]
   deb:
     packages:

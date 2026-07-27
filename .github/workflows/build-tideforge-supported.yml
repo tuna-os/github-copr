@@ -211,7 +211,14 @@ jobs:
             dnf -y install epel-release createrepo_c
             cp -a /work/rpmbuild/RPMS /tmp/tideforge-rpms
             createrepo_c /tmp/tideforge-rpms
-            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --enablerepo=tideforge ${{ matrix.install_name }}
+            # Pin the ephemeral repo above every distro repo so the smoke test
+            # exercises the RPM we just built, not a same-named shadow. EPEL 10
+            # ships its own libseat (release el10_3, higher than our el10) and
+            # splits the seatd daemon into a separate seatd package, so without a
+            # priority override dnf would silently install EPEL libseat-devel and
+            # its library-only libseat, leaving no seatd binary -- the smoke
+            # `seatd -h` then exited 127.
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --setopt=tideforge.priority=1 --enablerepo=tideforge ${{ matrix.install_name }}
             rpm -q ${{ matrix.install_name }}
             ${{ matrix.smoke }}
           '

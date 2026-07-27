@@ -415,6 +415,24 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
     return f"%cmake {options}\n%cmake_build".rstrip(), "%cmake_install"
 
 
+def rpm_subpackage_block(subpackage: dict) -> str:
+    # A -devel (or similarly split-out) subpackage ships only the unversioned
+    # .so symlink, headers, and pkg-config metadata; the runtime library and any
+    # daemons live in the main package. Installing the subpackage alone is
+    # therefore useless -- and the supported-target smoke test proved it: pulling
+    # in libseat-devel by itself left `seatd` absent, so `seatd -h` exited 127.
+    # Emit any recipe-declared `requires` (e.g. the main package with %{?_isa})
+    # so the dependency closure resolves the way RPM convention expects.
+    header = [f"%package {subpackage['name']}", f"Summary: {subpackage['summary']}"]
+    for dependency in subpackage.get("requires", []):
+        header.append(f"Requires: {dependency}")
+    header.append("")
+    header.append(f"%description {subpackage['name']}")
+    header.append(subpackage.get("description", subpackage["summary"]))
+    header.append("")
+    return "\n".join(header)
+
+
 def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     build, install = rpm_build_lines(recipe["build_system"], recipe)
     prepare = prepare_commands(recipe)
@@ -441,7 +459,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     rpm_output = recipe.get("outputs", {}).get("rpm", {})
     files = "\n".join(f"/{path.lstrip('/')}" for path in rpm_output.get("files", recipe["files"]["common"]))
     subpackage_definitions = "\n".join(
-        f"%package {subpackage['name']}\nSummary: {subpackage['summary']}\n\n%description {subpackage['name']}\n{subpackage.get('description', subpackage['summary'])}\n"
+        rpm_subpackage_block(subpackage)
         for subpackage in rpm_output.get("subpackages", [])
     )
     subpackage_files = "\n".join(
