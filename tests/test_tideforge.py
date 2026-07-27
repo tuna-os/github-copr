@@ -289,7 +289,28 @@ def test_cargo_recipe_uses_declared_workspace_and_binary(recipe: dict) -> None:
     arch = tideforge.render(recipe, "arch")["PKGBUILD"]
     assert "cd service\nCARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked --package daemon" in rpm
     assert "service/target/release/demo-daemon" in deb
-    assert "cd service\n  CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked --package daemon" in arch
+    assert "cd service\n  CFLAGS+=(' -ffat-lto-objects')\n  CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release --locked --package daemon" in arch
+
+
+def test_cargo_arch_emits_fat_lto_objects_for_c_shim_linking(recipe: dict) -> None:
+    """Cargo PKGBUILDs must force fat LTO objects for C-compiling crates.
+
+    Arch's makepkg enables LTO by default (OPTIONS=(... lto), LTOFLAGS=-flto=auto).
+    A Rust crate that builds C via the cc crate -- niri's libspa-sys PipeWire
+    bindings, for instance -- then emits pure thin-LTO bitcode whose wrapper
+    symbols vanish at the final ld.lld link ("undefined symbol:
+    spa_pod_object_find_prop_libspa_rs"). Emitting fat LTO objects keeps real
+    machine code beside the bitcode so those symbols resolve, exactly as Arch's
+    own niri PKGBUILD does. The flag is Arch-only and lives on its own line
+    before the cargo invocation so it applies to the whole build.
+    """
+    recipe["build_system"] = "cargo"
+    arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "CFLAGS+=(' -ffat-lto-objects')\n  CARGO_PROFILE_RELEASE_DEBUG=1 cargo build" in arch
+    # The flag is specific to Arch's LTO-by-default toolchain; RPM and DEB paths
+    # must not carry it.
+    assert "-ffat-lto-objects" not in tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "-ffat-lto-objects" not in "\n".join(tideforge.render(recipe, "debian").values())
 
 
 def test_cargo_recipe_renders_validated_build_environment(recipe: dict) -> None:

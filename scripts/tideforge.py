@@ -643,7 +643,15 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
         selector = f" --package {cargo_package}" if cargo_package else ""
         environment = " ".join(filter(None, [build_environment(recipe), "CARGO_PROFILE_RELEASE_DEBUG=1"]))
         prelude = "\n  ".join(filter(None, [prepare_commands(recipe), cargo_config_commands(recipe)]))
-        build = f"cd {workdir}\n  {prelude + chr(10) + '  ' if prelude else ''}{environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}"
+        # Arch's makepkg enables LTO by default. A Rust crate that compiles C via
+        # the cc crate (niri's libspa-sys PipeWire bindings, for example) then
+        # emits pure thin-LTO bitcode whose wrapper symbols vanish at the final
+        # ld.lld Rust link ("undefined symbol: spa_pod_object_find_prop_libspa_rs").
+        # Emitting fat LTO objects keeps real machine code beside the bitcode so
+        # those symbols resolve. Inert for pure-Rust crates. Arch's own niri
+        # PKGBUILD applies the identical flag.
+        cflags = "CFLAGS+=(' -ffat-lto-objects')"
+        build = f"cd {workdir}\n  {prelude + chr(10) + '  ' if prelude else ''}{cflags}\n  {environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} \"$pkgdir/usr/bin/{binary}\""
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
