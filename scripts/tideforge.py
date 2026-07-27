@@ -299,6 +299,21 @@ def source_filename(source: dict, index: int) -> str:
     return filename
 
 
+def rpm_source_field(source: dict, index: int) -> str:
+    # rpmbuild ignores the dist-git `name::url` rename convention: it always
+    # resolves a source to its URL basename, both for %{SOURCEn} in %prep and
+    # for the SOURCES files it packs into the SRPM. The fetch script writes each
+    # source under its `filename:` override, so a source whose override differs
+    # from the URL basename is unreachable. Keep the provenance URL only when
+    # its basename already matches the fetched filename; otherwise reference the
+    # local filename directly so rpm can find it on disk.
+    filename = source_filename(source, index)
+    url = source["url"]
+    if Path(url.split("?", 1)[0]).name == filename:
+        return f"{filename}::{url}"
+    return filename
+
+
 def validate_source(source: dict, *, auxiliary: bool) -> None:
     if not isinstance(source, dict) or not source.get("url", "").startswith("https://"):
         fail("source.url must use HTTPS")
@@ -457,18 +472,21 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         prep = f"{prep}\n{unpack_auxiliary}"
     extra_install = "\n".join(filter(None, [install_commands(recipe, "%{buildroot}"), install_directories(recipe, "%{buildroot}")]))
     # Tideforge's Go and data renderers do not produce RPM-compatible
-    # debug-source payloads. Cargo builds retain debuginfo so native RPM debug
-    # packages can be generated normally.
+    # debug-source payloads, and custom builds compile through opaque upstream
+    # tooling (e.g. `just`/`cargo build --release`) that tideforge cannot force
+    # to retain debuginfo -- an automatic debug package would be empty and abort
+    # rpmbuild with "Empty %files file debugsourcefiles.list". Cargo builds
+    # retain debuginfo so native RPM debug packages can be generated normally.
     rpm_preamble = ""
-    if recipe["build_system"] in {"go", "data"} or not debug_package_enabled(recipe):
+    if recipe["build_system"] in {"go", "data", "custom"} or not debug_package_enabled(recipe):
         rpm_preamble = "%global debug_package %{nil}\n"
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
 Release:        {recipe.get('release', 1)}%{{?dist}}
 Summary:        {recipe['summary']}
 License:        {recipe['license']}
-Source0:        {source_filename(recipe['source'], 0)}::{recipe['source']['url']}
-{''.join(f"Source{index}:        {source_filename(source, index)}::{source['url']}\n" for index, source in enumerate(auxiliary_sources, start=1))}{requires}
+Source0:        {rpm_source_field(recipe['source'], 0)}
+{''.join(f"Source{index}:        {rpm_source_field(source, index)}\n" for index, source in enumerate(auxiliary_sources, start=1))}{requires}
 {runtime_requires}
 
 %description

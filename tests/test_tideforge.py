@@ -85,7 +85,11 @@ def test_recipe_renders_pinned_auxiliary_source_closure(recipe: dict) -> None:
     }]
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
     arch = tideforge.render(recipe, "arch")["PKGBUILD"]
-    assert "Source1:        vendor.tar.gz::https://example.com/vendor-1.0.tar.gz" in rpm
+    # The `filename:` override differs from the URL basename (vendor-1.0.tar.gz),
+    # so the provenance URL is dropped: rpmbuild would otherwise look for the URL
+    # basename on disk and never find the file the fetch script wrote.
+    assert "Source1:        vendor.tar.gz\n" in rpm
+    assert "vendor-1.0.tar.gz" not in rpm
     assert "\\nSource" not in rpm
     assert "tar --extract --file %{SOURCE1} --strip-components=1 --directory third-party/vendor" in rpm
     assert "'vendor.tar.gz::https://example.com/vendor-1.0.tar.gz'" in arch
@@ -108,6 +112,9 @@ def test_recipe_renders_checksum_locked_auxiliary_file(recipe: dict) -> None:
     }]
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
     arch = tideforge.render(recipe, "arch")["PKGBUILD"]
+    # The `filename:` override matches the URL basename here, so the provenance
+    # URL is preserved and rpm still resolves %{SOURCE1} to the fetched file.
+    assert "Source1:        vendor-config.toml::https://example.com/vendor-config.toml" in rpm
     assert "install -Dm0644 %{SOURCE1} .cargo/config.toml" in rpm
     assert 'install -Dm0644 "$srcdir/vendor-config.toml" .cargo/config.toml' in arch
 
@@ -149,6 +156,14 @@ def test_cargo_rpm_retains_native_debug_packages(recipe: dict) -> None:
     recipe["build_system"] = "cargo"
     spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
     assert not spec.startswith("%global debug_package")
+
+
+def test_custom_rpm_disables_empty_automatic_debug_packages(recipe: dict) -> None:
+    recipe["build_system"] = "custom"
+    recipe["build"] = {"commands": ["just build"]}
+    recipe["install"] = {"commands": ["just rootdir={destdir} install"]}
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert spec.startswith("%global debug_package %{nil}\nName:")
 
 
 def test_recipe_renders_go_builds(recipe: dict) -> None:
