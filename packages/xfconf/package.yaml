@@ -30,6 +30,7 @@ outputs:
       - usr/share/bash-completion/completions/xfconf-query
       - usr/lib/systemd/user/xfconfd.service
       - usr/share/dbus-1/services/*.service
+      - usr/share/locale/*/LC_MESSAGES/xfconf.mo
     subpackages:
       - name: devel
         summary: Development files for xfconf

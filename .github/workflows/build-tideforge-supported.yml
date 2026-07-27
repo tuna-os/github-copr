@@ -190,7 +190,12 @@ jobs:
           root="$PWD/.tideforge/rpm/${{ matrix.package }}"
           docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
-            dnf -y install dnf-plugins-core rpm-build
+            # epel-release, not crb alone. xfconf build-requires libxfce4util-devel
+            # and installs libxfce4util at runtime; neither is in CentOS Stream 10
+            # base or in CRB. Both live in EPEL 10, verified with dnf repoquery.
+            # Without it the build died at "No matching package to install:
+            # libxfce4util-devel". The gtkgreet and quickshell jobs already do this.
+            dnf -y install dnf-plugins-core epel-release rpm-build
             dnf config-manager --set-enabled crb
             dnf -y builddep /work/rpmbuild/SPECS/*.spec
             rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
@@ -201,7 +206,9 @@ jobs:
           root="$PWD/.tideforge/rpm/${{ matrix.package }}"
           docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
-            dnf -y install createrepo_c
+            # EPEL for the same reason as the build step: xfconf pulls in
+            # libxfce4util at install time, and it only lives in EPEL 10.
+            dnf -y install epel-release createrepo_c
             cp -a /work/rpmbuild/RPMS /tmp/tideforge-rpms
             createrepo_c /tmp/tideforge-rpms
             dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --enablerepo=tideforge ${{ matrix.install_name }}
