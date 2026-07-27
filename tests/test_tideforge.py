@@ -391,3 +391,36 @@ def test_unknown_dependency_capability_is_rejected(recipe: dict) -> None:
     recipe["dependencies"]["build"] = {"capabilities": ["imaginary-sdk"]}
     with pytest.raises(SystemExit):
         tideforge.validate(recipe)
+
+
+def test_deb_drops_redundant_debhelper_compat_from_recipe_dependencies(recipe: dict) -> None:
+    """A bare debhelper-compat in a recipe must not reach debian/control.
+
+    render_deb always emits "debhelper-compat (= 13)". When a recipe also listed
+    a bare "debhelper-compat" the relation appeared twice, and dh read the
+    unversioned one and aborted: "Could not parse desired debhelper compat level
+    from relation: debhelper-compat". Broke xfconf on both debian and ubuntu.
+    """
+    recipe.setdefault("dependencies", {}).setdefault("build", {}).setdefault("targets", {})[
+        "ubuntu"
+    ] = ["debhelper-compat", "libglib2.0-dev"]
+    control = tideforge.render(recipe, "ubuntu")["debian/control"]
+    build_depends = next(
+        line for line in control.splitlines() if line.startswith("Build-Depends:")
+    )
+    assert build_depends.count("debhelper-compat") == 1
+    assert "debhelper-compat (= 13)" in build_depends
+    assert "libglib2.0-dev" in build_depends
+
+
+def test_data_deb_disables_debhelper_build_system_autodetection(recipe: dict) -> None:
+    """Data recipes must pin --buildsystem=none.
+
+    Plain "dh $@" auto-detects a build system from whatever upstream ships.
+    oversteer-udev installs only udev rules but upstream carries a meson.build,
+    so debhelper ran dh_auto_configure under meson and failed with exit code 25
+    — while the same recipe built fine as an RPM, which bypasses debhelper.
+    """
+    recipe["build_system"] = "data"
+    rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    assert "dh $@ --buildsystem=none" in rules

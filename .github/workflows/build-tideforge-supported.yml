@@ -80,7 +80,19 @@ jobs:
           root="$PWD/.tideforge/rpm-payload/${{ matrix.package }}"
           docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
-            dnf -y install dnf-plugins-core rpm-build rpmdevtools
+            # NOTE: no apostrophes in this comment. It lives inside a single-
+            # quoted bash -lc block, and an apostrophe closes that string early
+            # and mangles the script (see 7af9ae1, where exactly that silently
+            # disabled every build).
+            #
+            # epel-release, not crb alone. The COSMIC stack build-requires just
+            # and libdav1d-devel, and neither is in CentOS Stream 10 base or in
+            # CRB. Both live in EPEL 10, verified with dnf repoquery. Without it
+            # every cosmic-* payload died at "No matching package to install"
+            # and then "Error: Some packages could not be found" -- 13 of this
+            # workflow 18 failures, all identical. The gtkgreet and quickshell
+            # jobs below already install epel-release.
+            dnf -y install dnf-plugins-core epel-release rpm-build rpmdevtools
             dnf config-manager --set-enabled crb
             dnf -y builddep /work/rpmbuild/SPECS/*.spec
             rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
@@ -146,7 +158,12 @@ jobs:
           - package: oversteer-udev
             target: el10
             install_name: oversteer-udev
-            smoke: find /usr/lib/udev/rules.d -name \*oversteer\* -print -quit | grep -q .
+            # Upstream names its rules by wheel vendor — 99-fanatec-wheel-perms.rules,
+            # 99-logitech-wheel-perms.rules, 99-thrustmaster-wheel-perms.rules. Nothing
+            # upstream contains the string 'oversteer', so the old
+            # `-name \*oversteer\*` could never match: the package built and installed
+            # correctly and the assertion failed anyway. Assert the real filenames.
+            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
           - package: gtk-layer-shell
             target: el10
             install_name: gtk-layer-shell-devel
@@ -681,7 +698,12 @@ jobs:
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
             install_name: oversteer-udev
-            smoke: find /usr/lib/udev/rules.d -name \*oversteer\* -print -quit | grep -q .
+            # Upstream names its rules by wheel vendor — 99-fanatec-wheel-perms.rules,
+            # 99-logitech-wheel-perms.rules, 99-thrustmaster-wheel-perms.rules. Nothing
+            # upstream contains the string 'oversteer', so the old
+            # `-name \*oversteer\*` could never match: the package built and installed
+            # correctly and the assertion failed anyway. Assert the real filenames.
+            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
             clean_install: true
           - package: uupd
             target: debian
@@ -735,7 +757,12 @@ jobs:
             target: debian
             image: docker.io/library/debian:sid
             install_name: oversteer-udev
-            smoke: find /usr/lib/udev/rules.d -name \*oversteer\* -print -quit | grep -q .
+            # Upstream names its rules by wheel vendor — 99-fanatec-wheel-perms.rules,
+            # 99-logitech-wheel-perms.rules, 99-thrustmaster-wheel-perms.rules. Nothing
+            # upstream contains the string 'oversteer', so the old
+            # `-name \*oversteer\*` could never match: the package built and installed
+            # correctly and the assertion failed anyway. Assert the real filenames.
+            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
             clean_install: true
     steps:
       - uses: actions/checkout@v7

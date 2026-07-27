@@ -499,7 +499,19 @@ Source0:        {source_filename(recipe['source'], 0)}::{recipe['source']['url']
 
 
 def render_deb(recipe: dict, target: str) -> dict[str, str]:
-    build_deps = ", ".join(target_dependencies(recipe, target))
+    # The Build-Depends line below always emits "debhelper-compat (= 13)", so a
+    # recipe that also lists a bare "debhelper-compat" produces the relation
+    # twice — once versioned, once not. dh reads the UNVERSIONED one and aborts
+    # the build before it starts:
+    #   dh: error: Could not parse desired debhelper compat level from
+    #   relation: debhelper-compat
+    # Dropped here rather than only in the recipes because packages/_template
+    # carries the same entry, so every new recipe would inherit the bug.
+    build_deps = ", ".join(
+        dependency
+        for dependency in target_dependencies(recipe, target)
+        if dependency.split("(")[0].strip() != "debhelper-compat"
+    )
     deb_output = recipe.get("outputs", {}).get("deb", {})
     binary_packages = deb_output.get("packages", [{"name": recipe["name"], "summary": recipe["summary"], "description": recipe["description"], "files": recipe["files"]["common"]}])
     recipe_runtime_dependencies = target_runtime_dependencies(recipe, target)
@@ -546,7 +558,15 @@ Rules-Requires-Root: no
             prelude += "\n"
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n{prelude}\tcd {workdir} && {with_build_environment(recipe, go_build_command(recipe, binary, package))}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/{binary} debian/{recipe['name']}/usr/bin/{binary}\n\noverride_dh_dwz:\n\t:\n"
     elif recipe["build_system"] == "data":
-        rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\t:\n\noverride_dh_auto_install:\n\t:\n"
+        # --buildsystem=none is load-bearing. A data recipe ships files straight
+        # out of the tarball, but plain "dh $@" still AUTO-DETECTS a build system
+        # from whatever the upstream source happens to contain. oversteer-udev
+        # ships only udev rules, yet upstream carries a meson.build, so debhelper
+        # picked meson and ran dh_auto_configure — which this rule set does not
+        # override — failing with "meson --version returned exit code 25". The
+        # RPM path never hit this because it does not go through debhelper, so
+        # the same recipe built on el10 and failed on debian/ubuntu.
+        rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem=none\n\noverride_dh_auto_build:\n\t:\n\noverride_dh_auto_install:\n\t:\n"
     else:
         options = " ".join(filter(None, [cmake_generator(recipe), cmake_options(recipe)])) if recipe["build_system"] == "cmake" else meson_options(recipe) if recipe["build_system"] == "meson" else ""
         if options:
