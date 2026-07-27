@@ -599,6 +599,16 @@ Rules-Requires-Root: no
     extra_install = "\n".join(filter(None, [install_commands(recipe, f"debian/{recipe['name']}"), install_directories(recipe, f"debian/{recipe['name']}", exclude_generated_debian=True)]))
     if extra_install:
         rules = rules.rstrip() + "\n\t" + extra_install.replace("\n", "\n\t") + "\n"
+    # For native build systems debhelper auto-runs the upstream test suite via
+    # dh_auto_test. Those suites routinely need a session D-Bus, a machine-id, a
+    # display, or network -- none of which exist in the minimal build container
+    # -- e.g. xfconf's 33 D-Bus integration tests aborted the build with "Cannot
+    # spawn a message bus without a machine-id". The RPM path never runs them
+    # (tideforge emits no %check), so skip them here too for RPM/DEB parity. The
+    # cargo/go/data/custom branches already replace dh_auto_build/install and do
+    # not auto-detect a testable build system, so they need no override.
+    if recipe["build_system"] in {"meson", "cmake", "autotools"}:
+        rules = rules.rstrip() + "\n\noverride_dh_auto_test:\n\t:\n"
     changelog = f"{recipe['name']} ({recipe['version']}-{recipe.get('release', 1)}) {target}; urgency=medium\n\n  * Generated from package.yaml.\n\n -- TunaOS Package Factory <packages@tunaos.org>  Thu, 01 Jan 1970 00:00:00 +0000\n"
     rendered = {
         "debian/control": control,

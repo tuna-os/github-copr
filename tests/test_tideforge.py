@@ -428,6 +428,36 @@ def test_deb_drops_redundant_debhelper_compat_from_recipe_dependencies(recipe: d
     assert "libglib2.0-dev" in build_depends
 
 
+def test_native_deb_skips_upstream_test_suite(recipe: dict) -> None:
+    """Native build systems must not auto-run the upstream test suite.
+
+    debhelper's "dh $@" auto-runs dh_auto_test for meson/cmake/autotools builds.
+    Those suites routinely need a session D-Bus, a machine-id, a display, or the
+    network -- none of which exist in the minimal build container -- so xfconf's
+    33 D-Bus integration tests aborted the build with "Cannot spawn a message bus
+    without a machine-id". The RPM path emits no %check, so skip them here too for
+    RPM/DEB parity.
+    """
+    for build_system in ("meson", "cmake", "autotools"):
+        recipe["build_system"] = build_system
+        rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
+        assert "override_dh_auto_test:\n\t:\n" in rules
+
+
+def test_custom_deb_does_not_emit_test_override(recipe: dict) -> None:
+    """Non-native builds replace dh_auto_build/install and need no test override.
+
+    The cargo/go/data/custom renderers do not hand debhelper a detectable build
+    system, so dh_auto_test is already a no-op; emitting the override would be
+    dead metadata.
+    """
+    recipe["build_system"] = "custom"
+    recipe["build"] = {"commands": ["just build"]}
+    recipe["install"] = {"commands": ["just rootdir={destdir} install"]}
+    rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    assert "override_dh_auto_test:" not in rules
+
+
 def test_data_deb_disables_debhelper_build_system_autodetection(recipe: dict) -> None:
     """Data recipes must pin --buildsystem=none.
 
