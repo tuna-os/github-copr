@@ -1,6 +1,8 @@
 # Incident: published GNOME 49/50 EL10 repos wiped to 0 packages
 
-Status: root cause confirmed, fixes in progress. Repo restore NOT yet done.
+Status: root cause confirmed. CI fixes merged (#124, #127, #128). Promote workflows
+deleted and disabled. **Repo restore NOT yet done — both GNOME repos require a full
+chain rebuild; see the R2 listing below.**
 
 ## Current production state (verified 2026-07-27 by HTTP probe)
 
@@ -11,26 +13,36 @@ Status: root cause confirmed, fixes in progress. Repo restore NOT yet done.
 | `repo.tunaos.org/gnome49/10-stream-x86_64/repodata/repomd.xml` | 200, but `primary.xml` says `packages="0"` |
 | `dev.repo.tunaos.org/gnome{49,50}/...` | 404 (host serves nothing at all) |
 
-**GNOME 49 is confirmed empty**: its `repomd.xml` survived and its `primary.xml` reports
-`packages="0"`. That is an authoritative statement from the repo's own metadata.
+## Authoritative R2 listing (run 30243112121, 2026-07-27)
 
-**GNOME 50 is unconfirmed.** Spot-probed `gnome-shell-50.0-3.el10.x86_64.rpm`,
-`mutter-50.0-4.el10.x86_64.rpm`, `glib2-2.88.0-4.el10.x86_64.rpm` and
-`gnome50-el10-compat-1.2.7-1.el10.noarch.rpm` at the repo root and under `Packages/`
-and `x86_64/`: all 404. **This is weak evidence** — those NEVRAs were read out of a
-`verify-gdm-copr` log, i.e. they came from `copr:jreilly1821/c10s-gnome-50`, not from
-R2, and may never have existed in `bluefin/gnome50/` under those exact names. Absence of
-`repodata/repomd.xml` proves the metadata is gone, not that the RPMs are.
+The read-only `R2 Inventory` workflow settles what HTTP probing could not:
 
-An authoritative answer needs a bucket listing, which requires R2 credentials. Two ways:
+| Prefix | RPMs | repodata | total objects |
+| --- | ---: | ---: | ---: |
+| `bluefin/gnome50/10-stream-x86_64` | **0** | 0 | **0** |
+| `bluefin/gnome50/10-x86_64` | **0** | 0 | **0** |
+| `bluefin/gnome49/10-stream-x86_64` | **0** | 8 | 8 |
+| `bluefin/xfce/10-stream-x86_64` | 101 | 8 | 110 |
+| `bluefin/repo/10-stream-x86_64` | 312 | 8 | 320 |
+| `tunaosdev/gnome50/10-stream-x86_64` | 0 | 0 | 0 |
+| `tunaosdev/gnome49/10-stream-x86_64` | 0 | 0 | 0 |
 
-* Run the read-only `R2 Inventory (read-only)` workflow (`.github/workflows/r2-inventory.yml`,
-  added for this): `gh workflow run r2-inventory.yml`. It uses the existing repo secrets,
-  only ever calls `rclone lsf`/`lsd`, and prints per-prefix RPM counts to the run summary.
-* Or locally, with credentials configured: `rclone lsf r2:bluefin/gnome50/10-stream-x86_64/ | head`
+Conclusions, now evidenced rather than inferred:
 
-**Do not decide between "full rebuild" and "createrepo_c re-index" until that listing
-exists.** If RPMs survived, re-indexing is far cheaper than a full chain rebuild.
+* **Both GNOME repos need a full chain rebuild.** A `createrepo_c` re-index was the
+  cheaper option worth checking for; it is not available. GNOME 50 has *zero* objects
+  under either path — not even orphaned RPMs. GNOME 49 retains only its 8 repodata files,
+  which is the `packages="0"` metadata already observed over HTTP.
+* **`tunaosdev` is completely empty**, confirming that nothing has ever written to it and
+  that both promote workflows could only ever delete. Deleting them rather than repairing
+  them was correct.
+* **The damage was contained to GNOME.** `xfce` holds 101 RPMs and the main `repo` path
+  holds 312 — the XFCE repo was restored after the 2026-07-19 incident, and the primary
+  distributed repo was never affected.
+
+The earlier spot-probes in this document used NEVRAs read from a `verify-gdm-copr` log,
+i.e. COPR names rather than R2 keys, and were explicitly flagged as weak evidence. The
+listing above supersedes them and happens to agree.
 
 ## Root cause — same bug as the 2026-07-19 XFCE incident (fixed in f877c83, PR #99)
 
