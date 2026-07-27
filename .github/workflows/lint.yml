@@ -1,13 +1,22 @@
 name: Lint
 
 on:
+  # Deliberately NOT path-filtered for pull_request. These jobs are main's
+  # required status checks, and a path-filtered workflow can never be a
+  # reliable required check: when the filter does not match, the workflow
+  # never runs, the check never reports, and the PR is unmergeable forever
+  # rather than merely unverified.
+  #
+  # main was in exactly that state — it required
+  # "GNOME 50 Package Build (Incremental) / el10-release-gate", a job that
+  # exists only in the still-open #112 and whose workflow is filtered to
+  # src/gnome-50/**. Nothing could merge, including the PR that would have
+  # fixed it. These jobs are cheap; running them on every PR is the price of
+  # having them be required.
+  #
+  # push stays filtered: a push to main is already merged, so a missing check
+  # there blocks nothing.
   pull_request:
-    paths:
-      - '**.yml'
-      - '**.yaml'
-      - '**.sh'
-      - 'scripts/**'
-      - '.github/workflows/lint.yml'
   push:
     branches: [main]
     paths:
