@@ -5,8 +5,14 @@ on:
     workflows: ["GNOME 49 Distributed Build and Publish"]
     types: [completed]
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize]
+  # No pull_request trigger. Every job here is gated to workflow_run/dispatch,
+  # so on a PR they could only ever report "skipped" — while still occupying a
+  # runner slot to decide that. This workflow verifies an ALREADY-PUBLISHED
+  # repo; a PR has not published anything, so there is nothing for it to check.
+  #
+  # It was also actively harmful: the skipped jobs let the workflow report
+  # success on every PR, and that false green used to trigger the dev->prod
+  # promote job that wiped production (see INCIDENT-repo-wipe-gnome.md).
 
 jobs:
   verify-repo:
