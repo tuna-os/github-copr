@@ -20,6 +20,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ROOT / "manifests" / "package-factory.yaml"
 VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data", "custom"}
+DIST_GIT_RAW_REF = re.compile(r"https://src\.fedoraproject\.org/rpms/[^/]+/raw/([^/]+)/f/")
 
 
 def fail(message: str) -> None:
@@ -319,6 +320,15 @@ def validate_source(source: dict, *, auxiliary: bool) -> None:
         fail("source.url must use HTTPS")
     if not re.fullmatch(r"[0-9a-f]{64}", str(source.get("sha256", ""))):
         fail("source.sha256 must be a 64-character lowercase SHA-256")
+    # Fedora dist-git serves `raw/<ref>/f/<file>`, and a branch name like
+    # `rawhide` is a moving tip: when Fedora rebases the package to a new
+    # upstream version the old per-version filename disappears and every recipe
+    # pinned to the branch starts 404ing at fetch time. Require an immutable
+    # commit id so a recipe's sources stay fetchable for as long as its
+    # checksums claim they are.
+    ref = DIST_GIT_RAW_REF.match(source["url"])
+    if ref and not re.fullmatch(r"[0-9a-f]{40}", ref.group(1)):
+        fail(f"dist-git source.url must pin a commit, not the mutable ref {ref.group(1)!r}")
     source_filename(source, 0)
     if auxiliary:
         destination = source.get("destination")

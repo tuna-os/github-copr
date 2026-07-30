@@ -15,7 +15,7 @@ sources:
     filename: cosmic-panel-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-panel/raw/rawhide/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-panel/raw/e9fc46ec025c555bf212a9bd80711d797a5680e5/f/vendor-config-1.4.0.toml
     sha256: 6557821baa162f489680d4321fb850c09b53a0a7748c181c85c76c8b5d175291
     filename: cosmic-panel-vendor-config.toml
     destination: .cargo/config.toml

@@ -17,7 +17,7 @@ sources:
     filename: cosmic-bg-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-bg/raw/rawhide/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-bg/raw/8bb279e501a1f309945e37ccbd58bdafa355b3e6/f/vendor-config-1.4.0.toml
     sha256: 870439c52213fb327efc82db883dfca36c6dd0acb0668001285085d41dd9e1b2
     filename: cosmic-bg-vendor-config.toml
     destination: .cargo/config.toml

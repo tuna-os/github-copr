@@ -129,6 +129,18 @@ def test_auxiliary_source_requires_safe_destination(recipe: dict) -> None:
         tideforge.validate(recipe)
 
 
+def test_dist_git_source_must_pin_a_commit(recipe: dict) -> None:
+    base = "https://src.fedoraproject.org/rpms/cosmic-bg/raw/{ref}/f/vendor-config-1.4.0.toml"
+    entry = {"sha256": "b" * 64, "destination": ".cargo/config.toml", "extract": False}
+    # A branch tip stops resolving the moment Fedora rebases the package: the
+    # per-version filename is replaced, and the recipe 404s at fetch time.
+    recipe["sources"] = [{"url": base.format(ref="rawhide"), **entry}]
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+    recipe["sources"] = [{"url": base.format(ref="a" * 40), **entry}]
+    tideforge.validate(recipe)
+
+
 def test_recipe_renders_checksum_locked_auxiliary_file(recipe: dict) -> None:
     recipe["sources"] = [{
         "url": "https://example.com/vendor-config.toml",

@@ -15,7 +15,7 @@ sources:
     filename: cosmic-osd-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-osd/raw/rawhide/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-osd/raw/4d2362138df8a8592172601043f2bc3750bfa777/f/vendor-config-1.4.0.toml
     sha256: 4e555acd8c2c9b90a55800e2f7c90603031b1c642f7188397ec26795c1407086
     filename: cosmic-osd-vendor-config.toml
     destination: .cargo/config.toml
