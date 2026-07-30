@@ -47,6 +47,15 @@ on:
       - .github/workflows/build-tideforge-supported.yml
   workflow_dispatch:
 
+# Three runs of this workflow were queued simultaneously on one branch because
+# nothing superseded the earlier ones — each pushed commit started a fresh
+# ~50-job matrix while the previous two still held runner slots. Only the
+# newest can gate anything; the older ones burn capacity that the rest of the
+# org is queuing for. See #130 for the same class of waste.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
