@@ -48,6 +48,21 @@ split-package contract: both halves are separate artifacts, the development
 half pulls in the runtime half, and the headers are absent from the runtime
 half.
 
+### What the gate does not cover
+
+Recorded here on purpose. A gate whose exceptions are implicit reads as full
+coverage to the next person, which is the exact failure this section exists to
+prevent.
+
+| Not covered | Recipes | Why |
+| --- | --- | --- |
+| Clean install and smoke | all `cosmic-*`, `pop-icon-theme` | Payload-only. A staged install needs the rest of the COSMIC runtime closure, which is not factory-built yet. The build still blocks source/vendor/toolchain regressions. |
+| Clean install and smoke (DEB) | `dms`, `dms-cli`, `dms-greeter` | `clean_install: false`. Their runtime closure on Ubuntu/Debian depends on `quickshell`, which has no DEB build yet. The el10 path does cover them, via the DMS stack integration job. |
+| Any gate at all | `cosmic-greeter`, `xdg-desktop-portal-cosmic`, `xfwl4` | Present under `packages/` but in no matrix. Adding a recipe does not enrol it: it must be added to a workflow matrix *and* that workflow's `paths:` filter, or it is never built. |
+
+Anything in this table is not eligible for promotion, whatever a green check
+on the pull request suggests.
+
 **There is currently no automated promotion of Tideforge artifacts to R2, and
 that is deliberate.** `promote-to-prod.yml` and `promote-gnome49-to-prod.yml`
 were removed from `main` after the GNOME repo wipe — see
