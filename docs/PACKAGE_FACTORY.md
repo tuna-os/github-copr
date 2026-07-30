@@ -36,6 +36,35 @@ package affects a session. Only then may CI sign and promote it to the stable R2
 path. ORAS is suitable for immutable source/SBOM/provenance bundles, not as the
 live DNF/APT/Pacman endpoint.
 
+### What enforces this today
+
+`build-tideforge-supported.yml` and `build-tideforge-arch.yml` are the
+enforcement. For each covered recipe they render the native metadata, fetch the
+checksum-locked source, build in a clean target buildroot with only the declared
+build dependencies, lint the built artifact, publish it to an ephemeral
+repository, and clean-install it in a second container before running a
+command/file/service smoke check. `xfconf` additionally proves the
+split-package contract: both halves are separate artifacts, the development
+half pulls in the runtime half, and the headers are absent from the runtime
+half.
+
+**There is currently no automated promotion of Tideforge artifacts to R2, and
+that is deliberate.** `promote-to-prod.yml` and `promote-gnome49-to-prod.yml`
+were removed from `main` after the GNOME repo wipe — see
+`INCIDENT-repo-wipe-gnome.md`. Nothing publishes Tideforge output, so the
+promotion contract above is presently satisfied by there being no promotion
+path at all.
+
+When a promotion workflow is reintroduced, it must depend on the gate jobs
+above rather than re-deriving its own idea of "green". Two failure modes this
+repository has already paid for:
+
+- Do not add these jobs to branch protection's required checks. They are
+  `paths`-filtered, so a PR that touches none of those paths never reports
+  them and the branch blocks forever. That is #128, and #130 is its sibling.
+- Do not gate on a workflow-level conclusion that includes skipped jobs. A
+  skipped gate is not a passed gate.
+
 ## Package layout
 
 New work should use this shape:
