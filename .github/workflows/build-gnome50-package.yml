@@ -42,9 +42,20 @@ jobs:
           else
             BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
             HEAD="${{ github.sha }}"
+            # A "package" is a directory holding an RPM spec build-chain.sh can
+            # build — nothing else. Stripping the last path component off every
+            # changed file, with no check that a spec lives there, is what let
+            # `src/gnome-49/avahi/tests` become a build target on 2026-07-03;
+            # build-chain.sh produced 0 RPMs and the job still synced the empty
+            # local-repo over production, deleting the published GNOME 49 repo.
+            # Same guard f877c83 (PR #99) added to build-xfce-package.yml after
+            # the identical 2026-07-19 XFCE incident.
             CHANGED=$(git diff --name-only "${BASE}" "${HEAD}" | \
               grep '^src/gnome-50/' | \
               sed 's|/[^/]*$||' | sort -u | \
+              while read -r d; do
+                compgen -G "${d}/*.spec" >/dev/null 2>&1 && echo "$d"
+              done | \
               python3 -c "import sys,json; dirs=sys.stdin.read().splitlines(); print(json.dumps(dirs))")
             PACKAGES="${CHANGED}"
           fi
@@ -106,11 +117,23 @@ jobs:
           endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
           EOF
 
+      # copy, not sync: this direction must never delete local files, and the
+      # failure must not be swallowed. The old `sync ... || true` meant a failed
+      # seed silently produced an EMPTY local-repo, which the upload step below
+      # then synced over production — deleting every published RPM rather than
+      # merely failing to update them.
       - name: Seed local repo from R2 (current published state)
         run: |
           mkdir -p local-repo
-          rclone sync "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo/ --exclude "repodata/**" || true
+          rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo/ \
+            --exclude "repodata/**" --progress --transfers 8
           createrepo_c local-repo
+
+      # Marks "now" so the sign and refuse-empty steps below can tell this run's
+      # output apart from the already-published, already-signed RPMs just seeded
+      # into local-repo.
+      - name: Mark build start
+        run: touch build-start-marker
 
       - name: Build package
         run: |
@@ -135,8 +158,26 @@ jobs:
         run: |
           echo "%_signature gpg" > ~/.rpmmacros
           echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
-          find local-repo -name "*.rpm" -exec rpmsign --addsign {} \;
+          # -newer the marker: sign only what THIS run produced. Without it every
+          # already-signed seeded RPM gets re-signed on every build, and rpmsign
+          # is not guaranteed idempotent on an already-signed file.
+          find local-repo -name "*.rpm" -newer build-start-marker -exec rpmsign --addsign {} \;
           createrepo_c --update local-repo
+
+      # Hard stop before anything below can touch R2. rclone sync makes the
+      # destination match its source EXACTLY, so syncing an empty local-repo
+      # DELETES the published repo rather than failing to update it. Scoped to
+      # this run's output, not the seeded total — the question is "did THIS run
+      # build anything", and local-repo always has RPMs now that it is seeded.
+      - name: Refuse to publish an empty result
+        if: github.event_name != 'pull_request'
+        run: |
+          RPM_COUNT=$(find local-repo -name '*.rpm' ! -name '*.src.rpm' -newer build-start-marker | wc -l)
+          echo "RPMs built this run: ${RPM_COUNT}"
+          if [[ "${RPM_COUNT}" -eq 0 ]]; then
+            echo "::error::0 RPMs produced — refusing to run rclone sync. A sync here would DELETE the published repo, not merely fail to update it."
+            exit 1
+          fi
 
       - name: Upload updated package to R2
         if: github.event_name != 'pull_request'

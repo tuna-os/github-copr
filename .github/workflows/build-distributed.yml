@@ -1388,6 +1388,14 @@ jobs:
           EOF
 
           '
+      - name: Refuse to publish an empty result
+        run: 'RPM_COUNT=$(find local-repo -name "*.rpm" ! -name "*.src.rpm" | wc -l)
+
+          echo "RPMs in local-repo: ${RPM_COUNT}"
+
+          if [ "${RPM_COUNT}" -eq 0 ]; then echo "::error::0 RPMs in local-repo — refusing to sync. rclone sync makes the destination match its source EXACTLY, so this would DELETE the published repo rather than fail to update it. See INCIDENT-repo-wipe-gnome.md."; exit 1; fi
+
+          '
       - name: Upload to R2
         run: 'echo "Uploading to 10-stream-x86_64..."
 

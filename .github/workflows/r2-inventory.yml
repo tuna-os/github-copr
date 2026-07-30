@@ -1,0 +1,72 @@
+# Read-only inventory of what is actually in the R2 buckets.
+# Manual dispatch only, and it never writes — no sync, no copy, no delete.
+#
+# Added while investigating INCIDENT-repo-wipe-gnome.md: the published GNOME
+# repos were found empty over HTTP, but HTTP probing cannot distinguish
+# "bucket is empty" from "objects exist under keys I guessed wrong". This
+# answers that authoritatively, and decides whether recovery needs a full
+# rebuild or only a createrepo_c re-index of surviving RPMs.
+name: R2 Inventory (read-only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      prefixes:
+        description: 'Space-separated bucket/prefix pairs to list'
+        required: false
+        default: >-
+          bluefin/gnome50/10-stream-x86_64
+          bluefin/gnome50/10-x86_64
+          bluefin/gnome49/10-stream-x86_64
+          bluefin/xfce/10-stream-x86_64
+          bluefin/repo/10-stream-x86_64
+          tunaosdev/gnome50/10-stream-x86_64
+          tunaosdev/gnome49/10-stream-x86_64
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install rclone
+        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Configure rclone
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          EOF
+
+      - name: List buckets
+        run: |
+          rclone lsd "r2:" || echo "(could not list buckets — token may be scoped to specific buckets)"
+
+      - name: Inventory each prefix
+        env:
+          PREFIXES: ${{ inputs.prefixes }}
+        run: |
+          {
+            echo "# R2 inventory"
+            echo
+            echo "| prefix | RPMs | repodata files | total objects |"
+            echo "| --- | ---: | ---: | ---: |"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          for PREFIX in ${PREFIXES}; do
+            echo "::group::${PREFIX}"
+            # lsf is read-only. || true so one missing bucket does not abort the
+            # whole inventory — a missing prefix is itself a result worth seeing.
+            LISTING=$(rclone lsf --recursive "r2:${PREFIX}/" 2>&1 || true)
+            RPMS=$(printf '%s\n' "${LISTING}" | grep -c '\.rpm$' || true)
+            META=$(printf '%s\n' "${LISTING}" | grep -c '^repodata/' || true)
+            TOTAL=$(printf '%s\n' "${LISTING}" | grep -c . || true)
+            echo "RPMs=${RPMS} repodata=${META} total=${TOTAL}"
+            printf '%s\n' "${LISTING}" | head -40
+            echo "::endgroup::"
+            echo "| \`${PREFIX}\` | ${RPMS} | ${META} | ${TOTAL} |" >> "${GITHUB_STEP_SUMMARY}"
+          done
