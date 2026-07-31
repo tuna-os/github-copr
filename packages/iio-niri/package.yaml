@@ -29,4 +29,6 @@ dependencies:
     common: [niri, iio-sensor-proxy]
 files:
   common: [usr/bin/iio-niri]
+verify:
+  smoke: "iio-niri --help"
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

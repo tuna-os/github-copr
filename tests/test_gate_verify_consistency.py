@@ -125,3 +125,77 @@ def test_validate_rejects_an_override_for_an_unenabled_target() -> None:
 def test_validate_rejects_an_empty_smoke() -> None:
     with pytest.raises(SystemExit):
         tideforge.validate_verify({"name": "x", "targets": ["el10"], "verify": {"smoke": "  "}})
+
+
+# --- packages the gate builds outside a matrix include ----------------------
+
+
+DEDICATED_JOB_PACKAGES = {
+    "niri",
+    "quickshell",
+    "gtkgreet",
+    "cpptrace-devel",
+    "iio-niri",
+    "dms",
+    "dms-cli",
+    "dms-greeter",
+}
+
+
+def _coverage_module():
+    spec = importlib.util.spec_from_file_location(
+        "check_gate_coverage", ROOT / "scripts" / "check-gate-coverage.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_every_package_the_gate_builds_has_a_verify_block() -> None:
+    """Not just the matrix-include cells.
+
+    The tests above walk `include:` cells only, which is how seven packages
+    built by dedicated jobs -- quickshell, gtkgreet, cpptrace-devel, iio-niri
+    and the dms stack -- ended up with no verify block at all while this file
+    claimed the gate was fully cross-checked. Assert against real coverage
+    instead of against one job shape.
+    """
+    coverage = _coverage_module()
+    # rpm-payload builds its cells without installing them -- there is no clean
+    # container and no smoke test to run, so those packages correctly have no
+    # verify block. Assert against packages the gate *installs*.
+    payload_only = {
+        package
+        for package, _ in coverage.gate_pairs(coverage.Tree())
+        if package not in {cell["package"] for cell in CELLS}
+        and package not in DEDICATED_JOB_PACKAGES
+    }
+    installed = {
+        package for package, _ in coverage.gate_pairs(coverage.Tree())
+    } - payload_only
+    missing = sorted(
+        package
+        for package in installed
+        if not (yaml.safe_load((ROOT / "packages" / package / "package.yaml").read_text()) or {}).get("verify")
+    )
+    assert not missing, f"gate-installed packages with no verify: block: {missing}"
+
+
+def test_niri_carries_its_full_session_contract() -> None:
+    """niri --help alone would pass with every session file missing.
+
+    The el10 job asserts the compositor binary *and* the five session
+    integration assets. A weaker recipe-side contract would silently drop them
+    when the gate switches over -- and a niri that no display manager can
+    discover is the flounder:niri failure repeating.
+    """
+    smoke = tideforge.verify_metadata(recipe_for("niri"), "el10")["smoke"]
+    for asset in (
+        "/usr/bin/niri-session",
+        "/usr/share/wayland-sessions/niri.desktop",
+        "/usr/share/xdg-desktop-portal/niri-portals.conf",
+        "/usr/lib/systemd/user/niri.service",
+        "/usr/lib/systemd/user/niri-shutdown.target",
+    ):
+        assert asset in smoke, f"niri verify.smoke does not assert {asset}"

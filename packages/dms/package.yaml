@@ -21,4 +21,6 @@ install:
   files:
     - {source: systemd/sysusers-dms-greeter.conf, destination: usr/lib/sysusers.d/dms-greeter.conf}
     - {source: systemd/tmpfiles-dms-greeter.conf, destination: usr/lib/tmpfiles.d/dms-greeter.conf}
+verify:
+  smoke: "test -d /usr/share/dankmaterialshell"
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

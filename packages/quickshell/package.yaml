@@ -33,4 +33,6 @@ files:
     - usr/bin/qs
     - usr/share/applications/org.quickshell.desktop
     - usr/share/icons/hicolor/scalable/apps/org.quickshell.svg
+verify:
+  smoke: "quickshell --help"
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

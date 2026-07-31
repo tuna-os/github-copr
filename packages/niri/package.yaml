@@ -55,14 +55,19 @@ files:
     - usr/lib/systemd/user/niri.service
     - usr/lib/systemd/user/niri-shutdown.target
 verify:
-  smoke: niri --help
-  # The deb cells carry the same contract the niri-rpm job asserts by hand:
-  # compositor runs, session launcher, wayland-session entry, portal config,
-  # and both user units. Installing only the binary leaves display managers
-  # unable to discover a Niri session, which `niri --help` alone cannot catch.
+  # The full session contract, which is what the el10 niri-rpm job and the
+  # ubuntu and debian cells (#166) assert by hand: compositor runs, session
+  # launcher, wayland-session entry, portal config, and both user units.
+  # Installing only the binary leaves display managers unable to discover a
+  # Niri session, which `niri --help` alone cannot catch.
+  smoke: "niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target"
   targets:
-    ubuntu:
-      smoke: niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target
-    debian:
-      smoke: niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target
+    # The Arch cell asserts only that the binary runs, so it would pass with
+    # every session-integration file missing -- the same way flounder:niri
+    # shipped a compositor no display manager could discover. This records
+    # what that cell checks today rather than pretending it checks more; raise
+    # it to the full contract above when build-tideforge-arch.yml is free
+    # (it is held by #156 right now).
+    arch:
+      smoke: niri --help
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
