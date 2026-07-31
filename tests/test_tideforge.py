@@ -353,9 +353,37 @@ def test_recipe_installs_generated_files(recipe: dict) -> None:
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
     deb = tideforge.render(recipe, "ubuntu")["debian/rules"]
     arch = tideforge.render(recipe, "arch")["PKGBUILD"]
-    assert "printf %s 'Name: demo" in rpm
+    assert "printf '%s\\n' 'Name: demo\\n'" in rpm
     assert "debian/hello-tuna/usr/lib/pkgconfig/demo.pc" in deb
     assert "$pkgdir/usr/lib/pkgconfig/demo.pc" in arch
+
+
+def test_generated_file_content_stays_on_one_shell_line(recipe: dict) -> None:
+    # Every LINE of a debian/rules recipe is its own /bin/sh invocation, so a
+    # quoted literal carrying real newlines reached the shell truncated:
+    #   printf %s 'prefix=/usr
+    #   /bin/sh: 1: Syntax error: Unterminated quoted string
+    # That killed the wayland-protocols deb build while el10 (whose %install is
+    # one shell script) rendered the same recipe fine.
+    recipe["build_system"] = "data"
+    recipe["install"] = {
+        "generated_files": [
+            {
+                "destination": "usr/share/pkgconfig/demo.pc",
+                "content": "prefix=/usr\ndatarootdir=${prefix}/share\n\nName: demo\n",
+            }
+        ]
+    }
+    for rendered in (tideforge.render(recipe, "el10")["hello-tuna.spec"], tideforge.render(recipe, "arch")["PKGBUILD"]):
+        printf = next(line for line in rendered.splitlines() if "printf" in line)
+        assert printf.endswith("demo.pc")
+        assert printf.count("printf") == 1
+    printf = next(line for line in tideforge.render(recipe, "ubuntu")["debian/rules"].splitlines() if "printf" in line)
+    assert printf.endswith("demo.pc")
+    # make expands $ before /bin/sh sees the recipe, so a pkg-config file's
+    # ${prefix} reference has to reach the shell as $${prefix}.
+    assert "$${prefix}" in printf
+    assert "'${prefix}" not in printf
 
 
 def test_custom_recipe_renders_native_install_contract(recipe: dict) -> None:

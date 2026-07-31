@@ -66,16 +66,37 @@ def target_runtime_dependencies(recipe: dict, target: str) -> list[str]:
     return list(runtime.get("common", [])) + resolve_capabilities(list(runtime.get("capabilities", [])), target) + list(runtime.get("targets", {}).get(target, []))
 
 
-def install_commands(recipe: dict, destination_root: str) -> str:
+def generated_file_content_argument(content: str) -> str:
+    """Return a declared file's content as one-line `printf` arguments.
+
+    Quoting the content as a single literal embeds real newlines in the emitted
+    command. RPM's %install and Arch's package() are shell scripts, so that
+    worked there, but every LINE of a debian/rules recipe is its own /bin/sh
+    invocation: the first line arrived as `printf %s 'prefix=/usr` and the deb
+    build died with "Syntax error: Unterminated quoted string" (wayland-protocols
+    on ubuntu and debian). One argument per line keeps the command on a single
+    line for all three renderers while writing byte-identical content.
+    """
+    lines = content.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    return " ".join(shlex.quote(line) for line in lines)
+
+
+def install_commands(recipe: dict, destination_root: str, *, make_escape: bool = False) -> str:
     commands: list[str] = []
     for item in recipe.get("install", {}).get("files", []):
         commands.append(f"install -Dm{item.get('mode', '0644')} {item['source']} {destination_root}/{item['destination']}")
     for item in recipe.get("install", {}).get("generated_files", []):
         destination = f"{destination_root}/{item['destination']}"
         commands.append(f"install -d {Path(destination).parent}")
-        commands.append(f"printf %s {shlex.quote(item['content'])} > {destination}")
+        commands.append(f"printf '%s\\n' {generated_file_content_argument(item['content'])} > {destination}")
         commands.append(f"chmod {item.get('mode', '0644')} {destination}")
-    return "\n".join(commands)
+    rendered = "\n".join(commands)
+    # debian/rules is a Makefile, so make expands $ before /bin/sh ever sees it:
+    # the `${prefix}` and `${pc_sysrootdir}` references in a generated pkg-config
+    # file would reach the shell empty. Doubling restores the literal $.
+    return rendered.replace("$", "$$") if make_escape else rendered
 
 
 def install_directories(recipe: dict, destination_root: str, *, exclude_generated_debian: bool = False) -> str:
@@ -729,7 +750,7 @@ Rules-Requires-Root: no
         else:
             configure = ""
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem={buildsystem}\n{configure}"
-    extra_install = "\n".join(filter(None, [install_commands(recipe, f"debian/{recipe['name']}"), install_directories(recipe, f"debian/{recipe['name']}", exclude_generated_debian=True)]))
+    extra_install = "\n".join(filter(None, [install_commands(recipe, f"debian/{recipe['name']}", make_escape=True), install_directories(recipe, f"debian/{recipe['name']}", exclude_generated_debian=True)]))
     if extra_install:
         rules = rules.rstrip() + "\n\t" + extra_install.replace("\n", "\n\t") + "\n"
     # For native build systems debhelper auto-runs the upstream test suite via
