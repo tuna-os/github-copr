@@ -40,6 +40,7 @@ on:
       - packages/evtest/package.yaml
       - packages/python3-evdev/package.yaml
       - packages/input-remapper/package.yaml
+      - packages/xfwm4-themes/package.yaml
       - manifests/package-factory.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
@@ -203,6 +204,10 @@ jobs:
             target: el10
             install_name: python3-evdev
             smoke: python3 -c "import evdev"
+          - package: xfwm4-themes
+            target: el10
+            install_name: xfwm4-themes
+            smoke: test -f /usr/share/themes/Default/xfwm4/themerc
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
