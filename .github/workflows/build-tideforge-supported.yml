@@ -36,6 +36,7 @@ on:
       - packages/cosmic-session/package.yaml
       - packages/cosmic-settings/package.yaml
       - packages/pop-icon-theme/package.yaml
+      - packages/labwc/package.yaml
       - manifests/package-factory.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
@@ -183,6 +184,10 @@ jobs:
             target: el10
             install_name: gtk-layer-shell-devel
             smoke: pkg-config --modversion gtk-layer-shell-0 && test -f /usr/include/gtk-layer-shell/gtk-layer-shell.h
+          - package: labwc
+            target: el10
+            install_name: labwc
+            smoke: labwc --help
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
