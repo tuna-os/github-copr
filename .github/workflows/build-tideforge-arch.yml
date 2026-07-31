@@ -14,6 +14,7 @@ on:
       - packages/bazaar/package.yaml
       - packages/plasma-setup/package.yaml
       - packages/oversteer-udev/package.yaml
+      - packages/input-remapper/package.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
       - scripts/fetch-tideforge-sources.py
@@ -75,6 +76,11 @@ jobs:
             smoke: test -e /usr/lib/plasma-setup && test -f /usr/lib/systemd/system/plasma-setup.service
           - package: oversteer-udev
             smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
+          # The data files are the point: upstream install/__main__.py documents
+          # that a pip install drops them under site-packages, where the service
+          # cannot start and the rules are never read (#126).
+          - package: input-remapper
+            smoke: test -x /usr/bin/input-remapper-gtk && test -x /usr/bin/input-remapper-service && test -f /usr/lib/udev/rules.d/99-input-remapper.rules && test -f /usr/lib/systemd/system/input-remapper.service && test -f /usr/share/polkit-1/actions/input-remapper.policy
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

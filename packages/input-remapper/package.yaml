@@ -118,4 +118,8 @@ files:
     # Version-globbed: install/module.py picks the interpreter's own
     # site-packages, so pinning a minor version here would break on rebase.
     - usr/lib/python3*/site-packages/inputremapper/
+# The data files are what a pip install silently gets wrong (see the install
+# commands above), so they are what the gate cells assert on both targets.
+verify:
+  smoke: test -x /usr/bin/input-remapper-gtk && test -x /usr/bin/input-remapper-service && test -f /usr/lib/udev/rules.d/99-input-remapper.rules && test -f /usr/lib/systemd/system/input-remapper.service && test -f /usr/share/polkit-1/actions/input-remapper.policy
 targets: [el10, arch]

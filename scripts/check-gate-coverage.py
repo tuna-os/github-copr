@@ -20,6 +20,7 @@ the git ref on every run.
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -31,6 +32,18 @@ GATE_WORKFLOWS = (
     ".github/workflows/build-tideforge-arch.yml",
 )
 MANIFEST = "manifests/package-factory.yaml"
+
+# A package whose build needs a staged prerequisite closure (gtkgreet, cpptrace,
+# niri, input-remapper, ...) gets a dedicated job rather than a matrix cell, so
+# reading only `strategy.matrix.include` misses it and reports a covered pair as
+# a gap. Those jobs all render the recipe the same way, and that render call is
+# the honest evidence of what the gate builds:
+#
+#   recipe=packages/gtkgreet/package.yaml
+#   python3 scripts/tideforge.py render "$recipe" --target el10 --output ...
+RENDER = re.compile(r"tideforge\.py\s+render\s+(?P<recipe>\S+)\s+--target\s+(?P<target>\S+)")
+RECIPE_ASSIGNMENT = re.compile(r"^\s*recipe=(?P<value>\S+)\s*$", re.MULTILINE)
+RECIPE_PATH = re.compile(r"^packages/(?P<package>[^/]+)/package\.yaml$")
 
 Pair = tuple[str, str]
 
@@ -88,6 +101,37 @@ def declared_pairs(tree: Tree) -> set[Pair]:
     return pairs
 
 
+def _unquote(token: str) -> str:
+    return token.strip().strip('"').strip("'")
+
+
+def rendered_pairs(job: dict) -> set[Pair]:
+    """(package, target) for every recipe a job renders with a literal name.
+
+    Only literal names count. A cell-driven job renders
+    `packages/${{ matrix.package }}/package.yaml`, which says nothing here on
+    its own -- its coverage comes from the matrix, which is read directly.
+    """
+    pairs: set[Pair] = set()
+    for step in job.get("steps") or []:
+        body = step.get("run")
+        if not isinstance(body, str):
+            continue
+        # Every dedicated job assigns `recipe=` once, before rendering it.
+        assignment = RECIPE_ASSIGNMENT.search(body)
+        variable = _unquote(assignment.group("value")) if assignment else None
+        for call in RENDER.finditer(body):
+            recipe = _unquote(call.group("recipe"))
+            if recipe in {"$recipe", "${recipe}"} and variable:
+                recipe = variable
+            match = RECIPE_PATH.match(recipe)
+            target = _unquote(call.group("target"))
+            if not match or "${{" in target:
+                continue
+            pairs.add((match.group("package"), target))
+    return pairs
+
+
 def gate_pairs(tree: Tree) -> set[Pair]:
     """(package, target) for every cell the gate actually builds."""
     pairs: set[Pair] = set()
@@ -114,6 +158,7 @@ def gate_pairs(tree: Tree) -> set[Pair]:
                         target = "arch"
                 if target:
                     pairs.add((package, target))
+            pairs |= rendered_pairs(job)
     return pairs
 
 
