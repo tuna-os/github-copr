@@ -113,7 +113,7 @@ jobs:
             dnf -y builddep /work/rpmbuild/SPECS/*.spec
             rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
           '
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ${{ matrix.package }}-el10-rpm-payload
@@ -250,7 +250,7 @@ jobs:
             rpm -q ${{ matrix.install_name }}
             ${{ matrix.smoke }}
           '
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ${{ matrix.package }}-${{ matrix.target }}-rpm
@@ -350,7 +350,7 @@ jobs:
             rpm -q ${{ matrix.install_name }}
             ${{ matrix.smoke }}
           '
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ${{ matrix.package }}-opensuse-tumbleweed-rpm
@@ -373,7 +373,7 @@ jobs:
             image: docker.io/library/debian:sid
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: xfconf-${{ matrix.target }}-${{ matrix.target == 'el10' && 'rpm' || 'deb' }}
           path: .tideforge/xfconf-split/artifacts
@@ -396,11 +396,11 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: gtk-layer-shell-el10-rpm
           path: .tideforge/gtkgreet/prerequisites/gtk-layer-shell
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: greetd-el10-rpm
           path: .tideforge/gtkgreet/prerequisites/greetd
@@ -447,7 +447,7 @@ jobs:
             rpm -q gtkgreet greetd gtk-layer-shell cage
             gtkgreet --help
           '
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: gtkgreet-el10-staged-closure-rpm
@@ -464,7 +464,7 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: libunwind-devel-el10-rpm
           path: .tideforge/cpptrace/prerequisite
@@ -519,7 +519,7 @@ jobs:
             test -f /usr/include/ctrace/ctrace.h
             ldconfig -p | grep -F libcpptrace.so.1
           '
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: cpptrace-devel-el10-rpm
@@ -536,23 +536,23 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: cli11-devel-el10-rpm
           path: .tideforge/quickshell/prerequisite
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: libunwind-devel-el10-rpm
           path: .tideforge/quickshell/prerequisite
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: cpptrace-devel-el10-rpm
           path: .tideforge/quickshell/prerequisite
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: ninja-build-el10-rpm
           path: .tideforge/quickshell/prerequisite
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: wayland-protocols-el10-rpm
           path: .tideforge/quickshell/prerequisite
@@ -606,7 +606,7 @@ jobs:
             rpm -q quickshell
             quickshell --help
           '
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: quickshell-el10-rpm
@@ -623,7 +623,7 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: libseat-el10-rpm
           path: .tideforge/niri/prerequisite
@@ -682,7 +682,7 @@ jobs:
             test -f /usr/lib/systemd/user/niri.service
             test -f /usr/lib/systemd/user/niri-shutdown.target
           '
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: niri-el10-rpm
@@ -699,11 +699,11 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: libseat-el10-rpm
           path: .tideforge/iio-niri/prerequisite
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: niri-el10-rpm
           path: .tideforge/iio-niri/prerequisite
@@ -754,7 +754,7 @@ jobs:
             rpm -q iio-niri niri libseat iio-sensor-proxy
             iio-niri --help
           '
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: iio-niri-el10-rpm
@@ -770,39 +770,39 @@ jobs:
       # cleans the workspace, so running it afterwards would delete every RPM
       # this job just fetched.
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: dms-el10-rpm-payload
           path: .tideforge/dms-stack/rpms
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: dms-cli-el10-rpm-payload
           path: .tideforge/dms-stack/rpms
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: dms-greeter-el10-rpm-payload
           path: .tideforge/dms-stack/rpms
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: quickshell-el10-rpm
           path: .tideforge/dms-stack/rpms
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: cli11-devel-el10-rpm
           path: .tideforge/dms-stack/rpms
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: libunwind-devel-el10-rpm
           path: .tideforge/dms-stack/rpms
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: cpptrace-devel-el10-rpm
           path: .tideforge/dms-stack/rpms
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: wayland-protocols-el10-rpm
           path: .tideforge/dms-stack/rpms
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: greetd-el10-rpm
           path: .tideforge/dms-stack/rpms
@@ -1060,7 +1060,7 @@ jobs:
             dpkg-query -W ${{ matrix.install_name }}
             ${{ matrix.smoke }}
           '
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ${{ matrix.package }}-${{ matrix.target }}-deb
