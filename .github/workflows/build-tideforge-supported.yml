@@ -291,6 +291,38 @@ jobs:
           - package: cli11-devel
             install_name: cli11-devel
             smoke: test -f /usr/include/CLI/CLI.hpp
+          # Second wave (#139 follow-up): every recipe here is already green on
+          # el10 with the same contract, and eight of the nine are also green on
+          # ubuntu and debian. greetd and kairpods are the first cargo builds
+          # under zypper; if the cargo path breaks they fail with one shared,
+          # readable cause.
+          - package: uupd
+            install_name: uupd
+            smoke: uupd --help
+          - package: greetd
+            install_name: greetd
+            smoke: greetd --help
+          - package: danksearch
+            install_name: danksearch
+            smoke: dsearch --help
+          - package: kairpods
+            install_name: kairpods
+            smoke: test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service
+          - package: oversteer-udev
+            install_name: oversteer-udev
+            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
+          - package: libseat
+            install_name: libseat-devel
+            smoke: pkg-config --modversion libseat && seatd -h
+          - package: ninja-build
+            install_name: ninja-build
+            smoke: ninja --version
+          - package: wayland-protocols
+            install_name: wayland-protocols
+            smoke: pkg-config --atleast-version=1.41 wayland-protocols && test -f /usr/share/wayland-protocols/staging/ext-session-lock/ext-session-lock-v1.xml
+          - package: libunwind-devel
+            install_name: libunwind-devel
+            smoke: test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
