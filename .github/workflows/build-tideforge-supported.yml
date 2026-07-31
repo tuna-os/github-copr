@@ -947,6 +947,22 @@ jobs:
             # correctly and the assertion failed anyway. Assert the real filenames.
             smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
             clean_install: true
+          # Same contract the niri-rpm job asserts by hand: compositor,
+          # session launcher, wayland-session entry, portal config, and both
+          # user units (#161). libseat needs no prerequisite artifact here --
+          # libseat-dev/libseat1 are in the Ubuntu and Debian archives.
+          - package: niri
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: niri
+            smoke: niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target
+            clean_install: true
+          - package: niri
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: niri
+            smoke: niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target
+            clean_install: true
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

@@ -12,11 +12,18 @@ source:
 build_system: cargo
 dependencies:
   build:
-    common: [cargo, rust]
+    # The rust capability renders the right toolchain name per target --
+    # Debian and Ubuntu call the compiler rustc, and a literal `rust` in
+    # Build-Depends is unsatisfiable there.
+    capabilities: [rust]
     targets:
       el10: [gcc, clang-devel, pkgconfig, glib2-devel, cairo-devel, cairo-gobject-devel, pango-devel, pipewire-devel, libdrm-devel, mesa-libgbm-devel, libdisplay-info-devel, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
-      ubuntu: [debhelper-compat, pkg-config, libxkbcommon-dev, libinput-dev, libseat-dev, libwayland-dev]
-      debian: [debhelper-compat, pkg-config, libxkbcommon-dev, libinput-dev, libseat-dev, libwayland-dev]
+      # Upstream's documented Ubuntu build dependencies (Getting-Started wiki),
+      # plus debhelper-compat and pkg-config for the generated packaging. The
+      # previous list had never been exercised and was missing the pango,
+      # pipewire, gbm, dbus, systemd, and display-info stacks entirely.
+      ubuntu: [debhelper-compat, pkg-config, clang, libudev-dev, libgbm-dev, libxkbcommon-dev, libegl1-mesa-dev, libwayland-dev, libinput-dev, libdbus-1-dev, libsystemd-dev, libseat-dev, libpipewire-0.3-dev, libpango1.0-dev, libdisplay-info-dev]
+      debian: [debhelper-compat, pkg-config, clang, libudev-dev, libgbm-dev, libxkbcommon-dev, libegl1-mesa-dev, libwayland-dev, libinput-dev, libdbus-1-dev, libsystemd-dev, libseat-dev, libpipewire-0.3-dev, libpango1.0-dev, libdisplay-info-dev]
       opensuse-tumbleweed: [gcc, pkg-config, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
       # Match Arch's official package build tools. Runtime libraries belong in
       # runtime dependencies and are not copied here merely because another
@@ -49,4 +56,13 @@ files:
     - usr/lib/systemd/user/niri-shutdown.target
 verify:
   smoke: niri --help
+  # The deb cells carry the same contract the niri-rpm job asserts by hand:
+  # compositor runs, session launcher, wayland-session entry, portal config,
+  # and both user units. Installing only the binary leaves display managers
+  # unable to discover a Niri session, which `niri --help` alone cannot catch.
+  targets:
+    ubuntu:
+      smoke: niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target
+    debian:
+      smoke: niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
