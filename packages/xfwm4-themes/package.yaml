@@ -88,4 +88,6 @@ files:
     - usr/share/themes/Daloa/xfwm4/
     - usr/share/themes/Kokodi/xfwm4/
     - usr/share/themes/Moheli/xfwm4/
+verify:
+  smoke: test -f /usr/share/themes/Default/xfwm4/themerc
 targets: [el10]
