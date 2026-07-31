@@ -1,0 +1,121 @@
+# input-remapper for EL10 and Arch (#126).
+#
+# This is the package that breaks the marlin KDE build outright.  pacman has
+# no "skip if missing", so one unresolvable target fails the whole
+# transaction:
+#
+#   error: target not found: input-remapper
+#
+# ghcr.io/tuna-os/marlin:kde has been serving a stale pre-desktop image since,
+# which the live payload then mis-detected as GNOME (tunaOS#858).
+#
+# Availability, checked against real repository metadata rather than mdapi
+# (see docs/CHECKING_PACKAGE_AVAILABILITY.md):
+#
+#   Arch official   0 results   -- AUR only, and the AUR is not a repo we use
+#   EPEL 10         0 matches in primary.xml
+#   Fedora          present, so Fedora keeps using its own
+#
+# On EL10 this additionally needs python3-evdev, which is absent from BaseOS,
+# AppStream, CRB and EPEL 10 and is packaged alongside this recipe.  Arch
+# already has python-evdev 1.9.3 in extra, so only this package is new there.
+#
+# Uses build_system: custom because Tideforge has no python build system yet
+# (#137).  That is not a workaround for this recipe specifically — upstream
+# ships its own installer for a real reason, see the install commands below.
+schema: 1
+name: input-remapper
+version: "2.2.1"
+release: 1
+summary: Change the mapping of input device buttons
+description: >-
+  GUI and daemon for remapping keyboard, mouse and gamepad buttons, including
+  the input-remapper service and its udev rules.
+license: GPL-3.0-or-later
+source:
+  url: https://github.com/sezanzeb/input-remapper/archive/refs/tags/2.2.1.tar.gz
+  sha256: 6ad3d58829e29f2943cbc874b910a94e699428547240f3e5b2a4acbd34e62d2f
+  directory: input-remapper-2.2.1
+build_system: custom
+build:
+  # Everything happens in the install step.  Upstream's installer compiles the
+  # translations itself (install.language.make_lang), so there is no separate
+  # build phase to run.
+  commands:
+    - ':'
+install:
+  # Deliberately NOT pip.  Upstream's install/__main__.py documents why, and
+  # it is not a preference:
+  #
+  #   "pip, in many cases, fails to install data files, which need to go into
+  #    system paths, and instead puts them (despite them being absolute paths)
+  #    into /usr/lib/python3/inputremapper/usr/share/..."
+  #
+  # The udev rules, polkit action, systemd unit and D-Bus policy are exactly
+  # those data files.  A pip install would appear to succeed and produce a
+  # package whose service could not start and whose rules were never read.
+  #
+  # install/module.py additionally resolves site-packages vs dist-packages per
+  # distribution, which is what makes one recipe work on both EL10 and Arch.
+  commands:
+    - python3 -m install --root "{destdir}"
+dependencies:
+  build:
+    common: [gettext]
+    targets:
+      el10: [python3-devel, python3-setuptools]
+      arch: [python]
+  runtime:
+    targets:
+      # python3-evdev is the Tideforge package built alongside this one.  All
+      # other EL10 names here were verified against repository metadata in a
+      # CentOS Stream 10 container with EPEL enabled (2026-07-31):
+      # python3-dasbus, python3-gobject, python3-cairo, python3-psutil, gtk3
+      #   → AppStream
+      # python3-packaging → BaseOS
+      # python3-pydantic, gtksourceview4 → EPEL 10
+      el10:
+        - python3
+        - python3-evdev
+        - python3-dasbus
+        - python3-gobject
+        - python3-cairo
+        - python3-pydantic
+        - python3-packaging
+        - python3-psutil
+        - gtk3
+        - gtksourceview4
+      # All present in core/extra, so Arch needs nothing new beyond this
+      # package itself.
+      arch:
+        - python
+        - python-evdev
+        - python-dasbus
+        - python-gobject
+        - python-cairo
+        - python-pydantic
+        - python-packaging
+        - python-psutil
+        - gtk3
+        - gtksourceview4
+        - polkit
+files:
+  common:
+    - usr/bin/input-remapper-gtk
+    - usr/bin/input-remapper-service
+    - usr/bin/input-remapper-control
+    - usr/bin/input-remapper-reader-service
+    - usr/share/input-remapper/
+    - usr/share/applications/input-remapper-gtk.desktop
+    - usr/share/metainfo/io.github.sezanzeb.input_remapper.metainfo.xml
+    - usr/share/icons/hicolor/scalable/apps/input-remapper.svg
+    - usr/share/polkit-1/actions/input-remapper.policy
+    - usr/lib/systemd/system/input-remapper.service
+    - usr/share/dbus-1/system.d/inputremapper.Control.conf
+    - etc/xdg/autostart/input-remapper-autoload.desktop
+    - usr/lib/udev/rules.d/69-input-remapper-forwarded.rules
+    - usr/lib/udev/rules.d/99-input-remapper.rules
+    # Version-globbed: install/module.py picks the interpreter's own
+    # site-packages, so pinning a minor version here would break on rebase.
+    - usr/lib/python3*/site-packages/inputremapper/
+targets: [el10, arch]

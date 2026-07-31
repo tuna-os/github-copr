@@ -37,6 +37,10 @@ on:
       - packages/cosmic-settings/package.yaml
       - packages/pop-icon-theme/package.yaml
       - packages/labwc/package.yaml
+      - packages/evtest/package.yaml
+      - packages/python3-evdev/package.yaml
+      - packages/input-remapper/package.yaml
+      - packages/xfwm4-themes/package.yaml
       - manifests/package-factory.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
@@ -192,6 +196,18 @@ jobs:
             target: el10
             install_name: labwc
             smoke: labwc --help
+          - package: evtest
+            target: el10
+            install_name: evtest
+            smoke: test -x /usr/bin/evtest && test -f /usr/share/man/man1/evtest.1.gz
+          - package: python3-evdev
+            target: el10
+            install_name: python3-evdev
+            smoke: python3 -c "import evdev"
+          - package: xfwm4-themes
+            target: el10
+            install_name: xfwm4-themes
+            smoke: test -f /usr/share/themes/Default/xfwm4/themerc
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -567,6 +583,75 @@ jobs:
         with:
           name: cpptrace-devel-el10-rpm
           path: .tideforge/cpptrace/rpmbuild/RPMS/
+          if-no-files-found: warn
+
+  input-remapper-rpm:
+    name: input-remapper (el10 staged closure RPM)
+    needs: rpm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - uses: actions/download-artifact@v8
+        with:
+          name: python3-evdev-el10-rpm
+          path: .tideforge/input-remapper/prerequisite
+      - name: Render and fetch the exact input-remapper source archive
+        run: |
+          set -euo pipefail
+          recipe=packages/input-remapper/package.yaml
+          root="$PWD/.tideforge/input-remapper"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
+      - name: Build input-remapper with staged python3-evdev
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/input-remapper"
+          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install dnf-plugins-core epel-release rpm-build createrepo_c
+            dnf config-manager --set-enabled crb
+            mkdir -p /tmp/tideforge-prerequisite
+            cp -a /work/prerequisite/. /tmp/tideforge-prerequisite/
+            createrepo_c /tmp/tideforge-prerequisite
+            dnf -y install --nogpgcheck --repofrompath tideforge-prereq,file:///tmp/tideforge-prerequisite --enablerepo=tideforge-prereq python3-evdev
+            dnf -y builddep /work/rpmbuild/SPECS/*.spec
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
+          '
+      - name: Clean-install input-remapper with the full closure
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/input-remapper"
+          docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install epel-release createrepo_c
+            mkdir -p /tmp/tideforge-rpms
+            cp -a /work/prerequisite/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
+            createrepo_c /tmp/tideforge-rpms
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --setopt=tideforge.priority=1 --enablerepo=tideforge input-remapper
+            rpm -q input-remapper python3-evdev
+            test -x /usr/bin/input-remapper-gtk
+            test -x /usr/bin/input-remapper-service
+            test -x /usr/bin/input-remapper-control
+            test -f /usr/lib/udev/rules.d/99-input-remapper.rules
+            test -f /usr/lib/systemd/system/input-remapper.service
+            test -f /usr/share/polkit-1/actions/input-remapper.policy
+            test -f /usr/share/dbus-1/system.d/inputremapper.Control.conf
+          '
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: input-remapper-el10-staged-closure-rpm
+          path: .tideforge/input-remapper/rpmbuild/RPMS/
           if-no-files-found: warn
 
   quickshell-rpm:
@@ -1181,9 +1266,29 @@ jobs:
             cd /var/lib/tideforge
             dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
             printf "deb [trusted=yes] file:/var/lib/tideforge ./\\n" > /etc/apt/sources.list.d/tideforge.list
+            # Pin the ephemeral repo above the distro archive -- the apt spelling
+            # of the priority overrides the el10 and Tumbleweed jobs already
+            # carry. apt otherwise installs the highest version it can see, and
+            # Ubuntu resolute ships libunwind-dev 1.8.3-0ubuntu1 against our
+            # 1.8.1-1, so the smoke test exercised the archive package (whose
+            # -dev split omits /usr/include/unwind.h) and failed on a contract
+            # the deb built in this job does satisfy. Empty origin is how apt
+            # names a local file: repository; 1001 also permits a downgrade, so
+            # a package preinstalled in the image is replaced rather than kept.
+            printf "Package: *\\nPin: origin \"\"\\nPin-Priority: 1001\\n" > /etc/apt/preferences.d/tideforge.pref
             apt-get update -qq
             apt-get install -y ${{ matrix.install_name }}
             dpkg-query -W ${{ matrix.install_name }}
+            # Shadowing is silent otherwise: an archive package that happens to
+            # satisfy the contract would report this cell green without the
+            # generated deb ever being installed.
+            set -- /var/lib/tideforge/${{ matrix.install_name }}_*.deb
+            expected=$(dpkg-deb -f "$1" Version)
+            installed=$(dpkg-query -W ${{ matrix.install_name }} | cut -f2)
+            if [ "$installed" != "$expected" ]; then
+              echo "installed $installed did not come from the ephemeral repo (expected $expected)" >&2
+              exit 1
+            fi
             ${{ matrix.smoke }}
           '
       - uses: actions/upload-artifact@v7
