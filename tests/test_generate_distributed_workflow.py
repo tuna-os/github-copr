@@ -186,3 +186,24 @@ def test_generate_workflow_is_parseable_yaml(tmp_path):
 
     assert workflow is not None
     assert isinstance(workflow, dict)
+
+
+def test_generate_workflow_mock_config(tmp_path):
+    # A generated workflow that silently built in the default chroot would
+    # only fail once a package needed one of the gnome50 config's repos, so
+    # the flag must reach build-chain.sh AND re-key the caches on the
+    # selected config file.
+    manifest = tmp_path / "build-order-test.yml"
+    manifest.write_text(
+        "target: centos-stream-10-x86_64\n"
+        "tiers:\n"
+        "  - name: base\n"
+        "    packages:\n"
+        "      - path: src/demo\n"
+    )
+    output = tmp_path / "workflow.yml"
+    generate_workflow(str(manifest), str(output), mock_config="centos-stream-10-ci-gnome50")
+    text = output.read_text()
+    assert "--mock-config centos-stream-10-ci-gnome50" in text
+    assert "mock/centos-stream-10-ci-gnome50.cfg" in text
+    assert "mock/centos-stream-10-ci.cfg" not in text

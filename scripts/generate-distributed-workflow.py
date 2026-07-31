@@ -6,7 +6,7 @@ import os
 def generate_workflow(manifest_path, output_path, workflow_name='Distributed Build and Publish RPMs',
                       r2_path='repo/10-stream-x86_64', secondary_r2_path='repo/10-x86_64',
                       install_script='contrib/install.sh', install_r2_dest='install.sh',
-                      submodules=True):
+                      submodules=True, mock_config=None):
     with open(manifest_path, 'r') as f:
         manifest = yaml.safe_load(f)
 
@@ -58,6 +58,13 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
     
     # Build --manifest flag for build-chain.sh (only needed for non-default manifest)
     manifest_flag = f' --manifest {manifest_filename}' if manifest_filename != 'build-order.yml' else ''
+    # Chroot selection. GNOME 49 builds in build-chain.sh's default chroot,
+    # but GNOME 50 has its own mock config (extra repos, tmpfs opts), and a
+    # generated workflow that silently built in the wrong chroot would only
+    # fail once a package needed one of those repos. The cache keys hash the
+    # SELECTED config, not the default one, for the same reason.
+    mock_flag = f' --mock-config {mock_config}' if mock_config else ''
+    mock_cfg_file = f'mock/{mock_config}.cfg' if mock_config else 'mock/centos-stream-10-ci.cfg'
 
     for i, tier in enumerate(tiers):
         tier_name = tier['name']
@@ -80,11 +87,11 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
             'steps': [
                 {'name': 'Checkout', 'uses': 'actions/checkout@v4', **({'with': {'submodules': 'recursive'}} if submodules else {})},
                 {'name': 'Install host dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm'},
-                {'name': 'Cache CentOS Stream 10 image', 'uses': 'actions/cache@v4', 'with': {'path': '/tmp/cs10-image.tar', 'key': "cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}"}},
+                {'name': 'Cache CentOS Stream 10 image', 'uses': 'actions/cache@v4', 'with': {'path': '/tmp/cs10-image.tar', 'key': f"cs10-image-${{{{ hashFiles('{mock_cfg_file}') }}}}"}},
                 {'name': 'Load or pull image', 'run': 'if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n'},
                 {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v4', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
-                {'name': 'Cache mock chroot (dnf downloads)', 'uses': 'actions/cache@v4', 'with': {'path': '.mock-cache', 'key': "mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-${{ github.run_id }}", 'restore-keys': "mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}-\nmock-cache-${{ matrix.package }}-"}},
-                {'name': 'Build package', 'env': {'MOCK_CACHE_DIR': '${{ github.workspace }}/.mock-cache'}, 'run': f'touch .build-marker\nARGS=(--backend podman --tier {tier_name} --package ${{{{ matrix.package }}}}{manifest_flag})\nif [[ "${{{{ github.event.inputs.force }}}}" == "true" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh "${{ARGS[@]}}"\n'},
+                {'name': 'Cache mock chroot (dnf downloads)', 'uses': 'actions/cache@v4', 'with': {'path': '.mock-cache', 'key': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-${{{{ github.run_id }}}}", 'restore-keys': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-\nmock-cache-${{{{ matrix.package }}}}-"}},
+                {'name': 'Build package', 'env': {'MOCK_CACHE_DIR': '${{ github.workspace }}/.mock-cache'}, 'run': f'touch .build-marker\nARGS=(--backend podman --tier {tier_name} --package ${{{{ matrix.package }}}}{manifest_flag}{mock_flag})\nif [[ "${{{{ github.event.inputs.force }}}}" == "true" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh "${{ARGS[@]}}"\n'},
                 {'name': 'Find new RPMs', 'id': 'find-rpms', 'run': 'mkdir -p new-rpms\nfind local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \\;\ncount=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)\necho "count=$count" >> $GITHUB_OUTPUT\n'},
                 {'name': 'Upload RPMs', 'if': "steps.find-rpms.outputs.count > '0'", 'uses': 'actions/upload-artifact@v4', 'with': {'name': f'rpms-{tier_name}-${{{{ strategy.job-index }}}}', 'path': 'new-rpms/*.rpm', 'retention-days': 1}}
             ]
@@ -166,6 +173,8 @@ if __name__ == '__main__':
                         help='R2 destination key for install script')
     parser.add_argument('--no-submodules', action='store_true',
                         help='Skip submodules: recursive in checkout steps')
+    parser.add_argument('--mock-config', default=None,
+                        help='Mock config name passed to build-chain.sh (e.g. centos-stream-10-ci-gnome50); also keys the image/chroot caches on that config file')
     args = parser.parse_args()
     secondary = args.secondary_r2_path if args.secondary_r2_path else None
     generate_workflow(args.manifest, args.output,
@@ -174,5 +183,6 @@ if __name__ == '__main__':
                       secondary_r2_path=secondary,
                       install_script=args.install_script,
                       install_r2_dest=args.install_r2_dest,
-                      submodules=not args.no_submodules)
+                      submodules=not args.no_submodules,
+                      mock_config=args.mock_config)
     print(f"Generated {args.output}")
