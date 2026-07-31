@@ -37,7 +37,9 @@ jobs:
       - id: list
         run: |
           set -euo pipefail
-          packages=$(ls packages/*/package.yaml | xargs -n1 dirname | xargs -n1 basename | jq -R . | jq -cs .)
+          # _template is a placeholder recipe whose source URL is not real;
+          # seeding it can only ever fail the run (it did, first seed run).
+          packages=$(ls packages/*/package.yaml | xargs -n1 dirname | xargs -n1 basename | grep -v '^_template$' | jq -R . | jq -cs .)
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
 
   seed:
