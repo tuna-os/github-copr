@@ -6,7 +6,7 @@ actually builds. Nothing connected the two, which is how openSUSE ended up
 declared by 19 recipes and built by zero cells (#139).
 
 The obvious fix -- assert every declared (recipe, target) pair has a cell --
-is not shippable: 55 of 122 pairs are uncovered today, so it would block every
+is not shippable: 34 of 122 pairs are uncovered today, so it would block every
 PR from the moment it landed. The obvious workaround, an allowlist of accepted
 gaps, is how a curated list stops being curated; `lint-generated-rpm.sh` says
 the same thing about its own fatal-checks list, and it is right.
