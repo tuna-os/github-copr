@@ -509,7 +509,15 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
     if build_system == "autotools":
         prefix = "autoreconf -fi\n" if autoreconf_enabled(recipe or {}) else ""
         options = configure_options(recipe or {})
-        return f"{prefix}%configure {options}\n%make_build".rstrip(), "%make_install"
+        # Delete libtool archives explicitly. EL10's rpm strips them in
+        # brp-remove-la-files, so the el10 gate never sees them; openSUSE's
+        # rpm keeps them and fails the build with "Installed (but unpackaged)
+        # file(s) found: *.la" -- exactly how the libunwind-devel Tumbleweed
+        # cell died on its first run.
+        return (
+            f"{prefix}%configure {options}\n%make_build".rstrip(),
+            "%make_install\nfind %{buildroot} -type f -name '*.la' -delete",
+        )
     if build_system == "cargo":
         return "%cargo_build", "%cargo_install"
     if build_system == "go":
