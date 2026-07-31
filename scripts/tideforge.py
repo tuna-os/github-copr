@@ -509,7 +509,19 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
     if build_system == "autotools":
         prefix = "autoreconf -fi\n" if autoreconf_enabled(recipe or {}) else ""
         options = configure_options(recipe or {})
-        return f"{prefix}%configure {options}\n%make_build".rstrip(), "%make_install"
+        # `make install` from a libtool project leaves .la files in the
+        # buildroot, and no recipe packages them -- nothing should, they encode
+        # buildroot-relative link paths. redhat-rpm-config deletes them for us
+        # via brp-remove-la-files, so el10 never noticed; openSUSE has no such
+        # buildroot policy, so libunwind-devel died at
+        #   error: Installed (but unpackaged) file(s) found:
+        #      /usr/lib64/libunwind.la ...
+        # Delete them in the spec instead, so the same rendered contract holds
+        # on every rpm target rather than relying on one distro's macros.
+        return (
+            f"{prefix}%configure {options}\n%make_build".rstrip(),
+            "%make_install\nfind %{buildroot} -name '*.la' -delete",
+        )
     if build_system == "cargo":
         return "%cargo_build", "%cargo_install"
     if build_system == "go":

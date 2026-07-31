@@ -573,3 +573,19 @@ def test_data_deb_disables_debhelper_build_system_autodetection(recipe: dict) ->
     recipe["build_system"] = "data"
     rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
     assert "dh $@ --buildsystem=none" in rules
+
+
+def test_autotools_rpm_removes_libtool_archives(recipe: dict) -> None:
+    """An autotools RPM must delete .la files itself, on every rpm target.
+
+    `make install` from a libtool project stages .la files that no recipe
+    packages. redhat-rpm-config removes them from the buildroot via
+    brp-remove-la-files, so el10 built libunwind-devel fine; openSUSE
+    Tumbleweed has no such policy and rpmbuild aborted with "Installed (but
+    unpackaged) file(s) found: /usr/lib64/libunwind.la". The deletion belongs
+    in the rendered spec so it does not depend on one distro's macros.
+    """
+    recipe["build_system"] = "autotools"
+    for target in ("el10", "opensuse-tumbleweed"):
+        spec = tideforge.render(recipe, target)["hello-tuna.spec"]
+        assert "%make_install\nfind %{buildroot} -name '*.la' -delete" in spec
