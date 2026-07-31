@@ -25,4 +25,6 @@ install:
     - {source: Modules/Greetd/assets/dms-greeter, destination: usr/bin/dms-greeter, mode: "0755"}
   directories:
     - {source: ., destination: usr/share/quickshell/dms-greeter}
+verify:
+  smoke: "test -x /usr/bin/dms-greeter"
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

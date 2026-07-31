@@ -155,3 +155,71 @@ def test_the_real_repository_coverage_is_reported_not_asserted() -> None:
     declared = coverage.declared_pairs(tree)
     assert len(declared) >= 122
     assert coverage.uncovered(tree), "no uncovered pairs would make the ratchet vacuous"
+
+
+# --- job shapes the parser must not miss (the #159 blind spot) --------------
+
+
+def test_gate_pairs_reads_the_list_form_matrix() -> None:
+    """rpm-payload uses `matrix: {package: [...]}`, not `include`.
+
+    The first version of this parser read only `include` and silently counted
+    all 15 of those cells as uncovered.
+    """
+    workflow = (
+        "jobs:\n  rpm-payload:\n    strategy:\n      matrix:\n"
+        "        package: [cosmic-bg, cosmic-comp]\n"
+        "    steps:\n      - run: tideforge.py render r --target el10\n"
+    )
+    tree = FakeTree({".github/workflows/build-tideforge-supported.yml": workflow})
+    assert coverage.gate_pairs(tree) == {("cosmic-bg", "el10"), ("cosmic-comp", "el10")}
+
+
+def test_gate_pairs_reads_a_matrix_less_dedicated_job() -> None:
+    """niri-rpm and friends have no matrix at all; they are still coverage."""
+    workflow = (
+        "jobs:\n  niri-rpm:\n    steps:\n"
+        "      - run: |\n"
+        "          recipe=packages/niri/package.yaml\n"
+        "          tideforge.py render $recipe --target el10\n"
+    )
+    tree = FakeTree({".github/workflows/build-tideforge-supported.yml": workflow})
+    assert coverage.gate_pairs(tree) == {("niri", "el10")}
+
+
+def test_deleting_a_dedicated_job_shows_up_as_a_new_gap() -> None:
+    """The hole the blind spot left: an uncounted job could vanish unnoticed."""
+    before = FakeTree(
+        {
+            "packages/niri/package.yaml": recipe(["el10"]),
+            ".github/workflows/build-tideforge-supported.yml": (
+                "jobs:\n  niri-rpm:\n    steps:\n      - run: |\n"
+                "          recipe=packages/niri/package.yaml\n"
+                "          tideforge.py render $recipe --target el10\n"
+            ),
+        }
+    )
+    after = FakeTree({"packages/niri/package.yaml": recipe(["el10"])})
+    assert coverage.uncovered(after) - coverage.uncovered(before) == {("niri", "el10")}
+
+
+def test_an_unparsed_job_fails_loudly() -> None:
+    """A shape the parser cannot read must not read as zero coverage."""
+    workflow = (
+        "jobs:\n  mystery:\n    steps:\n"
+        "      - run: build packages/niri/package.yaml somehow\n"
+    )
+    tree = FakeTree({".github/workflows/build-tideforge-supported.yml": workflow})
+    with pytest.raises(SystemExit):
+        coverage.assert_every_job_understood(tree)
+
+
+def test_a_job_that_builds_nothing_is_not_flagged() -> None:
+    workflow = "jobs:\n  lint:\n    steps:\n      - run: shellcheck scripts/*.sh\n"
+    tree = FakeTree({".github/workflows/build-tideforge-supported.yml": workflow})
+    coverage.assert_every_job_understood(tree)
+
+
+def test_every_real_gate_job_is_understood() -> None:
+    """Guards the live workflows, so a new job shape fails here first."""
+    coverage.assert_every_job_understood(coverage.Tree())

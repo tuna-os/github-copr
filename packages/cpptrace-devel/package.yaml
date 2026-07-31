@@ -32,4 +32,6 @@ outputs:
         summary: C++ stacktrace library development files
         description: C++ stacktrace library built with libunwind.
         files: [usr/include/cpptrace, usr/include/ctrace, usr/lib/*/libcpptrace.so*, usr/lib/*/cmake/cpptrace]
+verify:
+  smoke: "test -f /usr/include/cpptrace/cpptrace.hpp && test -f /usr/include/ctrace/ctrace.h"
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

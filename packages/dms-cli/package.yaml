@@ -21,4 +21,6 @@ dependencies:
     common: [dms, quickshell]
 files:
   common: [usr/bin/dms]
+verify:
+  smoke: "test -x /usr/bin/dms"
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

@@ -58,7 +58,7 @@ jobs:
       - run: python3 scripts/validate-target-queues.py
       # A recipe declaring a target that no cell builds is untested while looking
       # supported -- the defect #139 was about, one level down from the target
-      # coverage the previous step asserts. 77 of 122 pairs are uncovered today,
+      # coverage the previous step asserts. 57 of 122 pairs are uncovered today,
       # so this ratchets rather than gates: it fails only on pairs this change
       # introduces, and prints the total so it stays visible.
       - name: Gate coverage must not regress
