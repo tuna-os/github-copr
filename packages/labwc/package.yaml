@@ -1,0 +1,96 @@
+# labwc for EL10 (#120).
+#
+# `startxfce4 --wayland` hardcodes labwc as its default compositor and appends
+# `--session xfce4-session` to it. That startup command is only appended on the
+# default path — passing any other compositor as an argument replaces the whole
+# command line — so xfwl4 does not substitute for labwc here, and every EL10
+# xfce image black-screens with "Please either install labwc or specify another
+# compositor as argument".
+#
+# VERSION PIN, READ BEFORE BUMPING. labwc pins wlroots to one minor per
+# release, and EPEL 10 has wlroots 0.18.2:
+#
+#   labwc 0.8.x  ->  wlroots-0.18, >=0.18.1 <0.19.0   <- what EL10 can satisfy
+#   labwc 0.9.0+ ->  wlroots-0.19, >=0.19.0 <0.20.0   <- no such package on EL10
+#
+# 0.8.4 is the last of the 0.8 series. Bumping to 0.9+ or to latest (0.20.1)
+# fails at meson configure time, and the reason is invisible from the version
+# number alone. Renovate must not move this past 0.8.x while EL10 is on
+# wlroots 0.18.
+schema: 1
+name: labwc
+version: "0.8.4"
+release: 1
+summary: Wayland compositor with a familiar stacking-window-manager feel
+description: >-
+  labwc is a wlroots-based Wayland compositor inspired by Openbox. TunaOS
+  packages it because the upstream xfce-wayland session file
+  (xfce-wayland.desktop) executes `startxfce4 --wayland`, which requires labwc
+  specifically to launch xfce4-session.
+license: GPL-2.0-only
+source:
+  url: https://github.com/labwc/labwc/archive/refs/tags/0.8.4.tar.gz
+  sha256: 2d3ded90f78efb5060f7057ea802c78a79dc9b2e82ae7a2ad902af957b8b9797
+  directory: labwc-0.8.4
+build_system: meson
+build:
+  # scdoc renders the man pages, and the man pages are listed under files:
+  # below — disabling this would silently drop files the file list still
+  # claims. `icon` stays enabled because libsfdo is available on EL10; with it
+  # disabled labwc loses menu icons.
+  meson_options: [-Dman-pages=enabled, -Dxwayland=enabled]
+dependencies:
+  build:
+    common: [meson, ninja-build, scdoc]
+    capabilities: [c-compiler, pkg-config, gettext]
+    targets:
+      el10:
+        # wlroots-devel and libsfdo-devel are EPEL 10, verified against the
+        # repository metadata rather than assumed: wlroots 0.18.2-1.el10_0 and
+        # libsfdo 0.1.3-1.el10_0. labwc requires libsfdo >=0.1.3, so EL10 sits
+        # exactly on the minimum — a libsfdo downgrade breaks this build.
+        - wlroots-devel
+        - libsfdo-devel
+        - wayland-devel
+        - wayland-protocols-devel
+        - libxkbcommon-devel
+        - libxcb-devel
+        - xcb-util-wm-devel
+        - libdrm-devel
+        - libxml2-devel
+        - glib2-devel
+        - cairo-devel
+        - pango-devel
+        - libinput-devel
+        - pixman-devel
+        - libpng-devel
+        - librsvg2-devel
+  runtime:
+    targets:
+      el10:
+        # labwc links wlroots statically only when meson falls back to a
+        # subproject; against the system wlroots-0.18 pkg-config module it
+        # links dynamically, so the runtime library is a real dependency.
+        # The generated RPM also derives these automatically; listing them
+        # keeps the recipe honest about what it needs and is what the DEB and
+        # Pacman renderers would use if this recipe is fanned out (#111).
+        - wlroots
+        - libsfdo
+files:
+  common:
+    - usr/bin/labwc
+    - usr/share/wayland-sessions/labwc.desktop
+    - usr/share/xdg-desktop-portal/labwc-portals.conf
+    - usr/share/icons/hicolor/scalable/apps/labwc.svg
+    - usr/share/icons/hicolor/scalable/apps/labwc-symbolic.svg
+    - usr/share/man/man1/labwc.1*
+    - usr/share/man/man5/labwc-actions.5*
+    - usr/share/man/man5/labwc-config.5*
+    - usr/share/man/man5/labwc-menu.5*
+    - usr/share/man/man5/labwc-theme.5*
+    - usr/share/doc/labwc/
+# EL10 only for now. #111 tracks fanning the xfce Wayland stack out to Fedora,
+# Debian, Arch and openSUSE; labwc is already packaged natively on most of
+# those, so this recipe exists to fill the EL10 hole rather than to replace
+# a distribution's own package.
+targets: [el10]
