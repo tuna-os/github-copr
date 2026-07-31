@@ -1,0 +1,23 @@
+schema: 1
+name: uupd
+version: "1.4.0"
+release: 1
+summary: Universal Blue update service
+description: Update command for image-based systems, Flatpaks, and configured development environments.
+license: Apache-2.0
+source:
+  url: https://github.com/ublue-os/uupd/archive/refs/tags/v1.4.0.tar.gz
+  sha256: ab38f5869831f98e4ee637a013ad03ccd7e183aab3c5175eec76041586ced024
+  directory: uupd-1.4.0
+build_system: go
+dependencies:
+  build:
+    capabilities: [go]
+files:
+  common: [usr/bin/uupd, usr/lib/systemd/system/uupd.service, usr/lib/systemd/system/uupd-manual.service, usr/lib/udev/rules.d/uupd.rules]
+install:
+  files:
+    - {source: uupd.service, destination: usr/lib/systemd/system/uupd.service}
+    - {source: uupd-manual.service, destination: usr/lib/systemd/system/uupd-manual.service}
+    - {source: uupd.rules, destination: usr/lib/udev/rules.d/uupd.rules}
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

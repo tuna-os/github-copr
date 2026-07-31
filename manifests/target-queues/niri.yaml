@@ -1,0 +1,29 @@
+schema: 1
+queues:
+  el10:
+    format: rpm
+    implementation: native-spec
+    roots: [niri, quickshell, greetd, dms, dms-cli, dms-greeter, dgop, danksearch, iio-niri]
+    gates: [mock-build, rpm-md-stage-install, greetd-login, niri-session-smoke]
+  ubuntu:
+    format: deb
+    implementation: tideforge-debian
+    suite: resolute
+    roots: [niri, quickshell, greetd, dms, dms-cli, dms-greeter, dgop, danksearch]
+    gates: [container-build, apt-stage-install, greetd-login, niri-session-smoke]
+  debian:
+    format: deb
+    implementation: tideforge-debian
+    suite: trixie
+    roots: [niri, quickshell, greetd, dms, dms-cli, dms-greeter, dgop, danksearch]
+    gates: [container-build, apt-stage-install, greetd-login, niri-session-smoke]
+  opensuse-tumbleweed:
+    format: rpm
+    implementation: tideforge-rpm
+    roots: [niri, quickshell, greetd, dms, dms-cli, dms-greeter, dgop, danksearch]
+    gates: [container-build, rpm-md-stage-install, niri-session-smoke]
+  arch:
+    format: pkg.tar.zst
+    implementation: tideforge-pkgbuild
+    roots: [niri, quickshell, greetd, dms, dms-cli, dms-greeter, dgop, danksearch, dankcalendar]
+    gates: [container-build, pacman-stage-install, niri-session-smoke]

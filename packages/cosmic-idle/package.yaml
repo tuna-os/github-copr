@@ -1,0 +1,41 @@
+schema: 1
+name: cosmic-idle
+version: "1.4.0"
+release: 1
+summary: Idle notification manager for COSMIC
+description: COSMIC idle notification and session state manager for TunaOS.
+license: Apache-2.0 AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-idle/archive/epoch-1.4.0.tar.gz
+  sha256: f399774b598b278f9f2a49bc0dc15b5e44cfdfe519762076e08ff73efa3d8186
+  directory: cosmic-idle-epoch-1.4.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-idle/vendor-1.4.0.tar.gz/sha512/c5ae6770d5e0ebf84b35c51e91ff63318c61c35a083619c0a89c4c86c6b8d2bc158853671897555e5a3cacf5476964a1967f324eebed3c7b7658c2f2b831e31d/vendor-1.4.0.tar.gz
+    sha256: d5964934b68cc03a09449c1b2fece97d1e8632ee5fd6f4d0f9aee0e0543d59b7
+    filename: cosmic-idle-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-idle/raw/51b1fed9e0eb7d577065504a97b60171d1128690/f/vendor-config-1.4.0.toml
+    sha256: 7fd8dbfcbcc395fa7793317fbda8c151fa3e794fdce691cf2ed58ee9a69e71cb
+    filename: cosmic-idle-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: c95d066b5b640509a6369634b669ca60dc50e168
+    VERGEN_GIT_COMMIT_DATE: "2026-02-13 12:35:27 -0700"
+  commands: [cargo build --release --offline --frozen]
+dependencies:
+  build:
+    capabilities: [rust]
+    targets:
+      el10: [cargo, lld, just, libxkbcommon-devel, wayland-devel]
+  runtime:
+    targets:
+      el10: [cosmic-icon-theme >= 1.4.0]
+files:
+  common: [usr/bin/cosmic-idle]
+install:
+  commands: ["just rootdir={destdir} prefix=/usr install"]
+targets: [el10]

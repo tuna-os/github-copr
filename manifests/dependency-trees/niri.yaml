@@ -1,0 +1,26 @@
+schema: 1
+tree: niri-dms
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+roots: [niri, dms, dms-cli, dms-greeter, dgop, danksearch, dankcalendar, iio-niri]
+nodes:
+  niri: {source: niri-wm/niri, needs: [cargo-toolchain, wayland-stack, libseat, libdisplay-info-devel]}
+  libseat: {source: kennylevinsen/seatd, needs: [meson, c-compiler, systemd-devel]}
+  cli11-devel: {source: CLIUtils/CLI11, needs: [cmake, cpp-compiler]}
+  libunwind-devel: {source: libunwind/libunwind, needs: [cpp-compiler]}
+  cpptrace-devel: {source: jeremy-rifkin/cpptrace, needs: [libunwind-devel, cmake, cpp-compiler]}
+  ninja-build: {source: ninja-build/ninja, needs: [cmake, cpp-compiler]}
+  wayland-protocols: {source: wayland/wayland-protocols, needs: []}
+  quickshell: {source: quickshell-mirror/quickshell, needs: [cli11-devel, cpptrace-devel, ninja-build, wayland-protocols, libdrm, qt6-wayland, wayland-stack]}
+  dms: {source: AvengeMedia/DankMaterialShell, needs: [quickshell]}
+  dms-cli: {source: AvengeMedia/DankMaterialShell, needs: [dms]}
+  dms-greeter: {source: AvengeMedia/DankMaterialShell, needs: [dms, greetd]}
+  dgop: {source: AvengeMedia/dgop, needs: []}
+  danksearch: {source: AvengeMedia/danksearch, needs: []}
+  dankcalendar: {source: AvengeMedia/dankcalendar, needs: [quickshell]}
+  iio-niri: {source: Zhaith-Izaliel/iio-niri, needs: [niri]}
+  cargo-toolchain: {kind: distro-build-dependency}
+  wayland-stack: {kind: distro-build-dependency}
+  libdisplay-info-devel: {kind: distro-build-dependency}
+  qt6-wayland: {kind: distro-build-dependency}
+  greetd: {source: kennylevinsen/greetd, needs: [cargo-toolchain, pam-dev]}
+  pam-dev: {kind: distro-build-dependency}

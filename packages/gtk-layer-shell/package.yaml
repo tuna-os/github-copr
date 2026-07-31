@@ -1,0 +1,37 @@
+schema: 1
+name: gtk-layer-shell
+version: "0.9.0"
+release: 1
+summary: GTK3 Wayland layer shell library
+description: >-
+  GTK3 library implementing the Wayland layer-shell protocol. It is the
+  required development and runtime dependency for TunaOS's gtkgreet login UI.
+license: MIT
+source:
+  url: https://github.com/wmww/gtk-layer-shell/archive/v0.9.0.tar.gz
+  sha256: 3809e5565d9ed02e44bb73787ff218523e8760fef65830afe60ea7322e22da1c
+  directory: gtk-layer-shell-0.9.0
+build_system: meson
+dependencies:
+  build:
+    common: [meson, ninja-build, pkg-config]
+    targets:
+      el10: [gcc, gtk3-devel, wayland-devel, wayland-protocols-devel, gobject-introspection-devel, vala]
+files:
+  common: [usr/lib64/libgtk-layer-shell.so.*]
+targets: [el10]
+outputs:
+  rpm:
+    files: [usr/lib64/libgtk-layer-shell.so.*]
+    subpackages:
+      - name: devel
+        summary: Development files for gtk-layer-shell
+        description: Headers, pkg-config metadata, introspection, and Vala bindings.
+        files:
+          - usr/include/gtk-layer-shell/gtk-layer-shell.h
+          - usr/lib64/libgtk-layer-shell.so
+          - usr/lib64/pkgconfig/gtk-layer-shell-0.pc
+          - usr/lib64/girepository-1.0/GtkLayerShell-0.1.typelib
+          - usr/share/gir-1.0/GtkLayerShell-0.1.gir
+          - usr/share/vala/vapi/gtk-layer-shell-0.deps
+          - usr/share/vala/vapi/gtk-layer-shell-0.vapi

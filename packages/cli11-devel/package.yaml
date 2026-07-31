@@ -1,0 +1,36 @@
+schema: 1
+name: cli11-devel
+version: "2.5.0"
+release: 1
+summary: Header-only C++ command-line parser development files
+description: CMake package metadata and headers for CLI11, required to build Quickshell without an external repository.
+license: BSD-3-Clause
+source:
+  url: https://github.com/CLIUtils/CLI11/archive/refs/tags/v2.5.0.tar.gz
+  sha256: 17e02b4cddc2fa348e5dbdbb582c59a3486fa2b2433e70a0c3bacb871334fd55
+  directory: CLI11-2.5.0
+build_system: cmake
+build:
+  cmake_options: [-DCLI11_BUILD_TESTS=OFF, -DCLI11_BUILD_EXAMPLES=OFF, -DCLI11_BUILD_DOCS=OFF]
+  # Header-only package: RPM's automatic debug source subpackage would be empty.
+  debug_package: false
+dependencies:
+  build:
+    common: [cmake, gcc-c++]
+    targets:
+      ubuntu: [cmake, g++]
+      debian: [cmake, g++]
+      opensuse-tumbleweed: [cmake, gcc-c++]
+      arch: [cmake, gcc]
+files:
+  common: [usr/include/CLI]
+outputs:
+  rpm:
+    files: [usr/include/CLI, usr/share/cmake/CLI11, usr/share/pkgconfig/CLI11.pc]
+  deb:
+    packages:
+      - name: libcli11-dev
+        summary: Header-only C++ command-line parser development files
+        description: CMake package metadata and headers for CLI11.
+        files: [usr/include/CLI, usr/share/cmake/CLI11, usr/share/pkgconfig/CLI11.pc]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

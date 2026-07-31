@@ -40,13 +40,20 @@ def main() -> None:
     for target_id, target in targets.items():
         if target.get("status") not in {"supported", "scaffold"}:
             fail(f"{target_id}: status must be supported or scaffold")
-        for field in ("format", "architectures", "r2_path", "repository"):
+        for field in ("format", "architectures", "r2_path", "repository", "probe_image"):
             if not target.get(field):
                 fail(f"{target_id}: {field} is required")
+        if "/" not in target["probe_image"]:
+            fail(f"{target_id}: probe_image must be a fully-qualified container image")
         if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/")):
             fail(f"{target_id}: r2_path has an unsupported namespace")
         if not all(arch in {"x86_64", "aarch64", "amd64", "arm64"} for arch in target["architectures"]):
             fail(f"{target_id}: unsupported architecture")
+        build_repositories = target.get("build_repositories", [])
+        if not isinstance(build_repositories, list) or not all(
+            isinstance(repository, str) and repository for repository in build_repositories
+        ):
+            fail(f"{target_id}: build_repositories must be a list of non-empty names")
     print("Package factory manifest: valid")
 
 

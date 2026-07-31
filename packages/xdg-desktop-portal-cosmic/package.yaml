@@ -1,0 +1,49 @@
+schema: 1
+name: xdg-desktop-portal-cosmic
+version: "1.4.0"
+release: 1
+summary: XDG desktop portals for the COSMIC desktop environment
+description: COSMIC portal backend for screenshots, screen sharing, and desktop integration.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/xdg-desktop-portal-cosmic/archive/epoch-1.4.0.tar.gz
+  sha256: 87abf4fdfce157ae7e36b9055f79ba1584fb1fa20e8946821d7e32f1d1f0cae1
+  directory: xdg-desktop-portal-cosmic-epoch-1.4.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/xdg-desktop-portal-cosmic/vendor-1.4.0.tar.gz/sha512/cd47cce014678da9b20f309459b071cbee34dd2ca5ffc110921cba15c88ee9573132530cee645fc85d85abd3130d3f269bd0169d1e594d43ef447500e3e09615/vendor-1.4.0.tar.gz
+    sha256: ba06bc0c95e2ba3abb889b3a7d798a8d9d57867ae0e0d4412c412fa8d2be4d6a
+    filename: xdg-desktop-portal-cosmic-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/xdg-desktop-portal-cosmic/raw/1d8a5c126e9050c73319f42e23987aa8daa7edbc/f/vendor-config-1.4.0.toml
+    sha256: 7c9ed08dec216901623520adcfcef98cda7a6edefaa4b8de968aae38d6e6fcc7
+    filename: xdg-desktop-portal-cosmic-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: 969f3ca5995d157f78da60231af9e59641dae44d
+    VERGEN_GIT_COMMIT_DATE: "2026-07-20 14:43:08 -0700"
+  commands: [cargo build --release --offline --frozen]
+dependencies:
+  build:
+    capabilities: [rust]
+    targets:
+      el10: [cargo, lld, just, libxkbcommon-devel, wayland-devel, pipewire-devel, clang-devel, mesa-libEGL-devel, mesa-libgbm-devel, gstreamer1-devel, glib2-devel]
+  runtime:
+    targets:
+      el10: [cosmic-icon-theme >= 1.4.0]
+files:
+  common:
+    - usr/libexec/xdg-desktop-portal-cosmic
+    - usr/share/dbus-1/services/org.freedesktop.impl.portal.desktop.cosmic.service
+    - usr/lib/systemd/user/org.freedesktop.impl.portal.desktop.cosmic.service
+    - usr/share/xdg-desktop-portal/portals/cosmic.portal
+    - usr/share/xdg-desktop-portal/cosmic-portals.conf
+    - usr/share/icons/hicolor/scalable/actions/screenshot-screen-symbolic.svg
+    - usr/share/icons/hicolor/scalable/actions/screenshot-selection-symbolic.svg
+    - usr/share/icons/hicolor/scalable/actions/screenshot-window-symbolic.svg
+install:
+  commands: ["just rootdir={destdir} prefix=/usr install"]
+targets: [el10]

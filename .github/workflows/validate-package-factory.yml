@@ -4,7 +4,16 @@ on:
   pull_request:
     paths:
       - manifests/package-factory.yaml
+      - manifests/dependency-trees/**
+      - manifests/target-queues/**
       - scripts/validate-package-factory.py
+      - scripts/validate-target-queues.py
+      - scripts/tideforge.py
+      - scripts/verify-tideforge-source.py
+      - scripts/fetch-tideforge-sources.py
+      - scripts/compare-official-package.py
+      - packages/**
+      - docs/PATCH_POLICY.md
       - docs/PACKAGE_FACTORY.md
       - packaging/**
       - .github/workflows/validate-package-factory.yml
@@ -12,7 +21,15 @@ on:
     branches: [main]
     paths:
       - manifests/package-factory.yaml
+      - manifests/dependency-trees/**
+      - manifests/target-queues/**
       - scripts/validate-package-factory.py
+      - scripts/validate-target-queues.py
+      - scripts/tideforge.py
+      - scripts/verify-tideforge-source.py
+      - scripts/compare-official-package.py
+      - packages/**
+      - docs/PATCH_POLICY.md
       - docs/PACKAGE_FACTORY.md
       - packaging/**
   workflow_dispatch:
@@ -30,3 +47,23 @@ jobs:
           python-version: '3.14'
       - run: pip install pyyaml
       - run: python3 scripts/validate-package-factory.py manifests/package-factory.yaml
+      - run: python3 scripts/validate-target-queues.py
+      - name: Validate and render Tideforge recipes
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for recipe in packages/*/package.yaml; do
+            # The template documents the schema with an intentionally
+            # non-fetchable example source; it is not a package candidate.
+            [[ "$recipe" == packages/_template/* ]] && continue
+            python3 scripts/tideforge.py validate "$recipe"
+            python3 scripts/verify-tideforge-source.py "$recipe"
+            while IFS= read -r target; do
+              output="$(mktemp -d)"
+              python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$output"
+              test -n "$(find "$output" -type f -print -quit)"
+              find "$output" -depth -delete
+            done < <(python3 -c 'import sys,yaml; print("\n".join(yaml.safe_load(open(sys.argv[1]))["targets"]))' "$recipe")
+          done
+      - name: Compare Niri with Arch metadata
+        run: python3 scripts/compare-official-package.py packages/niri/package.yaml --strict

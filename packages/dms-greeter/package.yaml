@@ -1,0 +1,28 @@
+schema: 1
+name: dms-greeter
+version: "1.5.2"
+release: 1
+summary: DankMaterialShell greeter payload for greetd
+description: >-
+  DankMaterialShell greeter QML configuration and launcher for greetd. TunaOS
+  owns greetd, PAM, account, and display-manager policy separately; this
+  package only supplies the upstream application payload.
+license: GPL-3.0-or-later
+source:
+  url: https://github.com/AvengeMedia/DankMaterialShell/releases/download/v1.5.2/dms-qml.tar.gz
+  sha256: a504d4684aed1fde07bc3cad3ea1ba417331bfd43cb97420133082ae70da1478
+  directory: .
+build_system: data
+dependencies:
+  runtime:
+    common: [greetd, quickshell]
+files:
+  common:
+    - usr/bin/dms-greeter
+    - usr/share/quickshell/dms-greeter
+install:
+  files:
+    - {source: Modules/Greetd/assets/dms-greeter, destination: usr/bin/dms-greeter, mode: "0755"}
+  directories:
+    - {source: ., destination: usr/share/quickshell/dms-greeter}
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

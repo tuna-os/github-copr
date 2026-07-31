@@ -1,0 +1,44 @@
+schema: 1
+name: cosmic-greeter
+version: "1.4.0"
+release: 1
+summary: Greeter for the COSMIC desktop environment
+description: COSMIC graphical greeter and daemon integrated with greetd.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-greeter/archive/epoch-1.4.0.tar.gz
+  sha256: 121ea127cb26efa0c414d8d5c191bb7d2e890b1543edd17065004e2d9bf7baab
+  directory: cosmic-greeter-epoch-1.4.0
+sources:
+  - {url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-greeter/vendor-1.4.0.tar.gz/sha512/6a4f4a8b2f9542d9d5b037f1ff355e506aef1c920d6fd076c76cf62322efe6daa181b8ac26a8f045bf3ea06b9030f1f43c8b0c4b1f082c3b4f7bf7acaa29de37/vendor-1.4.0.tar.gz, sha256: 34b7b4a169e9a33aebaaf77bf04dde1c792ea1c83bcb9f42f5f11d5103451b21, filename: cosmic-greeter-vendor.tar.gz, destination: ., strip_components: 0}
+  - {url: https://src.fedoraproject.org/rpms/cosmic-greeter/raw/4ac033c19be9f14626cbb7ce70de536fbfe8f577/f/vendor-config-1.4.0.toml, sha256: 01b0a9206d866d7010380c20d1004d97b8e69e9948cbe3b52237fabef777efae, filename: cosmic-greeter-vendor-config.toml, destination: .cargo/config.toml, extract: false}
+  - {url: https://raw.githubusercontent.com/tuna-os/tunaos-packages/0578e2643a88c0bb569dd8de44747161a1d9f816/src/hummingbird/cosmic-greeter/0001-Make-service-a-display-manager.patch, sha256: 83621ca315c46d8ca29a206425e0704d9dd77efa7cadd380faaffa6ba2432fdc, filename: cosmic-greeter-display-manager.patch, destination: patches/cosmic-greeter-display-manager.patch, extract: false}
+  - {url: https://raw.githubusercontent.com/tuna-os/tunaos-packages/0578e2643a88c0bb569dd8de44747161a1d9f816/src/hummingbird/cosmic-greeter/include-greetd.patch, sha256: 6941d90a13c1b2408eaa692a5eff8fc2b1d0d43fa288cc5eff0b8aea477a0e1a, filename: cosmic-greeter-include-greetd.patch, destination: patches/cosmic-greeter-include-greetd.patch, extract: false}
+build_system: custom
+build:
+  prepare: [patch -p1 < patches/cosmic-greeter-display-manager.patch, patch -p1 < patches/cosmic-greeter-include-greetd.patch]
+  environment: {VERGEN_GIT_SHA: 2290aae5e2e078a1d79c6ec1a27cdf3ccc366a45, VERGEN_GIT_COMMIT_DATE: "2026-07-19 08:12:23 -0700"}
+  commands: [cargo build --release --all --offline --frozen]
+dependencies:
+  build:
+    capabilities: [rust, pam-dev]
+    targets:
+      el10: [cargo, lld, wayland-devel, clang-devel, libxkbcommon-devel, just, libudev-devel, libinput-devel]
+  runtime:
+    targets:
+      el10: [dbus, greetd, greetd-selinux, fprintd-pam, pam, cosmic-comp >= 1.4.0, cosmic-icon-theme >= 1.4.0]
+files:
+  common: [usr/bin/cosmic-greeter, usr/bin/cosmic-greeter-daemon, usr/bin/cosmic-greeter-start, usr/share/dbus-1/system.d/com.system76.CosmicGreeter.conf, usr/lib/sysusers.d/cosmic-greeter.conf, usr/lib/tmpfiles.d/cosmic-greeter.conf, etc/greetd/cosmic-greeter.toml, usr/lib/systemd/system/cosmic-greeter.service, usr/lib/systemd/system/cosmic-greeter-daemon.service, etc/pam.d/cosmic-greeter]
+install:
+  commands:
+    - install -Dm0755 target/release/cosmic-greeter {destdir}/usr/bin/cosmic-greeter
+    - install -Dm0755 target/release/cosmic-greeter-daemon {destdir}/usr/bin/cosmic-greeter-daemon
+    - install -Dm0755 cosmic-greeter-start.sh {destdir}/usr/bin/cosmic-greeter-start
+    - install -Dm0644 dbus/com.system76.CosmicGreeter.conf {destdir}/usr/share/dbus-1/system.d/com.system76.CosmicGreeter.conf
+    - install -Dm0644 debian/cosmic-greeter.sysusers {destdir}/usr/lib/sysusers.d/cosmic-greeter.conf
+    - install -Dm0644 debian/cosmic-greeter.tmpfiles {destdir}/usr/lib/tmpfiles.d/cosmic-greeter.conf
+    - install -Dm0644 cosmic-greeter.toml {destdir}/etc/greetd/cosmic-greeter.toml
+    - install -Dm0644 debian/cosmic-greeter.service {destdir}/usr/lib/systemd/system/cosmic-greeter.service
+    - install -Dm0644 debian/cosmic-greeter-daemon.service {destdir}/usr/lib/systemd/system/cosmic-greeter-daemon.service
+    - install -Dm0644 debian/greetd.pam {destdir}/etc/pam.d/cosmic-greeter
+targets: [el10]

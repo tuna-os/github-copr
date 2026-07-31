@@ -1,0 +1,38 @@
+schema: 1
+name: cosmic-randr
+version: "1.4.0"
+release: 1
+summary: Display configuration command line tool for COSMIC
+description: COSMIC display configuration command line tool for TunaOS.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-randr/archive/epoch-1.4.0.tar.gz
+  sha256: 37745fa8229e30ce1a3f38e724ccab3f4805af0acaaeb26ce1ffe80ad8d73852
+  directory: cosmic-randr-epoch-1.4.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-randr/vendor-1.4.0.tar.gz/sha512/023d532a6352fa173a74f0d2c0803db4392dc73f9b25c76108ba647a0a23d4a2ab4f187644bce74bd3947bf6d164ad104f094df08d2fac994a91ebc7f664a817/vendor-1.4.0.tar.gz
+    sha256: 20cf935144e55682c7d1e93e2b68e82df32aed90c49380db0a2c196f6a2b01d3
+    filename: cosmic-randr-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-randr/raw/663b34c4b73b396df8562071b674ccfc7d8c6adf/f/vendor-config-1.4.0.toml
+    sha256: b99c1e67392c1239d6fc64c46cd6adfbda2ea49bf9376fb1b8dfc2dbfbb09383
+    filename: cosmic-randr-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: 6e8e795970fa06d434af22775e415b517f7552d3
+    VERGEN_GIT_COMMIT_DATE: "2026-02-13 12:35:27 -0700"
+  commands: [cargo build --release --offline --frozen]
+dependencies:
+  build:
+    capabilities: [rust]
+    targets:
+      el10: [cargo, lld, just, wayland-devel]
+files:
+  common: [usr/bin/cosmic-randr]
+install:
+  commands: ["just rootdir={destdir} prefix=/usr install"]
+targets: [el10]

@@ -65,7 +65,7 @@
         "^src/xfce-wayland/xfwl4/packaging/arch/PKGBUILD$"
       ],
       "matchStrings": [
-        "(?:%global commit\\s+|(?<!protocols)_commit=)(?<currentDigest>[a-f0-9]{40})"
+        "(?:%global commit\\s+|\\n_commit=)(?<currentDigest>[a-f0-9]{40})"
       ],
       "currentValueTemplate": "main",
       "datasourceTemplate": "git-refs",

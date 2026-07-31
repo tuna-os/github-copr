@@ -1,0 +1,26 @@
+schema: 1
+name: ninja-build
+version: "1.13.2"
+release: 1
+summary: Small build system with a focus on speed
+description: Ninja build tool used to build Qt/CMake projects whose generated-source dependencies are not supported by Makefiles on EL10.
+license: Apache-2.0
+source:
+  url: https://github.com/ninja-build/ninja/archive/refs/tags/v1.13.2.tar.gz
+  sha256: 974d6b2f4eeefa25625d34da3cb36bdcebe7fbce40f4c16ac0835fd1c0cbae17
+  directory: ninja-1.13.2
+build_system: cmake
+build:
+  debug_package: false
+  cmake_options: [-DBUILD_TESTING=OFF]
+dependencies:
+  build:
+    common: [cmake, gcc-c++]
+    targets:
+      ubuntu: [cmake, g++]
+      debian: [cmake, g++]
+      opensuse-tumbleweed: [cmake, gcc-c++]
+      arch: [cmake, gcc]
+files:
+  common: [usr/bin/ninja]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

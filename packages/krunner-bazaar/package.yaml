@@ -1,0 +1,31 @@
+schema: 1
+name: krunner-bazaar
+version: "1.3.0"
+release: 1
+summary: KRunner plugin for finding Flatpak applications with Bazaar
+description: KDE KRunner plugin that searches Flatpak applications and hands installation to Bazaar.
+license: Apache-2.0
+source:
+  url: https://github.com/bazaar-org/krunner-bazaar/archive/refs/tags/v1.3.0.tar.gz
+  sha256: 793f59b414973b85160573b0d8d5f8fc38bd216d106f976a3c416c86b37a0d09
+  directory: krunner-bazaar-1.3.0
+build_system: cmake
+dependencies:
+  build:
+    capabilities: [cmake, gettext, cpp-compiler, extra-cmake-modules, kf6-config-dev, kf6-runner-dev, kf6-i18n-dev, kf6-coreaddons-dev, qt6-base-dev]
+    targets:
+      el10: [kf6-rpm-macros]
+  runtime:
+    capabilities: [flatpak]
+    targets:
+      # makepkg derives no shared-library dependencies, so the KRunner plugin's
+      # own link closure has to be declared. Every entry below owns a DT_NEEDED
+      # soname of usr/bin/bazaar-dbus-tool or bazaarrunner.so; rpmbuild and
+      # dpkg-shlibdeps generate the equivalent requirements themselves.
+      arch: [glibc, kcoreaddons, ki18n, krunner, libstdc++, qt6-base]
+files:
+  common:
+    - usr/bin/bazaar-dbus-tool
+    - usr/lib*/qt6/plugins/kf6/krunner/bazaarrunner.so
+    - usr/share/locale/*/LC_MESSAGES/plasma_runner_bazaarrunner.mo
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

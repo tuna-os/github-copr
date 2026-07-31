@@ -1,0 +1,91 @@
+# xfwm4 window-decoration theme data for EL10 (#123).
+#
+# xfwl4 starts, reaches a Wayland socket, and then panics:
+#
+#   thread 'main' panicked at src/core/state.rs:308:74:
+#   Failed to load initial config: Failed to find theme named Default
+#
+# Its theme lookup (theme_path_internal, src/core/config/xfwl4_config.rs:262)
+# searches $HOME/.themes, $XDG_DATA_HOME/themes, then each $XDG_DATA_DIRS entry
+# + /themes, and requires <dir>/<theme>/xfwm4/themerc to be a regular file. The
+# theme name defaults to "Default" with a hard fallback to "Default", so the
+# exact path it needs is:
+#
+#   /usr/share/themes/Default/xfwm4/themerc
+#
+# That is xfwm4's theme data and nothing else. manifests/desktops/xfce.yaml is
+# right to exclude the xfwm4 binary ("X11, not built for EL10") — but the
+# assets still have to come from somewhere, and that exclusion is why nothing
+# was shipping them. This package is data only: no binary, no X11 dependency.
+#
+# Note the theme lookup goes through glib::system_data_dirs(), NOT through the
+# DATADIR compiled into xfwl4. The separate "/usr/local/share/xfce4/xfwl4/
+# defaults does not exist" warning in the same log is a different bug (xfwl4's
+# build.rs defaults PREFIX to /usr/local and the xfwl4 recipe does not set it).
+# Fixing that one does not fix this panic, and this package does not silence
+# that warning.
+schema: 1
+name: xfwm4-themes
+version: "4.20.0"
+release: 1
+summary: Window decoration themes for xfwm4 and xfwl4
+description: >-
+  Window decoration theme data from xfwm4, installed without the xfwm4 window
+  manager itself. xfwl4 requires the Default theme at runtime and cannot start
+  a session without it; EL10 has no xfwm4 build, so TunaOS ships the assets
+  alone.
+license: GPL-2.0-or-later
+source:
+  url: https://gitlab.xfce.org/xfce/xfwm4/-/archive/xfwm4-4.20.0/xfwm4-xfwm4-4.20.0.tar.gz
+  sha256: 94879a30332f3cad4aacccb388f65f666c1c255b5d58ffe944ca169c9ef9ffcb
+  directory: xfwm4-xfwm4-4.20.0
+build_system: custom
+build:
+  # Nothing to compile. The upstream themes are prebuilt assets; building
+  # xfwm4 itself would drag in the X11 stack this package exists to avoid.
+  commands:
+    - ':'
+install:
+  # Mirror upstream's own install set exactly. themes/<name>/Makefile.am has
+  #   theme_DATA = README themerc $(XPM_FILES) $(PNG_FILES)
+  # with the SVGs in EXTRA_DIST/noinst_DATA — they are sources, not installed
+  # artefacts. Copying the directory wholesale would ship 60 SVGs per theme
+  # plus Makefile.am, which upstream deliberately does not.
+  #
+  # The destination directory is read out of each theme's own Makefile.am
+  # rather than mapped by hand. Upstream capitalises every theme name, and not
+  # uniformly with its source directory: default -> Default, but also
+  # daloa -> Daloa, kokodi -> Kokodi, moheli -> Moheli. A hand-written mapping
+  # got three of the six wrong on the first attempt, and the failure mode is
+  # silent — xfwl4 would simply not find the theme and panic exactly as it
+  # does today. Parsing themedir keeps this correct by construction.
+  commands:
+    - |
+      set -eu
+      for source in themes/*/; do
+        [ -f "$source/Makefile.am" ] || continue
+        themedir=$(sed -n 's|^themedir *= *\$(datadir)/||p' "$source/Makefile.am")
+        if [ -z "$themedir" ]; then
+          echo "no themedir in $source/Makefile.am" >&2
+          exit 1
+        fi
+        destination="{destdir}/usr/share/$themedir"
+        install -d "$destination"
+        # Upstream's theme_DATA: README, themerc, XPM and PNG. The SVGs are
+        # EXTRA_DIST/noinst_DATA — sources, not installed artefacts.
+        install -m 0644 "$source/themerc" "$destination/themerc"
+        install -m 0644 "$source/README" "$destination/README"
+        for asset in "$source"*.png "$source"*.xpm; do
+          [ -e "$asset" ] || continue
+          install -m 0644 "$asset" "$destination/"
+        done
+      done
+files:
+  common:
+    - usr/share/themes/Default/xfwm4/
+    - usr/share/themes/Default-hdpi/xfwm4/
+    - usr/share/themes/Default-xhdpi/xfwm4/
+    - usr/share/themes/daloa/xfwm4/
+    - usr/share/themes/kokodi/xfwm4/
+    - usr/share/themes/moheli/xfwm4/
+targets: [el10]

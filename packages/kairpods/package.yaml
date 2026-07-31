@@ -1,0 +1,35 @@
+schema: 1
+name: kairpods
+version: "0.2.2"
+release: 1
+summary: AirPods integration service and Plasma widget
+description: User D-Bus service and Plasma widget for AirPods battery, controls, and media integration.
+license: GPL-3.0-or-later
+source:
+  url: https://github.com/can1357/kAirPods/archive/refs/tags/v0.2.2.tar.gz
+  sha256: bdc60d10749f4383ab71da9f9360e15541be59984bd68b8a6f06842560d6313b
+  directory: kAirPods-0.2.2
+build_system: cargo
+build:
+  working_directory: service
+  cargo_package: kairpodsd
+  binary: kairpodsd
+  # lmdb-master-sys 0.2.5 omits its static-link directive with current Cargo.
+  # Link the distro LMDB explicitly until upstream releases a compatible crate.
+  environment:
+    RUSTFLAGS: -C link-arg=-llmdb
+dependencies:
+  build:
+    capabilities: [rust, c-compiler, pkg-config, dbus-dev, bluez-dev, lmdb-dev]
+  runtime:
+    capabilities: [dbus, bluez, lmdb]
+files:
+  common: [usr/bin/kairpodsd, usr/lib/systemd/user/kairpodsd.service, usr/share/plasma/plasmoids/org.kairpods.plasma]
+install:
+  files:
+    - source: service/systemd/user/kairpodsd.service
+      destination: usr/lib/systemd/user/kairpodsd.service
+  directories:
+    - source: plasmoid
+      destination: usr/share/plasma/plasmoids/org.kairpods.plasma
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

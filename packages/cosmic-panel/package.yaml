@@ -1,0 +1,40 @@
+schema: 1
+name: cosmic-panel
+version: "1.4.0"
+release: 1
+summary: Panel for COSMIC
+description: COSMIC desktop panel and dock for TunaOS.
+license: Apache-2.0 AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-panel/archive/epoch-1.4.0.tar.gz
+  sha256: c41d843f5e57b530ed74078f665fea6452e343a3c1bfe9cf637bcb029e4f5709
+  directory: cosmic-panel-epoch-1.4.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-panel/vendor-1.4.0.tar.gz/sha512/3a611c899853bd5418309cc423123689be5a661f7131ac96bac563ce3efeb45aecf5c50e733d02692038c068a6051638e439e13962b06c5f9ace26ba53ab6288/vendor-1.4.0.tar.gz
+    sha256: a11a4c7b7438b3e27ccf64bb38018c9b0c1a54d27c5ca90c0ef073bd757a22db
+    filename: cosmic-panel-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-panel/raw/e9fc46ec025c555bf212a9bd80711d797a5680e5/f/vendor-config-1.4.0.toml
+    sha256: 6557821baa162f489680d4321fb850c09b53a0a7748c181c85c76c8b5d175291
+    filename: cosmic-panel-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: f416dbbe72d8600d395d24bf9f96f6ba1299d13b
+    VERGEN_GIT_COMMIT_DATE: "2026-07-21 16:30:48 -0600"
+  commands: [cargo build --release --offline --frozen]
+dependencies:
+  build:
+    capabilities: [rust]
+    targets:
+      el10: [cargo, lld, just, libxkbcommon-devel, util-linux, wayland-devel]
+files:
+  common:
+    - usr/bin/cosmic-panel
+    - usr/share/cosmic/com.system76.CosmicPanel*
+install:
+  commands: ["just rootdir={destdir} prefix=/usr install"]
+targets: [el10]

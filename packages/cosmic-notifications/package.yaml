@@ -1,0 +1,41 @@
+schema: 1
+name: cosmic-notifications
+version: "1.4.0"
+release: 1
+summary: Notifications daemon for COSMIC
+description: COSMIC desktop notification daemon for TunaOS.
+license: Apache-2.0 AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-notifications/archive/epoch-1.4.0.tar.gz
+  sha256: 8431557ec6efe06507c10a214f99352d1a702bd438e53d79193ea288d7152b3a
+  directory: cosmic-notifications-epoch-1.4.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-notifications/vendor-1.4.0.tar.gz/sha512/73c573a70940ba8076d0054fd0287b652a3a16c672b6d61516e44733ca5706e06a27141127b9285b188e3cc92879fa4db7895ada382df351f21757762d1802fd/vendor-1.4.0.tar.gz
+    sha256: 81f43e9aeeb62bf47d88c39044bffa0dd3252514c7b0114c0ff79d5a6770ccbd
+    filename: cosmic-notifications-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-notifications/raw/be8ac69cb9d32cde0d851118f588853f29c9f90d/f/vendor-config-1.4.0.toml
+    sha256: a92b898c93317f2c2191956a3be410d952f0afba42a084e430db37f1833bca9b
+    filename: cosmic-notifications-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: 7c723b7705ec77b1ad5396a1baa9ae1c0cb5a0da
+    VERGEN_GIT_COMMIT_DATE: "2026-07-09 18:17:21 -0600"
+  commands: [cargo build --release --offline --frozen]
+dependencies:
+  build:
+    capabilities: [rust]
+    targets:
+      el10: [cargo, lld, just, libxkbcommon-devel, wayland-devel]
+  runtime:
+    targets:
+      el10: [cosmic-icon-theme >= 1.4.0]
+files:
+  common: [usr/bin/cosmic-notifications]
+install:
+  commands: ["just rootdir={destdir} prefix=/usr install"]
+targets: [el10]

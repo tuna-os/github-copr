@@ -1,0 +1,24 @@
+schema: 1
+name: dms-cli
+version: "1.5.2"
+release: 1
+summary: DankMaterialShell command-line service
+description: Command-line client and service helper for DankMaterialShell and its greeter integration.
+license: GPL-3.0-or-later
+source:
+  url: https://github.com/AvengeMedia/DankMaterialShell/archive/refs/tags/v1.5.2.tar.gz
+  sha256: 2fa4fccb9e3fd259fb5e2c8d6e5fe329096f893ca6b8ac9766c699061e0b347c
+  directory: DankMaterialShell-1.5.2
+build_system: go
+build:
+  working_directory: core
+  go_package: ./cmd/dms
+  binary: dms
+dependencies:
+  build:
+    capabilities: [go]
+  runtime:
+    common: [dms, quickshell]
+files:
+  common: [usr/bin/dms]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

@@ -1,0 +1,30 @@
+schema: 1
+name: gtkgreet
+version: "0.8"
+release: 1
+summary: GTK-based graphical greeter for greetd
+description: >-
+  Graphical GTK greeter for the greetd display manager, used by the TunaOS
+  XFCE Wayland login experience.
+license: GPL-3.0-only
+source:
+  url: https://git.sr.ht/~kennylevinsen/gtkgreet/archive/0.8.tar.gz
+  sha256: e5c70219da191a60e2e009412603e05c36cee15bbbf7657dbbeaa1d21a692873
+  directory: gtkgreet-0.8
+build_system: meson
+build:
+  meson_options: [-Dwerror=false, -Dlayershell=enabled, -Dman-pages=enabled]
+dependencies:
+  build:
+    common: [meson, ninja-build, pkg-config, gettext, scdoc]
+    targets:
+      el10: [gcc, gtk3-devel, json-c-devel, gtk-layer-shell-devel]
+  runtime:
+    targets:
+      el10: [greetd, cage]
+files:
+  common:
+    - usr/bin/gtkgreet
+    - usr/share/man/man1/gtkgreet.1*
+    - usr/share/locale/*/LC_MESSAGES/gtkgreet.mo
+targets: [el10]

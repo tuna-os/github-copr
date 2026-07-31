@@ -1,0 +1,26 @@
+schema: 1
+name: cosmic-icon-theme
+version: "1.4.0"
+release: 1
+summary: Icon theme for the COSMIC desktop environment
+description: COSMIC icon theme and freedesktop icon metadata for TunaOS.
+license: CC-BY-SA-4.0
+source:
+  url: https://github.com/pop-os/cosmic-icons/archive/epoch-1.4.0.tar.gz
+  sha256: cdcad65105822f5df86492ae4c55c31880dc0aad5f901b1e0cb9a38a0cc5b9d2
+  directory: cosmic-icons-epoch-1.4.0
+build_system: custom
+build:
+  commands: [":"]
+dependencies:
+  build:
+    targets:
+      el10: [just]
+  runtime:
+    targets:
+      el10: [pop-icon-theme]
+files:
+  common: [usr/share/icons/Cosmic]
+install:
+  commands: ["just rootdir={destdir} prefix=/usr install"]
+targets: [el10]
