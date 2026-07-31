@@ -56,6 +56,20 @@ jobs:
       - run: pip install pyyaml
       - run: python3 scripts/validate-package-factory.py manifests/package-factory.yaml
       - run: python3 scripts/validate-target-queues.py
+      # A recipe declaring a target that no cell builds is untested while looking
+      # supported -- the defect #139 was about, one level down from the target
+      # coverage the previous step asserts. 77 of 122 pairs are uncovered today,
+      # so this ratchets rather than gates: it fails only on pairs this change
+      # introduces, and prints the total so it stays visible.
+      - name: Gate coverage must not regress
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch --quiet --depth=1 origin "${{ github.base_ref }}"
+            python3 scripts/check-gate-coverage.py --baseline FETCH_HEAD
+          else
+            python3 scripts/check-gate-coverage.py
+          fi
       - name: Validate and render Tideforge recipes
         run: |
           set -euo pipefail
