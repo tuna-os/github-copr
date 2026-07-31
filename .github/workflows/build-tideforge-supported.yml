@@ -586,9 +586,17 @@ jobs:
           if-no-files-found: warn
 
   input-remapper-rpm:
-    name: input-remapper (el10 staged closure RPM)
+    name: ${{ matrix.package }} (el10 staged closure RPM)
     needs: rpm
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: input-remapper
+            target: el10
+            install_name: input-remapper
+            smoke: test -x /usr/bin/input-remapper-gtk && test -x /usr/bin/input-remapper-service && test -x /usr/bin/input-remapper-control && test -f /usr/lib/udev/rules.d/99-input-remapper.rules && test -f /usr/lib/systemd/system/input-remapper.service && test -f /usr/share/polkit-1/actions/input-remapper.policy && test -f /usr/share/dbus-1/system.d/inputremapper.Control.conf
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -598,12 +606,12 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: python3-evdev-el10-rpm
-          path: .tideforge/input-remapper/prerequisite
+          path: .tideforge/${{ matrix.package }}/prerequisite
       - name: Render and fetch the exact input-remapper source archive
         run: |
           set -euo pipefail
-          recipe=packages/input-remapper/package.yaml
-          root="$PWD/.tideforge/input-remapper"
+          recipe=packages/${{ matrix.package }}/package.yaml
+          root="$PWD/.tideforge/${{ matrix.package }}"
           python3 scripts/tideforge.py validate "$recipe"
           python3 scripts/verify-tideforge-source.py "$recipe"
           python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
@@ -614,7 +622,7 @@ jobs:
       - name: Build input-remapper with staged python3-evdev
         run: |
           set -euo pipefail
-          root="$PWD/.tideforge/input-remapper"
+          root="$PWD/.tideforge/${{ matrix.package }}"
           docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
             dnf -y install dnf-plugins-core epel-release rpm-build createrepo_c
@@ -629,7 +637,7 @@ jobs:
       - name: Clean-install input-remapper with the full closure
         run: |
           set -euo pipefail
-          root="$PWD/.tideforge/input-remapper"
+          root="$PWD/.tideforge/${{ matrix.package }}"
           docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
             dnf -y install epel-release createrepo_c
@@ -650,7 +658,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: input-remapper-el10-staged-closure-rpm
+          name: ${{ matrix.package }}-el10-staged-closure-rpm
           path: .tideforge/input-remapper/rpmbuild/RPMS/
           if-no-files-found: warn
 

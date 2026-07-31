@@ -38,9 +38,19 @@ source:
   directory: input-remapper-2.2.1
 build_system: custom
 build:
-  # Everything happens in the install step.  Upstream's installer compiles the
-  # translations itself (install.language.make_lang), so there is no separate
-  # build phase to run.
+  # install/module.py bakes the build's commit into installation_info.py via
+  # `subprocess.check_output(["git", "rev-parse", "HEAD"])`, with no fallback:
+  # missing git raises FileNotFoundError and a release tarball is not a git
+  # checkout, so `git rev-parse HEAD` would raise CalledProcessError even with
+  # git installed.  Either way %install dies.  Substituting the commit the
+  # 2.2.1 tag points at records the same value a git build would, without
+  # needing git or a repository.  The grep fails the build loudly if a rebase
+  # moves that call, rather than silently shipping COMMIT_HASH unset.
+  prepare:
+    - sed -i 's|subprocess.check_output(.*rev-parse.*)|b"e9a87d13480c3b1dee654b296578a8f4e2cd31d6"|' install/module.py
+    - grep -q 'git_call = b"e9a87d13480c3b1dee654b296578a8f4e2cd31d6"' install/module.py
+  # Nothing else to do here: upstream's installer compiles the translations
+  # itself (install.language.make_lang), so there is no separate build phase.
   commands:
     - ':'
 install:
@@ -118,4 +128,15 @@ files:
     # Version-globbed: install/module.py picks the interpreter's own
     # site-packages, so pinning a minor version here would break on rebase.
     - usr/lib/python3*/site-packages/inputremapper/
+    # install/module.py installs the python module with
+    # `pip install . --target <site-packages> --no-deps`, which also writes the
+    # metadata directory next to it (INSTALLER, METADATA, WHEEL, RECORD,
+    # licenses/LICENSE, ...).  Leaving it out fails the build with "Installed
+    # (but unpackaged) file(s) found".  The name is pip's normalised
+    # distribution name (underscore), not the module name, and the {dist,egg}
+    # brace matches whichever metadata flavour upstream's installer produces.
+    - usr/lib/python3*/site-packages/input_remapper-*.{dist,egg}-info/
+verify:
+  install_name: input-remapper
+  smoke: test -x /usr/bin/input-remapper-gtk && test -x /usr/bin/input-remapper-service && test -x /usr/bin/input-remapper-control && test -f /usr/lib/udev/rules.d/99-input-remapper.rules && test -f /usr/lib/systemd/system/input-remapper.service && test -f /usr/share/polkit-1/actions/input-remapper.policy && test -f /usr/share/dbus-1/system.d/inputremapper.Control.conf
 targets: [el10, arch]
