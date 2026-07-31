@@ -85,7 +85,9 @@ files:
     - usr/share/themes/Default/xfwm4/
     - usr/share/themes/Default-hdpi/xfwm4/
     - usr/share/themes/Default-xhdpi/xfwm4/
-    - usr/share/themes/daloa/xfwm4/
-    - usr/share/themes/kokodi/xfwm4/
-    - usr/share/themes/moheli/xfwm4/
+    - usr/share/themes/Daloa/xfwm4/
+    - usr/share/themes/Kokodi/xfwm4/
+    - usr/share/themes/Moheli/xfwm4/
+verify:
+  smoke: test -f /usr/share/themes/Default/xfwm4/themerc
 targets: [el10]
