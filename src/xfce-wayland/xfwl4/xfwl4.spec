@@ -18,7 +18,7 @@ Source0: https://gitlab.xfce.org/xfce/xfwl4/-/archive/%{commit}/xfwl4-%{commit}.
 # Pre-vendored with `cargo vendor` against this exact commit's Cargo.lock
 # (crates.io deps + the smithay git dep); see release notes for how it
 # was generated if it ever needs regenerating after a Cargo.lock bump.
-Source1: https://github.com/tuna-os/tunaos-packages/releases/download/xfwl4-vendor-465880f6/vendor.tar.gz
+Source1: https://github.com/tuna-os/tunaos-packages/releases/download/xfwl4-vendor-6b38df65/vendor.tar.gz
 # resources/xfce-wayland-protocols is a git submodule (custom XFCE Wayland
 # protocol XML: output-management, input-device-list, etc.) — not included
 # in the plain archive tarball, same as any other git submodule. Referenced
@@ -65,9 +65,9 @@ cat > .cargo/config.toml <<'EOF'
 [source.crates-io]
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/smithay/smithay?rev=4645e03d6bd9377aa368de20e91d69951450392d"]
+[source."git+https://github.com/smithay/smithay?rev=0a29aecf9e07a2227712ab470b0ab0ee56752272"]
 git = "https://github.com/smithay/smithay"
-rev = "4645e03d6bd9377aa368de20e91d69951450392d"
+rev = "0a29aecf9e07a2227712ab470b0ab0ee56752272"
 replace-with = "vendored-sources"
 
 [source.vendored-sources]
