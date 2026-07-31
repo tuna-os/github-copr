@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - packages/niri/package.yaml
+      - packages/cli11-devel/package.yaml
       - packages/uupd/package.yaml
       - packages/greetd/package.yaml
       - packages/kairpods/package.yaml
@@ -57,6 +58,12 @@ jobs:
           # exercised pair for both (#139 defect class).
           - package: uupd
             smoke: uupd --help
+          # First of the library/tool recipes on arch, held until the deb
+          # library wave landed the common-list gcc-c++ fix its PKGBUILD
+          # needed; libunwind-devel and ninja-build follow once this cell
+          # proves the shape (stagger: small wave, green, then widen).
+          - package: cli11-devel
+            smoke: test -f /usr/include/CLI/CLI.hpp
           - package: greetd
             smoke: greetd --help
           - package: kairpods
