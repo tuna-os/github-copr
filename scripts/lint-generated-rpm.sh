@@ -20,11 +20,18 @@ rpm_directory="${1:?usage: lint-generated-rpm.sh <directory-of-rpms>}"
 # Findings that indicate a defect in what Tideforge generated, not in what
 # upstream shipped. Keep this list short and justified; every entry should be
 # something no correct rendering can produce.
+#
+# Deliberately NOT fatal: `files-duplicate`. It fires when two packaged paths
+# have identical content, which is a property of the tree upstream ships rather
+# than of anything Tideforge emits. wayland-protocols is the worked example: its
+# `stable/tablet/README` and `unstable/tablet/README` are byte-identical in the
+# pinned tarball, so a *faithful* rendering of that data package necessarily
+# trips the check. Making it fatal would demand we mutate upstream content to
+# satisfy a linter. It still prints in the baseline report below.
 fatal_checks=(
     unexpanded-macro
     specfile-error
     invalid-spec-name
-    files-duplicate
     binary-or-shlib-defines-rpath
     no-changelogname-tag
     invalid-license
