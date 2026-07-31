@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - packages/niri/package.yaml
+      - packages/uupd/package.yaml
+      - packages/greetd/package.yaml
       - packages/kairpods/package.yaml
       - packages/krunner-bazaar/package.yaml
       - packages/dgop/package.yaml
@@ -50,6 +52,13 @@ jobs:
         include:
           - package: niri
             smoke: niri --help
+          # uupd and greetd are green on every other declared target with the
+          # byte-identical contract; arch was the last declared-but-never-
+          # exercised pair for both (#139 defect class).
+          - package: uupd
+            smoke: uupd --help
+          - package: greetd
+            smoke: greetd --help
           - package: kairpods
             smoke: test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service
           - package: krunner-bazaar
