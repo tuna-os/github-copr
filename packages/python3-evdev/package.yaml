@@ -70,4 +70,6 @@ files:
     # matches either.
     - usr/lib64/python3*/site-packages/evdev/
     - usr/lib64/python3*/site-packages/evdev-*.{dist,egg}-info/
+verify:
+  smoke: python3 -c "import evdev"
 targets: [el10]
