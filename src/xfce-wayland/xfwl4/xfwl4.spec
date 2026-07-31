@@ -1,5 +1,9 @@
 %global commit 6b38df6562e52bdb3d3c827c25e713d9f71d0fe8
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
+# resources/xfce-wayland-protocols submodule gitlink at %{commit}. It must be
+# bumped in lockstep with it: the XML defines the interfaces, requests and
+# events src/protocols/*.rs generates its server code from.
+%global protocols_commit 55dbf3e3d2a91b525c528c0dd4c1a7805a99364b
 %global cargo_name xfwl4
 # Rust binaries don't produce the source-file manifest find-debuginfo.sh
 # expects for a separate debugsource subpackage (common across cargo-built
@@ -24,7 +28,7 @@ Source1: https://github.com/tuna-os/tunaos-packages/releases/download/xfwl4-vend
 # in the plain archive tarball, same as any other git submodule. Referenced
 # by relative path in src/protocols/*.rs's wayland_scanner::generate_*!
 # macros, so it just needs to land at resources/xfce-wayland-protocols/.
-Source2: https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/6082cfa492154aec266527193bf8f6142ab14977/xfce-wayland-protocols-6082cfa492154aec266527193bf8f6142ab14977.tar.gz
+Source2: https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/%{protocols_commit}/xfce-wayland-protocols-%{protocols_commit}.tar.gz
 # Upstream bug: WlrBufferConstraints.dma's cfg gate doesn't include the
 # udev feature, but three call sites already guard access to it under
 # udev too — a udev-only build (ours) fails to compile as a result.
