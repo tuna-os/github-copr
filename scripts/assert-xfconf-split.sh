@@ -24,6 +24,25 @@ fail() {
     exit 1
 }
 
+# Match a pattern against captured text WITHOUT a pipeline.
+#
+# `producer | grep -q pattern` is unsafe under `set -o pipefail`: grep -q exits
+# the moment it matches, the producer gets SIGPIPE, and pipefail reports the
+# whole pipeline as failed *because* the match succeeded. That is not
+# hypothetical — it failed the ubuntu and debian split jobs on run 30592649133
+# with "libxfconf-0-dev does not contain the xfconf headers" while the package
+# contained them all along:
+#
+#   $ set -euo pipefail; dpkg-deb -c libxfconf-0-dev.deb | grep -q 'xfconf\.h$'
+#   dpkg-deb: error: tar subprocess was killed by signal (Broken pipe)
+#
+# Capture first, match second. No pipe, no signal, no false verdict.
+# A here-string, not a pipe: bash supplies the input itself, so there is no
+# producer process left to receive SIGPIPE when grep -q exits early.
+contains() {
+    grep -qE "$2" <<<"$1"
+}
+
 case "$target" in
 el10)
     runtime_package=xfconf
@@ -41,9 +60,14 @@ el10)
     echo "split halves: $(basename "$runtime_rpm") / $(basename "$devel_rpm")"
 
     # 3. Headers belong to the development half only.
-    rpm -qlp "$devel_rpm" | grep -q 'xfconf/xfconf\.h$' \
-        || fail "${devel_package} does not contain the xfconf headers"
-    if rpm -qlp "$runtime_rpm" | grep -q '/usr/include/'; then
+    devel_listing=$(rpm -qlp "$devel_rpm")
+    runtime_listing=$(rpm -qlp "$runtime_rpm")
+    if ! contains "$devel_listing" 'xfconf/xfconf\.h$'; then
+        echo "$devel_listing" >&2
+        fail "${devel_package} does not contain the xfconf headers"
+    fi
+    if contains "$runtime_listing" '/usr/include/'; then
+        echo "$runtime_listing" >&2
         fail "${runtime_package} ships files under /usr/include — the split is not a split"
     fi
 
@@ -79,9 +103,14 @@ ubuntu | debian)
     echo "split halves: $(basename "$runtime_deb") / $(basename "$devel_deb")"
 
     # 3. Headers belong to the development half only.
-    dpkg-deb -c "$devel_deb" | grep -q 'xfconf/xfconf\.h$' \
-        || fail "${devel_package} does not contain the xfconf headers"
-    if dpkg-deb -c "$runtime_deb" | grep -qE ' \./usr/include/'; then
+    devel_listing=$(dpkg-deb -c "$devel_deb")
+    runtime_listing=$(dpkg-deb -c "$runtime_deb")
+    if ! contains "$devel_listing" 'xfconf/xfconf\.h$'; then
+        echo "$devel_listing" >&2
+        fail "${devel_package} does not contain the xfconf headers"
+    fi
+    if contains "$runtime_listing" ' \./usr/include/'; then
+        echo "$runtime_listing" >&2
         fail "${runtime_package} ships files under /usr/include — the split is not a split"
     fi
 
