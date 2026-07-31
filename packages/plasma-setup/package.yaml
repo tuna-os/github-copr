@@ -13,6 +13,13 @@ source:
   sha256: ae1b165ee4c3e6403f5c74b7b89da86cfe43308521534cbfe802a06a4da7a819
   directory: plasma-setup-v6.7.3
 build_system: cmake
+build:
+  # Arch installs KDE helper binaries under /usr/lib, not the ECM default of
+  # /usr/lib/libexec: every package in the Plasma stack this one sits beside
+  # (plasma-workspace, kde-cli-tools, ...) passes this flag. Without it the
+  # wizard and its boot helper land in /usr/lib/libexec/, a directory no Arch
+  # package populates, and the files this recipe declares below do not exist.
+  cmake_options: [-DCMAKE_INSTALL_LIBEXECDIR=lib]
 dependencies:
   build:
     targets:
