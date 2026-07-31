@@ -118,4 +118,7 @@ files:
     # Version-globbed: install/module.py picks the interpreter's own
     # site-packages, so pinning a minor version here would break on rebase.
     - usr/lib/python3*/site-packages/inputremapper/
+verify:
+  install_name: input-remapper
+  smoke: test -x /usr/bin/input-remapper-gtk && test -x /usr/bin/input-remapper-service && test -x /usr/bin/input-remapper-control && test -f /usr/lib/udev/rules.d/99-input-remapper.rules && test -f /usr/lib/systemd/system/input-remapper.service && test -f /usr/share/polkit-1/actions/input-remapper.policy && test -f /usr/share/dbus-1/system.d/inputremapper.Control.conf
 targets: [el10, arch]
