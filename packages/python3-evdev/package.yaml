@@ -1,0 +1,73 @@
+# python-evdev for EL10 (#126).
+#
+# input-remapper declares `evdev` and nothing on EL10 provides it.  Checked
+# against real repository metadata, not the mdapi endpoint (see
+# docs/CHECKING_PACKAGE_AVAILABILITY.md): absent from CentOS Stream 10
+# BaseOS, AppStream and CRB, and 0 matches in EPEL 10's primary.xml.zst.
+# Arch already has python-evdev 1.9.3 in extra, so this recipe is EL10-only —
+# under the project rule we use a distribution's own package where it exists.
+#
+# VERSION PIN, READ BEFORE BUMPING.  1.9.2, deliberately not the current
+# 1.9.3:
+#
+#   1.9.3  build-requires setuptools>=77.0   (PEP 639 `license = "BSD-3-Clause"`)
+#   1.9.2  build-requires setuptools>=61.0   (`license = {file = "LICENSE"}`)
+#
+# EL10 ships python3-setuptools 69.0.3, so 1.9.3 cannot build here and 1.9.2
+# can.  As with labwc, the blocker is invisible from the version number and
+# only appears in pyproject.toml.  Do not bump past 1.9.2 until EL10 has
+# setuptools 77 or newer.
+#
+# BUILD METHOD, READ BEFORE CHANGING.  setup.py, deliberately not pip wheel:
+#
+#   pip wheel (and pip install from source under PEP 517) requires the `wheel`
+#   Python package for the `bdist_wheel` setuptools command.  EL10 has no
+#   python3-wheel RPM (verified: 0 matches in BaseOS, AppStream, EPEL, CRB),
+#   and python3-pip 23.3.2 on EL10 does not bundle wheel.  setup.py build +
+#   setup.py install compiles the three C extensions (_input, _uinput,
+#   _ecodes) without needing wheel at all.
+#
+#   The SetuptoolsDeprecationWarning is harmless here — build_system: custom
+#   means Tideforge executes whatever commands the recipe prescribes, not what
+#   a build frontend expects.
+schema: 1
+name: python3-evdev
+version: "1.9.2"
+release: 1
+summary: Python bindings to the Linux input handling subsystem
+description: >-
+  Bindings for the Linux input subsystem, exposing evdev devices, event codes
+  and uinput.  Required by input-remapper, which EL10 cannot otherwise provide.
+license: BSD-3-Clause
+source:
+  url: https://github.com/gvalkov/python-evdev/archive/refs/tags/v1.9.2.tar.gz
+  sha256: 1cfb65765b8c63e587110d9b42fa26806bd6dd76565c55c3618afd4c4c48c5a5
+  directory: python-evdev-1.9.2
+build_system: custom
+build:
+  # Three C extensions (_input, _uinput, _ecodes) are compiled here, and
+  # src/evdev/ecodes.c is generated at build time by genecodes_c.py reading
+  # the kernel input headers — so this needs python3-devel, a C compiler and
+  # kernel-headers in a real buildroot.
+  commands:
+    - python3 setup.py build
+install:
+  commands:
+    - python3 setup.py install --root "{destdir}" --prefix /usr --skip-build
+dependencies:
+  build:
+    capabilities: [c-compiler]
+    targets:
+      el10: [python3-devel, python3-setuptools, kernel-headers]
+  runtime:
+    targets:
+      el10: [python3]
+files:
+  common:
+    # Version-globbed on purpose: the interpreter minor version owns this path
+    # and an EL10 python rebase would otherwise silently unpackage everything.
+    # setup.py install creates an .egg-info directory, not .dist-info; glob
+    # matches either.
+    - usr/lib64/python3*/site-packages/evdev/
+    - usr/lib64/python3*/site-packages/evdev-*.{dist,egg}-info/
+targets: [el10]
