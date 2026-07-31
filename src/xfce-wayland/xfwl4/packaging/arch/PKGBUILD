@@ -10,7 +10,7 @@
 pkgname=xfwl4
 pkgver=4.21.0
 pkgrel=1
-_commit=465880f67b5705136895bf69c60e2178ad351856
+_commit=3980a08518b34caace53f2e79e39658ead6c8a7d
 # Custom XFCE Wayland protocol XML — a git submodule, absent from the archive.
 _protocols_commit=6082cfa492154aec266527193bf8f6142ab14977
 pkgdesc="Wayland compositor for Xfce4"
