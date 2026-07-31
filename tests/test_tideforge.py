@@ -92,6 +92,50 @@ def test_recipe_subpackage_requires_pulls_in_main_package(recipe: dict) -> None:
     assert "Requires: %{name}%{?_isa} = %{version}-%{release}" in devel_stanza
 
 
+def test_deb_split_development_half_declares_the_runtime_half(recipe: dict) -> None:
+    # dpkg-shlibdeps derives nothing from the unversioned .so symlink a -dev
+    # package ships, so without an explicit relation the rendered stanza carries
+    # only ${shlibs:Depends}/${misc:Depends} and `apt-get install libdemo-dev`
+    # leaves the library behind -- the xfconf split-package contract failure on
+    # ubuntu and debian.
+    recipe["outputs"] = {
+        "deb": {
+            "packages": [
+                {"name": "libdemo0", "files": ["usr/lib/*/libdemo.so.0"]},
+                {
+                    "name": "libdemo-dev",
+                    "depends": ["libdemo0 (= ${binary:Version})"],
+                    "files": ["usr/include/demo", "usr/lib/*/libdemo.so"],
+                },
+            ]
+        }
+    }
+    tideforge.validate(recipe, "ubuntu")
+    control = tideforge.render(recipe, "ubuntu")["debian/control"]
+    development_stanza = control.split("Package: libdemo-dev", 1)[1]
+    assert "Depends: ${shlibs:Depends}, ${misc:Depends}, libdemo0 (= ${binary:Version})" in development_stanza
+
+
+def test_deb_split_rejects_a_development_half_with_no_runtime_dependency(recipe: dict) -> None:
+    recipe["outputs"] = {
+        "deb": {
+            "packages": [
+                {"name": "libdemo0", "files": ["usr/lib/*/libdemo.so.0"]},
+                {"name": "libdemo-dev", "files": ["usr/include/demo", "usr/lib/*/libdemo.so"]},
+            ]
+        }
+    }
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe, "ubuntu")
+
+
+def test_deb_single_package_shipping_headers_needs_no_sibling(recipe: dict) -> None:
+    # libcli11-dev and friends are header-only single-package outputs: there is
+    # no runtime half for them to depend on, so the split rule must not fire.
+    recipe["outputs"] = {"deb": {"packages": [{"name": "libdemo-dev", "files": ["usr/include/demo"]}]}}
+    tideforge.validate(recipe, "ubuntu")
+
+
 def test_recipe_renders_arch_pkgbuild(recipe: dict) -> None:
     recipe["build_system"] = "cargo"
     recipe["targets"] = ["arch"]

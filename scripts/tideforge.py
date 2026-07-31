@@ -342,6 +342,42 @@ def validate_source(source: dict, *, auxiliary: bool) -> None:
             fail("auxiliary source.strip_components must be a non-negative integer")
 
 
+def validate_deb_packages(recipe: dict) -> None:
+    """A split DEB's development half has to declare the runtime half itself.
+
+    RPM's automatic dependency generator follows the unversioned `.so` symlink a
+    -devel subpackage ships and derives a soname requirement on the package that
+    owns the real library, so the el10 half of the split contract holds without
+    the recipe saying anything. dpkg has no equivalent: dpkg-shlibdeps inspects
+    ELF objects only, and a symlink is not one, so a rendered -dev package
+    carries `${shlibs:Depends}, ${misc:Depends}` and those expand to nothing.
+    `apt-get install libxfconf-0-dev` then installed headers with no library and
+    no xfconf-query behind them:
+
+        assert-xfconf-split: installing libxfconf-0-dev did not pull in libxfconf-0-4
+
+    Debian expects the relation to be spelled out, so require it here instead of
+    letting the next split package rediscover the same silence.
+    """
+    packages = recipe.get("outputs", {}).get("deb", {}).get("packages", [])
+    names = {package.get("name") for package in packages}
+    for package in packages:
+        depends = package.get("depends", [])
+        if not isinstance(depends, list) or not all(isinstance(item, str) for item in depends):
+            fail(f"outputs.deb.packages[{package.get('name')}].depends must be a list of Debian relations")
+        if len(packages) < 2:
+            continue
+        if not any(str(path).lstrip("/").startswith("usr/include") for path in package.get("files", [])):
+            continue
+        declared = {relation.split("(")[0].strip() for relation in depends}
+        if not declared & (names - {package.get("name")}):
+            fail(
+                f"outputs.deb.packages[{package.get('name')}] ships headers but depends on no sibling "
+                "package: a -dev half must declare the runtime half, e.g. "
+                "depends: [\"<runtime-package> (= ${binary:Version})\"]"
+            )
+
+
 def validate(recipe: dict, target: str | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
@@ -393,6 +429,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
             resolve_capabilities(capabilities, requested_target)
     if not recipe["files"].get("common"):
         fail("files.common must list installed paths")
+    validate_deb_packages(recipe)
     for item in recipe.get("install", {}).get("files", []) + recipe.get("install", {}).get("directories", []):
         if not isinstance(item, dict) or not isinstance(item.get("source"), str) or not isinstance(item.get("destination"), str):
             fail("install.files entries need source and destination")

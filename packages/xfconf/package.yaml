@@ -59,6 +59,12 @@ outputs:
       - name: libxfconf-0-dev
         summary: Development files for libxfconf
         description: Headers, pkgconfig, introspection, and Vala bindings for xfconf.
+        # The dev half ships only the unversioned .so symlink, so
+        # dpkg-shlibdeps finds no ELF object to derive a dependency from and
+        # `apt-get install libxfconf-0-dev` would leave the runtime library and
+        # xfconf-query absent. RPM's generator infers this from the soname;
+        # dpkg never does, so Debian requires it be declared.
+        depends: ["libxfconf-0-4 (= ${binary:Version})"]
         files:
           - usr/include/xfce4/xfconf-0/xfconf/
           - usr/lib/*/libxfconf*.so
