@@ -371,15 +371,20 @@ build_package_podman() {
             # did that and turned the whole container step into a no-op.
             chown -R builder /builddir 2>/dev/null || true
             # Assemble a config directory where the checked-out mock/ configs
-            # override the copies baked into this image. mock requires
-            # site-defaults.cfg and logging.ini to exist in a custom
-            # --configdir, so take those two from the image; every profile
-            # .cfg comes from the repo mount. include() of absolute
-            # /etc/mock/... paths inside the profiles still resolves to the
-            # image, which is right — base chroot definitions belong to
-            # mock-core-configs, only the ci overlays belong to the repo.
+            # override the copies baked into this image: copy the WHOLE
+            # /etc/mock tree, then overlay the repo profiles on top.
+            #
+            # The whole tree, not just site-defaults.cfg and logging.ini. An
+            # include() of an ABSOLUTE path such as /etc/mock/fedora-44-x86_64.cfg
+            # resolves to the image, but that distro config then does a
+            # RELATIVE include of templates/fedora-branched.tpl, and relative
+            # includes resolve against --configdir, not /etc/mock — a
+            # configdir carrying only .cfg files orphans the templates
+            # directory and mock dies with: Could not find included config
+            # file: /tmp/mock-configdir/templates/fedora-branched.tpl
+            # (run 30654065913).
             mkdir -p /tmp/mock-configdir
-            cp /etc/mock/site-defaults.cfg /etc/mock/logging.ini /tmp/mock-configdir/
+            cp -a /etc/mock/. /tmp/mock-configdir/
             cp /repo-mock/*.cfg /tmp/mock-configdir/
             chmod -R a+rX /tmp/mock-configdir
             # Use flock to ensure only one process runs mock at a time
