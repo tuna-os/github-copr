@@ -26,9 +26,18 @@ provision:
       #!/bin/bash
       set -euxo pipefail
 
-      # Enable our COPR
+      # Use the project-owned signed rpm-md repository. Do not add a COPR
+      # fallback: this test is specifically meant to catch a missing R2 RPM
+      # (#113, #179).
       dnf -y install dnf-plugins-core
-      dnf copr enable -y jreilly1821/c10s-gnome-50
+      cat > /etc/yum.repos.d/tunaos-gnome50.repo <<'EOF'
+      [tunaos-gnome50]
+      name=TunaOS GNOME 50
+      baseurl=https://repo.tunaos.org/gnome50/10-stream-x86_64/
+      enabled=1
+      gpgcheck=0
+      priority=1
+      EOF
 
       # Install GNOME 50 core components
       # We install these first to ensure our versions are picked up
