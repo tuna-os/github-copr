@@ -3,17 +3,16 @@
   "extends": [
     "config:recommended"
   ],
-  "automerge": true,
+  "automerge": false,
   "packageRules": [
     {
-      "matchUpdateTypes": [
-        "major",
-        "minor",
-        "patch",
-        "pin",
-        "digest"
+      "description": "Only dependency-management updates may merge automatically. Packaged software is handled by the upstream-source rule below, which is held by the EL10 release gate.",
+      "matchManagers": [
+        "github-actions"
       ],
-      "automerge": true
+      "matchUpdateTypes": ["digest", "patch", "minor"],
+      "automerge": true,
+      "platformAutomerge": true
     },
     {
       "description": "Upstream package source pins (commits/versions this repo packages) still automerge, but only once the real mock/podman build for that package passes as a required status check \u2014 a bare version bump alone has repeatedly hidden real breakage (new MSRV, new/dropped files) that only a build catches. See build-xfce-fedora.yml / build-xfce-package.yml / build-fprintd-validation.yml / build-xfce-arch-validation.yml path triggers.",
@@ -25,6 +24,72 @@
     }
   ],
   "customManagers": [
+    {
+      "customType": "regex",
+      "description": "GNOME 50 shell: follow only GNOME's tagged stable releases; every update is built and boot-tested on CentOS Stream 10 before merge/publish.",
+      "fileMatch": ["^src/gnome-50/gnome-shell/gnome-shell\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-shell",
+      "packageNameTemplate": "GNOME/gnome-shell",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "GNOME 50 Mutter stable releases.",
+      "fileMatch": ["^src/gnome-50/mutter/mutter\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "mutter",
+      "packageNameTemplate": "GNOME/mutter",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "GNOME 50 settings daemon stable releases.",
+      "fileMatch": ["^src/gnome-50/gnome-settings-daemon/gnome-settings-daemon\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-settings-daemon",
+      "packageNameTemplate": "GNOME/gnome-settings-daemon",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "GNOME 50 session stable releases.",
+      "fileMatch": ["^src/gnome-50/gnome-session/gnome-session\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-session",
+      "packageNameTemplate": "GNOME/gnome-session",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "GNOME 50 control-center stable releases.",
+      "fileMatch": ["^src/gnome-50/gnome-control-center/gnome-control-center\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-control-center",
+      "packageNameTemplate": "GNOME/gnome-control-center",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "GDM stable releases.",
+      "fileMatch": ["^src/gnome-50/gdm/gdm\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gdm",
+      "packageNameTemplate": "GNOME/gdm",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
     {
       "customType": "regex",
       "description": "xfconf: tracks gitlab.xfce.org/xfce/xfconf's master branch (no stable release yet \u2014 xfwl4's crates require post-4.20 development commits).",
