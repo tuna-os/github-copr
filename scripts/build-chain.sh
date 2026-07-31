@@ -235,6 +235,38 @@ prepare_sources() {
         echo "ERROR: spectool failed for ${pkg_name}" >&2
         return 1
     }
+
+    # Fetch dist-git lookaside sources. A package imported from Fedora dist-git
+    # can list artifacts in its `sources` file that have no URL in the spec at
+    # all (selinux-policy's container-selinux.tgz is a repacked git snapshot) —
+    # spectool cannot download those, and they are not loose files in the
+    # package directory. COPR's rpkg tooling fetched them from the lookaside
+    # cache natively, which is why this gap only surfaced on the first full
+    # GitHub-side chain build (run 30662870608, tier base-tools). Fetch any
+    # sources-file entry still missing after the copy and spectool steps, and
+    # verify it against the recorded checksum before trusting it.
+    local sources_file="${abs_pkg_dir}/sources"
+    if [[ -f "$sources_file" ]]; then
+        local lookaside_name entry_name entry_hash
+        lookaside_name="$(basename "$abs_pkg_dir")"
+        while IFS= read -r line; do
+            [[ "$line" =~ ^SHA512\ \((.+)\)\ =\ ([0-9a-f]{128})$ ]] || continue
+            entry_name="${BASH_REMATCH[1]}"
+            entry_hash="${BASH_REMATCH[2]}"
+            [[ -f "${builddir}/SOURCES/${entry_name}" ]] && continue
+            echo "==> [${pkg_name}] Fetching ${entry_name} from the Fedora lookaside cache..."
+            curl -fsSL --retry 3 \
+                -o "${builddir}/SOURCES/${entry_name}" \
+                "https://src.fedoraproject.org/lookaside/pkgs/rpms/${lookaside_name}/${entry_name}/sha512/${entry_hash}/${entry_name}" || {
+                err "lookaside fetch failed for ${entry_name} (${pkg_name})"
+                return 1
+            }
+            echo "${entry_hash}  ${builddir}/SOURCES/${entry_name}" | sha512sum --check --quiet - || {
+                err "lookaside checksum mismatch for ${entry_name} (${pkg_name})"
+                return 1
+            }
+        done < "$sources_file"
+    fi
 }
 
 # Check if the package already exists in the local repo with the same NVR
