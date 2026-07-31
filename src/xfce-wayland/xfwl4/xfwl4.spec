@@ -1,4 +1,4 @@
-%global commit 465880f67b5705136895bf69c60e2178ad351856
+%global commit 3980a08518b34caace53f2e79e39658ead6c8a7d
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 %global cargo_name xfwl4
 # Rust binaries don't produce the source-file manifest find-debuginfo.sh
