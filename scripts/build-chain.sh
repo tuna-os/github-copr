@@ -319,9 +319,14 @@ build_package_podman() {
     local resultdir="${builddir}/results"
     mkdir -p "$resultdir"
 
-    # The mock config is baked into the mock-runner image at /etc/mock/centos-stream-10-ci.cfg
-    # (see mock/centos-stream-10-ci.cfg and mock/Containerfile). It mirrors the COPR
-    # epel-10-x86_64 environment exactly — same base config, same additional repos, same options.
+    # The mock-runner image bakes copies of the mock configs into /etc/mock
+    # (see mock/Containerfile), but the copies are ONLY a fallback for running
+    # the image by hand: the invocation below mounts this checkout's mock/
+    # directory and passes --configdir, so the repo's config always wins. It
+    # used to be the other way around — the baked copy won — and a fix
+    # committed to mock/fedora-44-ci.cfg changed nothing in CI until someone
+    # rebuilt the image (#176, run 30652383636). A config present in the repo
+    # but read from an image is a trap; do not remove the --configdir wiring.
 
     # Ensure the local repo metadata is up-to-date before mock starts,
     # locked to prevent parallel jobs from corrupting it.
@@ -347,6 +352,7 @@ build_package_podman() {
         --pull=always \
         -v "${builddir}:/builddir:Z" \
         -v "${LOCAL_REPO}:/local-repo:Z" \
+        -v "${REPO_ROOT}/mock:/repo-mock:ro,Z" \
         "${MOCK_CACHE_ARGS[@]}" \
         "${BUILD_IMAGE}" \
         bash -exc "
@@ -371,11 +377,28 @@ build_package_podman() {
             # everything after the break. A quoted phrase in this very comment
             # did that and turned the whole container step into a no-op.
             chown -R builder /builddir 2>/dev/null || true
+            # Assemble a config directory where the checked-out mock/ configs
+            # override the copies baked into this image: copy the WHOLE
+            # /etc/mock tree, then overlay the repo profiles on top.
+            #
+            # The whole tree, not just site-defaults.cfg and logging.ini. An
+            # include() of an ABSOLUTE path such as /etc/mock/fedora-44-x86_64.cfg
+            # resolves to the image, but that distro config then does a
+            # RELATIVE include of templates/fedora-branched.tpl, and relative
+            # includes resolve against --configdir, not /etc/mock — a
+            # configdir carrying only .cfg files orphans the templates
+            # directory and mock dies with: Could not find included config
+            # file: /tmp/mock-configdir/templates/fedora-branched.tpl
+            # (run 30654065913).
+            mkdir -p /tmp/mock-configdir
+            cp -a /etc/mock/. /tmp/mock-configdir/
+            cp /repo-mock/*.cfg /tmp/mock-configdir/
+            chmod -R a+rX /tmp/mock-configdir
             # Use flock to ensure only one process runs mock at a time
             # because they share mock chroot initialization.
             flock /local-repo/repo.lock -c \"
                 setpriv --reuid=builder --regid=mock --init-groups \\
-                mock -r '${MOCK_CONFIG}' \\
+                mock --configdir /tmp/mock-configdir -r '${MOCK_CONFIG}' \\
                     --uniqueext='${pkg_name}' \\
                     --rebuild /builddir/SRPMS/*.src.rpm \\
                     --resultdir=/builddir/results \\

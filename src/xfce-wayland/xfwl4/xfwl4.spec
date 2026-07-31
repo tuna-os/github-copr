@@ -1,5 +1,9 @@
 %global commit 6b38df6562e52bdb3d3c827c25e713d9f71d0fe8
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
+# resources/xfce-wayland-protocols submodule gitlink at %{commit}. It must be
+# bumped in lockstep with it: the XML defines the interfaces, requests and
+# events src/protocols/*.rs generates its server code from.
+%global protocols_commit 55dbf3e3d2a91b525c528c0dd4c1a7805a99364b
 %global cargo_name xfwl4
 # Rust binaries don't produce the source-file manifest find-debuginfo.sh
 # expects for a separate debugsource subpackage (common across cargo-built
@@ -18,13 +22,13 @@ Source0: https://gitlab.xfce.org/xfce/xfwl4/-/archive/%{commit}/xfwl4-%{commit}.
 # Pre-vendored with `cargo vendor` against this exact commit's Cargo.lock
 # (crates.io deps + the smithay git dep); see release notes for how it
 # was generated if it ever needs regenerating after a Cargo.lock bump.
-Source1: https://github.com/tuna-os/tunaos-packages/releases/download/xfwl4-vendor-465880f6/vendor.tar.gz
+Source1: https://github.com/tuna-os/tunaos-packages/releases/download/xfwl4-vendor-6b38df65/vendor.tar.gz
 # resources/xfce-wayland-protocols is a git submodule (custom XFCE Wayland
 # protocol XML: output-management, input-device-list, etc.) — not included
 # in the plain archive tarball, same as any other git submodule. Referenced
 # by relative path in src/protocols/*.rs's wayland_scanner::generate_*!
 # macros, so it just needs to land at resources/xfce-wayland-protocols/.
-Source2: https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/6082cfa492154aec266527193bf8f6142ab14977/xfce-wayland-protocols-6082cfa492154aec266527193bf8f6142ab14977.tar.gz
+Source2: https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/%{protocols_commit}/xfce-wayland-protocols-%{protocols_commit}.tar.gz
 # Upstream bug: WlrBufferConstraints.dma's cfg gate doesn't include the
 # udev feature, but three call sites already guard access to it under
 # udev too — a udev-only build (ours) fails to compile as a result.
@@ -65,9 +69,9 @@ cat > .cargo/config.toml <<'EOF'
 [source.crates-io]
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/smithay/smithay?rev=4645e03d6bd9377aa368de20e91d69951450392d"]
+[source."git+https://github.com/smithay/smithay?rev=0a29aecf9e07a2227712ab470b0ab0ee56752272"]
 git = "https://github.com/smithay/smithay"
-rev = "4645e03d6bd9377aa368de20e91d69951450392d"
+rev = "0a29aecf9e07a2227712ab470b0ab0ee56752272"
 replace-with = "vendored-sources"
 
 [source.vendored-sources]
