@@ -1186,9 +1186,29 @@ jobs:
             cd /var/lib/tideforge
             dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
             printf "deb [trusted=yes] file:/var/lib/tideforge ./\\n" > /etc/apt/sources.list.d/tideforge.list
+            # Pin the ephemeral repo above the distro archive -- the apt spelling
+            # of the priority overrides the el10 and Tumbleweed jobs already
+            # carry. apt otherwise installs the highest version it can see, and
+            # Ubuntu resolute ships libunwind-dev 1.8.3-0ubuntu1 against our
+            # 1.8.1-1, so the smoke test exercised the archive package (whose
+            # -dev split omits /usr/include/unwind.h) and failed on a contract
+            # the deb built in this job does satisfy. Empty origin is how apt
+            # names a local file: repository; 1001 also permits a downgrade, so
+            # a package preinstalled in the image is replaced rather than kept.
+            printf "Package: *\\nPin: origin \"\"\\nPin-Priority: 1001\\n" > /etc/apt/preferences.d/tideforge.pref
             apt-get update -qq
             apt-get install -y ${{ matrix.install_name }}
             dpkg-query -W ${{ matrix.install_name }}
+            # Shadowing is silent otherwise: an archive package that happens to
+            # satisfy the contract would report this cell green without the
+            # generated deb ever being installed.
+            set -- /var/lib/tideforge/${{ matrix.install_name }}_*.deb
+            expected=$(dpkg-deb -f "$1" Version)
+            installed=$(dpkg-query -W ${{ matrix.install_name }} | cut -f2)
+            if [ "$installed" != "$expected" ]; then
+              echo "installed $installed did not come from the ephemeral repo (expected $expected)" >&2
+              exit 1
+            fi
             ${{ matrix.smoke }}
           '
       - uses: actions/upload-artifact@v7
