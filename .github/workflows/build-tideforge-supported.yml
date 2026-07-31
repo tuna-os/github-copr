@@ -343,7 +343,10 @@ jobs:
             # libseat; the reasoning is identical here.
             zypper --non-interactive addrepo --no-gpgcheck --priority 1 file:///tmp/tideforge-rpms tideforge
             zypper --non-interactive --gpg-auto-import-keys refresh tideforge
-            zypper --non-interactive install --no-gpg-checks --allow-unsigned-rpm ${{ matrix.install_name }}
+            # --no-gpg-checks is a global zypper option, not an install option, so
+            # it has to precede the verb; after it, zypper exits 2 with "The flag
+            # --no-gpg-checks is not known".
+            zypper --non-interactive --no-gpg-checks install ${{ matrix.install_name }}
             rpm -q ${{ matrix.install_name }}
             ${{ matrix.smoke }}
           '
