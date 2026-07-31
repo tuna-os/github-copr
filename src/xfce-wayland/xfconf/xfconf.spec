@@ -1,4 +1,4 @@
-%global commit a6f0a7aa9073f9d8a0935cee73c0da52b6e49660
+%global commit dd8d87b53cbbf4d617e18841a5cc9da464e1c205
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: xfconf
 Version: 4.21.2
