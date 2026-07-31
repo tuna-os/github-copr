@@ -16,8 +16,11 @@ build:
   debug_package: false
 dependencies:
   build:
-    common: [cmake, gcc-c++]
+    # No common list: it held RPM names (gcc-c++) that leaked into the deb
+    # Build-Depends, where no such package exists. Each target already names
+    # its own complete toolchain.
     targets:
+      el10: [cmake, gcc-c++]
       ubuntu: [cmake, g++]
       debian: [cmake, g++]
       opensuse-tumbleweed: [cmake, gcc-c++]
@@ -35,4 +38,8 @@ outputs:
         files: [usr/include/CLI, usr/share/cmake/CLI11, usr/share/pkgconfig/CLI11.pc]
 verify:
   smoke: test -f /usr/include/CLI/CLI.hpp
+  # The deb output renders a package named libcli11-dev, not the recipe name.
+  targets:
+    ubuntu: {install_name: libcli11-dev}
+    debian: {install_name: libcli11-dev}
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

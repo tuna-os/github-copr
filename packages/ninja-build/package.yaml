@@ -15,8 +15,11 @@ build:
   cmake_options: [-DBUILD_TESTING=OFF]
 dependencies:
   build:
-    common: [cmake, gcc-c++]
+    # No common list: it held RPM names (gcc-c++) that leaked into the deb
+    # Build-Depends, where no such package exists. Each target already names
+    # its own complete toolchain.
     targets:
+      el10: [cmake, gcc-c++]
       ubuntu: [cmake, g++]
       debian: [cmake, g++]
       opensuse-tumbleweed: [cmake, gcc-c++]

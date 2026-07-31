@@ -829,6 +829,70 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Library/tool wave (#139 follow-up): all five are green on el10
+          # with the byte-identical contract. Their deb outputs render distro
+          # package names (libcli11-dev, libunwind-dev, libseat-dev), matched
+          # by verify.targets overrides in each recipe.
+          - package: cli11-devel
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: libcli11-dev
+            smoke: test -f /usr/include/CLI/CLI.hpp
+            clean_install: true
+          - package: cli11-devel
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: libcli11-dev
+            smoke: test -f /usr/include/CLI/CLI.hpp
+            clean_install: true
+          - package: libunwind-devel
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: libunwind-dev
+            smoke: test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h
+            clean_install: true
+          - package: libunwind-devel
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: libunwind-dev
+            smoke: test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h
+            clean_install: true
+          - package: ninja-build
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: ninja-build
+            smoke: ninja --version
+            clean_install: true
+          - package: ninja-build
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: ninja-build
+            smoke: ninja --version
+            clean_install: true
+          - package: wayland-protocols
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: wayland-protocols
+            smoke: pkg-config --atleast-version=1.41 wayland-protocols && test -f /usr/share/wayland-protocols/staging/ext-session-lock/ext-session-lock-v1.xml
+            clean_install: true
+          - package: wayland-protocols
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: wayland-protocols
+            smoke: pkg-config --atleast-version=1.41 wayland-protocols && test -f /usr/share/wayland-protocols/staging/ext-session-lock/ext-session-lock-v1.xml
+            clean_install: true
+          - package: libseat
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: libseat-dev
+            smoke: pkg-config --modversion libseat && seatd -h
+            clean_install: true
+          - package: libseat
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: libseat-dev
+            smoke: pkg-config --modversion libseat && seatd -h
+            clean_install: true
           - package: uupd
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
@@ -1075,7 +1139,11 @@ jobs:
             set -euo pipefail
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
-            apt-get install -y --no-install-recommends dpkg-dev
+            # pkg-config is part of the smoke environment, not the package
+            # under test: the libseat and wayland-protocols contracts query it,
+            # and unlike RPM (whose pkgconfig() generator pulls pkgconf in),
+            # dpkg gives -dev packages no such automatic dependency.
+            apt-get install -y --no-install-recommends dpkg-dev pkg-config
             mkdir -p /var/lib/tideforge
             cp /work/artifacts/*.deb /var/lib/tideforge/
             cd /var/lib/tideforge
