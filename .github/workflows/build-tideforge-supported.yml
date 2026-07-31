@@ -38,6 +38,8 @@ on:
       - packages/pop-icon-theme/package.yaml
       - packages/labwc/package.yaml
       - packages/evtest/package.yaml
+      - packages/python3-evdev/package.yaml
+      - packages/input-remapper/package.yaml
       - manifests/package-factory.yaml
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
@@ -197,6 +199,10 @@ jobs:
             target: el10
             install_name: evtest
             smoke: test -x /usr/bin/evtest && test -f /usr/share/man/man1/evtest.1.gz
+          - package: python3-evdev
+            target: el10
+            install_name: python3-evdev
+            smoke: python3 -c "import evdev"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -572,6 +578,75 @@ jobs:
         with:
           name: cpptrace-devel-el10-rpm
           path: .tideforge/cpptrace/rpmbuild/RPMS/
+          if-no-files-found: warn
+
+  input-remapper-rpm:
+    name: input-remapper (el10 staged closure RPM)
+    needs: rpm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - uses: actions/download-artifact@v7
+        with:
+          name: python3-evdev-el10-rpm
+          path: .tideforge/input-remapper/prerequisite
+      - name: Render and fetch the exact input-remapper source archive
+        run: |
+          set -euo pipefail
+          recipe=packages/input-remapper/package.yaml
+          root="$PWD/.tideforge/input-remapper"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
+      - name: Build input-remapper with staged python3-evdev
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/input-remapper"
+          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install dnf-plugins-core epel-release rpm-build createrepo_c
+            dnf config-manager --set-enabled crb
+            mkdir -p /tmp/tideforge-prerequisite
+            cp -a /work/prerequisite/. /tmp/tideforge-prerequisite/
+            createrepo_c /tmp/tideforge-prerequisite
+            dnf -y install --nogpgcheck --repofrompath tideforge-prereq,file:///tmp/tideforge-prerequisite --enablerepo=tideforge-prereq python3-evdev
+            dnf -y builddep /work/rpmbuild/SPECS/*.spec
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
+          '
+      - name: Clean-install input-remapper with the full closure
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/input-remapper"
+          docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install epel-release createrepo_c
+            mkdir -p /tmp/tideforge-rpms
+            cp -a /work/prerequisite/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
+            createrepo_c /tmp/tideforge-rpms
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --setopt=tideforge.priority=1 --enablerepo=tideforge input-remapper
+            rpm -q input-remapper python3-evdev
+            test -x /usr/bin/input-remapper-gtk
+            test -x /usr/bin/input-remapper-service
+            test -x /usr/bin/input-remapper-control
+            test -f /usr/lib/udev/rules.d/99-input-remapper.rules
+            test -f /usr/lib/systemd/system/input-remapper.service
+            test -f /usr/share/polkit-1/actions/input-remapper.policy
+            test -f /usr/share/dbus-1/system.d/inputremapper.Control.conf
+          '
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: input-remapper-el10-staged-closure-rpm
+          path: .tideforge/input-remapper/rpmbuild/RPMS/
           if-no-files-found: warn
 
   quickshell-rpm:
