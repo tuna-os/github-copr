@@ -23,7 +23,10 @@ depends=('glib2' 'dbus' 'libxfce4util')
 # glib-genmarshal lives in glib2-devel, not glib2 itself — meson's
 # glib-2.0 dependency probe needs it at configure time even though it is
 # never linked into the final binary.
-makedepends=('meson' 'ninja' 'gobject-introspection' 'vala' 'intltool' 'gettext' 'glib2-devel')
+# xfce4-dev-tools: meson.build does find_program('xdt-gen-visibility',
+# required: true) at configure time; it is not in Arch's meson package.
+makedepends=('meson' 'ninja' 'gobject-introspection' 'vala' 'intltool' 'gettext' 'glib2-devel'
+             'xfce4-dev-tools')
 provides=('libxfconf-0.so')
 source=("xfconf-${_commit}.tar.gz::${url}/-/archive/${_commit}/xfconf-${_commit}.tar.gz")
 # SKIP is a scaffold placeholder — fill in before this is trusted.

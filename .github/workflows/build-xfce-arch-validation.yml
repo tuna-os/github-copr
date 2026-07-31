@@ -33,21 +33,32 @@ jobs:
           set -euo pipefail
           mkdir -p "${{ github.workspace }}/arch-out"
 
-          cat > /tmp/run.sh <<'SCRIPT'
+          mkdir -p /tmp/arch-build/xfconf /tmp/arch-build/libxfce4ui /tmp/arch-build/xfwl4
+          cp src/xfce-wayland/xfconf/packaging/arch/PKGBUILD /tmp/arch-build/xfconf/
+          cp src/xfce-wayland/libxfce4ui/packaging/arch/PKGBUILD /tmp/arch-build/libxfce4ui/
+          cp src/xfce-wayland/xfwl4/packaging/arch/PKGBUILD /tmp/arch-build/xfwl4/
+          find src/xfce-wayland/xfwl4 -iname "*.patch" -exec cp {} /tmp/arch-build/xfwl4/ \;
+
+          # The script has to live inside the bind mount: /tmp/arch-build is the
+          # only thing the container sees, so a runner-side /tmp/run.sh is not
+          # there when bash goes looking for it.
+          cat > /tmp/arch-build/run.sh <<'SCRIPT'
           set -euo pipefail
-          pacman -Sy --noconfirm --needed base-devel git \
-            libdrm libinput mesa seatd libxkbcommon pixman wayland gtk3 gdk-pixbuf2 \
-            libdisplay-info libsm startup-notification systemd-libs cargo rust pkgconf \
-            wayland-protocols gettext glib2-devel
+          pacman -Syu --noconfirm --needed base-devel git sudo
 
           useradd -m builder
+          # makepkg --syncdeps installs each PKGBUILD's declared
+          # depends/makedepends through sudo pacman, so the gate validates those
+          # lists too instead of a hand-maintained copy of them drifting here.
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
+          chmod 0440 /etc/sudoers.d/builder
           chown -R builder:builder /work
 
           build_one() {
             local dir="$1"
             cd "/work/$dir"
             chown -R builder:builder .
-            su builder -c "makepkg --noconfirm --skippgpcheck --nodeps"
+            su builder -c "makepkg --noconfirm --skippgpcheck --syncdeps"
             pacman -U --noconfirm ./*.pkg.tar.zst --overwrite '*'
           }
 
@@ -56,19 +67,14 @@ jobs:
           build_one xfwl4
 
           mkdir -p /work/arch-out
-          find /work -maxdepth 2 -name '*.pkg.tar.zst' -exec cp {} /work/arch-out/ \;
+          find /work -maxdepth 2 -name '*.pkg.tar.zst' \
+            -not -path '/work/arch-out/*' -exec cp {} /work/arch-out/ \;
           SCRIPT
-
-          mkdir -p /tmp/arch-build/xfconf /tmp/arch-build/libxfce4ui /tmp/arch-build/xfwl4
-          cp src/xfce-wayland/xfconf/packaging/arch/PKGBUILD /tmp/arch-build/xfconf/
-          cp src/xfce-wayland/libxfce4ui/packaging/arch/PKGBUILD /tmp/arch-build/libxfce4ui/
-          cp src/xfce-wayland/xfwl4/packaging/arch/PKGBUILD /tmp/arch-build/xfwl4/
-          find src/xfce-wayland/xfwl4 -iname "*.patch" -exec cp {} /tmp/arch-build/xfwl4/ \;
 
           podman run --rm \
             -v /tmp/arch-build:/work:Z \
             archlinux:latest \
-            bash /tmp/run.sh 2>&1 | tee /tmp/build.log || {
+            bash /work/run.sh 2>&1 | tee /tmp/build.log || {
             echo "::error::Arch validation build failed — see log above"
             exit 1
           }
