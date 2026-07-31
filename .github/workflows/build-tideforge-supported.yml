@@ -297,16 +297,20 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/${{ matrix.package }}/package.yaml
       - name: Render and fetch the exact source archive
         run: |
           set -euo pipefail
           recipe="packages/${{ matrix.package }}/package.yaml"
           root="$PWD/.tideforge/rpm/${{ matrix.package }}"
           python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
           python3 scripts/tideforge.py render "$recipe" --target opensuse-tumbleweed --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
-          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh registry.opensuse.org/opensuse/tumbleweed:latest
       - name: Build generated RPM with only declared BuildRequires
