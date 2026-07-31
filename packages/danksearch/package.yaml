@@ -18,4 +18,6 @@ dependencies:
     capabilities: [go]
 files:
   common: [usr/bin/dsearch]
+verify:
+  smoke: dsearch --help
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

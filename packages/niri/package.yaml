@@ -47,4 +47,6 @@ files:
     - usr/share/xdg-desktop-portal/niri-portals.conf
     - usr/lib/systemd/user/niri.service
     - usr/lib/systemd/user/niri-shutdown.target
+verify:
+  smoke: niri --help
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

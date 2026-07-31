@@ -28,4 +28,6 @@ files:
     - usr/bin/bazaar-dbus-tool
     - usr/lib*/qt6/plugins/kf6/krunner/bazaarrunner.so
     - usr/share/locale/*/LC_MESSAGES/plasma_runner_bazaarrunner.mo
+verify:
+  smoke: test -x /usr/bin/bazaar-dbus-tool
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

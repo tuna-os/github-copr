@@ -35,4 +35,26 @@ dependencies:
 files:
   common:
     - usr/bin/example-tool
+# How the gate proves this package actually installed and works. These used to
+# be hand-written matrix keys in build-tideforge-supported.yml, which is how a
+# target could be declared with no cell asserting it at all (#139) -- nothing
+# connected the recipe to the job. State it here and the cell follows the
+# recipe instead of being remembered separately.
+#
+# `smoke` runs inside a clean container after the built package is installed
+# from an ephemeral repository. It must fail loudly if the package is broken;
+# prefer asserting a real behaviour over the file merely existing.
+verify:
+  smoke: example-tool --version
+  # Defaults to the recipe name. Set it when the installable binary package is
+  # named differently -- libseat builds `libseat-devel`, gtk-layer-shell builds
+  # `gtk-layer-shell-devel`.
+  # install_name: example-tool-devel
+  #
+  # Override per target only where the rendered binary package genuinely
+  # differs. xfconf is the worked example: `xfconf` on el10, `libxfconf-0-4` on
+  # the deb targets. Every other package today is identical across targets.
+  # targets:
+  #   ubuntu:
+  #     install_name: libexample-tool0
 targets: [el10, ubuntu, debian]

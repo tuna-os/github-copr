@@ -19,6 +19,9 @@ dependencies:
       el10: [gcc, gtk3-devel, wayland-devel, wayland-protocols-devel, gobject-introspection-devel, vala]
 files:
   common: [usr/lib64/libgtk-layer-shell.so.*]
+verify:
+  smoke: "pkg-config --modversion gtk-layer-shell-0 && test -f /usr/include/gtk-layer-shell/gtk-layer-shell.h"
+  install_name: gtk-layer-shell-devel
 targets: [el10]
 outputs:
   rpm:

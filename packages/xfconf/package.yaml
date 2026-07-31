@@ -19,6 +19,14 @@ dependencies:
       debian: [debhelper-compat, libglib2.0-dev, libdbus-1-dev, libxfce4util-dev, gobject-introspection, libgirepository1.0-dev]
 files:
   common: [usr/bin/xfconf-query]
+verify:
+  smoke: xfconf-query --version
+  install_name: xfconf
+  targets:
+    debian:
+      install_name: libxfconf-0-4
+    ubuntu:
+      install_name: libxfconf-0-4
 targets: [el10, ubuntu, debian]
 outputs:
   rpm:

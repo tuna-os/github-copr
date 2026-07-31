@@ -101,4 +101,6 @@ files:
 # Debian, Arch and openSUSE; labwc is already packaged natively on most of
 # those, so this recipe exists to fill the EL10 hole rather than to replace
 # a distribution's own package.
+verify:
+  smoke: labwc --help
 targets: [el10]

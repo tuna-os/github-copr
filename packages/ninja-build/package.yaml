@@ -23,4 +23,6 @@ dependencies:
       arch: [cmake, gcc]
 files:
   common: [usr/bin/ninja]
+verify:
+  smoke: ninja --version
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

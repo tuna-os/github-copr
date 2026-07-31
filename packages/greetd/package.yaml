@@ -25,4 +25,6 @@ files:
 install:
   files:
     - {source: greetd.service, destination: usr/lib/systemd/system/greetd.service}
+verify:
+  smoke: greetd --help
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

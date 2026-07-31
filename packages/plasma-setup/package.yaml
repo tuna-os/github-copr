@@ -40,4 +40,6 @@ files:
     - usr/share/plasma-setup/plasma-setup.desktop
     - usr/share/plasma-setup/kglobalaccelrc
     - etc/xdg/plasmasetuprc
+verify:
+  smoke: "test -e /usr/lib/plasma-setup && test -f /usr/lib/systemd/system/plasma-setup.service"
 targets: [arch]
