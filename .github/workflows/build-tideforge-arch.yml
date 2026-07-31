@@ -72,8 +72,12 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/${{ matrix.package }}/package.yaml
       - run: python3 scripts/tideforge.py validate packages/${{ matrix.package }}/package.yaml
-      - run: python3 scripts/verify-tideforge-source.py packages/${{ matrix.package }}/package.yaml
+      - run: python3 scripts/verify-tideforge-source.py packages/${{ matrix.package }}/package.yaml --cache-dir "$HOME/.cache/tideforge/sources"
       - run: python3 scripts/tideforge.py render packages/${{ matrix.package }}/package.yaml --target arch --output .tideforge/arch/${{ matrix.package }}
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh docker.io/library/archlinux:latest
