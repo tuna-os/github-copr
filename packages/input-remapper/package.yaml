@@ -38,9 +38,26 @@ source:
   directory: input-remapper-2.2.1
 build_system: custom
 build:
-  # Everything happens in the install step.  Upstream's installer compiles the
-  # translations itself (install.language.make_lang), so there is no separate
-  # build phase to run.
+  # install/module.py stamps inputremapper/installation_info.py with the commit
+  # it was built from, and _get_commit_hash() does that by shelling out to
+  # `git rev-parse HEAD` with no fallback:
+  #
+  #   FileNotFoundError: [Errno 2] No such file or directory: 'git'
+  #
+  # That cannot work here on principle, not just for want of a build dep: we
+  # build from the release tarball, so there is no git repository to ask, and
+  # adding git would only turn the crash into `fatal: not a git repository`
+  # (exit 128 -> CalledProcessError, also uncaught).
+  #
+  # The commit is not unknown, though: it is pinned exactly as tightly as the
+  # source is.  e9a87d1 is what refs/tags/2.2.1 resolves to upstream, which is
+  # the tag the sha256-pinned Source0 tarball is generated from, so stamping it
+  # in is the same fact the git call would have reported.
+  prepare:
+    - sed -i 's|subprocess.check_output(\["git", "rev-parse", "HEAD"\])|b"e9a87d13480c3b1dee654b296578a8f4e2cd31d6"|' install/module.py
+    - grep -q e9a87d13480c3b1dee654b296578a8f4e2cd31d6 install/module.py
+  # Nothing else to build.  Upstream's installer compiles the translations
+  # itself (install.language.make_lang), so there is no separate build phase.
   commands:
     - ':'
 install:
@@ -57,14 +74,19 @@ install:
   #
   # install/module.py additionally resolves site-packages vs dist-packages per
   # distribution, which is what makes one recipe work on both EL10 and Arch.
+  #
+  # It does call pip for the module itself (`pip install . --target <dir>
+  # --no-deps`), which is why pip is a build dependency on both targets: Arch
+  # ships it separately from `python`, and without it the installer dies with
+  # "No module named pip" -> CalledProcessError.
   commands:
     - python3 -m install --root "{destdir}"
 dependencies:
   build:
     common: [gettext]
     targets:
-      el10: [python3-devel, python3-setuptools]
-      arch: [python]
+      el10: [python3-devel, python3-setuptools, python3-pip]
+      arch: [python, python-pip]
   runtime:
     targets:
       # python3-evdev is the Tideforge package built alongside this one.  All
@@ -118,6 +140,11 @@ files:
     # Version-globbed: install/module.py picks the interpreter's own
     # site-packages, so pinning a minor version here would break on rebase.
     - usr/lib/python3*/site-packages/inputremapper/
+    # install/module.py installs the module with `pip install . --target`, so
+    # the metadata directory lands beside it and rpmbuild would otherwise abort
+    # on an unpackaged file.  Underscored and version-globbed because that is
+    # how pip normalises the distribution name (input_remapper-2.2.1.dist-info).
+    - usr/lib/python3*/site-packages/input_remapper-*.dist-info/
 # The data files are what a pip install silently gets wrong (see the install
 # commands above), so they are what the gate cells assert on both targets.
 verify:
