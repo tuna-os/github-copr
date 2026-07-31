@@ -640,3 +640,31 @@ def test_data_deb_disables_debhelper_build_system_autodetection(recipe: dict) ->
     recipe["build_system"] = "data"
     rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
     assert "dh $@ --buildsystem=none" in rules
+
+
+def test_deb_render_emits_machine_readable_copyright(recipe: dict) -> None:
+    # lintian: no-copyright-file was an error on every generated deb --
+    # nothing emitted debian/copyright. dh_installdocs installs this one into
+    # each binary package.
+    rendered = tideforge.render(recipe, "ubuntu")
+    copyright_file = rendered["debian/copyright"]
+    assert "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/" in copyright_file
+    assert "Upstream-Name: hello-tuna" in copyright_file
+    assert "Source: https://example.com/hello-tuna-1.2.3.tar.gz" in copyright_file
+    assert "License: Apache-2.0" in copyright_file
+
+
+def test_autotools_deb_rules_delete_libtool_archives(recipe: dict) -> None:
+    # Mirrors the rpm renderer's post-%make_install cleanup: shipped .la files
+    # carry dependency_libs lintian rejects as a policy error
+    # (non-empty-dependency_libs-in-la-file, libunwind-dev x5). Only libtool
+    # emits them, so only the autotools rules carry the hook.
+    recipe["build_system"] = "autotools"
+    rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    assert "execute_after_dh_auto_install:" in rules
+    assert "find debian -name '*.la' -delete" in rules
+
+
+def test_non_autotools_deb_rules_carry_no_libtool_cleanup(recipe: dict) -> None:
+    rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    assert "*.la" not in rules

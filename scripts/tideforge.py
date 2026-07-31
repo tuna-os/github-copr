@@ -763,11 +763,34 @@ Rules-Requires-Root: no
     # not auto-detect a testable build system, so they need no override.
     if recipe["build_system"] in {"meson", "cmake", "autotools"}:
         rules = rules.rstrip() + "\n\noverride_dh_auto_test:\n\t:\n"
+    # Delete libtool archives after staging, mirroring the rpm renderer's
+    # cleanup after %make_install. A libtool build ships .la files whose
+    # dependency_libs lintian flags as a policy error
+    # (non-empty-dependency_libs-in-la-file — libunwind-dev carried five of
+    # them), and Debian's answer is to not ship .la at all. Only autotools
+    # uses libtool; the other build systems never emit them.
+    if recipe["build_system"] == "autotools":
+        rules = rules.rstrip() + "\n\nexecute_after_dh_auto_install:\n\tfind debian -name '*.la' -delete\n"
     changelog = f"{recipe['name']} ({recipe['version']}-{recipe.get('release', 1)}) {target}; urgency=medium\n\n  * Generated from package.yaml.\n\n -- TunaOS Package Factory <packages@tunaos.org>  Thu, 01 Jan 1970 00:00:00 +0000\n"
+    # DEP-5 machine-readable copyright, derived from the recipe. dh_installdocs
+    # installs it into every binary package, which is what clears lintian's
+    # no-copyright-file error on the generated debs. The full license text
+    # lives in the upstream source distribution; the recipe's SPDX identifier
+    # names it.
+    copyright_file = f"""Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: {recipe['name']}
+Source: {recipe['source']['url']}
+
+Files: *
+Copyright: the {recipe['name']} upstream authors
+License: {recipe['license']}
+ See the upstream source distribution for the full license text.
+"""
     rendered = {
         "debian/control": control,
         "debian/rules": rules,
         "debian/changelog": changelog,
+        "debian/copyright": copyright_file,
         "debian/source/format": "3.0 (quilt)\n",
     }
     # Tideforge's Go, Cargo, and data renderers install directly into
