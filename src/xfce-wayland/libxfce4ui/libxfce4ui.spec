@@ -13,6 +13,9 @@ BuildRequires: libSM-devel
 BuildRequires: startup-notification-devel
 BuildRequires: libgtop2-devel, libepoxy-devel, libgudev-devel
 BuildRequires: gobject-introspection-devel, vala, intltool, gettext
+# Same as xfconf: meson.build does find_program('xdt-gen-visibility',
+# required: true), and that script ships in xfce4-dev-tools.
+BuildRequires: xfce4-dev-tools
 %description
 Common UI library for Xfce desktop environment.
 
