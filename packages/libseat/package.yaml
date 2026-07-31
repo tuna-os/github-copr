@@ -47,4 +47,9 @@ outputs:
 verify:
   smoke: "pkg-config --modversion libseat && seatd -h"
   install_name: libseat-devel
+  # The deb output renders libseat-dev (which depends on libseat1, carrying
+  # seatd), not the RPM subpackage name.
+  targets:
+    ubuntu: {install_name: libseat-dev}
+    debian: {install_name: libseat-dev}
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

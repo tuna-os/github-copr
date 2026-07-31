@@ -15,8 +15,11 @@ build:
   configure_options: [--disable-tests]
 dependencies:
   build:
-    common: [gcc-c++, autoconf, automake, libtool]
+    # No common list: it held RPM names (gcc-c++) that leaked into the deb
+    # Build-Depends, where no such package exists. Each target already names
+    # its own complete toolchain.
     targets:
+      el10: [gcc-c++, autoconf, automake, libtool]
       ubuntu: [build-essential, autoconf, automake, libtool]
       debian: [build-essential, autoconf, automake, libtool]
       opensuse-tumbleweed: [gcc-c++, autoconf, automake, libtool]
@@ -34,4 +37,8 @@ outputs:
         files: [usr/include/libunwind*.h, usr/include/unwind.h, usr/lib/*/libunwind*.so*, usr/lib/*/libunwind*.a, usr/lib/*/pkgconfig/libunwind*.pc]
 verify:
   smoke: "test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h"
+  # The deb output renders a package named libunwind-dev, not the recipe name.
+  targets:
+    ubuntu: {install_name: libunwind-dev}
+    debian: {install_name: libunwind-dev}
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
