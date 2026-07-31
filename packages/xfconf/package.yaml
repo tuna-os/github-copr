@@ -30,6 +30,7 @@ outputs:
       - usr/share/bash-completion/completions/xfconf-query
       - usr/lib/systemd/user/xfconfd.service
       - usr/share/dbus-1/services/*.service
+      - usr/share/locale/*/LC_MESSAGES/xfconf.mo
     subpackages:
       - name: devel
         summary: Development files for xfconf
@@ -46,8 +47,27 @@ outputs:
       - name: libxfconf-0-4
         summary: Xfce configuration daemon and library
         description: Xfce configuration daemon and library required by Xfce components.
-        files: [usr/lib/*/libxfconf*.so.*, usr/lib/*/xfce4/xfconf/xfconfd, usr/bin/xfconf-query]
+        files:
+          - usr/lib/*/libxfconf*.so.*
+          - usr/lib/*/xfce4/xfconf/xfconfd
+          - usr/bin/xfconf-query
+          - usr/lib/*/gio/modules/libxfconfgsettingsbackend.so
+          - usr/lib/systemd/user/xfconfd.service
+          - usr/share/bash-completion/completions/xfconf-query
+          - usr/share/dbus-1/services/*.service
+          - usr/share/locale/*/LC_MESSAGES/xfconf.mo
       - name: libxfconf-0-dev
         summary: Development files for libxfconf
         description: Headers, pkgconfig, introspection, and Vala bindings for xfconf.
-        files: [usr/include/xfce4/xfconf-0/xfconf/, usr/lib/*/libxfconf*.so, usr/lib/*/pkgconfig/*.pc]
+        # The dev half ships only the unversioned .so symlink, so
+        # dpkg-shlibdeps finds no ELF object to derive a dependency from and
+        # `apt-get install libxfconf-0-dev` would leave the runtime library and
+        # xfconf-query absent. RPM's generator infers this from the soname;
+        # dpkg never does, so Debian requires it be declared.
+        depends: ["libxfconf-0-4 (= ${binary:Version})"]
+        files:
+          - usr/include/xfce4/xfconf-0/xfconf/
+          - usr/lib/*/libxfconf*.so
+          - usr/lib/*/pkgconfig/*.pc
+          - usr/lib/*/girepository-1.0/*.typelib
+          - usr/share/gir-1.0/*.gir

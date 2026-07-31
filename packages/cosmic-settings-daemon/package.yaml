@@ -17,12 +17,12 @@ sources:
     filename: cosmic-settings-daemon-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-settings-daemon/raw/rawhide/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-settings-daemon/raw/eef9712fd9b50ae27df1b1a3f8dfd0dbffc5b1b7/f/vendor-config-1.4.0.toml
     sha256: 8e2c27d504d55e03a6942b0b5a01421d2d141a249295b7c3465f5c943e334a1d
     filename: cosmic-settings-daemon-vendor-config.toml
     destination: .cargo/config.toml
     extract: false
-  - url: https://src.fedoraproject.org/rpms/cosmic-settings-daemon/raw/rawhide/f/sound-theme-freedesktop.patch
+  - url: https://src.fedoraproject.org/rpms/cosmic-settings-daemon/raw/9af1c226ffc782f990f2effa1bed918ee5aad841/f/sound-theme-freedesktop.patch
     sha256: b54c4c40815770b329f6128ed556b3279d1e2346ad64b53d2e020851ef65c0ee
     filename: cosmic-settings-daemon-sound-theme.patch
     destination: patches/sound-theme-freedesktop.patch

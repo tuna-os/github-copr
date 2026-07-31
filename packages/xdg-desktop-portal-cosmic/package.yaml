@@ -15,7 +15,7 @@ sources:
     filename: xdg-desktop-portal-cosmic-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/xdg-desktop-portal-cosmic/raw/rawhide/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/xdg-desktop-portal-cosmic/raw/1d8a5c126e9050c73319f42e23987aa8daa7edbc/f/vendor-config-1.4.0.toml
     sha256: 7c9ed08dec216901623520adcfcef98cda7a6edefaa4b8de968aae38d6e6fcc7
     filename: xdg-desktop-portal-cosmic-vendor-config.toml
     destination: .cargo/config.toml

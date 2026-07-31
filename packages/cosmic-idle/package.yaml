@@ -15,7 +15,7 @@ sources:
     filename: cosmic-idle-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-idle/raw/rawhide/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-idle/raw/51b1fed9e0eb7d577065504a97b60171d1128690/f/vendor-config-1.4.0.toml
     sha256: 7fd8dbfcbcc395fa7793317fbda8c151fa3e794fdce691cf2ed58ee9a69e71cb
     filename: cosmic-idle-vendor-config.toml
     destination: .cargo/config.toml

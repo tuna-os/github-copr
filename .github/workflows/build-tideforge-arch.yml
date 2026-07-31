@@ -17,8 +17,20 @@ on:
       - scripts/fetch-tideforge-sources.py
       - scripts/compare-official-package.py
       - scripts/validate-built-arch-package.py
+      - scripts/pull-container-image.sh
+      - scripts/assert-arch-runtime-closure.sh
+      - scripts/arch-clean-install.sh
       - .github/workflows/build-tideforge-arch.yml
   workflow_dispatch:
+
+# Three runs of this workflow were queued simultaneously on one branch because
+# nothing superseded the earlier ones — each pushed commit started a fresh
+# ~50-job matrix while the previous two still held runner slots. Only the
+# newest can gate anything; the older ones burn capacity that the rest of the
+# org is queuing for. See #130 for the same class of waste.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -30,7 +42,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [niri, kairpods, krunner-bazaar, dgop, danksearch, dankcalendar, bazaar, plasma-setup, oversteer-udev]
+        # `smoke` runs after the clean install, against the installed package.
+        # Every entry asserts something the recipe claims to install; see
+        # scripts/assert-arch-runtime-closure.sh for why the ELF closure check
+        # that runs alongside it is the part that catches under-declared
+        # `depends`.
+        include:
+          - package: niri
+            smoke: niri --help
+          - package: kairpods
+            smoke: test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service
+          - package: krunner-bazaar
+            smoke: test -x /usr/bin/bazaar-dbus-tool
+          - package: dgop
+            smoke: dgop --help
+          - package: danksearch
+            smoke: dsearch --help
+          - package: dankcalendar
+            smoke: test -x /usr/bin/dcal && test -f /usr/lib/systemd/user/dcal.service
+          - package: bazaar
+            smoke: test -x /usr/bin/bazaar && test -x /usr/bin/bazaar-dl-worker && test -x /usr/bin/bazaar-refresh-worker
+          - package: plasma-setup
+            smoke: test -e /usr/lib/plasma-setup && test -f /usr/lib/systemd/system/plasma-setup.service
+          - package: oversteer-udev
+            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -40,6 +75,8 @@ jobs:
       - run: python3 scripts/tideforge.py validate packages/${{ matrix.package }}/package.yaml
       - run: python3 scripts/verify-tideforge-source.py packages/${{ matrix.package }}/package.yaml
       - run: python3 scripts/tideforge.py render packages/${{ matrix.package }}/package.yaml --target arch --output .tideforge/arch/${{ matrix.package }}
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh docker.io/library/archlinux:latest
       - name: Build generated PKGBUILD
         run: |
           set -euo pipefail
@@ -58,45 +95,11 @@ jobs:
       - name: Clean-install generated package from an ephemeral repository
         run: |
           set -euo pipefail
-          docker run --rm --user root --volume "$PWD/.tideforge/arch/${{ matrix.package }}:/work:ro" docker.io/library/archlinux:latest bash -lc '
-            set -euo pipefail
-            pacman -Sy --noconfirm pacman-contrib
-            repo-add /tmp/tideforge.db.tar.gz /work/artifacts/*.pkg.tar.*
-            mkdir -p /var/lib/tideforge
-            cp /work/artifacts/*.pkg.tar.* /var/lib/tideforge/
-            # pacman resolves a repository named "tideforge" as tideforge.db.
-            # repo-add writes a compressed archive, so expose it under the name
-            # the file:// repository client actually requests.
-            cp /tmp/tideforge.db.tar.gz /var/lib/tideforge/tideforge.db
-            # CI artifacts are deliberately unsigned. Production promotion has
-            # a separate signing gate; this isolated repository exists solely
-            # to prove pacman's dependency solver and payload installation.
-            # Keep the repository definition out of /etc: hosted container
-            # engines may user-map root and make that image file read-only.
-            # Recent Arch container images no longer guarantee that a copied
-            # /etc/pacman.conf survives the hosted container user mapping.
-            # Generate the small, complete test configuration instead of
-            # modifying or copying image-owned configuration files.
-            cat > /tmp/tideforge-pacman.conf <<'EOF'
-            [options]
-            Architecture = auto
-            SigLevel = Required DatabaseOptional
-            LocalFileSigLevel = Optional
-
-            [core]
-            Include = /etc/pacman.d/mirrorlist
-
-            [extra]
-            Include = /etc/pacman.d/mirrorlist
-
-            [tideforge]
-            SigLevel = Optional TrustAll
-            Server = file:///var/lib/tideforge
-            EOF
-            pacman --config /tmp/tideforge-pacman.conf -Sy --noconfirm
-            pacman --config /tmp/tideforge-pacman.conf -S --noconfirm ${{ matrix.package }}
-            pacman -Q ${{ matrix.package }}
-          '
+          docker run --rm --user root \
+            --volume "$PWD/.tideforge/arch/${{ matrix.package }}:/work:ro" \
+            --volume "$PWD/scripts:/scripts:ro" \
+            docker.io/library/archlinux:latest \
+            bash /scripts/arch-clean-install.sh ${{ matrix.package }} /work/artifacts bash -c "${{ matrix.smoke }}"
       - run: python3 scripts/validate-built-arch-package.py packages/${{ matrix.package }}/package.yaml .tideforge/arch/${{ matrix.package }}/artifacts/package-info.txt
       - if: matrix.package == 'niri'
         run: python3 scripts/compare-official-package.py packages/niri/package.yaml --strict

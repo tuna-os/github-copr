@@ -17,6 +17,12 @@ dependencies:
       el10: [kf6-rpm-macros]
   runtime:
     capabilities: [flatpak]
+    targets:
+      # makepkg derives no shared-library dependencies, so the KRunner plugin's
+      # own link closure has to be declared. Every entry below owns a DT_NEEDED
+      # soname of usr/bin/bazaar-dbus-tool or bazaarrunner.so; rpmbuild and
+      # dpkg-shlibdeps generate the equivalent requirements themselves.
+      arch: [glibc, kcoreaddons, ki18n, krunner, libstdc++, qt6-base]
 files:
   common:
     - usr/bin/bazaar-dbus-tool

@@ -15,7 +15,7 @@ sources:
     filename: cosmic-notifications-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-notifications/raw/rawhide/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-notifications/raw/be8ac69cb9d32cde0d851118f588853f29c9f90d/f/vendor-config-1.4.0.toml
     sha256: a92b898c93317f2c2191956a3be410d952f0afba42a084e430db37f1833bca9b
     filename: cosmic-notifications-vendor-config.toml
     destination: .cargo/config.toml

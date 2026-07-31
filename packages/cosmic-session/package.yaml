@@ -16,7 +16,7 @@ sources:
     filename: cosmic-session-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-session/raw/rawhide/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-session/raw/aa0fdb21083b93e71641d4e3dc7250dd37bfd6e5/f/vendor-config-1.4.0.toml
     sha256: 559de0e88875d8b7d383467edb7bb381247f52701c801ee680995499e258a808
     filename: cosmic-session-vendor-config.toml
     destination: .cargo/config.toml

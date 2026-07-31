@@ -40,8 +40,21 @@ on:
       - scripts/tideforge.py
       - scripts/verify-tideforge-source.py
       - scripts/fetch-tideforge-sources.py
+      - scripts/pull-container-image.sh
+      - scripts/lint-generated-rpm.sh
+      - scripts/lint-generated-deb.sh
+      - scripts/assert-xfconf-split.sh
       - .github/workflows/build-tideforge-supported.yml
   workflow_dispatch:
+
+# Three runs of this workflow were queued simultaneously on one branch because
+# nothing superseded the earlier ones — each pushed commit started a fresh
+# ~50-job matrix while the previous two still held runner slots. Only the
+# newest can gate anything; the older ones burn capacity that the rest of the
+# org is queuing for. See #130 for the same class of waste.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -74,13 +87,27 @@ jobs:
           python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
           python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build generated RPM payload
         run: |
           set -euo pipefail
           root="$PWD/.tideforge/rpm-payload/${{ matrix.package }}"
           docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
-            dnf -y install dnf-plugins-core rpm-build rpmdevtools
+            # NOTE: no apostrophes in this comment. It lives inside a single-
+            # quoted bash -lc block, and an apostrophe closes that string early
+            # and mangles the script (see 7af9ae1, where exactly that silently
+            # disabled every build).
+            #
+            # epel-release, not crb alone. The COSMIC stack build-requires just
+            # and libdav1d-devel, and neither is in CentOS Stream 10 base or in
+            # CRB. Both live in EPEL 10, verified with dnf repoquery. Without it
+            # every cosmic-* payload died at "No matching package to install"
+            # and then "Error: Some packages could not be found" -- 13 of this
+            # workflow 18 failures, all identical. The gtkgreet and quickshell
+            # jobs below already install epel-release.
+            dnf -y install dnf-plugins-core epel-release rpm-build rpmdevtools
             dnf config-manager --set-enabled crb
             dnf -y builddep /work/rpmbuild/SPECS/*.spec
             rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
@@ -146,7 +173,12 @@ jobs:
           - package: oversteer-udev
             target: el10
             install_name: oversteer-udev
-            smoke: find /usr/lib/udev/rules.d -name \*oversteer\* -print -quit | grep -q .
+            # Upstream names its rules by wheel vendor — 99-fanatec-wheel-perms.rules,
+            # 99-logitech-wheel-perms.rules, 99-thrustmaster-wheel-perms.rules. Nothing
+            # upstream contains the string 'oversteer', so the old
+            # `-name \*oversteer\*` could never match: the package built and installed
+            # correctly and the assertion failed anyway. Assert the real filenames.
+            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
           - package: gtk-layer-shell
             target: el10
             install_name: gtk-layer-shell-devel
@@ -167,27 +199,49 @@ jobs:
           python3 scripts/tideforge.py render "$recipe" --target "${{ matrix.target }}" --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
           python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build generated RPM with only declared BuildRequires
         run: |
           set -euo pipefail
           root="$PWD/.tideforge/rpm/${{ matrix.package }}"
           docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
-            dnf -y install dnf-plugins-core rpm-build
+            # epel-release, not crb alone. xfconf build-requires libxfce4util-devel
+            # and installs libxfce4util at runtime; neither is in CentOS Stream 10
+            # base or in CRB. Both live in EPEL 10, verified with dnf repoquery.
+            # Without it the build died at "No matching package to install:
+            # libxfce4util-devel". The gtkgreet and quickshell jobs already do this.
+            dnf -y install dnf-plugins-core epel-release rpm-build
             dnf config-manager --set-enabled crb
             dnf -y builddep /work/rpmbuild/SPECS/*.spec
             rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
           '
+      - name: Lint the generated RPM
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/rpm/${{ matrix.package }}"
+          docker run --rm --volume "$root:/work:ro" --volume "$PWD/scripts:/scripts:ro" quay.io/centos/centos:stream10 \
+            bash /scripts/lint-generated-rpm.sh /work/rpmbuild/RPMS
       - name: Clean-install RPM from an ephemeral repository
         run: |
           set -euo pipefail
           root="$PWD/.tideforge/rpm/${{ matrix.package }}"
           docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
-            dnf -y install createrepo_c
+            # EPEL for the same reason as the build step: xfconf pulls in
+            # libxfce4util at install time, and it only lives in EPEL 10.
+            dnf -y install epel-release createrepo_c
             cp -a /work/rpmbuild/RPMS /tmp/tideforge-rpms
             createrepo_c /tmp/tideforge-rpms
-            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --enablerepo=tideforge ${{ matrix.install_name }}
+            # Pin the ephemeral repo above every distro repo so the smoke test
+            # exercises the RPM we just built, not a same-named shadow. EPEL 10
+            # ships its own libseat (release el10_3, higher than our el10) and
+            # splits the seatd daemon into a separate seatd package, so without a
+            # priority override dnf would silently install EPEL libseat-devel and
+            # its library-only libseat, leaving no seatd binary -- the smoke
+            # `seatd -h` then exited 127.
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --setopt=tideforge.priority=1 --enablerepo=tideforge ${{ matrix.install_name }}
             rpm -q ${{ matrix.install_name }}
             ${{ matrix.smoke }}
           '
@@ -197,6 +251,35 @@ jobs:
           name: ${{ matrix.package }}-${{ matrix.target }}-rpm
           path: .tideforge/rpm/${{ matrix.package }}/rpmbuild/RPMS/
           if-no-files-found: warn
+
+  xfconf-split:
+    name: xfconf (split-package contract)
+    needs: [rpm, deb]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: el10
+            image: quay.io/centos/centos:stream10
+          - target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+          - target: debian
+            image: docker.io/library/debian:sid
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: xfconf-${{ matrix.target }}-${{ matrix.target == 'el10' && 'rpm' || 'deb' }}
+          path: .tideforge/xfconf-split/artifacts
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh "${{ matrix.image }}"
+      - name: Assert the split package actually splits
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/xfconf-split"
+          docker run --rm --volume "$root:/work:ro" --volume "$PWD/scripts:/scripts:ro" "${{ matrix.image }}" \
+            bash /scripts/assert-xfconf-split.sh "${{ matrix.target }}" /work/artifacts
 
   gtkgreet-rpm:
     name: gtkgreet (el10 staged closure RPM)
@@ -226,6 +309,8 @@ jobs:
           python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
           python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build gtkgreet against staged Tideforge dependencies
         run: |
           set -euo pipefail
@@ -235,7 +320,7 @@ jobs:
             dnf -y install dnf-plugins-core epel-release rpm-build createrepo_c
             dnf config-manager --set-enabled crb
             mkdir -p /tmp/tideforge-prerequisites
-            cp /work/prerequisites/gtk-layer-shell/*.rpm /tmp/tideforge-prerequisites/
+            cp -a /work/prerequisites/gtk-layer-shell/. /tmp/tideforge-prerequisites/
             createrepo_c /tmp/tideforge-prerequisites
             dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-prerequisites --enablerepo=tideforge gtk-layer-shell-devel
             dnf -y builddep /work/rpmbuild/SPECS/*.spec
@@ -249,9 +334,9 @@ jobs:
             set -euo pipefail
             dnf -y install epel-release createrepo_c
             mkdir -p /tmp/tideforge-rpms
-            cp /work/prerequisites/gtk-layer-shell/*.rpm /tmp/tideforge-rpms/
-            cp /work/prerequisites/greetd/*.rpm /tmp/tideforge-rpms/
-            cp -a /work/rpmbuild/RPMS/* /tmp/tideforge-rpms/
+            cp -a /work/prerequisites/gtk-layer-shell/. /tmp/tideforge-rpms/
+            cp -a /work/prerequisites/greetd/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
             createrepo_c /tmp/tideforge-rpms
             dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --enablerepo=tideforge gtkgreet
             rpm -q gtkgreet greetd gtk-layer-shell cage
@@ -297,6 +382,8 @@ jobs:
           destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
           urlretrieve(recipe["source"]["url"], destination)
           PY
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build cpptrace with Tideforge libunwind
         run: |
           set -euo pipefail
@@ -383,6 +470,8 @@ jobs:
           destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
           urlretrieve(recipe["source"]["url"], destination)
           PY
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build Quickshell with Tideforge prerequisite packages
         run: |
           set -euo pipefail
@@ -452,6 +541,8 @@ jobs:
           destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
           urlretrieve(recipe["source"]["url"], destination)
           PY
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build Niri with Tideforge libseat
         run: |
           set -euo pipefail
@@ -530,6 +621,8 @@ jobs:
           destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
           urlretrieve(recipe["source"]["url"], destination)
           PY
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build iio-niri with only declared BuildRequires
         run: |
           set -euo pipefail
@@ -568,6 +661,10 @@ jobs:
     needs: [rpm-payload, rpm, cpptrace-rpm, quickshell-rpm]
     runs-on: ubuntu-latest
     steps:
+      # Checkout first, and only then download artifacts: actions/checkout
+      # cleans the workspace, so running it afterwards would delete every RPM
+      # this job just fetched.
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v7
         with:
           name: dms-el10-rpm-payload
@@ -604,6 +701,8 @@ jobs:
         with:
           name: greetd-el10-rpm
           path: .tideforge/dms-stack/rpms
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Clean-install the complete DMS stack from an ephemeral repository
         run: |
           set -euo pipefail
@@ -681,7 +780,12 @@ jobs:
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
             install_name: oversteer-udev
-            smoke: find /usr/lib/udev/rules.d -name \*oversteer\* -print -quit | grep -q .
+            # Upstream names its rules by wheel vendor — 99-fanatec-wheel-perms.rules,
+            # 99-logitech-wheel-perms.rules, 99-thrustmaster-wheel-perms.rules. Nothing
+            # upstream contains the string 'oversteer', so the old
+            # `-name \*oversteer\*` could never match: the package built and installed
+            # correctly and the assertion failed anyway. Assert the real filenames.
+            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
             clean_install: true
           - package: uupd
             target: debian
@@ -735,7 +839,12 @@ jobs:
             target: debian
             image: docker.io/library/debian:sid
             install_name: oversteer-udev
-            smoke: find /usr/lib/udev/rules.d -name \*oversteer\* -print -quit | grep -q .
+            # Upstream names its rules by wheel vendor — 99-fanatec-wheel-perms.rules,
+            # 99-logitech-wheel-perms.rules, 99-thrustmaster-wheel-perms.rules. Nothing
+            # upstream contains the string 'oversteer', so the old
+            # `-name \*oversteer\*` could never match: the package built and installed
+            # correctly and the assertion failed anyway. Assert the real filenames.
+            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
             clean_install: true
     steps:
       - uses: actions/checkout@v7
@@ -803,6 +912,8 @@ jobs:
                   if path.name == "rules":
                       target.chmod(0o755)
           PY
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh "${{ matrix.image }}"
       - name: Build generated DEB with only declared Build-Depends
         run: |
           set -euo pipefail
@@ -818,6 +929,12 @@ jobs:
             mkdir -p /work/artifacts
             cp ../*.deb /work/artifacts/
           '
+      - name: Lint the generated DEB
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
+          docker run --rm --volume "$root:/work:ro" --volume "$PWD/scripts:/scripts:ro" "${{ matrix.image }}" \
+            bash /scripts/lint-generated-deb.sh /work/artifacts
       - name: Clean-install DEB from an ephemeral repository
         if: matrix.clean_install
         run: |

@@ -15,7 +15,7 @@ sources:
     filename: cosmic-comp-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-comp/raw/rawhide/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-comp/raw/1b11c8603055cd5f2a7a3edcfcd0631a6b4962d8/f/vendor-config-1.4.0.toml
     sha256: b0999a83483c6e0b0d8d3884b09bd7d968220a725996524d9d514f8f56bdb5c3
     filename: cosmic-comp-vendor-config.toml
     destination: .cargo/config.toml

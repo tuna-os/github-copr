@@ -25,8 +25,13 @@ dependencies:
     common: [gcc, pkgconf-pkg-config, meson, ninja-build]
     targets:
       el10: [systemd-rpm-macros]
-      ubuntu: [debhelper-compat]
-      debian: [debhelper-compat]
+      # Do NOT list debhelper-compat here. render_deb always emits
+      # "debhelper-compat (= 13)" itself; a bare entry used to be appended
+      # alongside it, and dh reads the unversioned one and aborts with
+      # "Could not parse desired debhelper compat level from relation".
+      # The renderer now strips it defensively, but do not reintroduce it.
+      ubuntu: []
+      debian: []
 files:
   common:
     - usr/bin/example-tool
