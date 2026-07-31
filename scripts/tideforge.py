@@ -753,7 +753,25 @@ Rules-Requires-Root: no
     # debian/<binary-package>.  A .install file would make dh_install search
     # debian/tmp for those same files and fail the package build.  Native
     # build-system packages retain .install metadata for dh_auto_install.
-    direct_install = recipe["build_system"] in {"cargo", "go", "data", "custom"} or bool(recipe.get("install"))
+    #
+    # debhelper's dh_auto_install only stages into debian/tmp when the source
+    # produces MORE THAN ONE binary package; with a single one it installs
+    # straight into debian/<that package>.  So a single-package native recipe
+    # is in the same position as the direct-install renderers above, and its
+    # .install file sends dh_install looking for files that are already in
+    # place:
+    #   dh_install: warning: Cannot find (any matches for) "usr/bin/ninja"
+    #     (tried in ., debian/tmp)
+    #   dh_install: error: missing files, aborting
+    # ninja-build (cmake, one binary package) failed exactly this way on
+    # ubuntu and debian while building fine on el10.  Split recipes such as
+    # xfconf and libseat do stage through debian/tmp, so they keep their
+    # .install lists to carve it up between the binary packages.
+    direct_install = (
+        recipe["build_system"] in {"cargo", "go", "data", "custom"}
+        or bool(recipe.get("install"))
+        or len(binary_packages) == 1
+    )
     if not direct_install:
         for package in binary_packages:
             rendered[f"debian/{package['name']}.install"] = "\n".join(package.get("files", recipe["files"]["common"])) + "\n"

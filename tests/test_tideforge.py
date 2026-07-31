@@ -44,7 +44,10 @@ def test_recipe_renders_el10_rpm(recipe: dict) -> None:
 def test_recipe_renders_ubuntu_debian_metadata(recipe: dict) -> None:
     rendered = tideforge.render(recipe, "ubuntu")
     assert "Build-Depends: debhelper-compat (= 13), meson, ninja-build" in rendered["debian/control"]
-    assert rendered["debian/hello-tuna.install"] == "usr/bin/hello-tuna\n"
+    # A single binary package stages straight into debian/hello-tuna, so no
+    # .install file is rendered -- see
+    # test_single_binary_package_renders_no_install_file.
+    assert "debian/hello-tuna.install" not in rendered
 
 
 def test_recipe_rejects_unknown_target(recipe: dict) -> None:
@@ -65,7 +68,6 @@ def test_recipe_renders_subpackages(recipe: dict) -> None:
     devel_stanza = rpm.split("%package devel", 1)[1].split("%description devel", 1)[0]
     assert "Requires:" not in devel_stanza
     assert "Package: libdemo0" in deb["debian/control"]
-    assert "debian/libdemo0.install" in deb
 
 
 def test_recipe_subpackage_requires_pulls_in_main_package(recipe: dict) -> None:
@@ -134,6 +136,43 @@ def test_deb_single_package_shipping_headers_needs_no_sibling(recipe: dict) -> N
     # no runtime half for them to depend on, so the split rule must not fire.
     recipe["outputs"] = {"deb": {"packages": [{"name": "libdemo-dev", "files": ["usr/include/demo"]}]}}
     tideforge.validate(recipe, "ubuntu")
+
+
+def test_single_binary_package_renders_no_install_file(recipe: dict) -> None:
+    # dh_auto_install stages into debian/tmp only when the source produces more
+    # than one binary package; with a single one it installs straight into
+    # debian/<that package>. A .install file then makes dh_install search
+    # debian/tmp for files already in place and abort the build:
+    #   dh_install: warning: Cannot find (any matches for) "usr/bin/ninja"
+    #     (tried in ., debian/tmp)
+    #   dh_install: error: missing files, aborting
+    # ninja-build (cmake, one binary package) failed exactly this way on ubuntu
+    # while building fine on el10.
+    recipe["build_system"] = "cmake"
+    assert "debian/hello-tuna.install" not in tideforge.render(recipe, "ubuntu")
+    # Same for a single package the deb output renames, as cli11-devel does.
+    recipe["outputs"] = {"deb": {"packages": [{"name": "libdemo-dev", "files": ["usr/include/demo"]}]}}
+    assert "debian/libdemo-dev.install" not in tideforge.render(recipe, "ubuntu")
+
+
+def test_split_deb_output_keeps_per_package_install_files(recipe: dict) -> None:
+    # Two or more binary packages do stage through debian/tmp, so each keeps the
+    # .install list that carves its share out of it.
+    recipe["outputs"] = {
+        "deb": {
+            "packages": [
+                {"name": "libdemo0", "files": ["usr/lib/*/libdemo.so.0"]},
+                {
+                    "name": "libdemo-dev",
+                    "depends": ["libdemo0 (= ${binary:Version})"],
+                    "files": ["usr/include/demo"],
+                },
+            ]
+        }
+    }
+    rendered = tideforge.render(recipe, "ubuntu")
+    assert rendered["debian/libdemo0.install"] == "usr/lib/*/libdemo.so.0\n"
+    assert rendered["debian/libdemo-dev.install"] == "usr/include/demo\n"
 
 
 def test_recipe_renders_arch_pkgbuild(recipe: dict) -> None:
