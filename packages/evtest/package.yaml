@@ -11,8 +11,10 @@
 #   libxml2-devel:      AppStream  ✅
 #
 # Source is a GitLab archive tag (upstream does not publish release
-# tarballs).  The archive includes autogen.sh, autogen.sh needs autoreconf,
-# so autoconf + automake + libtool are build deps.
+# tarballs).  The archive includes autogen.sh but NOT a pre-built configure
+# script — Tideforge's autotools renderer generates %configure which expects
+# ./configure to exist.  This uses build_system: custom with explicit
+# autogen + configure + make steps instead.
 schema: 1
 name: evtest
 version: "1.36"
@@ -27,7 +29,15 @@ source:
   url: https://gitlab.freedesktop.org/libevdev/evtest/-/archive/evtest-1.36/evtest-evtest-1.36.tar.gz
   sha256: 3b9a66c92e48b0cd13b689530b5729c031bc1bcbfe9d19c258f9245e2f8d2a0f
   directory: evtest-evtest-1.36
-build_system: autotools
+build_system: custom
+build:
+  commands:
+    - ./autogen.sh
+    - ./configure --prefix=/usr --libdir=/usr/lib64
+    - make -j$(nproc)
+install:
+  commands:
+    - make install DESTDIR="{destdir}"
 dependencies:
   build:
     capabilities: [c-compiler, pkg-config]
@@ -36,6 +46,7 @@ dependencies:
         - autoconf
         - automake
         - libtool
+        - make
         - libevdev-devel
         - ncurses-devel
         - libxml2-devel
