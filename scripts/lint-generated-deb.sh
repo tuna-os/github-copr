@@ -11,6 +11,11 @@ set -euo pipefail
 deb_directory="${1:?usage: lint-generated-deb.sh <directory-of-debs>}"
 
 # Tags that can only mean the generated debian/ metadata is wrong.
+#
+# Same admission rule as lint-generated-rpm.sh, and the same lesson applies
+# here before it costs a red build: `wrong-file-owner-uid-or-gid` was dropped
+# because an upstream archive carrying non-root ownership produces it without
+# anything being wrong with what Tideforge rendered.
 fatal_tags=(
     malformed-deb-archive
     control-file-has-bad-permissions
@@ -22,7 +27,6 @@ fatal_tags=(
     depends-on-itself
     bad-relation
     invalid-versioned-provides
-    wrong-file-owner-uid-or-gid
 )
 
 export DEBIAN_FRONTEND=noninteractive

@@ -28,6 +28,11 @@ rpm_directory="${1:?usage: lint-generated-rpm.sh <directory-of-rpms>}"
 # pinned tarball, so a *faithful* rendering of that data package necessarily
 # trips the check. Making it fatal would demand we mutate upstream content to
 # satisfy a linter. It still prints in the baseline report below.
+#
+# `htaccess-file` was removed under the same rule, for a duller reason: it
+# flags Apache .htaccess files in a package. Nothing this factory builds is
+# web content, so it could never fire on a real defect here — it was list
+# padding, and padding is how a curated list stops being curated.
 fatal_checks=(
     unexpanded-macro
     specfile-error
@@ -35,7 +40,6 @@ fatal_checks=(
     binary-or-shlib-defines-rpath
     no-changelogname-tag
     invalid-license
-    htaccess-file
 )
 
 dnf -y install epel-release >/dev/null
