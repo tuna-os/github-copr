@@ -78,16 +78,20 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/${{ matrix.package }}/package.yaml
       - name: Render and fetch the exact source archive
         run: |
           set -euo pipefail
           recipe="packages/${{ matrix.package }}/package.yaml"
           root="$PWD/.tideforge/rpm-payload/${{ matrix.package }}"
           python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
           python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
-          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build generated RPM payload
@@ -194,16 +198,20 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/${{ matrix.package }}/package.yaml
       - name: Render and fetch the exact source archive
         run: |
           set -euo pipefail
           recipe="packages/${{ matrix.package }}/package.yaml"
           root="$PWD/.tideforge/rpm/${{ matrix.package }}"
           python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
           python3 scripts/tideforge.py render "$recipe" --target "${{ matrix.target }}" --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
-          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build generated RPM with only declared BuildRequires
@@ -289,16 +297,20 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/${{ matrix.package }}/package.yaml
       - name: Render and fetch the exact source archive
         run: |
           set -euo pipefail
           recipe="packages/${{ matrix.package }}/package.yaml"
           root="$PWD/.tideforge/rpm/${{ matrix.package }}"
           python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
           python3 scripts/tideforge.py render "$recipe" --target opensuse-tumbleweed --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
-          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh registry.opensuse.org/opensuse/tumbleweed:latest
       - name: Build generated RPM with only declared BuildRequires
@@ -396,6 +408,10 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/gtkgreet/package.yaml
       - uses: actions/download-artifact@v8
         with:
           name: gtk-layer-shell-el10-rpm
@@ -410,10 +426,10 @@ jobs:
           recipe=packages/gtkgreet/package.yaml
           root="$PWD/.tideforge/gtkgreet"
           python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
           python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
-          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build gtkgreet against staged Tideforge dependencies
@@ -464,6 +480,10 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/cpptrace-devel/package.yaml
       - uses: actions/download-artifact@v8
         with:
           name: libunwind-devel-el10-rpm
@@ -474,19 +494,10 @@ jobs:
           recipe=packages/cpptrace-devel/package.yaml
           root="$PWD/.tideforge/cpptrace"
           python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
           python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
-          python3 - "$recipe" "$root/rpmbuild/SOURCES" <<'PY'
-          import sys
-          from pathlib import Path
-          from urllib.parse import urlparse
-          from urllib.request import urlretrieve
-          import yaml
-          recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
-          destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
-          urlretrieve(recipe["source"]["url"], destination)
-          PY
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build cpptrace with Tideforge libunwind
@@ -536,6 +547,10 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/quickshell/package.yaml
       - uses: actions/download-artifact@v8
         with:
           name: cli11-devel-el10-rpm
@@ -562,19 +577,10 @@ jobs:
           recipe=packages/quickshell/package.yaml
           root="$PWD/.tideforge/quickshell"
           python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
           python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
-          python3 - "$recipe" "$root/rpmbuild/SOURCES" <<'PY'
-          import sys
-          from pathlib import Path
-          from urllib.parse import urlparse
-          from urllib.request import urlretrieve
-          import yaml
-          recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
-          destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
-          urlretrieve(recipe["source"]["url"], destination)
-          PY
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build Quickshell with Tideforge prerequisite packages
@@ -623,6 +629,10 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/niri/package.yaml
       - uses: actions/download-artifact@v8
         with:
           name: libseat-el10-rpm
@@ -633,19 +643,10 @@ jobs:
           recipe=packages/niri/package.yaml
           root="$PWD/.tideforge/niri"
           python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
           python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
-          python3 - "$recipe" "$root/rpmbuild/SOURCES" <<'PY'
-          import sys
-          from pathlib import Path
-          from urllib.parse import urlparse
-          from urllib.request import urlretrieve
-          import yaml
-          recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
-          destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
-          urlretrieve(recipe["source"]["url"], destination)
-          PY
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build Niri with Tideforge libseat
@@ -699,6 +700,10 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/iio-niri/package.yaml
       - uses: actions/download-artifact@v8
         with:
           name: libseat-el10-rpm
@@ -713,19 +718,10 @@ jobs:
           recipe=packages/iio-niri/package.yaml
           root="$PWD/.tideforge/iio-niri"
           python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
           python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
           mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
-          python3 - "$recipe" "$root/rpmbuild/SOURCES" <<'PY'
-          import sys
-          from pathlib import Path
-          from urllib.parse import urlparse
-          from urllib.request import urlretrieve
-          import yaml
-          recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
-          destination = Path(sys.argv[2]) / Path(urlparse(recipe["source"]["url"]).path).name
-          urlretrieve(recipe["source"]["url"], destination)
-          PY
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build iio-niri with only declared BuildRequires
@@ -957,13 +953,17 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/${{ matrix.package }}/package.yaml
       - name: Render and assemble a Debian source tree
         run: |
           set -euo pipefail
           recipe="packages/${{ matrix.package }}/package.yaml"
           root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
           python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
           python3 scripts/tideforge.py render "$recipe" --target "${{ matrix.target }}" --output "$root/rendered"
           python3 - "$recipe" "$root" <<'PY'
           import sys
@@ -973,12 +973,24 @@ jobs:
           from pathlib import Path
           from urllib.request import urlretrieve
           import yaml
+          sys.path.insert(0, "scripts")
+          import tideforge_cache
+          cache_dir = Path.home() / ".cache" / "tideforge" / "sources"
+          def materialise(source, destination, label):
+              payload = tideforge_cache.lookup(cache_dir, source["sha256"])
+              if payload is not None:
+                  destination.write_bytes(payload)
+                  print(f"source cache hit: {label}")
+                  return
+              urlretrieve(source["url"], destination)
+              if hashlib.file_digest(destination.open("rb"), "sha256").hexdigest() != source["sha256"]:
+                  raise SystemExit(f"checksum mismatch for {label}")
+              tideforge_cache.store(cache_dir, destination.read_bytes())
+              print(f"source cache miss, downloaded: {label}")
           recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
           root = Path(sys.argv[2])
           archive = root / "source.tar.gz"
-          urlretrieve(recipe["source"]["url"], archive)
-          if hashlib.file_digest(archive.open("rb"), "sha256").hexdigest() != recipe["source"]["sha256"]:
-              raise SystemExit("checksum mismatch for primary source")
+          materialise(recipe["source"], archive, "primary source")
           with tarfile.open(archive) as tar:
               tar.extractall(root / "source")
           source = root / "source" / recipe["source"].get("directory", f"{recipe['name']}-{recipe['version']}")
@@ -988,9 +1000,7 @@ jobs:
           # submodules) in the same paths used by the RPM/Pacman renderers.
           for index, extra in enumerate(recipe.get("sources", []), start=1):
               extra_archive = root / f"source-{index}.tar"
-              urlretrieve(extra["url"], extra_archive)
-              if hashlib.file_digest(extra_archive.open("rb"), "sha256").hexdigest() != extra["sha256"]:
-                  raise SystemExit(f"checksum mismatch for auxiliary source {index}")
+              materialise(extra, extra_archive, f"auxiliary source {index}")
               destination = source / extra["destination"]
               if not extra.get("extract", True):
                   destination.parent.mkdir(parents=True, exist_ok=True)

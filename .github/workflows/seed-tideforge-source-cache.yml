@@ -1,0 +1,70 @@
+name: Seed Tideforge source cache
+
+# PR branches can read main's actions/cache scope but cannot write to it, so
+# something on main has to populate the content-addressed source store or
+# every PR pays a cold first run. This seeds one cache entry per recipe,
+# keyed only on the recipe's pinned sha256 digests — the same key every
+# build target restores. Unchanged recipes are a restore-hit and a no-op
+# (actions/cache skips the save and the fetch script never touches the
+# network), so re-runs are cheap and idempotent.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/**/package.yaml
+      - scripts/fetch-tideforge-sources.py
+      - scripts/tideforge_cache.py
+      - .github/actions/tideforge-source-cache/action.yml
+      - .github/workflows/seed-tideforge-source-cache.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  list-recipes:
+    name: List recipes
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.list.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: list
+        run: |
+          set -euo pipefail
+          packages=$(ls packages/*/package.yaml | xargs -n1 dirname | xargs -n1 basename | jq -R . | jq -cs .)
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+
+  seed:
+    name: ${{ matrix.package }}
+    needs: list-recipes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Every job is seconds of work; cap parallelism so a recipe-wide push
+      # does not crowd out real builds queuing for org runners (see #130).
+      max-parallel: 8
+      matrix:
+        package: ${{ fromJSON(needs.list-recipes.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/${{ matrix.package }}/package.yaml
+      - name: Populate the store for this recipe
+        run: |
+          set -euo pipefail
+          python3 scripts/fetch-tideforge-sources.py \
+            "packages/${{ matrix.package }}/package.yaml" \
+            "$RUNNER_TEMP/tideforge-seed-sources" \
+            --cache-dir "$HOME/.cache/tideforge/sources"
