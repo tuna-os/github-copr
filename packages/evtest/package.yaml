@@ -1,0 +1,52 @@
+# evtest for EL10 (#122).
+#
+# Peripherals and input-device debugging tool.  EL10 has no evtest in BaseOS,
+# AppStream or EPEL 10, and it is the simplest of the five peripheral tooling
+# packages requested in #122 — no Qt, no Python stack, just C + autotools.
+#
+# Verification (2026-07-31, CentOS Stream 10 container with EPEL+CRB):
+#   Evtest:             0 matches, all repos
+#   libevdev-devel:     AppStream  ✅
+#   ncurses-devel:      AppStream  ✅
+#   libxml2-devel:      AppStream  ✅
+#
+# Source is a GitLab archive tag (upstream does not publish release
+# tarballs).  The archive includes autogen.sh, autogen.sh needs autoreconf,
+# so autoconf + automake + libtool are build deps.
+schema: 1
+name: evtest
+version: "1.36"
+release: 1
+summary: Input device event monitor and query tool
+description: >-
+  Command-line tool for monitoring and querying Linux input device events.
+  Displays input events from /dev/input/event* devices including keyboard
+  keys, mouse buttons, and gamepad axes.
+license: GPL-2.0-or-later
+source:
+  url: https://gitlab.freedesktop.org/libevdev/evtest/-/archive/evtest-1.36/evtest-evtest-1.36.tar.gz
+  sha256: 3b9a66c92e48b0cd13b689530b5729c031bc1bcbfe9d19c258f9245e2f8d2a0f
+  directory: evtest-evtest-1.36
+build_system: autotools
+dependencies:
+  build:
+    capabilities: [c-compiler, pkg-config]
+    targets:
+      el10:
+        - autoconf
+        - automake
+        - libtool
+        - libevdev-devel
+        - ncurses-devel
+        - libxml2-devel
+  runtime:
+    targets:
+      el10:
+        - libevdev
+        - ncurses-libs
+        - libxml2
+files:
+  common:
+    - usr/bin/evtest
+    - usr/share/man/man1/evtest.1*
+targets: [el10]
