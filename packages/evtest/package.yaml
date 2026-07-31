@@ -9,12 +9,21 @@
 #   libevdev-devel:     AppStream  ✅
 #   ncurses-devel:      AppStream  ✅
 #   libxml2-devel:      AppStream  ✅
+#   xmlto:              AppStream  ✅ (0.0.28-25.el10)
+#   asciidoc:           AppStream  ✅ (10.2.0-12.el10)
 #
 # Source is a GitLab archive tag (upstream does not publish release
 # tarballs).  The archive includes autogen.sh but NOT a pre-built configure
 # script — Tideforge's autotools renderer generates %configure which expects
 # ./configure to exist.  This uses build_system: custom with explicit
 # autogen + configure + make steps instead.
+#
+# configure.ac gates the man page on BOTH xmlto and asciidoc
+# (AM_CONDITIONAL HAVE_DOCTOOLS), and Makefile.am only defines dist_man_MANS
+# inside that conditional.  Without both tools configure warns "xmlto or
+# asciidoc not found", evtest.1 is never generated or installed, and both the
+# usr/share/man/man1/evtest.1* entry in files.common and the verify smoke test
+# fail.  Do not drop these two build deps.
 schema: 1
 name: evtest
 version: "1.36"
@@ -50,6 +59,8 @@ dependencies:
         - libevdev-devel
         - ncurses-devel
         - libxml2-devel
+        - xmlto
+        - asciidoc
   runtime:
     targets:
       el10:
