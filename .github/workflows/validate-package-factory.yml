@@ -17,6 +17,12 @@ on:
       - docs/PACKAGE_FACTORY.md
       - packaging/**
       - .github/workflows/validate-package-factory.yml
+      # The validator now asserts that every declared target has at least one
+      # cell in the Tideforge gate (#139), so it must re-run when the gate
+      # workflows change. Without these paths, deleting the openSUSE job would
+      # not trip the check that exists to notice exactly that.
+      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/build-tideforge-arch.yml
   push:
     branches: [main]
     paths:
@@ -32,6 +38,8 @@ on:
       - docs/PATCH_POLICY.md
       - docs/PACKAGE_FACTORY.md
       - packaging/**
+      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/build-tideforge-arch.yml
   workflow_dispatch:
 
 permissions:

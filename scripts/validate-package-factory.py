@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import re
 import sys
 
 import yaml
@@ -14,9 +15,59 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
+def gate_targets(workflows: list[Path]) -> set[str]:
+    """Return every target name the Tideforge gate workflows actually exercise.
+
+    A cell counts only if it names a target, either as an explicit `target:`
+    matrix key or via `tideforge.py render --target <name>`. Reading the
+    workflows rather than trusting a hand-maintained list is the whole point:
+    the list is what went stale.
+    """
+    exercised: set[str] = set()
+    for workflow in workflows:
+        if not workflow.exists():
+            continue
+        text = workflow.read_text()
+        # `--target "${{ matrix.target }}"` names a target indirectly; the
+        # literal value comes from that job's matrix `target:` keys, which the
+        # second pattern collects. Skip the expression itself so it does not
+        # enter the set as a target literally called "matrix.target".
+        for match in re.finditer(r"--target\s+\"?([a-z0-9-]+)\b", text):
+            exercised.add(match.group(1))
+        for match in re.finditer(r"^\s*target:\s*([a-z0-9-]+)\s*$", text, re.MULTILINE):
+            exercised.add(match.group(1))
+    return exercised
+
+
+def check_gate_coverage(targets: set[str], workflows: list[Path]) -> None:
+    """Fail when a declared target has no cells in the gate.
+
+    openSUSE was declared with its own architectures and r2_path, 19 recipes
+    opted into it, and it still had zero cells for months (#139). Nothing
+    failed, because nothing was looking. A target that is never exercised must
+    not be indistinguishable from one that passes.
+    """
+    exercised = gate_targets(workflows)
+    uncovered = sorted(target for target in targets if target not in exercised)
+    if uncovered:
+        fail(
+            f"declared target(s) with zero cells in the Tideforge gate: {uncovered}. "
+            "Every target in package-factory.yaml must be exercised by at least one "
+            "job, or it is untested while looking supported. See #139."
+        )
+    print(f"Gate coverage: all {len(targets)} declared targets are exercised")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("manifest", type=Path)
+    parser.add_argument(
+        "--gate-workflow",
+        type=Path,
+        action="append",
+        default=None,
+        help="Tideforge gate workflow to scan for target coverage (repeatable)",
+    )
     args = parser.parse_args()
     data = yaml.safe_load(args.manifest.read_text())
     if data.get("schema") != 1:
@@ -55,6 +106,15 @@ def main() -> None:
         ):
             fail(f"{target_id}: build_repositories must be a list of non-empty names")
     print("Package factory manifest: valid")
+
+    workflows = args.gate_workflow
+    if workflows is None:
+        workflow_directory = args.manifest.parent.parent / ".github" / "workflows"
+        workflows = [
+            workflow_directory / "build-tideforge-supported.yml",
+            workflow_directory / "build-tideforge-arch.yml",
+        ]
+    check_gate_coverage(set(targets), workflows)
 
 
 if __name__ == "__main__":
