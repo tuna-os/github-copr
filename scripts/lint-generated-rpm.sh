@@ -42,8 +42,16 @@ fatal_checks=(
     invalid-license
 )
 
-dnf -y install epel-release >/dev/null
-dnf -y install rpmlint >/dev/null
+# This script runs inside whichever RPM build container the calling job used,
+# so it cannot assume dnf. openSUSE Tumbleweed (issue #139) ships zypper and
+# has no EPEL; rpmlint is in the base repositories there. Detect rather than
+# branch on a target name, so a future rpm-family target needs no edit here.
+if command -v zypper >/dev/null 2>&1; then
+    zypper --non-interactive install rpmlint >/dev/null
+else
+    dnf -y install epel-release >/dev/null
+    dnf -y install rpmlint >/dev/null
+fi
 
 mapfile -t rpms < <(find "$rpm_directory" -name '*.rpm' -type f | sort)
 if [ "${#rpms[@]}" -eq 0 ]; then

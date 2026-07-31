@@ -257,6 +257,106 @@ jobs:
           path: .tideforge/rpm/${{ matrix.package }}/rpmbuild/RPMS/
           if-no-files-found: warn
 
+  # openSUSE Tumbleweed is declared in manifests/package-factory.yaml with its
+  # own architectures and r2_path, and 19 recipes opt into it — yet it had zero
+  # cells in this gate, so no openSUSE package had ever been built or installed
+  # by this pipeline. See #139. "Never tested" and "passing" looked identical.
+  #
+  # This job starts deliberately small. It is scoped to two packages rather than
+  # all 19 so that the first openSUSE result has one readable cause instead of
+  # nineteen unrelated ones. dgop is a go build and cli11-devel is a header-only
+  # cmake build; neither exercises the cargo path, whose fat-LTO and debuginfo
+  # handling is tuned for el10 and Arch and has never run under zypper.
+  #
+  # The renderer needs no change: render() dispatches on the target format, and
+  # opensuse-tumbleweed is format: rpm, so it already reaches render_rpm.
+  opensuse-rpm:
+    name: ${{ matrix.package }} (opensuse-tumbleweed RPM)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: dgop
+            install_name: dgop
+            smoke: dgop --help
+          - package: cli11-devel
+            install_name: cli11-devel
+            smoke: test -f /usr/include/CLI/CLI.hpp
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - name: Render and fetch the exact source archive
+        run: |
+          set -euo pipefail
+          recipe="packages/${{ matrix.package }}/package.yaml"
+          root="$PWD/.tideforge/rpm/${{ matrix.package }}"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe"
+          python3 scripts/tideforge.py render "$recipe" --target opensuse-tumbleweed --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES"
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh registry.opensuse.org/opensuse/tumbleweed:latest
+      - name: Build generated RPM with only declared BuildRequires
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/rpm/${{ matrix.package }}"
+          docker run --rm --volume "$root:/work" registry.opensuse.org/opensuse/tumbleweed:latest bash -lc '
+            set -euo pipefail
+            zypper --non-interactive --gpg-auto-import-keys refresh
+            zypper --non-interactive install rpm-build
+            # zypper has no builddep verb. rpmspec -q --buildrequires prints the
+            # BuildRequires the generated spec declares, which is exactly the set
+            # dnf builddep would have resolved on el10. Verified in a real
+            # tumbleweed container; see #139.
+            mapfile -t build_requires < <(rpmspec -q --buildrequires /work/rpmbuild/SPECS/*.spec)
+            # A recipe may legitimately declare no BuildRequires, and zypper
+            # install with no arguments is an error rather than a no-op.
+            if [ "${#build_requires[@]}" -gt 0 ]; then
+              zypper --non-interactive install "${build_requires[@]}"
+            fi
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
+          '
+      - name: Lint the generated RPM
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/rpm/${{ matrix.package }}"
+          docker run --rm --volume "$root:/work:ro" --volume "$PWD/scripts:/scripts:ro" registry.opensuse.org/opensuse/tumbleweed:latest \
+            bash /scripts/lint-generated-rpm.sh /work/rpmbuild/RPMS
+      - name: Clean-install RPM from an ephemeral repository
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/rpm/${{ matrix.package }}"
+          docker run --rm --volume "$root:/work:ro" registry.opensuse.org/opensuse/tumbleweed:latest bash -lc '
+            set -euo pipefail
+            zypper --non-interactive --gpg-auto-import-keys refresh
+            zypper --non-interactive install createrepo_c
+            cp -a /work/rpmbuild/RPMS /tmp/tideforge-rpms
+            createrepo_c /tmp/tideforge-rpms
+            # Priority 1 pins the ephemeral repo above the distro repositories so
+            # the smoke test exercises the RPM built in this job, not a same-named
+            # package from Tumbleweed. The el10 job needs the same override for
+            # libseat; the reasoning is identical here.
+            zypper --non-interactive addrepo --no-gpgcheck --priority 1 file:///tmp/tideforge-rpms tideforge
+            zypper --non-interactive --gpg-auto-import-keys refresh tideforge
+            # --no-gpg-checks is a global zypper option, not an install option, so
+            # it has to precede the verb; after it, zypper exits 2 with "The flag
+            # --no-gpg-checks is not known".
+            zypper --non-interactive --no-gpg-checks install ${{ matrix.install_name }}
+            rpm -q ${{ matrix.install_name }}
+            ${{ matrix.smoke }}
+          '
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ${{ matrix.package }}-opensuse-tumbleweed-rpm
+          path: .tideforge/rpm/${{ matrix.package }}/rpmbuild/RPMS/
+          if-no-files-found: warn
+
   xfconf-split:
     name: xfconf (split-package contract)
     needs: [rpm, deb]
