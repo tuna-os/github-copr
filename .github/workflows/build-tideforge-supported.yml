@@ -590,7 +590,7 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install pyyaml
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: python3-evdev-el10-rpm
           path: .tideforge/input-remapper/prerequisite
@@ -642,7 +642,7 @@ jobs:
             test -f /usr/share/polkit-1/actions/input-remapper.policy
             test -f /usr/share/dbus-1/system.d/inputremapper.Control.conf
           '
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: input-remapper-el10-staged-closure-rpm
