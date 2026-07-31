@@ -83,6 +83,14 @@ files:
     - usr/share/xdg-desktop-portal/labwc-portals.conf
     - usr/share/icons/hicolor/scalable/apps/labwc.svg
     - usr/share/icons/hicolor/scalable/apps/labwc-symbolic.svg
+    # labwc is translated, and meson compiles po/ into 31 locales
+    # unconditionally (there is no -Dnls switch to turn them off), so leaving
+    # them off this list fails the build outright: rpmbuild's check-files step
+    # errors with "Installed (but unpackaged) file(s) found" for every
+    # usr/share/locale/*/LC_MESSAGES/labwc.mo. Glob rather than enumerate, so
+    # a locale added or dropped upstream does not break the build; xfconf and
+    # gtkgreet package their catalogs the same way.
+    - usr/share/locale/*/LC_MESSAGES/labwc.mo
     - usr/share/man/man1/labwc.1*
     - usr/share/man/man5/labwc-actions.5*
     - usr/share/man/man5/labwc-config.5*
