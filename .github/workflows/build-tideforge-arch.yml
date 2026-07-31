@@ -19,6 +19,7 @@ on:
       - scripts/validate-built-arch-package.py
       - scripts/pull-container-image.sh
       - scripts/assert-arch-runtime-closure.sh
+      - scripts/arch-clean-install.sh
       - .github/workflows/build-tideforge-arch.yml
   workflow_dispatch:
 
@@ -94,45 +95,11 @@ jobs:
       - name: Clean-install generated package from an ephemeral repository
         run: |
           set -euo pipefail
-          docker run --rm --user root --volume "$PWD/.tideforge/arch/${{ matrix.package }}:/work:ro" --volume "$PWD/scripts:/scripts:ro" docker.io/library/archlinux:latest bash -lc '
-            set -euo pipefail
-            pacman -Sy --noconfirm pacman-contrib
-            repo-add /tmp/tideforge.db.tar.gz /work/artifacts/*.pkg.tar.*
-            mkdir -p /var/lib/tideforge
-            cp /work/artifacts/*.pkg.tar.* /var/lib/tideforge/
-            # pacman resolves a repository named "tideforge" as tideforge.db.
-            # repo-add writes a compressed archive, so expose it under the name
-            # the file:// repository client actually requests.
-            cp /tmp/tideforge.db.tar.gz /var/lib/tideforge/tideforge.db
-            # CI artifacts are deliberately unsigned. Production promotion has
-            # a separate signing gate; this isolated repository exists solely
-            # to prove pacman's dependency solver and payload installation.
-            # Keep the repository definition out of /etc: hosted container
-            # engines may user-map root and make that image file read-only.
-            # Recent Arch container images no longer guarantee that a copied
-            # /etc/pacman.conf survives the hosted container user mapping.
-            # Generate the small, complete test configuration instead of
-            # modifying or copying image-owned configuration files.
-            cat > /tmp/tideforge-pacman.conf <<'EOF'
-            [options]
-            Architecture = auto
-            SigLevel = Required DatabaseOptional
-            LocalFileSigLevel = Optional
-
-            [core]
-            Include = /etc/pacman.d/mirrorlist
-
-            [extra]
-            Include = /etc/pacman.d/mirrorlist
-
-            [tideforge]
-            SigLevel = Optional TrustAll
-            Server = file:///var/lib/tideforge
-            EOF
-            pacman --config /tmp/tideforge-pacman.conf -Sy --noconfirm
-            pacman --config /tmp/tideforge-pacman.conf -S --noconfirm ${{ matrix.package }}
-            bash /scripts/assert-arch-runtime-closure.sh ${{ matrix.package }} bash -c "${{ matrix.smoke }}"
-          '
+          docker run --rm --user root \
+            --volume "$PWD/.tideforge/arch/${{ matrix.package }}:/work:ro" \
+            --volume "$PWD/scripts:/scripts:ro" \
+            docker.io/library/archlinux:latest \
+            bash /scripts/arch-clean-install.sh ${{ matrix.package }} /work/artifacts bash -c "${{ matrix.smoke }}"
       - run: python3 scripts/validate-built-arch-package.py packages/${{ matrix.package }}/package.yaml .tideforge/arch/${{ matrix.package }}/artifacts/package-info.txt
       - if: matrix.package == 'niri'
         run: python3 scripts/compare-official-package.py packages/niri/package.yaml --strict
