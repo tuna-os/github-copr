@@ -64,4 +64,4 @@ RUN useradd -m -u 1010 builder \
     && usermod -aG mock builder
 
 LABEL org.opencontainers.image.description="Fedora + mock runner for CentOS Stream 10 package builds"
-LABEL org.opencontainers.image.source="https://github.com/tuna-os/github-copr"
+LABEL org.opencontainers.image.source="https://github.com/tuna-os/tunaos-packages"

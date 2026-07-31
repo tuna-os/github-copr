@@ -18,7 +18,7 @@ Source0: https://gitlab.xfce.org/xfce/xfwl4/-/archive/%{commit}/xfwl4-%{commit}.
 # Pre-vendored with `cargo vendor` against this exact commit's Cargo.lock
 # (crates.io deps + the smithay git dep); see release notes for how it
 # was generated if it ever needs regenerating after a Cargo.lock bump.
-Source1: https://github.com/tuna-os/github-copr/releases/download/xfwl4-vendor-465880f6/vendor.tar.gz
+Source1: https://github.com/tuna-os/tunaos-packages/releases/download/xfwl4-vendor-465880f6/vendor.tar.gz
 # resources/xfce-wayland-protocols is a git submodule (custom XFCE Wayland
 # protocol XML: output-management, input-device-list, etc.) — not included
 # in the plain archive tarball, same as any other git submodule. Referenced
