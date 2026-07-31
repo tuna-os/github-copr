@@ -16,7 +16,18 @@ on:
   #
   # push stays filtered: a push to main is already merged, so a missing check
   # there blocks nothing.
+  #
+  # merge_group is here for the same reason pull_request is unfiltered, and it
+  # is not optional once a merge queue exists. The queue builds a candidate
+  # branch and emits merge_group, then waits for main's required checks to
+  # report against it. A workflow that does not listen for merge_group never
+  # runs, the six checks never report, and every queued PR sits in
+  # AWAITING_CHECKS until the queue's 60-minute timeout ejects it — the same
+  # unmergeable-forever state described above, reached by a different route.
+  # Measured: enabling the queue with no merge_group trigger stalled the queue
+  # immediately and blocked all merges until the queue was disabled again.
   pull_request:
+  merge_group:
   push:
     branches: [main]
     paths:
