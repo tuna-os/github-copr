@@ -320,7 +320,7 @@ jobs:
             dnf -y install dnf-plugins-core epel-release rpm-build createrepo_c
             dnf config-manager --set-enabled crb
             mkdir -p /tmp/tideforge-prerequisites
-            cp /work/prerequisites/gtk-layer-shell/*.rpm /tmp/tideforge-prerequisites/
+            cp -a /work/prerequisites/gtk-layer-shell/. /tmp/tideforge-prerequisites/
             createrepo_c /tmp/tideforge-prerequisites
             dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-prerequisites --enablerepo=tideforge gtk-layer-shell-devel
             dnf -y builddep /work/rpmbuild/SPECS/*.spec
@@ -334,9 +334,9 @@ jobs:
             set -euo pipefail
             dnf -y install epel-release createrepo_c
             mkdir -p /tmp/tideforge-rpms
-            cp /work/prerequisites/gtk-layer-shell/*.rpm /tmp/tideforge-rpms/
-            cp /work/prerequisites/greetd/*.rpm /tmp/tideforge-rpms/
-            cp -a /work/rpmbuild/RPMS/* /tmp/tideforge-rpms/
+            cp -a /work/prerequisites/gtk-layer-shell/. /tmp/tideforge-rpms/
+            cp -a /work/prerequisites/greetd/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
             createrepo_c /tmp/tideforge-rpms
             dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --enablerepo=tideforge gtkgreet
             rpm -q gtkgreet greetd gtk-layer-shell cage

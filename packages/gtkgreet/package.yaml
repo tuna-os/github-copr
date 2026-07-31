@@ -23,5 +23,8 @@ dependencies:
     targets:
       el10: [greetd, cage]
 files:
-  common: [usr/bin/gtkgreet, usr/share/man/man1/gtkgreet.1*]
+  common:
+    - usr/bin/gtkgreet
+    - usr/share/man/man1/gtkgreet.1*
+    - usr/share/locale/*/LC_MESSAGES/gtkgreet.mo
 targets: [el10]
