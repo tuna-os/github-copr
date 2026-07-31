@@ -20,4 +20,6 @@ install:
     - {source: uupd.service, destination: usr/lib/systemd/system/uupd.service}
     - {source: uupd-manual.service, destination: usr/lib/systemd/system/uupd-manual.service}
     - {source: uupd.rules, destination: usr/lib/udev/rules.d/uupd.rules}
+verify:
+  smoke: uupd --help
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

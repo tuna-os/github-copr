@@ -44,4 +44,7 @@ outputs:
         description: Headers and pkg-config metadata for building against libseat.
         depends: ["libseat1 (= ${binary:Version})"]
         files: [usr/include/libseat.h, usr/lib/*/libseat.so, usr/lib/*/pkgconfig/libseat.pc]
+verify:
+  smoke: "pkg-config --modversion libseat && seatd -h"
+  install_name: libseat-devel
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

@@ -378,6 +378,65 @@ def validate_deb_packages(recipe: dict) -> None:
             )
 
 
+def verify_metadata(recipe: dict, target: str) -> dict[str, str]:
+    """Return how this recipe proves itself installed, for one target.
+
+    The gate used to carry `smoke` and `install_name` as hand-written matrix
+    keys, which is why a recipe could declare a target that no cell ever built
+    (#139): nothing tied the two together. A recipe now states how to verify
+    itself, so the cell can be derived rather than remembered.
+
+    `install_name` defaults to the recipe name. A target may override it where
+    the rendered binary package genuinely differs -- xfconf produces `xfconf`
+    on el10 and `libxfconf-0-4` on ubuntu and debian.
+    """
+    block = recipe.get("verify") or {}
+    resolved = {
+        "smoke": block.get("smoke"),
+        "install_name": block.get("install_name", recipe["name"]),
+    }
+    resolved.update(
+        {
+            key: value
+            for key, value in (block.get("targets") or {}).get(target, {}).items()
+            if key in {"smoke", "install_name"}
+        }
+    )
+    return resolved
+
+
+def validate_verify(recipe: dict) -> None:
+    """Schema-check the `verify` block.
+
+    Nothing rejected unknown top-level keys, so a mistyped block would simply
+    be ignored -- a silently absent assertion, which is the same defect class
+    #139 was about. Check it explicitly instead.
+    """
+    block = recipe.get("verify")
+    if block is None:
+        return
+    if not isinstance(block, dict):
+        fail("verify must be a mapping")
+    unknown = set(block) - {"smoke", "install_name", "targets"}
+    if unknown:
+        fail(f"unknown verify key(s): {sorted(unknown)}")
+    if not isinstance(block.get("smoke", ""), str) or not block.get("smoke", "").strip():
+        fail("verify.smoke must be a non-empty string")
+    if "install_name" in block and not isinstance(block["install_name"], str):
+        fail("verify.install_name must be a string")
+    overrides = block.get("targets", {})
+    if not isinstance(overrides, dict):
+        fail("verify.targets must be a mapping of target to overrides")
+    for name, override in overrides.items():
+        if name not in recipe["targets"]:
+            fail(f"verify.targets names {name!r}, which the recipe does not enable")
+        if not isinstance(override, dict):
+            fail(f"verify.targets.{name} must be a mapping")
+        unknown = set(override) - {"smoke", "install_name"}
+        if unknown:
+            fail(f"unknown verify.targets.{name} key(s): {sorted(unknown)}")
+
+
 def validate(recipe: dict, target: str | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
@@ -408,6 +467,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
         cargo_config_commands(recipe)
     prepare_commands(recipe)
     build_environment(recipe)
+    validate_verify(recipe)
     debug_package_enabled(recipe)
     autoreconf_enabled(recipe)
     configure_options(recipe)

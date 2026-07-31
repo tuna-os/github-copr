@@ -34,4 +34,6 @@ files:
     - usr/lib*/systemd/user/io.github.kolunmi.Bazaar.service
     - usr/share/dbus-1/services/io.github.kolunmi.Bazaar.service
     - usr/share/gnome-shell/search-providers/io.github.kolunmi.Bazaar.search-provider.ini
+verify:
+  smoke: "test -x /usr/bin/bazaar && test -x /usr/bin/bazaar-dl-worker && test -x /usr/bin/bazaar-refresh-worker"
 targets: [ubuntu, debian, arch]

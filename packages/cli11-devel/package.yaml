@@ -33,4 +33,6 @@ outputs:
         summary: Header-only C++ command-line parser development files
         description: CMake package metadata and headers for CLI11.
         files: [usr/include/CLI, usr/share/cmake/CLI11, usr/share/pkgconfig/CLI11.pc]
+verify:
+  smoke: test -f /usr/include/CLI/CLI.hpp
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

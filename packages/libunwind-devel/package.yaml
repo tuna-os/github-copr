@@ -32,4 +32,6 @@ outputs:
         summary: Portable stack-unwinding library development files
         description: Headers and shared libraries for libunwind.
         files: [usr/include/libunwind*.h, usr/include/unwind.h, usr/lib/*/libunwind*.so*, usr/lib/*/libunwind*.a, usr/lib/*/pkgconfig/libunwind*.pc]
+verify:
+  smoke: "test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h"
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

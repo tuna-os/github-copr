@@ -18,4 +18,6 @@ dependencies:
     capabilities: [go]
 files:
   common: [usr/bin/dgop]
+verify:
+  smoke: dgop --help
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

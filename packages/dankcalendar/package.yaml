@@ -42,4 +42,6 @@ install:
     - {source: assets/com.danklinux.dankcalendar.desktop, destination: usr/share/applications/com.danklinux.dankcalendar.desktop}
     - {source: assets/com.danklinux.dankcalendar.svg, destination: usr/share/icons/hicolor/scalable/apps/com.danklinux.dankcalendar.svg}
     - {source: assets/com.danklinux.dankcalendar.metainfo.xml, destination: usr/share/metainfo/com.danklinux.dankcalendar.metainfo.xml}
+verify:
+  smoke: "test -x /usr/bin/dcal && test -f /usr/lib/systemd/user/dcal.service"
 targets: [arch]
