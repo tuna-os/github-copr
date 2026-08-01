@@ -26,7 +26,7 @@
 %endif
 
 Name:           gtk4
-Version:        4.17.5
+Version:        4.21.6
 Release:        %autorelease
 Summary:        GTK graphical user interface library
 
@@ -71,10 +71,9 @@ Summary:        GTK graphical user interface library
 # The license was last checked for GTK 4.19.3.
 License:        LGPL-2.0-or-later AND LGPL-2.1-or-later AND Apache-2.0 AND CC0-1.0 AND MIT AND MIT-open-group AND HPND-sell-variant AND GPL-2.0-or-later AND GPL-3.0-or-later AND OFL-1.1
 URL:            https://www.gtk.org
-# 4.17, not 4.20: download.gnome.org shelves tarballs by the version MAJOR.MINOR
-# actually being fetched. The 4.20 directory 404s for a 4.17.5 tarball; keep
-# this in lockstep with Version on every bump.
-Source0:        https://download.gnome.org/sources/gtk/4.17/gtk-%{version}.tar.xz
+# download.gnome.org shelves tarballs by MAJOR.MINOR; keep this directory in
+# lockstep with Version on every bump (a 4.20/4.17.5 mismatch 404'd once).
+Source0:        https://download.gnome.org/sources/gtk/4.21/gtk-%{version}.tar.xz
 
 BuildRequires:  cups-devel
 BuildRequires:  desktop-file-utils
