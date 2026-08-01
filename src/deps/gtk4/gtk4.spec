@@ -243,5 +243,16 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_libdir}/pkgconfig/*.pc
 %{_datadir}/gir-1.0/*.gir
 
+# -Ddocumentation=true generates gi-docgen trees for every backend. The
+# devel-docs %package existed without a %files section, so the first build
+# that got this far died with 'Installed (but unpackaged) file(s) found'
+# across all five doc directories (seeding run 30696407796, gtk-core).
+%files devel-docs
+%doc %{_datadir}/doc/gdk4/
+%doc %{_datadir}/doc/gdk4-wayland/
+%doc %{_datadir}/doc/gdk4-x11/
+%doc %{_datadir}/doc/gsk4/
+%doc %{_datadir}/doc/gtk4/
+
 %changelog
 %autochangelog
