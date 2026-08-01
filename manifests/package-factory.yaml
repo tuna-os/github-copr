@@ -73,6 +73,18 @@ dependency_catalog:
   cpp-compiler: {el10: [gcc-c++], ubuntu: [g++], debian: [g++], opensuse-tumbleweed: [gcc-c++], arch: [base-devel]}
   pkg-config: {el10: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], arch: [pkgconf]}
   cmake: {el10: [cmake], ubuntu: [cmake], debian: [cmake], opensuse-tumbleweed: [cmake], arch: [cmake]}
+  # Wayland-desktop build capabilities (#169). Nothing COSMIC links against
+  # had a catalog entry, which made every deb widening a hand-curated name
+  # hunt; these eight unblock all 14 cosmic recipes at once. Arch dev headers
+  # ship in the main package, so the arch column names the library package.
+  wayland-dev: {el10: [wayland-devel], ubuntu: [libwayland-dev], debian: [libwayland-dev], opensuse-tumbleweed: [wayland-devel], arch: [wayland]}
+  libxkbcommon-dev: {el10: [libxkbcommon-devel], ubuntu: [libxkbcommon-dev], debian: [libxkbcommon-dev], opensuse-tumbleweed: [libxkbcommon-devel], arch: [libxkbcommon]}
+  libinput-dev: {el10: [libinput-devel], ubuntu: [libinput-dev], debian: [libinput-dev], opensuse-tumbleweed: [libinput-devel], arch: [libinput]}
+  pipewire-dev: {el10: [pipewire-devel], ubuntu: [libpipewire-0.3-dev], debian: [libpipewire-0.3-dev], opensuse-tumbleweed: [pipewire-devel], arch: [libpipewire]}
+  gbm-dev: {el10: [mesa-libgbm-devel], ubuntu: [libgbm-dev], debian: [libgbm-dev], opensuse-tumbleweed: [libgbm-devel], arch: [mesa]}
+  pixman-dev: {el10: [pixman-devel], ubuntu: [libpixman-1-dev], debian: [libpixman-1-dev], opensuse-tumbleweed: [libpixman-1-0-devel], arch: [pixman]}
+  dav1d-dev: {el10: [libdav1d-devel], ubuntu: [libdav1d-dev], debian: [libdav1d-dev], opensuse-tumbleweed: [libdav1d-devel], arch: [dav1d]}
+  libdisplay-info-dev: {el10: [libdisplay-info-devel], ubuntu: [libdisplay-info-dev], debian: [libdisplay-info-dev], opensuse-tumbleweed: [libdisplay-info-devel], arch: [libdisplay-info]}
   gettext: {el10: [gettext], ubuntu: [gettext], debian: [gettext], opensuse-tumbleweed: [gettext-tools], arch: [gettext]}
   dbus: {el10: [dbus], ubuntu: [dbus], debian: [dbus], opensuse-tumbleweed: [dbus-1], arch: [dbus]}
   dbus-dev: {el10: [dbus-devel], ubuntu: [libdbus-1-dev], debian: [libdbus-1-dev], opensuse-tumbleweed: [dbus-1-devel], arch: [dbus]}
