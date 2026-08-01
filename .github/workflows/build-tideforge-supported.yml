@@ -1609,9 +1609,103 @@ jobs:
           path: .tideforge/deb/${{ matrix.target }}-cosmic-icon-theme/artifacts/
           if-no-files-found: warn
 
+  cosmic-comp-deb:
+    name: cosmic-comp (${{ matrix.target }} DEB)
+    needs: [detect-changes, deb, cosmic-icon-theme-deb]
+    if: ${{ needs.detect-changes.outputs.relevant == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The package key is what check-gate-coverage.py counts.
+          - package: cosmic-comp
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+          - package: cosmic-comp
+            target: debian
+            image: docker.io/library/debian:sid
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/cosmic-comp/package.yaml
+      - uses: actions/download-artifact@v8
+        with:
+          name: pop-icon-theme-${{ matrix.target }}-deb
+          path: .tideforge/deb/${{ matrix.target }}-cosmic-comp/prerequisite
+      - uses: actions/download-artifact@v8
+        with:
+          name: cosmic-icon-theme-${{ matrix.target }}-deb
+          path: .tideforge/deb/${{ matrix.target }}-cosmic-comp/prerequisite
+      - name: Render and assemble the Debian source tree
+        run: |
+          set -euo pipefail
+          recipe="packages/cosmic-comp/package.yaml"
+          root="$PWD/.tideforge/deb/${{ matrix.target }}-cosmic-comp"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
+          python3 scripts/tideforge.py render "$recipe" --target "${{ matrix.target }}" --output "$root/rendered"
+          python3 scripts/assemble-deb-source-tree.py "$recipe" "$root"
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh "${{ matrix.image }}"
+      - name: Build the deb with only declared Build-Depends
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/deb/${{ matrix.target }}-cosmic-comp"
+          docker run --rm --volume "$root:/work" "${{ matrix.image }}" bash -lc '
+            set -euo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y --no-install-recommends build-essential ca-certificates devscripts equivs
+            cd "$(cat /work/source-dir)"
+            mk-build-deps --install --remove --tool "apt-get -y --no-install-recommends" debian/control
+            dpkg-buildpackage -us -uc -b
+            mkdir -p /work/artifacts
+            cp ../*.deb /work/artifacts/
+          '
+      - name: Lint the built deb
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/deb/${{ matrix.target }}-cosmic-comp"
+          docker run --rm --volume "$root:/work:ro" --volume "$PWD/scripts:/scripts:ro" "${{ matrix.image }}" \
+            bash /scripts/lint-generated-deb.sh /work/artifacts
+      - name: Clean-install with the staged closure
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/deb/${{ matrix.target }}-cosmic-comp"
+          docker run --rm --volume "$root:/work:ro" "${{ matrix.image }}" bash -lc '
+            set -euo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y --no-install-recommends dpkg-dev pkg-config
+            mkdir -p /var/lib/tideforge
+            cp /work/prerequisite/*.deb /var/lib/tideforge/
+            cp /work/artifacts/*.deb /var/lib/tideforge/
+            cd /var/lib/tideforge
+            dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
+            printf "deb [trusted=yes] file:/var/lib/tideforge ./\n" > /etc/apt/sources.list.d/tideforge.list
+            printf "Package: *\nPin: origin \"\"\nPin-Priority: 1001\n" > /etc/apt/preferences.d/tideforge.pref
+            apt-get update -qq
+            apt-get install -y cosmic-comp
+            dpkg-query -W cosmic-comp cosmic-icon-theme pop-icon-theme libseat1
+            test -x /usr/bin/cosmic-comp && test -f /usr/share/cosmic/com.system76.CosmicSettings.Shortcuts/v1/defaults
+          '
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: cosmic-comp-${{ matrix.target }}-deb
+          path: .tideforge/deb/${{ matrix.target }}-cosmic-comp/artifacts/
+          if-no-files-found: warn
+
   tideforge-gate:
     name: Tideforge gate
-    needs: [detect-changes, rpm-payload, rpm, opensuse-rpm, xfconf-split, gtkgreet-rpm, cpptrace-rpm, input-remapper-rpm, quickshell-rpm, niri-rpm, iio-niri-rpm, dms-stack-rpm, cosmic-icon-theme-rpm, cosmic-comp-rpm, deb, cosmic-icon-theme-deb]
+    needs: [detect-changes, rpm-payload, rpm, opensuse-rpm, xfconf-split, gtkgreet-rpm, cpptrace-rpm, input-remapper-rpm, quickshell-rpm, niri-rpm, iio-niri-rpm, dms-stack-rpm, cosmic-icon-theme-rpm, cosmic-comp-rpm, deb, cosmic-icon-theme-deb, cosmic-comp-deb]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
