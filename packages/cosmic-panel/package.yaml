@@ -37,4 +37,6 @@ files:
     - usr/share/cosmic/com.system76.CosmicPanel*
 install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
+verify:
+  smoke: test -x /usr/bin/cosmic-panel
 targets: [el10]

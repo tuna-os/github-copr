@@ -77,7 +77,7 @@ jobs:
         # requires the remaining runtime closure, which is not all
         # factory-built yet. This still makes every source/vendor/toolchain
         # regression block updates before any of these recipes can be promoted.
-        package: [dms, dms-cli, dms-greeter, pop-icon-theme, cosmic-icon-theme, cosmic-bg, cosmic-comp, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-panel, cosmic-randr, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
+        package: [dms, dms-cli, dms-greeter, cosmic-bg, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -198,6 +198,22 @@ jobs:
             target: el10
             install_name: labwc
             smoke: labwc --help
+          # First COSMIC install gates (#169): these three have no
+          # tideforge-built runtime deps, so the plain matrix cell suffices.
+          # cosmic-icon-theme and cosmic-comp need staged prerequisites and
+          # get dedicated jobs below.
+          - package: pop-icon-theme
+            target: el10
+            install_name: pop-icon-theme
+            smoke: test -d /usr/share/icons/Pop
+          - package: cosmic-randr
+            target: el10
+            install_name: cosmic-randr
+            smoke: cosmic-randr --help
+          - package: cosmic-panel
+            target: el10
+            install_name: cosmic-panel
+            smoke: test -x /usr/bin/cosmic-panel
           - package: evtest
             target: el10
             install_name: evtest
@@ -948,6 +964,151 @@ jobs:
             useradd --create-home tideforge-test
             runuser -u tideforge-test -- dms --help
           '
+
+  # Staged-closure COSMIC gates (#169): cosmic-icon-theme requires the
+  # tideforge-built pop-icon-theme at install time, and cosmic-comp requires
+  # libseat and cosmic-icon-theme on top of the distro closure. Same shape as
+  # niri-rpm: build against an ephemeral repo of prerequisite artifacts, then
+  # clean-install and assert the recipe's contract.
+  cosmic-icon-theme-rpm:
+    name: cosmic-icon-theme (el10 RPM)
+    needs: rpm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/cosmic-icon-theme/package.yaml
+      - uses: actions/download-artifact@v8
+        with:
+          name: pop-icon-theme-el10-rpm
+          path: .tideforge/cosmic-icon-theme/prerequisite
+      - name: Render and fetch the exact source archive
+        run: |
+          set -euo pipefail
+          recipe=packages/cosmic-icon-theme/package.yaml
+          root="$PWD/.tideforge/cosmic-icon-theme"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
+          python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
+      - name: Build cosmic-icon-theme
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/cosmic-icon-theme"
+          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install dnf-plugins-core epel-release rpm-build
+            dnf config-manager --set-enabled crb
+            dnf -y builddep /work/rpmbuild/SPECS/cosmic-icon-theme.spec
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/cosmic-icon-theme.spec
+          '
+      - name: Clean-install cosmic-icon-theme with its staged prerequisite
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/cosmic-icon-theme"
+          docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install epel-release createrepo_c
+            mkdir -p /tmp/tideforge-rpms
+            cp -a /work/prerequisite/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
+            createrepo_c /tmp/tideforge-rpms
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --setopt=tideforge.priority=1 --enablerepo=tideforge cosmic-icon-theme
+            rpm -q cosmic-icon-theme pop-icon-theme
+            test -d /usr/share/icons/Cosmic
+          '
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: cosmic-icon-theme-el10-rpm
+          path: .tideforge/cosmic-icon-theme/rpmbuild/RPMS/
+          if-no-files-found: warn
+
+  cosmic-comp-rpm:
+    name: cosmic-comp (el10 RPM)
+    needs: [rpm, cosmic-icon-theme-rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/cosmic-comp/package.yaml
+      - uses: actions/download-artifact@v8
+        with:
+          name: libseat-el10-rpm
+          path: .tideforge/cosmic-comp/prerequisite
+      - uses: actions/download-artifact@v8
+        with:
+          name: pop-icon-theme-el10-rpm
+          path: .tideforge/cosmic-comp/prerequisite
+      - uses: actions/download-artifact@v8
+        with:
+          name: cosmic-icon-theme-el10-rpm
+          path: .tideforge/cosmic-comp/prerequisite
+      - name: Render and fetch the exact source archive
+        run: |
+          set -euo pipefail
+          recipe=packages/cosmic-comp/package.yaml
+          root="$PWD/.tideforge/cosmic-comp"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
+          python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
+      - name: Build cosmic-comp with Tideforge libseat
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/cosmic-comp"
+          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install dnf-plugins-core epel-release rpm-build createrepo_c
+            dnf config-manager --set-enabled crb
+            cp -a /work/prerequisite /tmp/tideforge-prerequisite
+            createrepo_c /tmp/tideforge-prerequisite
+            dnf -y install --nogpgcheck --repofrompath tideforge-prerequisite,file:///tmp/tideforge-prerequisite --setopt=tideforge-prerequisite.priority=1 --enablerepo=tideforge-prerequisite libseat-devel
+            dnf -y builddep /work/rpmbuild/SPECS/cosmic-comp.spec
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/cosmic-comp.spec
+          '
+      - name: Clean-install cosmic-comp and its staged closure
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/cosmic-comp"
+          docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install epel-release createrepo_c
+            mkdir -p /tmp/tideforge-rpms
+            cp -a /work/prerequisite/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
+            createrepo_c /tmp/tideforge-rpms
+            # Priority 1 pins the ephemeral repo above EPEL, which ships its
+            # own libseat -- the same shadowing hazard the rpm matrix and
+            # niri-rpm jobs already document.
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --setopt=tideforge.priority=1 --enablerepo=tideforge cosmic-comp
+            rpm -q cosmic-comp libseat cosmic-icon-theme pop-icon-theme
+            test -x /usr/bin/cosmic-comp && test -f /usr/share/cosmic/com.system76.CosmicSettings.Shortcuts/v1/defaults
+          '
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: cosmic-comp-el10-rpm
+          path: .tideforge/cosmic-comp/rpmbuild/RPMS/
+          if-no-files-found: warn
 
   deb:
     name: ${{ matrix.package }} (${{ matrix.target }} DEB)

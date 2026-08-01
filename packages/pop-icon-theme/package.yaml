@@ -25,4 +25,6 @@ dependencies:
       el10: [gnome-icon-theme]
 files:
   common: [usr/share/icons/Pop]
+verify:
+  smoke: test -d /usr/share/icons/Pop
 targets: [el10]
