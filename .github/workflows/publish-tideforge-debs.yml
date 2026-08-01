@@ -1,0 +1,199 @@
+# Publish Tideforge-built debs to the R2-backed apt repos (tunaOS#964).
+#
+# The deb half of what build.yml does for el10 RPMs. Design agreed on the
+# issue: flat apt repositories per distro at r2:bluefin/tideforge/<distro>/,
+# served as https://repo.tunaos.org/tideforge/<distro>/, with Packages.gz,
+# an apt-ftparchive Release, and a GPG-clearsigned InRelease. grouper
+# consumes the ubuntu repo, flounder-sid the debian-sid one — with ZERO
+# third-party repos, which the verify job asserts on every publish.
+#
+# Dispatch-only. Publishing is a deliberate act, not a side effect of a
+# merge; the gate cells prove PRs, this workflow ships what main has.
+name: Publish Tideforge debs
+
+on:
+  workflow_dispatch:
+
+env:
+  R2_BUCKET: bluefin
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.package }} (${{ matrix.distro }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # First wave: the two recipes with proven deb gate cells. Widen this
+          # matrix in lockstep with the deb gate as recipes prove out —
+          # nothing gets published that a gate cell has not exercised.
+          - package: pop-icon-theme
+            distro: ubuntu
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+          - package: pop-icon-theme
+            distro: debian-sid
+            target: debian
+            image: docker.io/library/debian:sid
+          - package: cosmic-randr
+            distro: ubuntu
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+          - package: cosmic-randr
+            distro: debian-sid
+            target: debian
+            image: docker.io/library/debian:sid
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/${{ matrix.package }}/package.yaml
+      - name: Render and assemble the Debian source tree
+        run: |
+          set -euo pipefail
+          recipe="packages/${{ matrix.package }}/package.yaml"
+          root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
+          python3 scripts/tideforge.py render "$recipe" --target "${{ matrix.target }}" --output "$root/rendered"
+          python3 scripts/assemble-deb-source-tree.py "$recipe" "$root"
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh "${{ matrix.image }}"
+      - name: Build the deb with only declared Build-Depends
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
+          docker run --rm --volume "$root:/work" "${{ matrix.image }}" bash -lc '
+            set -euo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y --no-install-recommends build-essential ca-certificates devscripts equivs
+            cd "$(cat /work/source-dir)"
+            mk-build-deps --install --remove --tool "apt-get -y --no-install-recommends" debian/control
+            dpkg-buildpackage -us -uc -b
+            mkdir -p /work/artifacts
+            cp ../*.deb /work/artifacts/
+          '
+      - name: Lint the built deb
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
+          docker run --rm --volume "$root:/work:ro" --volume "$PWD/scripts:/scripts:ro" "${{ matrix.image }}" \
+            bash /scripts/lint-generated-deb.sh /work/artifacts
+      - uses: actions/upload-artifact@v7
+        with:
+          name: publish-deb-${{ matrix.distro }}-${{ matrix.package }}
+          path: .tideforge/deb/${{ matrix.target }}-${{ matrix.package }}/artifacts/*.deb
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      # Serial, not parallel: both iterations sync against the same bucket
+      # prefix family and rclone config; one at a time keeps the failure
+      # story readable.
+      max-parallel: 1
+      matrix:
+        distro: [ubuntu, debian-sid]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install tooling
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q apt-utils gpg gpgconf
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+      - name: Import GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Configure rclone for R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = ${R2_ENDPOINT}
+          EOF
+      - name: Sync down the existing repo
+        run: |
+          set -euo pipefail
+          mkdir -p repo
+          rclone sync "r2:${R2_BUCKET}/tideforge/${{ matrix.distro }}/" repo/ || true
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: publish-deb-${{ matrix.distro }}-*
+          path: repo/pool
+          merge-multiple: true
+      - name: Index and sign the repository
+        run: |
+          set -euo pipefail
+          cd repo
+          count=$(find pool -name '*.deb' | wc -l)
+          # The #124 lesson: never sync an empty tree over a published repo.
+          if [ "$count" -eq 0 ]; then
+            echo "ERROR: no debs staged; refusing to publish an empty repo" >&2
+            exit 1
+          fi
+          apt-ftparchive packages pool > Packages
+          gzip -9kf Packages
+          apt-ftparchive release . > Release
+          gpg --batch --yes -u "${{ steps.import-gpg.outputs.keyid }}" --clearsign -o InRelease Release
+          gpg --batch --yes -u "${{ steps.import-gpg.outputs.keyid }}" -abs -o Release.gpg Release
+          gpg --batch --yes --export "${{ steps.import-gpg.outputs.keyid }}" > tideforge.gpg
+      - name: Sync up
+        run: |
+          set -euo pipefail
+          rclone sync repo/ "r2:${R2_BUCKET}/tideforge/${{ matrix.distro }}/"
+
+  # The anti-#179 job: exists from the FIRST publish, so a repo that was
+  # never actually published can never sit behind a green workflow. Installs
+  # with ZERO third-party repos — the tunaOS#964 definition of done at
+  # package level. Today it asserts the two published packages; it graduates
+  # to cosmic-session (the closure root) when the widening reaches it.
+  verify:
+    needs: publish
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: ubuntu
+            image: docker.io/library/ubuntu:26.04
+          - distro: debian-sid
+            image: docker.io/library/debian:sid
+    steps:
+      - name: Install from the published repo with no third-party sources
+        run: |
+          set -euo pipefail
+          docker run --rm "${{ matrix.image }}" bash -lc '
+            set -euo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y --no-install-recommends ca-certificates curl gpg
+            curl -fsSL https://repo.tunaos.org/tideforge/${{ matrix.distro }}/tideforge.gpg -o /usr/share/keyrings/tideforge.gpg
+            echo "deb [signed-by=/usr/share/keyrings/tideforge.gpg] https://repo.tunaos.org/tideforge/${{ matrix.distro }} ./" > /etc/apt/sources.list.d/tideforge.list
+            apt-get update
+            apt-get install -y pop-icon-theme cosmic-randr
+            dpkg-query -W pop-icon-theme cosmic-randr
+            test -d /usr/share/icons/Pop
+            cosmic-randr --help
+          '
