@@ -47,6 +47,14 @@ jobs:
             distro: debian-sid
             target: debian
             image: docker.io/library/debian:sid
+          - package: cosmic-panel
+            distro: ubuntu
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+          - package: cosmic-panel
+            distro: debian-sid
+            target: debian
+            image: docker.io/library/debian:sid
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -192,8 +200,9 @@ jobs:
             curl -fsSL https://repo.tunaos.org/tideforge/${{ matrix.distro }}/tideforge.gpg -o /usr/share/keyrings/tideforge.gpg
             echo "deb [signed-by=/usr/share/keyrings/tideforge.gpg] https://repo.tunaos.org/tideforge/${{ matrix.distro }} ./" > /etc/apt/sources.list.d/tideforge.list
             apt-get update
-            apt-get install -y pop-icon-theme cosmic-randr
-            dpkg-query -W pop-icon-theme cosmic-randr
+            apt-get install -y pop-icon-theme cosmic-randr cosmic-panel
+            dpkg-query -W pop-icon-theme cosmic-randr cosmic-panel
             test -d /usr/share/icons/Pop
             cosmic-randr --help
+            test -x /usr/bin/cosmic-panel
           '
