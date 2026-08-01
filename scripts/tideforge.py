@@ -715,11 +715,11 @@ Rules-Requires-Root: no
         prelude = "\n".join(f"\t{command}" for command in prelude.splitlines())
         if prelude:
             prelude += "\n"
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && :\n{prelude}\tcd {workdir} && {environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n\noverride_dh_dwz:\n\t:\n"
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\tcd {workdir} && :\n{prelude}\tcd {workdir} && {environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n\noverride_dh_dwz:\n\t:\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo's checksum verification.\noverride_dh_clean:\n\tdh_clean -Xvendor/\n"
     elif recipe["build_system"] == "custom":
         build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
         install = custom_commands(recipe, "install", f"debian/{recipe['name']}")
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\t{build.replace(chr(10), chr(10) + chr(9))}\n\noverride_dh_auto_install:\n\t{install.replace(chr(10), chr(10) + chr(9))}\n"
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\noverride_dh_auto_build:\n\t{build.replace(chr(10), chr(10) + chr(9))}\n\noverride_dh_auto_install:\n\t{install.replace(chr(10), chr(10) + chr(9))}\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo's checksum verification.\noverride_dh_clean:\n\tdh_clean -Xvendor/\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
