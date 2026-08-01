@@ -28,13 +28,17 @@ build:
   commands: [cargo build --release --offline --frozen]
 dependencies:
   build:
-    capabilities: [rust]
+    # wayland-dev resolves the right -dev name per target (#197); the rust
+    # capability already carries cargo.
+    capabilities: [rust, wayland-dev]
     targets:
-      el10: [cargo, lld, just, wayland-devel]
+      el10: [lld, just]
+      ubuntu: [lld, just]
+      debian: [lld, just]
 files:
   common: [usr/bin/cosmic-randr]
 install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
 verify:
   smoke: cosmic-randr --help
-targets: [el10]
+targets: [el10, ubuntu, debian]
