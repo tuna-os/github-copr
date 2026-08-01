@@ -70,6 +70,7 @@ jobs:
           - src/deps/python-typogrify
           - src/deps/gnome50-el10-compat
           - src/deps/selinux-policy
+          - src/deps/sqlcipher
     steps:
       - name: Checkout
         uses: actions/checkout@v7

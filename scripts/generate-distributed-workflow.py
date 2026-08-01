@@ -45,11 +45,11 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
     jobs['seed-repo'] = {
         'runs-on': 'ubuntu-latest',
         'steps': [
-            {'name': 'Checkout', 'uses': 'actions/checkout@v4'},
+            {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
             {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c'},
             {'name': 'Configure rclone', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\nmkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com\nEOF\n'},
             {'name': 'Seed local repo from R2', 'run': f'mkdir -p local-repo\necho "Downloading existing repo from R2..."\nrclone sync "r2:${{R2_BUCKET}}/{r2_path}/" "local-repo/" --exclude "repodata/**" || true\ncreaterepo_c local-repo\n'},
-            {'name': 'Upload initial repo', 'uses': 'actions/upload-artifact@v4', 'with': {'name': 'repo-0', 'path': 'local-repo', 'retention-days': 1}}
+            {'name': 'Upload initial repo', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'repo-0', 'path': 'local-repo', 'retention-days': 1}}
         ]
     }
     
@@ -85,15 +85,15 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                 }
             },
             'steps': [
-                {'name': 'Checkout', 'uses': 'actions/checkout@v4', **({'with': {'submodules': 'recursive'}} if submodules else {})},
+                {'name': 'Checkout', 'uses': 'actions/checkout@v7', **({'with': {'submodules': 'recursive'}} if submodules else {})},
                 {'name': 'Install host dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm'},
-                {'name': 'Cache CentOS Stream 10 image', 'uses': 'actions/cache@v4', 'with': {'path': '/tmp/cs10-image.tar', 'key': f"cs10-image-${{{{ hashFiles('{mock_cfg_file}') }}}}"}},
+                {'name': 'Cache CentOS Stream 10 image', 'uses': 'actions/cache@v6', 'with': {'path': '/tmp/cs10-image.tar', 'key': f"cs10-image-${{{{ hashFiles('{mock_cfg_file}') }}}}"}},
                 {'name': 'Load or pull image', 'run': 'if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n'},
-                {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v4', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
-                {'name': 'Cache mock chroot (dnf downloads)', 'uses': 'actions/cache@v4', 'with': {'path': '.mock-cache', 'key': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-${{{{ github.run_id }}}}", 'restore-keys': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-\nmock-cache-${{{{ matrix.package }}}}-"}},
+                {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
+                {'name': 'Cache mock chroot (dnf downloads)', 'uses': 'actions/cache@v6', 'with': {'path': '.mock-cache', 'key': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-${{{{ github.run_id }}}}", 'restore-keys': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-\nmock-cache-${{{{ matrix.package }}}}-"}},
                 {'name': 'Build package', 'env': {'MOCK_CACHE_DIR': '${{ github.workspace }}/.mock-cache'}, 'run': f'touch .build-marker\nARGS=(--backend podman --tier {tier_name} --package ${{{{ matrix.package }}}}{manifest_flag}{mock_flag})\nif [[ "${{{{ github.event.inputs.force }}}}" == "true" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh "${{ARGS[@]}}"\n'},
                 {'name': 'Find new RPMs', 'id': 'find-rpms', 'run': 'mkdir -p new-rpms\nfind local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \\;\ncount=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)\necho "count=$count" >> $GITHUB_OUTPUT\n'},
-                {'name': 'Upload RPMs', 'if': "steps.find-rpms.outputs.count > '0'", 'uses': 'actions/upload-artifact@v4', 'with': {'name': f'rpms-{tier_name}-${{{{ strategy.job-index }}}}', 'path': 'new-rpms/*.rpm', 'retention-days': 1}}
+                {'name': 'Upload RPMs', 'if': "steps.find-rpms.outputs.count > '0'", 'uses': 'actions/upload-artifact@v7', 'with': {'name': f'rpms-{tier_name}-${{{{ strategy.job-index }}}}', 'path': 'new-rpms/*.rpm', 'retention-days': 1}}
             ]
         }
         
@@ -103,10 +103,10 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
             'runs-on': 'ubuntu-latest',
             'steps': [
                 {'name': 'Install createrepo_c', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c'},
-                {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v4', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
-                {'name': 'Download new RPMs', 'uses': 'actions/download-artifact@v4', 'continue-on-error': True, 'with': {'pattern': f'rpms-{tier_name}-*', 'path': 'local-repo', 'merge-multiple': True}},
+                {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
+                {'name': 'Download new RPMs', 'uses': 'actions/download-artifact@v8', 'continue-on-error': True, 'with': {'pattern': f'rpms-{tier_name}-*', 'path': 'local-repo', 'merge-multiple': True}},
                 {'name': 'Update repo', 'run': 'createrepo_c --update local-repo'},
-                {'name': 'Upload updated repo', 'uses': 'actions/upload-artifact@v4', 'with': {'name': repo_artifact_name, 'path': 'local-repo', 'retention-days': 1}}
+                {'name': 'Upload updated repo', 'uses': 'actions/upload-artifact@v7', 'with': {'name': repo_artifact_name, 'path': 'local-repo', 'retention-days': 1}}
             ]
         }
         
@@ -118,10 +118,10 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         'needs': prev_consolidate_job,
         'runs-on': 'ubuntu-latest',
         'steps': [
-            {'name': 'Checkout', 'uses': 'actions/checkout@v4'},
+            {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
             {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf\ncurl -fsSL https://rclone.org/install.sh | sudo bash\n'},
-            {'name': 'Download final repo', 'uses': 'actions/download-artifact@v4', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
-            {'name': 'Import GPG key', 'id': 'import-gpg', 'uses': 'crazy-max/ghaction-import-gpg@v6', 'with': {'gpg_private_key': '${{ secrets.GPG_PRIVATE_KEY }}', 'passphrase': '${{ secrets.GPG_PASSPHRASE }}', 'git_committer_name': 'RPM Builder', 'git_committer_email': 'rpm-signing@tunaos.org'}},
+            {'name': 'Download final repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
+            {'name': 'Import GPG key', 'id': 'import-gpg', 'uses': 'crazy-max/ghaction-import-gpg@v7', 'with': {'gpg_private_key': '${{ secrets.GPG_PRIVATE_KEY }}', 'passphrase': '${{ secrets.GPG_PASSPHRASE }}', 'git_committer_name': 'RPM Builder', 'git_committer_email': 'rpm-signing@tunaos.org'}},
             {'name': 'Configure RPM macros', 'run': 'echo "%_signature gpg" > ~/.rpmmacros\necho "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros\necho "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \\"%{_gpg_name}\\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros\n'},
             {'name': 'Sign RPMs', 'run': 'find local-repo -name "*.rpm" -exec rpmsign --addsign {} \\;\ncreaterepo_c --update local-repo\n'},
             {'name': 'Configure rclone', 'run': 'mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com\nEOF\n'},
