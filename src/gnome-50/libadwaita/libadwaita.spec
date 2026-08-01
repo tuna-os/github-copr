@@ -1,5 +1,5 @@
 %global apiver  1
-%global gtk_version 4.17.5
+%global gtk_version 4.21.1
 %global glib_version 2.80.0
 
 %global tarball_version %%(echo %{version} | tr '~' '.')

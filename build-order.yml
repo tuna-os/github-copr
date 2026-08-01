@@ -86,7 +86,14 @@ tiers:
       - path: src/deps/tinysparql
       - path: src/deps/pipewire
       - path: src/deps/libglib-testing
-      - copr_name: simdutf
+      # simdutf was copr_name-only: vte291 died on pkgconfig(simdutf) once the
+      # COPR fallback was gone (run 30712269949) -- the sqlcipher story again.
+      - path: src/deps/simdutf
+        copr_name: simdutf
+      # localsearch needs pkgconfig(gexiv2-0.16); nothing in el10/EPEL provides
+      # it. src/deps/libgexiv2 (0.16.0) was already imported but never wired
+      # into the manifest, so no tier ever built it (run 30712269949).
+      - path: src/deps/libgexiv2
       - copr_name: libgee
       - path: src/deps/libsoup
 

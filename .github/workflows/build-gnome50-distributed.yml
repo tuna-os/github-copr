@@ -729,6 +729,8 @@ jobs:
           - src/deps/tinysparql
           - src/deps/pipewire
           - src/deps/libglib-testing
+          - src/deps/simdutf
+          - src/deps/libgexiv2
           - src/deps/libsoup
     steps:
       - name: Checkout
