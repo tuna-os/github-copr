@@ -42,4 +42,6 @@ files:
     - usr/share/cosmic/com.system76.CosmicSettings.WindowRules/v1/tiling_exception_defaults
 install:
   commands: ["make install DESTDIR={destdir} prefix=/usr"]
+verify:
+  smoke: test -x /usr/bin/cosmic-comp && test -f /usr/share/cosmic/com.system76.CosmicSettings.Shortcuts/v1/defaults
 targets: [el10]

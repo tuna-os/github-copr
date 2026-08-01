@@ -23,4 +23,6 @@ files:
   common: [usr/share/icons/Cosmic]
 install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
+verify:
+  smoke: test -d /usr/share/icons/Cosmic
 targets: [el10]
