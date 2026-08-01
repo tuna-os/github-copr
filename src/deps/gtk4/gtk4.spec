@@ -71,7 +71,10 @@ Summary:        GTK graphical user interface library
 # The license was last checked for GTK 4.19.3.
 License:        LGPL-2.0-or-later AND LGPL-2.1-or-later AND Apache-2.0 AND CC0-1.0 AND MIT AND MIT-open-group AND HPND-sell-variant AND GPL-2.0-or-later AND GPL-3.0-or-later AND OFL-1.1
 URL:            https://www.gtk.org
-Source0:        https://download.gnome.org/sources/gtk/4.20/gtk-%{version}.tar.xz
+# 4.17, not 4.20: download.gnome.org shelves tarballs by the version MAJOR.MINOR
+# actually being fetched. The 4.20 directory 404s for a 4.17.5 tarball; keep
+# this in lockstep with Version on every bump.
+Source0:        https://download.gnome.org/sources/gtk/4.17/gtk-%{version}.tar.xz
 
 BuildRequires:  cups-devel
 BuildRequires:  desktop-file-utils
