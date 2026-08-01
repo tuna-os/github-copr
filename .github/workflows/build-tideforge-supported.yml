@@ -1181,6 +1181,21 @@ jobs:
             install_name: libseat-dev
             smoke: pkg-config --modversion libseat && seatd -h
             clean_install: true
+          # First cosmic deb widening slice (#169, deb-first directive):
+          # pop-icon-theme proves the shape; the other four follow one at a
+          # time as their capability-based deps land.
+          - package: pop-icon-theme
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: pop-icon-theme
+            smoke: test -d /usr/share/icons/Pop
+            clean_install: true
+          - package: pop-icon-theme
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: pop-icon-theme
+            smoke: test -d /usr/share/icons/Pop
+            clean_install: true
           - package: uupd
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
