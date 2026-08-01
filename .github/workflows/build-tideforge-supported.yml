@@ -1,57 +1,15 @@
 name: Build Tideforge supported targets
 
 on:
+  # Unfiltered on purpose (#173, the #112 pattern): the detect-changes job
+  # below decides cheaply whether anything Tideforge-relevant changed, and
+  # the tideforge-gate aggregator always reports -- which is what makes it
+  # safe to require in branch protection. A path-filtered required check
+  # that never reports deadlocked main once already (see lint.yml).
+  # merge_group makes the gate binding in the merge queue: #168 and #199
+  # both merged with red cells because only lint was required.
   pull_request:
-    paths:
-      - packages/uupd/package.yaml
-      - packages/xfconf/package.yaml
-      - packages/greetd/package.yaml
-      - packages/cli11-devel/package.yaml
-      - packages/libunwind-devel/package.yaml
-      - packages/cpptrace-devel/package.yaml
-      - packages/ninja-build/package.yaml
-      - packages/wayland-protocols/package.yaml
-      - packages/libseat/package.yaml
-      - packages/niri/package.yaml
-      - packages/iio-niri/package.yaml
-      - packages/dms/package.yaml
-      - packages/dms-cli/package.yaml
-      - packages/dms-greeter/package.yaml
-      - packages/quickshell/package.yaml
-      - packages/dgop/package.yaml
-      - packages/danksearch/package.yaml
-      - packages/kairpods/package.yaml
-      - packages/oversteer-udev/package.yaml
-      - packages/gtkgreet/package.yaml
-      - packages/gtk-layer-shell/package.yaml
-      - packages/cosmic-bg/package.yaml
-      - packages/cosmic-comp/package.yaml
-      - packages/cosmic-icon-theme/package.yaml
-      - packages/cosmic-idle/package.yaml
-      - packages/cosmic-notifications/package.yaml
-      - packages/cosmic-osd/package.yaml
-      - packages/cosmic-panel/package.yaml
-      - packages/cosmic-randr/package.yaml
-      - packages/cosmic-settings-daemon/package.yaml
-      - packages/cosmic-session/package.yaml
-      - packages/cosmic-settings/package.yaml
-      - packages/cosmic-greeter/package.yaml
-      - packages/xdg-desktop-portal-cosmic/package.yaml
-      - packages/pop-icon-theme/package.yaml
-      - packages/labwc/package.yaml
-      - packages/evtest/package.yaml
-      - packages/python3-evdev/package.yaml
-      - packages/input-remapper/package.yaml
-      - packages/xfwm4-themes/package.yaml
-      - manifests/package-factory.yaml
-      - scripts/tideforge.py
-      - scripts/verify-tideforge-source.py
-      - scripts/fetch-tideforge-sources.py
-      - scripts/pull-container-image.sh
-      - scripts/lint-generated-rpm.sh
-      - scripts/lint-generated-deb.sh
-      - scripts/assert-xfconf-split.sh
-      - .github/workflows/build-tideforge-supported.yml
+  merge_group:
   workflow_dispatch:
 
 # Three runs of this workflow were queued simultaneously on one branch because
@@ -67,7 +25,35 @@ permissions:
   contents: read
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.diff.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        name: Decide whether anything Tideforge-relevant changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$BASE_SHA"...HEAD)
+          echo "$changed"
+          if echo "$changed" | grep -qE '^(packages/|manifests/package-factory\.yaml|scripts/|\.github/workflows/build-tideforge-|\.github/actions/)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+
   rpm-payload:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.relevant == 'true' }}
     name: ${{ matrix.package }} (el10 RPM payload)
     runs-on: ubuntu-latest
     strategy:
@@ -131,6 +117,8 @@ jobs:
           if-no-files-found: warn
 
   rpm:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.relevant == 'true' }}
     name: ${{ matrix.package }} (${{ matrix.target }} RPM)
     runs-on: ubuntu-latest
     strategy:
@@ -313,6 +301,8 @@ jobs:
   # The renderer needs no change: render() dispatches on the target format, and
   # opensuse-tumbleweed is format: rpm, so it already reaches render_rpm.
   opensuse-rpm:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.relevant == 'true' }}
     name: ${{ matrix.package }} (opensuse-tumbleweed RPM)
     runs-on: ubuntu-latest
     strategy:
@@ -437,7 +427,7 @@ jobs:
 
   xfconf-split:
     name: xfconf (split-package contract)
-    needs: [rpm, deb]
+    needs: [detect-changes, rpm, deb]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -466,7 +456,7 @@ jobs:
 
   gtkgreet-rpm:
     name: gtkgreet (el10 staged closure RPM)
-    needs: rpm
+    needs: [detect-changes, rpm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -538,7 +528,7 @@ jobs:
 
   cpptrace-rpm:
     name: cpptrace-devel (el10 RPM)
-    needs: rpm
+    needs: [detect-changes, rpm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -605,7 +595,7 @@ jobs:
 
   input-remapper-rpm:
     name: ${{ matrix.package }} (el10 staged closure RPM)
-    needs: rpm
+    needs: [detect-changes, rpm]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -682,7 +672,7 @@ jobs:
 
   quickshell-rpm:
     name: quickshell (el10 RPM)
-    needs: [rpm, cpptrace-rpm]
+    needs: [detect-changes, rpm, cpptrace-rpm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -764,7 +754,7 @@ jobs:
 
   niri-rpm:
     name: niri (el10 RPM)
-    needs: rpm
+    needs: [detect-changes, rpm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -835,7 +825,7 @@ jobs:
 
   iio-niri-rpm:
     name: iio-niri (el10 RPM)
-    needs: [rpm, niri-rpm]
+    needs: [detect-changes, rpm, niri-rpm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -902,7 +892,7 @@ jobs:
 
   dms-stack-rpm:
     name: DMS stack (el10 RPM integration)
-    needs: [rpm-payload, rpm, cpptrace-rpm, quickshell-rpm]
+    needs: [detect-changes, rpm-payload, rpm, cpptrace-rpm, quickshell-rpm]
     runs-on: ubuntu-latest
     steps:
       # Checkout first, and only then download artifacts: actions/checkout
@@ -972,7 +962,7 @@ jobs:
   # clean-install and assert the recipe's contract.
   cosmic-icon-theme-rpm:
     name: cosmic-icon-theme (el10 RPM)
-    needs: rpm
+    needs: [detect-changes, rpm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -1035,7 +1025,7 @@ jobs:
 
   cosmic-comp-rpm:
     name: cosmic-comp (el10 RPM)
-    needs: [rpm, cosmic-icon-theme-rpm]
+    needs: [detect-changes, rpm, cosmic-icon-theme-rpm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -1111,6 +1101,8 @@ jobs:
           if-no-files-found: warn
 
   deb:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.relevant == 'true' }}
     name: ${{ matrix.package }} (${{ matrix.target }} DEB)
     runs-on: ubuntu-latest
     strategy:
@@ -1503,3 +1495,34 @@ jobs:
           name: ${{ matrix.package }}-${{ matrix.target }}-deb
           path: .tideforge/deb/${{ matrix.target }}-${{ matrix.package }}/artifacts/
           if-no-files-found: warn
+
+  # The single check worth requiring in branch protection (#173). It always
+  # reports: not-applicable PRs pass via detect-changes, and any needed job
+  # that failed, was cancelled, OR WAS SKIPPED fails it -- a skipped cell is
+  # unproven, not passed. Making this required is a deliberate repo-settings
+  # step, not something this file can do.
+  tideforge-gate:
+    name: Tideforge gate
+    needs: [detect-changes, rpm-payload, rpm, opensuse-rpm, xfconf-split, gtkgreet-rpm, cpptrace-rpm, input-remapper-rpm, quickshell-rpm, niri-rpm, iio-niri-rpm, dms-stack-rpm, cosmic-icon-theme-rpm, cosmic-comp-rpm, deb]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every gate job to have succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          RELEVANT: ${{ needs.detect-changes.outputs.relevant }}
+        run: |
+          set -euo pipefail
+          echo "$NEEDS"
+          if [ "${RELEVANT}" != "true" ]; then
+            test "$(echo "$NEEDS" | jq -r '.["detect-changes"].result')" = "success"
+            echo "No Tideforge-relevant changes; gate not applicable."
+            exit 0
+          fi
+          bad=$(echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success") | "\(.key)=\(.value.result)"')
+          if [ -n "$bad" ]; then
+            echo "Gate jobs not successful:" >&2
+            echo "$bad" >&2
+            exit 1
+          fi
+          echo "All gate jobs succeeded."

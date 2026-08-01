@@ -1,29 +1,11 @@
 name: Build Tideforge Arch packages
 
 on:
+  # Unfiltered plus merge_group for the same reason as the supported gate
+  # (#173): the detect job decides relevance cheaply and the aggregator
+  # always reports, which is what makes it requirable.
   pull_request:
-    paths:
-      - packages/niri/package.yaml
-      - packages/cli11-devel/package.yaml
-      - packages/uupd/package.yaml
-      - packages/greetd/package.yaml
-      - packages/kairpods/package.yaml
-      - packages/krunner-bazaar/package.yaml
-      - packages/dgop/package.yaml
-      - packages/danksearch/package.yaml
-      - packages/dankcalendar/package.yaml
-      - packages/bazaar/package.yaml
-      - packages/plasma-setup/package.yaml
-      - packages/oversteer-udev/package.yaml
-      - scripts/tideforge.py
-      - scripts/verify-tideforge-source.py
-      - scripts/fetch-tideforge-sources.py
-      - scripts/compare-official-package.py
-      - scripts/validate-built-arch-package.py
-      - scripts/pull-container-image.sh
-      - scripts/assert-arch-runtime-closure.sh
-      - scripts/arch-clean-install.sh
-      - .github/workflows/build-tideforge-arch.yml
+  merge_group:
   workflow_dispatch:
 
 # Three runs of this workflow were queued simultaneously on one branch because
@@ -39,7 +21,35 @@ permissions:
   contents: read
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.diff.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        name: Decide whether anything Tideforge-relevant changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$BASE_SHA"...HEAD)
+          echo "$changed"
+          if echo "$changed" | grep -qE '^(packages/|manifests/package-factory\.yaml|scripts/|\.github/workflows/build-tideforge-|\.github/actions/)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.relevant == 'true' }}
     name: ${{ matrix.package }} (Arch, unpatched)
     runs-on: ubuntu-latest
     strategy:
@@ -129,3 +139,29 @@ jobs:
           name: ${{ matrix.package }}-arch-unpatched
           path: .tideforge/arch/${{ matrix.package }}/artifacts/
           if-no-files-found: warn
+
+  tideforge-gate-arch:
+    name: Tideforge gate (arch)
+    needs: [detect-changes, build]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the arch matrix to have succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          RELEVANT: ${{ needs.detect-changes.outputs.relevant }}
+        run: |
+          set -euo pipefail
+          echo "$NEEDS"
+          if [ "${RELEVANT}" != "true" ]; then
+            test "$(echo "$NEEDS" | jq -r '.["detect-changes"].result')" = "success"
+            echo "No Tideforge-relevant changes; gate not applicable."
+            exit 0
+          fi
+          bad=$(echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success") | "\(.key)=\(.value.result)"')
+          if [ -n "$bad" ]; then
+            echo "Gate jobs not successful:" >&2
+            echo "$bad" >&2
+            exit 1
+          fi
+          echo "All gate jobs succeeded."
