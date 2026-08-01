@@ -30,7 +30,14 @@ dependencies:
   build:
     capabilities: [rust]
     targets:
-      el10: [cargo, lld, just, libxkbcommon-devel, wayland-devel, pipewire-devel, clang-devel, mesa-libEGL-devel, mesa-libgbm-devel, gstreamer1-devel, glib2-devel]
+      # util-linux is for `rev`: upstream's justfile installs icons through a
+      # `find | rev | cut | rev` pipeline, and the minimal buildroot only
+      # carries util-linux-core, which does not ship rev. The pipeline
+      # swallowed the failure (no pipefail; xargs on empty input exits 0), so
+      # `just install` reported success while installing zero icons and the
+      # build died later at %files with 'File not found' (#169's blind-spot
+      # fix surfaced this on the recipe's first-ever CI run, job 91337045768).
+      el10: [cargo, lld, just, util-linux, libxkbcommon-devel, wayland-devel, pipewire-devel, clang-devel, mesa-libEGL-devel, mesa-libgbm-devel, gstreamer1-devel, glib2-devel]
   runtime:
     targets:
       el10: [cosmic-icon-theme >= 1.4.0]
