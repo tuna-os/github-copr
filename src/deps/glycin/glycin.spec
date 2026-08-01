@@ -55,7 +55,7 @@ License:        %{shrink:
 
 URL:            https://gitlab.gnome.org/GNOME/glycin
 Source0:        https://download.gnome.org/sources/%{name}/2.0/%{name}-%{tarball_version}.tar.xz
-Source1:        glycin-2.0.8-vendor.tar.xz
+Source1:        https://github.com/tuna-os/tunaos-packages/releases/download/glycin-vendor-2.0.8/glycin-2.0.8-vendor.tar.xz
 # Bundled libjxl 0.11.1 (private copy to avoid conflict with EPEL libjxl-0.10)
 Source2:        https://github.com/libjxl/libjxl/archive/refs/tags/v0.11.1.tar.gz#/libjxl-0.11.1.tar.gz
 
