@@ -21,7 +21,12 @@ tiers:
       - path: src/deps/gnome50-el10-compat
       - path: src/deps/selinux-policy
       - copr_name: graphviz
-      - copr_name: sqlcipher
+      # sqlcipher was copr_name-only, so the GitHub chain skipped it and the
+      # buildroot silently took it from the COPR repo -- until #113 removed
+      # that fallback and libgda died with 'No matching package to install:
+      # sqlcipher-devel' (run 30676231208). Built by both pipelines now.
+      - path: src/deps/sqlcipher
+        copr_name: sqlcipher
 
   # Tier 1: Needs tools from Tier 0.
   - name: build-tools
