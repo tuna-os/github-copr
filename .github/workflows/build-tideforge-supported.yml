@@ -1200,6 +1200,18 @@ jobs:
             install_name: cosmic-randr
             smoke: cosmic-randr --help
             clean_install: true
+          - package: cosmic-panel
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: cosmic-panel
+            smoke: test -x /usr/bin/cosmic-panel
+            clean_install: true
+          - package: cosmic-panel
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: cosmic-panel
+            smoke: test -x /usr/bin/cosmic-panel
+            clean_install: true
           - package: uupd
             target: ubuntu
             image: docker.io/library/ubuntu:26.04

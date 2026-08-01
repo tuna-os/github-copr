@@ -28,9 +28,14 @@ build:
   commands: [cargo build --release --offline --frozen]
 dependencies:
   build:
-    capabilities: [rust]
+    # wayland-dev / libxkbcommon-dev resolve the right -dev names per target
+    # (#197); the rust capability already carries cargo. util-linux is for
+    # the justfile's rev pipeline, same story as xdg-desktop-portal-cosmic.
+    capabilities: [rust, wayland-dev, libxkbcommon-dev]
     targets:
-      el10: [cargo, lld, just, libxkbcommon-devel, util-linux, wayland-devel]
+      el10: [lld, just, util-linux]
+      ubuntu: [lld, just, util-linux]
+      debian: [lld, just, util-linux]
 files:
   common:
     - usr/bin/cosmic-panel
@@ -39,4 +44,4 @@ install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
 verify:
   smoke: test -x /usr/bin/cosmic-panel
-targets: [el10]
+targets: [el10, ubuntu, debian]
