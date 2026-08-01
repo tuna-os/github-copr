@@ -218,10 +218,16 @@ jobs:
           # get dedicated jobs below.
           - package: pop-icon-theme
             target: el10
+            install_name: pop-icon-theme
+            smoke: test -d /usr/share/icons/Pop
           - package: cosmic-randr
             target: el10
+            install_name: cosmic-randr
+            smoke: cosmic-randr --help
           - package: cosmic-panel
             target: el10
+            install_name: cosmic-panel
+            smoke: test -x /usr/bin/cosmic-panel
           - package: evtest
             target: el10
           - package: python3-evdev
