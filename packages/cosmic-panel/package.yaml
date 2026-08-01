@@ -31,7 +31,10 @@ dependencies:
     # wayland-dev / libxkbcommon-dev resolve the right -dev names per target
     # (#197); the rust capability already carries cargo. util-linux is for
     # the justfile's rev pipeline, same story as xdg-desktop-portal-cosmic.
-    capabilities: [rust, wayland-dev, libxkbcommon-dev]
+    # pkg-config: smithay-client-toolkit's build script probes libxkbcommon
+    # through it, and unlike dnf builddep on el10, deb -dev packages do not
+    # pull pkg-config in (both deb cells died in the probe, run 30701973171).
+    capabilities: [rust, pkg-config, wayland-dev, libxkbcommon-dev]
     targets:
       el10: [lld, just, util-linux]
       ubuntu: [lld, just, util-linux]
