@@ -16,13 +16,17 @@ dependencies:
   build:
     targets:
       el10: [just]
+      ubuntu: [just]
+      debian: [just]
   runtime:
     targets:
       el10: [pop-icon-theme]
+      ubuntu: [pop-icon-theme]
+      debian: [pop-icon-theme]
 files:
   common: [usr/share/icons/Cosmic]
 install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
 verify:
   smoke: test -d /usr/share/icons/Cosmic
-targets: [el10]
+targets: [el10, ubuntu, debian]
