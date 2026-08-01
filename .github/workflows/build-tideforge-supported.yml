@@ -1401,6 +1401,14 @@ jobs:
                       members.append(member)
                   tar.extractall(destination, members=members, filter="data")
           (root / "source-dir").write_text("/work/" + source.relative_to(root).as_posix() + "\n")
+          # Tideforge owns the packaging. pop-os sources ship their own
+          # in-tree debian/ directory, and overlaying rendered files onto it
+          # mixes two packagings: upstream's debian/compat collided with our
+          # debhelper-compat build-dependency and dh refused to run at all
+          # ("compat level specified both in debian/compat and in
+          # debian/control" -- pop-icon-theme's first deb cells, run
+          # 30692954918). Clear it before rendering.
+          shutil.rmtree(source / "debian", ignore_errors=True)
           (source / "debian").mkdir(parents=True, exist_ok=True)
           for path in (root / "rendered" / "debian").rglob("*"):
               if path.is_file():
