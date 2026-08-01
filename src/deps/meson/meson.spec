@@ -1,6 +1,6 @@
 Name:           meson
 Version:        1.10.1
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        High productivity build system
 License:        Apache-2.0
 URL:            https://mesonbuild.com
