@@ -1196,6 +1196,18 @@ jobs:
             install_name: pop-icon-theme
             smoke: test -d /usr/share/icons/Pop
             clean_install: true
+          - package: cosmic-randr
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: cosmic-randr
+            smoke: cosmic-randr --help
+            clean_install: true
+          - package: cosmic-randr
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: cosmic-randr
+            smoke: cosmic-randr --help
+            clean_install: true
           - package: uupd
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
