@@ -1346,12 +1346,14 @@ jobs:
             install_name: niri
             smoke: niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target
             clean_install: true
-          - package: bazaar
-            target: ubuntu
-            image: docker.io/library/ubuntu:26.04
-            install_name: bazaar
-            smoke: "test -x /usr/bin/bazaar && test -x /usr/bin/bazaar-dl-worker && test -x /usr/bin/bazaar-refresh-worker"
-            clean_install: true
+          # No bazaar ubuntu cell yet. bazaar 0.9.1 asks meson for
+          # blueprint-compiler >= 0.20.0 in both src/meson.build and
+          # bge/demo/meson.build, and Ubuntu 26.04 (resolute) ships 0.19.0-2 --
+          # 0.20.4-1 first appears in 26.10 (stonking). The cell therefore died
+          # at "Program blueprint-compiler found: NO found 0.19.0 but need:
+          # >= 0.20.0" before compiling a line. Debian sid already carries
+          # 0.20.4-1, so that cell stays. Add ubuntu back once resolute has a
+          # 0.20 blueprint-compiler, or once the runner base moves to 26.10.
           - package: bazaar
             target: debian
             image: docker.io/library/debian:sid

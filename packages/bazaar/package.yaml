@@ -19,8 +19,8 @@ dependencies:
       # Bazaar 0.9 requires GTK 4.22 and libadwaita 1.8.  Those versions are
       # supplied by the current GNOME targets below, not stock EL10.  EL10 is
       # enabled only after the Tideforge GNOME 50 repository is staged.
-      ubuntu: [build-essential, gettext, python3-babel, libgtk-4-dev, libadwaita-1-dev, libdex-dev, libflatpak-dev, libappstream-dev, libxmlb-dev, libyaml-dev, libsoup-3.0-dev, libjson-glib-dev, libglycin-2-dev, libglycin-gtk4-2-dev, libwebkitgtk-6.0-dev, libsecret-1-dev, libproxy-dev, libmalcontent-0-dev, libgtksourceview-5-dev, blueprint-compiler, libmd4c-dev, libxml2-utils]
-      debian: [build-essential, gettext, python3-babel, libgtk-4-dev, libadwaita-1-dev, libdex-dev, libflatpak-dev, libappstream-dev, libxmlb-dev, libyaml-dev, libsoup-3.0-dev, libjson-glib-dev, libglycin-2-dev, libglycin-gtk4-2-dev, libwebkitgtk-6.0-dev, libsecret-1-dev, libproxy-dev, libmalcontent-0-dev, libgtksourceview-5-dev, blueprint-compiler, libmd4c-dev, libxml2-utils]
+      ubuntu: [build-essential, gettext, python3-babel, libgtk-4-dev, libadwaita-1-dev, libdex-dev, libflatpak-dev, libappstream-dev, libxmlb-dev, libyaml-dev, libsoup-3.0-dev, libjson-glib-dev, libglycin-2-dev, libglycin-gtk4-2-dev, libwebkitgtk-6.0-dev, libsecret-1-dev, libproxy-dev, libmalcontent-0-dev, libgtksourceview-5-dev, blueprint-compiler, libmd4c-dev, libxml2-utils, desktop-file-utils]
+      debian: [build-essential, gettext, python3-babel, libgtk-4-dev, libadwaita-1-dev, libdex-dev, libflatpak-dev, libappstream-dev, libxmlb-dev, libyaml-dev, libsoup-3.0-dev, libjson-glib-dev, libglycin-2-dev, libglycin-gtk4-2-dev, libwebkitgtk-6.0-dev, libsecret-1-dev, libproxy-dev, libmalcontent-0-dev, libgtksourceview-5-dev, blueprint-compiler, libmd4c-dev, libxml2-utils, desktop-file-utils]
       arch: [base-devel, meson, gettext, python-babel, glib2-devel, gtk4, libadwaita, libdex, flatpak, appstream, libxmlb, libyaml, libsoup3, json-glib, glycin, glycin-gtk4, webkitgtk-6.0, libsecret, libproxy, malcontent, gtksourceview5, blueprint-compiler, md4c, libxml2]
   runtime:
     capabilities: [flatpak]
