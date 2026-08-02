@@ -31,9 +31,13 @@ dependencies:
     capabilities: [rust]
     targets:
       el10: [cargo, lld, just, libinput-devel, wayland-devel, libxkbcommon-devel, systemd-devel, desktop-file-utils, pipewire-devel, clang, libdav1d-devel]
+      ubuntu: [cargo, lld, just, libinput-dev, libwayland-dev, libxkbcommon-dev, libsystemd-dev, desktop-file-utils, libpipewire-0.3-dev, clang, libdav1d-dev]
+      debian: [cargo, lld, just, libinput-dev, libwayland-dev, libxkbcommon-dev, libsystemd-dev, desktop-file-utils, libpipewire-0.3-dev, clang, libdav1d-dev]
   runtime:
     targets:
       el10: [cosmic-icon-theme >= 1.4.0, nm-connection-editor, accountsservice, cosmic-settings-daemon >= 1.4.0, cosmic-randr >= 1.4.0, gettext, iso-codes, NetworkManager, ppd-service]
+      ubuntu: [cosmic-icon-theme, accountsservice, gettext, iso-codes]
+      debian: [cosmic-icon-theme, accountsservice, gettext, iso-codes]
 files:
   common:
     - usr/bin/cosmic-settings
@@ -46,4 +50,6 @@ files:
     - usr/share/polkit-1/actions/com.system76.CosmicSettings.Users.policy
 install:
   commands: ["just rootdir={destdir} install"]
-targets: [el10]
+verify:
+  smoke: "test -x /usr/bin/cosmic-settings && test -f /usr/share/polkit-1/rules.d/cosmic-settings.rules"
+targets: [el10, ubuntu, debian]
