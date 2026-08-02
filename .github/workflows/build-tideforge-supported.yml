@@ -1346,6 +1346,30 @@ jobs:
             install_name: niri
             smoke: niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target
             clean_install: true
+          - package: bazaar
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: bazaar
+            smoke: "test -x /usr/bin/bazaar && test -x /usr/bin/bazaar-dl-worker && test -x /usr/bin/bazaar-refresh-worker"
+            clean_install: true
+          - package: bazaar
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: bazaar
+            smoke: "test -x /usr/bin/bazaar && test -x /usr/bin/bazaar-dl-worker && test -x /usr/bin/bazaar-refresh-worker"
+            clean_install: true
+          - package: krunner-bazaar
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: krunner-bazaar
+            smoke: test -x /usr/bin/bazaar-dbus-tool
+            clean_install: true
+          - package: krunner-bazaar
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: krunner-bazaar
+            smoke: test -x /usr/bin/bazaar-dbus-tool
+            clean_install: true
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
