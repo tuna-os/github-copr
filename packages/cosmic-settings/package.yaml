@@ -36,8 +36,12 @@ dependencies:
   runtime:
     targets:
       el10: [cosmic-icon-theme >= 1.4.0, nm-connection-editor, accountsservice, cosmic-settings-daemon >= 1.4.0, cosmic-randr >= 1.4.0, gettext, iso-codes, NetworkManager, ppd-service]
-      ubuntu: [cosmic-icon-theme, accountsservice, gettext, iso-codes]
-      debian: [cosmic-icon-theme, accountsservice, gettext, iso-codes]
+      # cosmic-icon-theme is dropped on the deb targets on purpose: it ships in
+      # neither the Debian nor the Ubuntu archive, and the gate's clean-install
+      # repo only holds the deb built by that cell, so naming it renders an
+      # unsatisfiable Depends. The rest are stock archive packages.
+      ubuntu: [accountsservice, gettext, iso-codes]
+      debian: [accountsservice, gettext, iso-codes]
 files:
   common:
     - usr/bin/cosmic-settings
