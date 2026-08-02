@@ -90,6 +90,10 @@ jobs:
             smoke: test -x /usr/bin/bazaar && test -x /usr/bin/bazaar-dl-worker && test -x /usr/bin/bazaar-refresh-worker
           - package: plasma-setup
             smoke: test -e /usr/lib/plasma-setup && test -f /usr/lib/systemd/system/plasma-setup.service
+          - package: libunwind-devel
+            smoke: "test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h"
+          - package: ninja-build
+            smoke: ninja --version
           - package: oversteer-udev
             smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
     steps:
