@@ -27,17 +27,12 @@ optdepends=('xfce4-session: XFCE session management'
             'greetd-gtkgreet: themable greeter for the login screen')
 source=("xfwl4-${_commit}.tar.gz::${url}/-/archive/${_commit}/xfwl4-${_commit}.tar.gz"
         "xfce-wayland-protocols-${_protocols_commit}.tar.gz::https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/${_protocols_commit}/xfce-wayland-protocols-${_protocols_commit}.tar.gz"
-        "0001-fix-dma-cfg-gate-for-udev-backend.patch")
+        )
 # SKIP is a scaffold placeholder — fill these in before this is trusted.
-sha256sums=('SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP')
 
 prepare() {
 	cd "xfwl4-${_commit}"
-
-	# Upstream bug: WlrBufferConstraints.dma's cfg gate omits the udev feature
-	# while three call sites already guard access to it under udev, so a
-	# udev-only build (ours) fails to compile without this.
-	patch -Np1 -i "${srcdir}/0001-fix-dma-cfg-gate-for-udev-backend.patch"
 
 	# src/protocols/*.rs reference this by relative path via
 	# wayland_scanner::generate_*!, so the location is exact, not incidental.
