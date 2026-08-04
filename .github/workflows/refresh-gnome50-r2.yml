@@ -28,15 +28,24 @@ jobs:
           COPR="https://download.copr.fedorainfracloud.org/results/jreilly1821/c10s-gnome-50/epel-10-x86_64"
           mkdir -p repo-tree
 
-          # Fetch repomd.xml
-          curl -sL "${COPR}/repodata/repomd.xml" -o /tmp/repomd.xml
+          # Fetch repomd.xml (retry through CDN redirects)
+          curl -sL --retry 5 --retry-all-errors "${COPR}/repodata/repomd.xml" -o /tmp/repomd.xml
           PRIMARY=$(grep -oP '<location href="repodata/[^"]+-primary.xml.gz"' /tmp/repomd.xml | head -1 | sed 's/.*href="//;s/"//')
           echo "primary: ${PRIMARY}"
           [ -n "${PRIMARY}" ] || { echo "no primary found"; exit 1; }
 
           # Fetch primary.xml.gz and extract RPM locations (skip debuginfo,
           # debugsource, and source RPMs — consumers don't need them)
-          curl -sL "${COPR}/${PRIMARY}" -o /tmp/primary.xml.gz
+          # COPR redirects to pulp-content CDN; retry and validate gzip.
+          for attempt in 1 2 3; do
+            curl -sL --retry 3 --retry-all-errors "${COPR}/${PRIMARY}" -o /tmp/primary.xml.gz
+            if zcat /tmp/primary.xml.gz > /dev/null 2>&1; then
+              echo "primary downloaded OK (attempt ${attempt})"
+              break
+            fi
+            echo "primary download invalid (attempt ${attempt}), retrying..."
+            sleep 5
+          done
           zcat /tmp/primary.xml.gz | grep -oP '<location href="[^"]+\.rpm"' \
             | sed 's/.*href="//;s/"//' \
             | grep -v 'debuginfo\|debugsource' \
@@ -49,7 +58,7 @@ jobs:
             local rel="$1"
             local dest="repo-tree/${rel}"
             mkdir -p "$(dirname "${dest}")"
-            curl -sL -o "${dest}" "${COPR}/${rel}"
+            curl -sL --retry 5 --retry-all-errors -o "${dest}" "${COPR}/${rel}" || return 1
           }
           export -f download_rpm
           export COPR
