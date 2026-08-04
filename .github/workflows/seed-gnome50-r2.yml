@@ -1,0 +1,57 @@
+name: Seed GNOME 50 R2 from COPR
+
+on:
+  workflow_dispatch:
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install rclone
+        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Configure rclone for R2
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          EOF
+
+      - name: Copy COPR-built GNOME 50 repo into GHA pipeline path
+        run: |
+          SRC="r2:bluefin/repo/10-x86_64/"
+          DST="r2:bluefin/gnome50/10-stream-x86_64/"
+
+          echo "Source: ${SRC}"
+          echo "Dest:   ${DST}"
+          echo ""
+
+          echo "=== Source listing ==="
+          rclone ls "${SRC}" --fast-list 2>&1 | head -20
+          echo ""
+
+          echo "=== Destination (before) ==="
+          rclone ls "${DST}" --fast-list 2>&1 | head -5 || echo "(empty or missing)"
+          echo ""
+
+          echo "=== Copying ==="
+          rclone copy "${SRC}" "${DST}" \
+            --progress \
+            --transfers 16 \
+            --checksum \
+            --verbose
+          echo ""
+
+          echo "=== Destination (after) ==="
+          rclone ls "${DST}" --fast-list 2>&1 | head -20
+          echo ""
+
+          echo "=== Verifying repomd.xml ==="
+          STATUS=$(curl -sI https://repo.tunaos.org/gnome50/10-stream-x86_64/repodata/repomd.xml | awk 'NR==1{print $2}')
+          echo "HTTP status: ${STATUS}"
+          [[ "${STATUS}" == "200" ]] && echo "SEED SUCCESSFUL" || echo "SEED FAILED — repomd.xml not accessible"
