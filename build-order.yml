@@ -113,6 +113,12 @@ tiers:
     packages:
       - path: src/gnome-50/gsettings-desktop-schemas
       - path: src/gnome-50/gnome-desktop3
+      # gdk-pixbuf2 2.44.x merges the modules subpackage (Obsoletes +
+      # Provides). Must build here before gtk4/glycin so the local-build
+      # gdk-pixbuf2 provides gdk-pixbuf2-modules — otherwise EL10's gtk3
+      # (pulled into gtk4's builddep via gstreamer1-plugins-bad-free) can't
+      # install and gtk4 dies.
+      - path: src/deps/gdk-pixbuf2
       - path: src/deps/gtk4
       - copr_name: highway         # runtime dep of glycin-loaders (bundled libjxl); in EPEL10 but explicit here for self-contained COPR
       - path: src/deps/glycin
