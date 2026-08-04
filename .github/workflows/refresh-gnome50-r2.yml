@@ -1,0 +1,90 @@
+name: Refresh GNOME 50 R2 from COPR
+
+on:
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install rclone
+        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Configure rclone for R2
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          EOF
+
+      - name: Download live COPR repo contents
+        run: |
+          set -euo pipefail
+          COPR="https://download.copr.fedorainfracloud.org/results/jreilly1821/c10s-gnome-50/epel-10-x86_64"
+          mkdir -p repo-tree
+
+          # Fetch repomd.xml
+          curl -sL "${COPR}/repodata/repomd.xml" -o /tmp/repomd.xml
+          PRIMARY=$(grep -oP '<location href="repodata/[^"]+-primary.xml.gz"' /tmp/repomd.xml | head -1 | sed 's/.*href="//;s/"//')
+          echo "primary: ${PRIMARY}"
+          [ -n "${PRIMARY}" ] || { echo "no primary found"; exit 1; }
+
+          # Fetch primary.xml.gz and extract RPM locations (skip debuginfo,
+          # debugsource, and source RPMs — consumers don't need them)
+          curl -sL "${COPR}/${PRIMARY}" -o /tmp/primary.xml.gz
+          zcat /tmp/primary.xml.gz | grep -oP '<location href="[^"]+\.rpm"' \
+            | sed 's/.*href="//;s/"//' \
+            | grep -v 'debuginfo\|debugsource' \
+            | grep -v '\.src\.rpm$' > /tmp/rpms.txt
+          TOTAL=$(wc -l < /tmp/rpms.txt)
+          echo "RPMs to download: ${TOTAL}"
+
+          # Download each RPM preserving the Packages/ layout
+          download_rpm() {
+            local rel="$1"
+            local dest="repo-tree/${rel}"
+            mkdir -p "$(dirname "${dest}")"
+            curl -sL -o "${dest}" "${COPR}/${rel}"
+          }
+          export -f download_rpm
+          export COPR
+          xargs -P 16 -I{} bash -c 'download_rpm "$@"' _ {} < /tmp/rpms.txt
+
+          # Also copy repodata
+          mkdir -p repo-tree/repodata
+          curl -sL "${COPR}/repodata/repomd.xml" -o repo-tree/repodata/repomd.xml
+          for f in $(grep -oP 'href="repodata/[^"]+"' /tmp/repomd.xml | sed 's/href="//;s/"//'); do
+            curl -sL -o "repo-tree/${f}" "${COPR}/${f}"
+          done
+
+          echo "=== Downloaded tree ==="
+          find repo-tree -name '*.rpm' | wc -l
+          echo "RPMs downloaded"
+          find repo-tree -type f | head -5
+
+      - name: Sync to R2 production path (repo/10-x86_64)
+        run: |
+          rclone copy repo-tree/ "r2:bluefin/repo/10-x86_64/" \
+            --transfers 16 --checksum --verbose 2>&1 | tail -5
+          echo "Synced to r2:bluefin/repo/10-x86_64/"
+
+      - name: Sync to R2 GNOME 50 GHA path (gnome50/10-stream-x86_64)
+        run: |
+          rclone copy repo-tree/ "r2:bluefin/gnome50/10-stream-x86_64/" \
+            --transfers 16 --checksum --verbose 2>&1 | tail -5
+          echo "Synced to r2:bluefin/gnome50/10-stream-x86_64/"
+
+      - name: Verify accessibility
+        run: |
+          echo "=== gnome50 path ==="
+          curl -sI https://repo.tunaos.org/gnome50/10-stream-x86_64/repodata/repomd.xml | awk 'NR==1{print $2}'
+          echo "=== repo/10 path ==="
+          curl -sI https://repo.tunaos.org/repo/10/x86_64/repodata/repomd.xml | awk 'NR==1{print $2}'
+          echo "=== ICU check (should be 0) ==="
+          PRIMARY=$(curl -s "https://repo.tunaos.org/gnome50/10-stream-x86_64/repodata/repomd.xml" | grep -oP 'href="repodata/[^"]+-primary.xml.gz"' | head -1 | sed 's/.*href="//;s/"//')
+          curl -s "https://repo.tunaos.org/gnome50/10-stream-x86_64/${PRIMARY}" | gunzip | grep -c '<name>\(icu\|libicu\|libicu77\)</name>' || true
