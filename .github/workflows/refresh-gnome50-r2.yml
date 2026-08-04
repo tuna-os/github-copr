@@ -65,7 +65,7 @@ jobs:
           echo "=== Downloaded tree ==="
           find repo-tree -name '*.rpm' | wc -l
           echo "RPMs downloaded"
-          find repo-tree -type f | head -5
+          find repo-tree -type f | head -5 || true
 
       - name: Sync to R2 production path (repo/10-x86_64)
         run: |
