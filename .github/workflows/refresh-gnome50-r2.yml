@@ -72,19 +72,27 @@ jobs:
           done
 
           echo "=== Downloaded tree ==="
-          find repo-tree -name '*.rpm' | wc -l
-          echo "RPMs downloaded"
+          RPM_COUNT=$(find repo-tree -name '*.rpm' | wc -l)
+          echo "RPMs downloaded: ${RPM_COUNT} (expected ${TOTAL})"
+          if [[ "${RPM_COUNT}" -lt "${TOTAL}" ]]; then
+            echo "::error::Downloaded ${RPM_COUNT} of ${TOTAL} RPMs — refusing to sync (would delete published packages)"
+            exit 1
+          fi
           find repo-tree -type f | head -5 || true
 
       - name: Sync to R2 production path (repo/10-x86_64)
+        # rclone sync (not copy): the destination must EXACTLY mirror COPR.
+        # copy would leave orphaned stale RPMs (e.g. the ICU 77 packages from
+        # the old snapshot) that createrepo_c then indexes, re-poisoning the
+        # local-build repo.
         run: |
-          rclone copy repo-tree/ "r2:bluefin/repo/10-x86_64/" \
+          rclone sync repo-tree/ "r2:bluefin/repo/10-x86_64/" \
             --transfers 16 --checksum --verbose 2>&1 | tail -5
           echo "Synced to r2:bluefin/repo/10-x86_64/"
 
       - name: Sync to R2 GNOME 50 GHA path (gnome50/10-stream-x86_64)
         run: |
-          rclone copy repo-tree/ "r2:bluefin/gnome50/10-stream-x86_64/" \
+          rclone sync repo-tree/ "r2:bluefin/gnome50/10-stream-x86_64/" \
             --transfers 16 --checksum --verbose 2>&1 | tail -5
           echo "Synced to r2:bluefin/gnome50/10-stream-x86_64/"
 
