@@ -5,7 +5,7 @@ name: Build Hummingbird desktops
 # The package list is not hand-written.  scripts/measure-hummingbird-gap.py
 # resolves each desktop's install roots against Fedora Rawhide, subtracts
 # everything the Hummingbird repository already provides, and emits
-# build-order-hummingbird-desktops.yml.  As measured on 2026-08-06 that is 671
+# build-order-hummingbird-desktops.yml.  As measured on 2026-08-06 that is 670
 # source packages across five desktops (298 for GNOME alone) — see
 # docs/hummingbird-desktop-gap.md.
 #

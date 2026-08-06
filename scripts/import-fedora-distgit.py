@@ -9,7 +9,7 @@ Two drivers:
 
   * the desktop catalog's `fedora_distgit:` sources (the original behaviour), and
   * a build-order manifest's `distgit:` keys, which is how the measured
-    Hummingbird desktop graph is materialised — 599 of its 671 packages are
+    Hummingbird desktop graph is materialised — 599 of its 670 packages are
     unmodified Fedora Rawhide packaging and are imported rather than vendored.
 
 Hummingbird's own RPM project (gitlab.com/redhat/hummingbird, ci/dist_git.py)
