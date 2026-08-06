@@ -118,9 +118,18 @@ derive_dist() {
             err "tracks Fedora's next release (e.g. .fc45); pass --dist"
             exit 1
             ;;
-        # Hummingbird's current bootc base is ABI-compatible with Fedora 43.
-        # Keep this explicit instead of deriving it from a build host, so an
-        # update of the runner cannot silently change RPM compatibility.
+        # Hummingbird's own packages carry .hum1 — every one of the 16506
+        # (name, evr, arch) tuples in its primary.xml does, measured
+        # 2026-08-06. .fc43 here is deliberately NOT that tag: it marks a
+        # TunaOS rebuild, and because "fc43" sorts below "hum1" for the same
+        # version, a rebuild can never shadow a package Hummingbird later
+        # starts shipping itself.
+        #
+        # It is not a claim about ABI. The buildroot ABI comes from
+        # mock/hummingbird-ci.cfg, which tracks Fedora Rawhide because that is
+        # what the target measurably tracks: glib2 2.89.3-1, systemd 261.2-1
+        # and gcc 16.1.1 are Rawhide's versions, not F43's 2.86.5 / 258.10 /
+        # 15.3.1. See docs/hummingbird-desktop-gap.md.
         hummingbird-20251124*)   echo ".fc43" ;;
         fedora-*)                 echo ".fc${target#fedora-}" | sed 's/-.*//' ;;
         centos-stream-10*|epel-10*|almalinux*-10*) echo ".el10" ;;
