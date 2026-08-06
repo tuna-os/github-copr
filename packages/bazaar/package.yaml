@@ -45,7 +45,22 @@ dependencies:
       # libmd4c -> md4c, libglycin-gtk4-2 -> glycin-gtk4, libwebkitgtk-6.0 ->
       # webkitgtk-6.0. flatpak is repeated from capabilities so this list still
       # stands alone if a target override supersedes them.
-      arch: [flatpak, gtk4, gtksourceview5, libadwaita, libdex, libyaml, libsoup3, libproxy, md4c, glycin-gtk4, webkitgtk-6.0]
+      #
+      # The trailing names were NOT in that unresolved report, and that is the
+      # point: they are DT_NEEDED entries of the same binaries that happened to
+      # be on disk anyway, pulled in by flatpak's own closure or already present
+      # in the base image. ldd cannot distinguish "declared" from "someone else
+      # installed it", so the closure check goes green on them while the recipe
+      # still under-declares. Read off `readelf -d` over the artifact run
+      # 31116215447 uploaded, so the list is the binaries' full direct closure
+      # rather than the subset one container's contents exposed: libc/libm ->
+      # glibc, libgcc_s -> libgcc, lib{gio,gobject,glib}-2.0 -> glib2, libcairo
+      # -> cairo, libpango-1.0 -> pango, libgraphene-1.0 -> graphene,
+      # libappstream -> appstream, libxmlb -> libxmlb, libjson-glib-1.0 ->
+      # json-glib, libglycin-2 -> glycin, libsecret-1 -> libsecret,
+      # libmalcontent-0 -> libmalcontent (the library half of the build list's
+      # malcontent).
+      arch: [flatpak, gtk4, gtksourceview5, libadwaita, libdex, libyaml, libsoup3, libproxy, md4c, glycin-gtk4, webkitgtk-6.0, glibc, libgcc, glib2, cairo, pango, graphene, appstream, libxmlb, json-glib, glycin, libsecret, libmalcontent]
 files:
   common:
     - usr/bin/bazaar
