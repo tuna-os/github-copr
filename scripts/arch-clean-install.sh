@@ -58,21 +58,40 @@ cp /tmp/tideforge.db.tar.gz /var/lib/tideforge/tideforge.db
 # user-map root and make image-owned files read-only, and recent Arch images
 # no longer guarantee a copied /etc/pacman.conf survives that mapping. Write a
 # small, complete configuration of our own instead.
+#
+# [tideforge] MUST come before [core] and [extra]. pacman resolves `-S <name>`
+# by walking the sync repositories in configuration order and taking the first
+# one that provides the name — it does not compare versions across them. With
+# tideforge listed last, every package name that also exists in an official
+# Arch repository was installed FROM Arch, and the artifact this job just built
+# was never exercised at all.
+#
+# That is not hypothetical. Run 31113235209 built bazaar 0.9.1-1, uploaded it as
+# the job's artifact, and then reported `bazaar 0.9.2-1` from `pacman -Q` —
+# extra's build, not ours. It only surfaced because Arch's 0.9.2 replaced
+# /usr/bin/bazaar-refresh-worker with bazaar-daemon and tripped the smoke. The
+# other matrix entries that exist in extra (niri, greetd, dgop) stayed green
+# while validating a package this repository did not produce, which is the more
+# expensive failure: a gate that passes for the wrong reason teaches nothing.
+#
+# Ordering it first is what makes the closure check and the smoke assertions
+# statements about OUR package. tideforge holds only what this job built, so
+# it can shadow nothing else.
 {
     echo '[options]'
     echo 'Architecture = auto'
     echo 'SigLevel = Required DatabaseOptional'
     echo 'LocalFileSigLevel = Optional'
     echo
+    echo '[tideforge]'
+    echo 'SigLevel = Optional TrustAll'
+    echo 'Server = file:///var/lib/tideforge'
+    echo
     echo '[core]'
     echo 'Include = /etc/pacman.d/mirrorlist'
     echo
     echo '[extra]'
     echo 'Include = /etc/pacman.d/mirrorlist'
-    echo
-    echo '[tideforge]'
-    echo 'SigLevel = Optional TrustAll'
-    echo 'Server = file:///var/lib/tideforge'
 } > /tmp/tideforge-pacman.conf
 
 pacman --config /tmp/tideforge-pacman.conf -Sy --noconfirm
