@@ -48,3 +48,9 @@ src/**/*.zip
 # OS
 .DS_Store
 Thumbs.db
+
+# Gap-measurement repodata cache (scripts/measure-hummingbird-gap.py)
+.cache/
+
+# Dist-git import state written by the build workflow
+hummingbird-imports.json
