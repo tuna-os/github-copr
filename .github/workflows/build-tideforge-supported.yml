@@ -1428,6 +1428,30 @@ jobs:
             install_name: niri
             smoke: niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target
             clean_install: true
+          - package: cosmic-session
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: cosmic-session
+            smoke: "test -x /usr/bin/cosmic-session && test -x /usr/bin/start-cosmic && test -f /usr/share/wayland-sessions/cosmic.desktop"
+            clean_install: true
+          - package: cosmic-session
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: cosmic-session
+            smoke: "test -x /usr/bin/cosmic-session && test -x /usr/bin/start-cosmic && test -f /usr/share/wayland-sessions/cosmic.desktop"
+            clean_install: true
+          - package: cosmic-settings
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: cosmic-settings
+            smoke: "test -x /usr/bin/cosmic-settings && test -f /usr/share/polkit-1/rules.d/cosmic-settings.rules"
+            clean_install: true
+          - package: cosmic-settings
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: cosmic-settings
+            smoke: "test -x /usr/bin/cosmic-settings && test -f /usr/share/polkit-1/rules.d/cosmic-settings.rules"
+            clean_install: true
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
