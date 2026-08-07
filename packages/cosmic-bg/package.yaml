@@ -43,4 +43,6 @@ files:
     - usr/share/cosmic/com.system76.CosmicBackground/v1/backgrounds
 install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
+verify:
+  smoke: "test -x /usr/bin/cosmic-bg && test -f /usr/share/cosmic/com.system76.CosmicBackground/v1/all"
 targets: [el10]
