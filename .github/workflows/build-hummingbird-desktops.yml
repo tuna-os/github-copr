@@ -1,16 +1,50 @@
 name: Build Hummingbird desktops
 
+# Builds the desktop RPMs Hummingbird does not ship.
+#
+# The package list is not hand-written.  scripts/measure-hummingbird-gap.py
+# resolves each desktop's install roots against Fedora Rawhide, subtracts
+# everything the Hummingbird repository already provides, and emits
+# build-order-hummingbird-desktops.yml.  As measured on 2026-08-06 that is 670
+# source packages across five desktops (298 for GNOME alone) — see
+# docs/hummingbird-desktop-gap.md.
+#
+# A full run therefore takes many hours and is expected to be driven one tier
+# at a time.  `tiers:` selects a prefix or a comma-separated list so a run can
+# be resumed; the local repo is seeded from R2 first, so a resumed run sees the
+# packages earlier runs published.
+
 on:
   workflow_dispatch:
     inputs:
+      desktop:
+        description: Desktop whose tiers to build (prefix of the tier name)
+        type: choice
+        options: [gnome, kde, cosmic, niri, xfce, all]
+        default: gnome
+      tiers:
+        description: >
+          Comma-separated tier names to build, e.g. "gnome-00,gnome-01".
+          Empty means every tier matching `desktop`.
+        type: string
+        default: ""
       publish:
         description: Sign and publish the resulting RPM repository
+        type: boolean
+        default: false
+      force:
+        description: Rebuild packages already present in the local repo
         type: boolean
         default: false
 
 env:
   R2_BUCKET: bluefin
   R2_REPO_PATH: hummingbird/20251124-x86_64
+  MANIFEST: build-order-hummingbird-desktops.yml
+  # Fedora + mock toolchain (mock/Containerfile). The tag names the chroot the
+  # image was first built for, not the chroot it can build; mock pulls the
+  # bootstrap image for whatever --mock-config asks for. build-xfce-fedora.yml
+  # uses the same image for a fedora-44 chroot.
   MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
 
 jobs:
@@ -21,13 +55,12 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install build tools
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm gpg gpgconf
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm gpg gpgconf python3-yaml
 
       - name: Pull mock runner
         run: podman pull "${MOCK_RUNNER_IMAGE}"
 
       - name: Configure R2 access
-        if: inputs.publish
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -44,15 +77,69 @@ jobs:
           endpoint = ${R2_ENDPOINT}
           EOF
           mkdir -p local-repo-hummingbird
+          # Seed from R2 so a resumed run does not rebuild what an earlier tier
+          # already published. Non-fatal: the first run has nothing to seed.
           rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo-hummingbird/ || true
 
-      - name: Build project-owned RPMs
+      - name: Select tiers
+        id: tiers
         run: |
-          ./scripts/build-chain.sh \
-            --manifest build-order-hummingbird-desktops.yml \
-            --mock-config hummingbird-ci \
-            --local-repo "$PWD/local-repo-hummingbird" \
-            --jobs 2 --force
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, yaml
+          manifest = yaml.safe_load(open(os.environ["MANIFEST"]))
+          requested = [t.strip() for t in "${{ inputs.tiers }}".split(",") if t.strip()]
+          desktop = "${{ inputs.desktop }}"
+          names = [t["name"] for t in manifest["tiers"]]
+          if requested:
+              missing = [t for t in requested if t not in names]
+              if missing:
+                  raise SystemExit(f"no such tier(s): {missing}")
+              selected = requested
+          elif desktop == "all":
+              selected = names
+          else:
+              selected = [n for n in names if n.startswith(desktop + "-")]
+          if not selected:
+              raise SystemExit(f"no tiers match desktop={desktop}")
+          print("list=" + ",".join(selected))
+          PY
+
+      - name: Import Fedora Rawhide packaging for the selected tiers
+        run: |
+          # Most of the graph is unmodified Fedora Rawhide packaging and is
+          # imported here rather than vendored, the same way Hummingbird's own
+          # RPM project (gitlab.com/redhat/hummingbird, ci/dist_git.py) sources
+          # >95% of its packages. Packages with a reviewed spec directory in
+          # this repository carry no `distgit:` key and are left alone.
+          TIER_ARGS=()
+          IFS=',' read -ra TIERS <<< "${{ steps.tiers.outputs.list }}"
+          for tier in "${TIERS[@]}"; do TIER_ARGS+=(--tier "${tier}"); done
+          python3 scripts/import-fedora-distgit.py \
+            --build-order "${MANIFEST}" \
+            "${TIER_ARGS[@]}" \
+            --branch rawhide \
+            --state hummingbird-imports.json \
+            --release-bump \
+            --jobs 8
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: hummingbird-import-state
+          path: hummingbird-imports.json
+          if-no-files-found: warn
+
+      - name: Build tiers
+        run: |
+          IFS=',' read -ra TIERS <<< "${{ steps.tiers.outputs.list }}"
+          ARGS=(--manifest "${MANIFEST}" --mock-config hummingbird-ci
+                --local-repo "$PWD/local-repo-hummingbird" --jobs 2)
+          if [[ "${{ inputs.force }}" == "true" ]]; then ARGS+=(--force); fi
+          for tier in "${TIERS[@]}"; do
+            echo "::group::tier ${tier}"
+            ./scripts/build-chain.sh "${ARGS[@]}" --tier "${tier}"
+            echo "::endgroup::"
+          done
 
       - name: Sign RPMs and publish
         if: inputs.publish
@@ -69,7 +156,10 @@ jobs:
           echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
           find local-repo-hummingbird -name '*.rpm' ! -name '*.src.rpm' -print0 | xargs -0 -r rpmsign --addsign
           createrepo_c --update local-repo-hummingbird
-          rclone sync local-repo-hummingbird/ "r2:${R2_BUCKET}/${R2_REPO_PATH}/"
+          # copy, not sync: a partial tier run must never delete packages an
+          # earlier tier published. Removal is a deliberate, separate action.
+          rclone copy local-repo-hummingbird/ "r2:${R2_BUCKET}/${R2_REPO_PATH}/"
+          rclone copy public.gpg "r2:${R2_BUCKET}/${R2_REPO_PATH}/"
 
       - uses: actions/upload-artifact@v7
         if: always()
