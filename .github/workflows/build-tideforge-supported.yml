@@ -63,7 +63,7 @@ jobs:
         # requires the remaining runtime closure, which is not all
         # factory-built yet. This still makes every source/vendor/toolchain
         # regression block updates before any of these recipes can be promoted.
-        package: [dms, dms-cli, dms-greeter, cosmic-bg, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
+        package: [dms, dms-cli, dms-greeter, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -1100,6 +1100,88 @@ jobs:
           path: .tideforge/cosmic-comp/rpmbuild/RPMS/
           if-no-files-found: warn
 
+  # cosmic-bg runtime-requires cosmic-icon-theme >= 1.4.0, which is not in
+  # CentOS Stream 10, CRB, or EPEL 10 -- it is factory-built here, and itself
+  # pulls in the factory-built pop-icon-theme. A plain rpm matrix cell has
+  # nothing but the distro repos plus the single RPM it just built, so the
+  # clean-install step died on "nothing provides cosmic-icon-theme >= 1.4.0".
+  # Same staged shape as cosmic-comp-rpm: stage the prerequisite artifacts into
+  # the ephemeral repo, then install and assert the recipe's contract.
+  cosmic-bg-rpm:
+    name: cosmic-bg (el10 RPM)
+    needs: [detect-changes, rpm, cosmic-icon-theme-rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/cosmic-bg/package.yaml
+      - uses: actions/download-artifact@v8
+        with:
+          name: pop-icon-theme-el10-rpm
+          path: .tideforge/cosmic-bg/prerequisite
+      - uses: actions/download-artifact@v8
+        with:
+          name: cosmic-icon-theme-el10-rpm
+          path: .tideforge/cosmic-bg/prerequisite
+      - name: Render and fetch the exact source archive
+        run: |
+          set -euo pipefail
+          recipe=packages/cosmic-bg/package.yaml
+          root="$PWD/.tideforge/cosmic-bg"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
+          python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
+      - name: Build cosmic-bg with only declared BuildRequires
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/cosmic-bg"
+          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            # just and libdav1d-devel live in EPEL 10, not base or CRB -- the
+            # same reason every other COSMIC job installs epel-release here.
+            dnf -y install dnf-plugins-core epel-release rpm-build
+            dnf config-manager --set-enabled crb
+            dnf -y builddep /work/rpmbuild/SPECS/cosmic-bg.spec
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/cosmic-bg.spec
+          '
+      - name: Lint the generated RPM
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/cosmic-bg"
+          docker run --rm --volume "$root:/work:ro" --volume "$PWD/scripts:/scripts:ro" quay.io/centos/centos:stream10 \
+            bash /scripts/lint-generated-rpm.sh /work/rpmbuild/RPMS
+      - name: Clean-install cosmic-bg and its staged closure
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/cosmic-bg"
+          docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install epel-release createrepo_c
+            mkdir -p /tmp/tideforge-rpms
+            cp -a /work/prerequisite/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
+            createrepo_c /tmp/tideforge-rpms
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --setopt=tideforge.priority=1 --enablerepo=tideforge cosmic-bg
+            rpm -q cosmic-bg cosmic-icon-theme pop-icon-theme
+            test -x /usr/bin/cosmic-bg && test -f /usr/share/cosmic/com.system76.CosmicBackground/v1/all
+          '
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: cosmic-bg-el10-rpm
+          path: .tideforge/cosmic-bg/rpmbuild/RPMS/
+          if-no-files-found: warn
+
   deb:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.relevant == 'true' }}
@@ -1371,6 +1453,30 @@ jobs:
             image: docker.io/library/debian:sid
             install_name: krunner-bazaar
             smoke: test -x /usr/bin/bazaar-dbus-tool
+            clean_install: true
+          - package: cosmic-session
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: cosmic-session
+            smoke: "test -x /usr/bin/cosmic-session && test -x /usr/bin/start-cosmic && test -f /usr/share/wayland-sessions/cosmic.desktop"
+            clean_install: true
+          - package: cosmic-session
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: cosmic-session
+            smoke: "test -x /usr/bin/cosmic-session && test -x /usr/bin/start-cosmic && test -f /usr/share/wayland-sessions/cosmic.desktop"
+            clean_install: true
+          - package: cosmic-settings
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+            install_name: cosmic-settings
+            smoke: "test -x /usr/bin/cosmic-settings && test -f /usr/share/polkit-1/rules.d/cosmic-settings.rules"
+            clean_install: true
+          - package: cosmic-settings
+            target: debian
+            image: docker.io/library/debian:sid
+            install_name: cosmic-settings
+            smoke: "test -x /usr/bin/cosmic-settings && test -f /usr/share/polkit-1/rules.d/cosmic-settings.rules"
             clean_install: true
     steps:
       - uses: actions/checkout@v7
@@ -1731,7 +1837,7 @@ jobs:
 
   tideforge-gate:
     name: Tideforge gate
-    needs: [detect-changes, rpm-payload, rpm, opensuse-rpm, xfconf-split, gtkgreet-rpm, cpptrace-rpm, input-remapper-rpm, quickshell-rpm, niri-rpm, iio-niri-rpm, dms-stack-rpm, cosmic-icon-theme-rpm, cosmic-comp-rpm, deb, cosmic-icon-theme-deb, cosmic-comp-deb]
+    needs: [detect-changes, rpm-payload, rpm, opensuse-rpm, xfconf-split, gtkgreet-rpm, cpptrace-rpm, input-remapper-rpm, quickshell-rpm, niri-rpm, iio-niri-rpm, dms-stack-rpm, cosmic-icon-theme-rpm, cosmic-comp-rpm, cosmic-bg-rpm, deb, cosmic-icon-theme-deb, cosmic-comp-deb]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
