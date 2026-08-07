@@ -141,8 +141,18 @@ jobs:
             echo "::endgroup::"
           done
 
+      # !cancelled(): publish what BUILT even when some packages in the tier
+      # failed. Tier gnome-00's first real run built 108 of 124 packages and
+      # then exited 1 on the 16 failures — these ifs (which implicitly require
+      # every prior step to succeed) skipped publishing, so 4h50m of built
+      # RPMs went to a GitHub artifact instead of R2 and the re-run had to
+      # build all 108 again (run 31137480986). Partial publishes are exactly
+      # what the rclone step below is designed for: copy-not-sync, so nothing
+      # already published can be deleted, and the R2 seed step makes the next
+      # run rebuild only what is missing. The job still fails on failed
+      # packages — publishing is not success, it is not losing the work.
       - name: Sign RPMs and publish
-        if: inputs.publish
+        if: ${{ !cancelled() && inputs.publish }}
         uses: crazy-max/ghaction-import-gpg@v7
         id: import-gpg
         with:
@@ -150,7 +160,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Publish signed rpm-md repository
-        if: inputs.publish
+        if: ${{ !cancelled() && inputs.publish }}
         run: |
           echo "%_signature gpg" > ~/.rpmmacros
           echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
