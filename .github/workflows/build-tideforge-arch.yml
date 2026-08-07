@@ -96,6 +96,14 @@ jobs:
       - run: python3 scripts/tideforge.py validate packages/${{ matrix.package }}/package.yaml
       - run: python3 scripts/verify-tideforge-source.py packages/${{ matrix.package }}/package.yaml --cache-dir "$HOME/.cache/tideforge/sources"
       - run: python3 scripts/tideforge.py render packages/${{ matrix.package }}/package.yaml --target arch --output .tideforge/arch/${{ matrix.package }}
+      - name: Derive the clean-install smoke from the recipe
+        # The recipe is the single source of how this package proves itself
+        # installed (#139). Derived HERE, before the build container runs:
+        # that container chowns /work to its builder user, after which the
+        # runner can no longer create files in this directory — deriving in
+        # the clean-install step failed every arch cell with
+        # "verify-smoke.sh: Permission denied".
+        run: python3 scripts/tideforge.py verify packages/${{ matrix.package }}/package.yaml --target arch --field smoke > .tideforge/arch/${{ matrix.package }}/verify-smoke.sh
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh docker.io/library/archlinux:latest
       - name: Build generated PKGBUILD
@@ -116,10 +124,7 @@ jobs:
       - name: Clean-install generated package from an ephemeral repository
         run: |
           set -euo pipefail
-          # The recipe is the single source of how this package proves itself
-          # installed (#139): the cell derives the smoke instead of a
-          # hand-written matrix copy that had to be kept byte-identical.
-          python3 scripts/tideforge.py verify packages/${{ matrix.package }}/package.yaml --target arch --field smoke > .tideforge/arch/${{ matrix.package }}/verify-smoke.sh
+          # verify-smoke.sh was derived before the build step — see there.
           docker run --rm --user root \
             --volume "$PWD/.tideforge/arch/${{ matrix.package }}:/work:ro" \
             --volume "$PWD/scripts:/scripts:ro" \
