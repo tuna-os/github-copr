@@ -1,4 +1,4 @@
-%global commit 3fdb393a26318fa47c152a456f7961f1dd1f7b8b
+%global commit c0b289b06d83b9f32512949181dfc7adc4dcb55c
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 # resources/xfce-wayland-protocols submodule gitlink at %{commit}. It must be
 # bumped in lockstep with it: the XML defines the interfaces, requests and
@@ -22,17 +22,13 @@ Source0: https://gitlab.xfce.org/xfce/xfwl4/-/archive/%{commit}/xfwl4-%{commit}.
 # Pre-vendored with `cargo vendor` against this exact commit's Cargo.lock
 # (crates.io deps + the smithay git dep); see release notes for how it
 # was generated if it ever needs regenerating after a Cargo.lock bump.
-Source1: https://github.com/tuna-os/tunaos-packages/releases/download/xfwl4-vendor-6b38df65/vendor.tar.gz
+Source1: https://github.com/tuna-os/tunaos-packages/releases/download/xfwl4-vendor-5c2802c0/vendor.tar.gz
 # resources/xfce-wayland-protocols is a git submodule (custom XFCE Wayland
 # protocol XML: output-management, input-device-list, etc.) — not included
 # in the plain archive tarball, same as any other git submodule. Referenced
 # by relative path in src/protocols/*.rs's wayland_scanner::generate_*!
 # macros, so it just needs to land at resources/xfce-wayland-protocols/.
 Source2: https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/%{protocols_commit}/xfce-wayland-protocols-%{protocols_commit}.tar.gz
-# Upstream bug: WlrBufferConstraints.dma's cfg gate doesn't include the
-# udev feature, but three call sites already guard access to it under
-# udev too — a udev-only build (ours) fails to compile as a result.
-Patch0: 0001-fix-dma-cfg-gate-for-udev-backend.patch
 
 %if 0%{?rhel} >= 10
 %global __cargo_requires_buildrequires 1
@@ -60,7 +56,7 @@ xfwl4 is a Wayland compositor for Xfce4 built on Smithay/wlroots.
 Provides both winit (nested) and TTY (udev+egl) backends.
 
 %prep
-%autosetup -n xfwl4-%{commit} -p1
+%setup -q -n xfwl4-%{commit}
 tar -xzf %{SOURCE1}
 mkdir -p resources/xfce-wayland-protocols
 tar -xzf %{SOURCE2} --strip-components=1 -C resources/xfce-wayland-protocols

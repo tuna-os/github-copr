@@ -24,6 +24,16 @@ def main() -> None:
     for desktop, definition in data.get("desktops", {}).items():
         if not definition.get("required_packages") or not definition.get("sources"):
             fail(f"{desktop} needs packages and sources")
+        # install_packages is what tunaOS actually installs; required_packages
+        # is only the contract surface its desktop gate checks. The gap
+        # measurement resolves both, and a required package missing from the
+        # install list is a package nothing would install — the exact shape of
+        # the GNOME failure in LUKS run 31100096864.
+        install = definition.get("install_packages")
+        if install is not None:
+            orphans = sorted(set(definition["required_packages"]) - set(install))
+            if orphans:
+                fail(f"{desktop}: required but never installed: {orphans}")
         for source in definition["sources"]:
             if len(source) != 1:
                 fail(f"{desktop}: source has multiple kinds")
