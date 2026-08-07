@@ -1,13 +1,17 @@
-"""Cross-check the gate's hand-written verification against the recipes.
+"""Cross-check the gate's verification coverage against the recipes.
 
-Every gate cell today carries `smoke` and `install_name` as matrix keys. The
-recipes now carry the same values in a `verify:` block. Until the gate is
-switched over to read them, the two must agree exactly -- otherwise the
-switchover would silently change what is asserted, which is the failure mode
-this whole line of work exists to prevent (#139).
+The gate derives `smoke` and `install_name` from each recipe's `verify:`
+block at clean-install time (`tideforge.py verify`); the matrix keys that
+used to carry hand-written copies are gone. The byte-identity tests that
+guarded that era did their job -- they passed on the commit immediately
+before the switchover, which is the proof the flip changed nothing -- and
+are deleted with the keys.
 
-These tests are what make the switchover a pure deletion: when the matrix keys
-go away, this file proves nothing was lost in the move.
+What must hold now: every cell the gate installs must be derivable from its
+recipe (non-empty smoke and install_name for that target), because a recipe
+without a verify block no longer fails as a mismatched matrix key but as a
+runtime error deep in a CI job (#139's defect class in a new coat). The
+dedicated jobs' inline scripts remain pinned to the recipes below.
 """
 from __future__ import annotations
 
@@ -32,13 +36,13 @@ GATES = [
 
 
 def gate_cells() -> list[dict]:
-    """Every matrix cell that asserts something, with the target it asserts on."""
+    """Every matrix cell naming a package, with the target it builds for."""
     cells = []
     for gate in GATES:
         workflow = yaml.safe_load(gate.read_text())
         for job_name, job in workflow["jobs"].items():
             for cell in job.get("strategy", {}).get("matrix", {}).get("include", []):
-                if "smoke" not in cell and "install_name" not in cell:
+                if "package" not in cell:
                     continue
                 # The Arch gate has one target by construction; the openSUSE job
                 # pins its target in the step body rather than the matrix.
@@ -54,36 +58,61 @@ def recipe_for(package: str) -> dict:
 
 
 CELLS = gate_cells()
+# Cells the gate clean-installs and smokes. Everything except deb cells that
+# explicitly opt out with `clean_install: false` (payload-only builds).
+INSTALLED_CELLS = [cell for cell in CELLS if cell.get("clean_install") is not False]
 
 
 def test_the_gate_actually_has_cells() -> None:
     """A zero-length cell list would make every test below vacuously pass."""
-    assert len(CELLS) >= 39
+    assert len(CELLS) >= 90
+    assert len(INSTALLED_CELLS) >= 84
 
 
-@pytest.mark.parametrize("cell", CELLS, ids=lambda c: f"{c['package']}-{c['target']}")
-def test_every_gate_cell_matches_its_recipe(cell: dict) -> None:
-    recipe = recipe_for(cell["package"])
-    resolved = tideforge.verify_metadata(recipe, cell["target"])
+def test_no_cell_carries_a_hand_written_contract() -> None:
+    """A matrix `smoke:`/`install_name:` key is dead weight the gate ignores.
 
-    if "smoke" in cell:
-        assert resolved["smoke"] == cell["smoke"], (
-            f"{cell['package']} ({cell['target']}): recipe verify.smoke differs from "
-            "the gate cell. Switching the gate over would change what is asserted."
-        )
-    if "install_name" in cell:
-        assert resolved["install_name"] == cell["install_name"], (
-            f"{cell['package']} ({cell['target']}): recipe verify.install_name differs "
-            "from the gate cell."
-        )
+    The switchover deleted every hand-written copy, but a branch cut before
+    it merges cleanly while re-adding keys to new cells — that exact drift
+    arrived with the bazaar/krunner-bazaar cells (#223), whose keys shadowed
+    recipe values byte-for-byte and would have rotted silently from there.
+    The gate derives both fields from the recipe; a cell stating them is
+    either redundant today or wrong tomorrow.
+    """
+    offenders = [
+        f"{cell['job']}: {cell['package']} ({cell['target']}) carries {sorted(set(cell) & {'smoke', 'install_name'})}"
+        for cell in CELLS
+        if set(cell) & {"smoke", "install_name"}
+    ]
+    assert not offenders, (
+        "matrix cells carrying hand-written verify contracts (the gate reads "
+        "these from the recipe's verify: block):\n  " + "\n  ".join(offenders)
+    )
 
 
-@pytest.mark.parametrize("cell", CELLS, ids=lambda c: f"{c['package']}-{c['target']}")
-def test_every_gate_cell_has_a_recipe_verify_block(cell: dict) -> None:
+@pytest.mark.parametrize(
+    "cell", INSTALLED_CELLS, ids=lambda c: f"{c['job']}-{c['package']}-{c['target']}"
+)
+def test_every_installed_cell_derives_from_its_recipe(cell: dict) -> None:
+    """The cell's contract must exist in the recipe, per target.
+
+    The gate reads smoke and install_name with `tideforge.py verify` at
+    clean-install time; a recipe that cannot answer would fail deep inside a
+    CI job. Catch it here, where the failure names the missing field instead
+    of a dead container.
+    """
     recipe = recipe_for(cell["package"])
     assert recipe.get("verify"), (
-        f"{cell['package']} is exercised by the gate but its recipe has no verify: "
-        "block, so the cell could not be derived from the recipe."
+        f"{cell['package']} is installed by the gate ({cell['job']}) but its "
+        "recipe has no verify: block to derive the cell's contract from."
+    )
+    resolved = tideforge.verify_metadata(recipe, cell["target"])
+    assert resolved["smoke"] and str(resolved["smoke"]).strip(), (
+        f"{cell['package']} ({cell['target']}): no verify.smoke; the gate's "
+        "clean-install step would fail at derivation time."
+    )
+    assert resolved["install_name"] and str(resolved["install_name"]).strip(), (
+        f"{cell['package']} ({cell['target']}): empty install_name."
     )
 
 
@@ -220,10 +249,9 @@ def test_niri_carries_its_full_session_contract() -> None:
 SUPPORTED_GATE = ROOT / ".github" / "workflows" / "build-tideforge-supported.yml"
 
 # job name -> (package, target) pairs whose recipe contract the job's inline
-# steps must carry. input-remapper-rpm is absent on purpose: its cell carries
-# `smoke`/`install_name` matrix keys, so the byte-identity tests above already
-# cover it.
+# steps must carry.
 DEDICATED_JOB_CONTRACTS = {
+    "input-remapper-rpm": [("input-remapper", "el10")],
     "gtkgreet-rpm": [("gtkgreet", "el10")],
     "cpptrace-rpm": [("cpptrace-devel", "el10")],
     "quickshell-rpm": [("quickshell", "el10")],

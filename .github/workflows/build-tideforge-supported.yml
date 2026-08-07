@@ -127,93 +127,48 @@ jobs:
         include:
           - package: uupd
             target: el10
-            install_name: uupd
-            smoke: uupd --help
           - package: xfconf
             target: el10
-            install_name: xfconf
-            smoke: xfconf-query --version
           - package: greetd
             target: el10
-            install_name: greetd
-            smoke: greetd --help
           - package: cli11-devel
             target: el10
-            install_name: cli11-devel
-            smoke: test -f /usr/include/CLI/CLI.hpp
           - package: libunwind-devel
             target: el10
-            install_name: libunwind-devel
-            smoke: test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h
           - package: ninja-build
             target: el10
-            install_name: ninja-build
-            smoke: ninja --version
           - package: wayland-protocols
             target: el10
-            install_name: wayland-protocols
-            smoke: pkg-config --atleast-version=1.41 wayland-protocols && test -f /usr/share/wayland-protocols/staging/ext-session-lock/ext-session-lock-v1.xml
           - package: libseat
             target: el10
-            install_name: libseat-devel
-            smoke: pkg-config --modversion libseat && seatd -h
           - package: dgop
             target: el10
-            install_name: dgop
-            smoke: dgop --help
           - package: danksearch
             target: el10
-            install_name: danksearch
-            smoke: dsearch --help
           - package: kairpods
             target: el10
-            install_name: kairpods
-            smoke: test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service
           - package: oversteer-udev
             target: el10
-            install_name: oversteer-udev
-            # Upstream names its rules by wheel vendor — 99-fanatec-wheel-perms.rules,
-            # 99-logitech-wheel-perms.rules, 99-thrustmaster-wheel-perms.rules. Nothing
-            # upstream contains the string 'oversteer', so the old
-            # `-name \*oversteer\*` could never match: the package built and installed
-            # correctly and the assertion failed anyway. Assert the real filenames.
-            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
           - package: gtk-layer-shell
             target: el10
-            install_name: gtk-layer-shell-devel
-            smoke: pkg-config --modversion gtk-layer-shell-0 && test -f /usr/include/gtk-layer-shell/gtk-layer-shell.h
           - package: labwc
             target: el10
-            install_name: labwc
-            smoke: labwc --help
           # First COSMIC install gates (#169): these three have no
           # tideforge-built runtime deps, so the plain matrix cell suffices.
           # cosmic-icon-theme and cosmic-comp need staged prerequisites and
           # get dedicated jobs below.
           - package: pop-icon-theme
             target: el10
-            install_name: pop-icon-theme
-            smoke: test -d /usr/share/icons/Pop
           - package: cosmic-randr
             target: el10
-            install_name: cosmic-randr
-            smoke: cosmic-randr --help
           - package: cosmic-panel
             target: el10
-            install_name: cosmic-panel
-            smoke: test -x /usr/bin/cosmic-panel
           - package: evtest
             target: el10
-            install_name: evtest
-            smoke: test -x /usr/bin/evtest && test -f /usr/share/man/man1/evtest.1.gz
           - package: python3-evdev
             target: el10
-            install_name: python3-evdev
-            smoke: python3 -c "import evdev"
           - package: xfwm4-themes
             target: el10
-            install_name: xfwm4-themes
-            smoke: test -f /usr/share/themes/Default/xfwm4/themerc
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -261,8 +216,14 @@ jobs:
       - name: Clean-install RPM from an ephemeral repository
         run: |
           set -euo pipefail
+          recipe="packages/${{ matrix.package }}/package.yaml"
           root="$PWD/.tideforge/rpm/${{ matrix.package }}"
-          docker run --rm --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+          # The recipe is the single source of how this package proves itself
+          # installed (#139): the cell derives smoke and install_name instead
+          # of a hand-written matrix copy that had to be kept byte-identical.
+          install_name=$(python3 scripts/tideforge.py verify "$recipe" --target "${{ matrix.target }}" --field install_name)
+          python3 scripts/tideforge.py verify "$recipe" --target "${{ matrix.target }}" --field smoke > "$root/verify-smoke.sh"
+          docker run --rm --env INSTALL_NAME="$install_name" --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
             # EPEL for the same reason as the build step: xfconf pulls in
             # libxfce4util at install time, and it only lives in EPEL 10.
@@ -276,9 +237,9 @@ jobs:
             # priority override dnf would silently install EPEL libseat-devel and
             # its library-only libseat, leaving no seatd binary -- the smoke
             # `seatd -h` then exited 127.
-            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --setopt=tideforge.priority=1 --enablerepo=tideforge ${{ matrix.install_name }}
-            rpm -q ${{ matrix.install_name }}
-            ${{ matrix.smoke }}
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --setopt=tideforge.priority=1 --enablerepo=tideforge "$INSTALL_NAME"
+            rpm -q "$INSTALL_NAME"
+            bash /work/verify-smoke.sh
           '
       - uses: actions/upload-artifact@v7
         if: always()
@@ -310,43 +271,21 @@ jobs:
       matrix:
         include:
           - package: dgop
-            install_name: dgop
-            smoke: dgop --help
           - package: cli11-devel
-            install_name: cli11-devel
-            smoke: test -f /usr/include/CLI/CLI.hpp
           # Second wave (#139 follow-up): every recipe here is already green on
           # el10 with the same contract, and eight of the nine are also green on
           # ubuntu and debian. greetd and kairpods are the first cargo builds
           # under zypper; if the cargo path breaks they fail with one shared,
           # readable cause.
           - package: uupd
-            install_name: uupd
-            smoke: uupd --help
           - package: greetd
-            install_name: greetd
-            smoke: greetd --help
           - package: danksearch
-            install_name: danksearch
-            smoke: dsearch --help
           - package: kairpods
-            install_name: kairpods
-            smoke: test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service
           - package: oversteer-udev
-            install_name: oversteer-udev
-            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
           - package: libseat
-            install_name: libseat-devel
-            smoke: pkg-config --modversion libseat && seatd -h
           - package: ninja-build
-            install_name: ninja-build
-            smoke: ninja --version
           - package: wayland-protocols
-            install_name: wayland-protocols
-            smoke: pkg-config --atleast-version=1.41 wayland-protocols && test -f /usr/share/wayland-protocols/staging/ext-session-lock/ext-session-lock-v1.xml
           - package: libunwind-devel
-            install_name: libunwind-devel
-            smoke: test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -398,8 +337,13 @@ jobs:
       - name: Clean-install RPM from an ephemeral repository
         run: |
           set -euo pipefail
+          recipe="packages/${{ matrix.package }}/package.yaml"
           root="$PWD/.tideforge/rpm/${{ matrix.package }}"
-          docker run --rm --volume "$root:/work:ro" registry.opensuse.org/opensuse/tumbleweed:latest bash -lc '
+          # Same derivation as the el10 job: the recipe states the contract,
+          # the cell reads it (#139).
+          install_name=$(python3 scripts/tideforge.py verify "$recipe" --target opensuse-tumbleweed --field install_name)
+          python3 scripts/tideforge.py verify "$recipe" --target opensuse-tumbleweed --field smoke > "$root/verify-smoke.sh"
+          docker run --rm --env INSTALL_NAME="$install_name" --volume "$root:/work:ro" registry.opensuse.org/opensuse/tumbleweed:latest bash -lc '
             set -euo pipefail
             zypper --non-interactive --gpg-auto-import-keys refresh
             zypper --non-interactive install createrepo_c
@@ -414,9 +358,9 @@ jobs:
             # --no-gpg-checks is a global zypper option, not an install option, so
             # it has to precede the verb; after it, zypper exits 2 with "The flag
             # --no-gpg-checks is not known".
-            zypper --non-interactive --no-gpg-checks install ${{ matrix.install_name }}
-            rpm -q ${{ matrix.install_name }}
-            ${{ matrix.smoke }}
+            zypper --non-interactive --no-gpg-checks install "$INSTALL_NAME"
+            rpm -q "$INSTALL_NAME"
+            bash /work/verify-smoke.sh
           '
       - uses: actions/upload-artifact@v7
         if: always()
@@ -603,8 +547,6 @@ jobs:
         include:
           - package: input-remapper
             target: el10
-            install_name: input-remapper
-            smoke: test -x /usr/bin/input-remapper-gtk && test -x /usr/bin/input-remapper-service && test -x /usr/bin/input-remapper-control && test -f /usr/lib/udev/rules.d/99-input-remapper.rules && test -f /usr/lib/systemd/system/input-remapper.service && test -f /usr/share/polkit-1/actions/input-remapper.policy && test -f /usr/share/dbus-1/system.d/inputremapper.Control.conf
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -1198,62 +1140,42 @@ jobs:
           - package: cli11-devel
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: libcli11-dev
-            smoke: test -f /usr/include/CLI/CLI.hpp
             clean_install: true
           - package: cli11-devel
             target: debian
             image: docker.io/library/debian:sid
-            install_name: libcli11-dev
-            smoke: test -f /usr/include/CLI/CLI.hpp
             clean_install: true
           - package: libunwind-devel
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: libunwind-dev
-            smoke: test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h
             clean_install: true
           - package: libunwind-devel
             target: debian
             image: docker.io/library/debian:sid
-            install_name: libunwind-dev
-            smoke: test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h
             clean_install: true
           - package: ninja-build
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: ninja-build
-            smoke: ninja --version
             clean_install: true
           - package: ninja-build
             target: debian
             image: docker.io/library/debian:sid
-            install_name: ninja-build
-            smoke: ninja --version
             clean_install: true
           - package: wayland-protocols
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: wayland-protocols
-            smoke: pkg-config --atleast-version=1.41 wayland-protocols && test -f /usr/share/wayland-protocols/staging/ext-session-lock/ext-session-lock-v1.xml
             clean_install: true
           - package: wayland-protocols
             target: debian
             image: docker.io/library/debian:sid
-            install_name: wayland-protocols
-            smoke: pkg-config --atleast-version=1.41 wayland-protocols && test -f /usr/share/wayland-protocols/staging/ext-session-lock/ext-session-lock-v1.xml
             clean_install: true
           - package: libseat
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: libseat-dev
-            smoke: pkg-config --modversion libseat && seatd -h
             clean_install: true
           - package: libseat
             target: debian
             image: docker.io/library/debian:sid
-            install_name: libseat-dev
-            smoke: pkg-config --modversion libseat && seatd -h
             clean_install: true
           # First cosmic deb widening slice (#169, deb-first directive):
           # pop-icon-theme proves the shape; the other four follow one at a
@@ -1261,56 +1183,38 @@ jobs:
           - package: pop-icon-theme
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: pop-icon-theme
-            smoke: test -d /usr/share/icons/Pop
             clean_install: true
           - package: pop-icon-theme
             target: debian
             image: docker.io/library/debian:sid
-            install_name: pop-icon-theme
-            smoke: test -d /usr/share/icons/Pop
             clean_install: true
           - package: cosmic-randr
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: cosmic-randr
-            smoke: cosmic-randr --help
             clean_install: true
           - package: cosmic-randr
             target: debian
             image: docker.io/library/debian:sid
-            install_name: cosmic-randr
-            smoke: cosmic-randr --help
             clean_install: true
           - package: cosmic-panel
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: cosmic-panel
-            smoke: test -x /usr/bin/cosmic-panel
             clean_install: true
           - package: cosmic-panel
             target: debian
             image: docker.io/library/debian:sid
-            install_name: cosmic-panel
-            smoke: test -x /usr/bin/cosmic-panel
             clean_install: true
           - package: uupd
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: uupd
-            smoke: uupd --help
             clean_install: true
           - package: xfconf
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: libxfconf-0-4
-            smoke: xfconf-query --version
             clean_install: true
           - package: greetd
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: greetd
-            smoke: greetd --help
             clean_install: true
           - package: dms
             target: ubuntu
@@ -1327,49 +1231,30 @@ jobs:
           - package: dgop
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: dgop
-            smoke: dgop --help
             clean_install: true
           - package: danksearch
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: danksearch
-            smoke: dsearch --help
             clean_install: true
           - package: kairpods
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: kairpods
-            smoke: test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service
             clean_install: true
           - package: oversteer-udev
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: oversteer-udev
-            # Upstream names its rules by wheel vendor — 99-fanatec-wheel-perms.rules,
-            # 99-logitech-wheel-perms.rules, 99-thrustmaster-wheel-perms.rules. Nothing
-            # upstream contains the string 'oversteer', so the old
-            # `-name \*oversteer\*` could never match: the package built and installed
-            # correctly and the assertion failed anyway. Assert the real filenames.
-            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
             clean_install: true
           - package: uupd
             target: debian
             image: docker.io/library/debian:sid
-            install_name: uupd
-            smoke: uupd --help
             clean_install: true
           - package: xfconf
             target: debian
             image: docker.io/library/debian:sid
-            install_name: libxfconf-0-4
-            smoke: xfconf-query --version
             clean_install: true
           - package: greetd
             target: debian
             image: docker.io/library/debian:sid
-            install_name: greetd
-            smoke: greetd --help
             clean_install: true
           - package: dms
             target: debian
@@ -1386,47 +1271,31 @@ jobs:
           - package: dgop
             target: debian
             image: docker.io/library/debian:sid
-            install_name: dgop
-            smoke: dgop --help
             clean_install: true
           - package: danksearch
             target: debian
             image: docker.io/library/debian:sid
-            install_name: danksearch
-            smoke: dsearch --help
             clean_install: true
           - package: kairpods
             target: debian
             image: docker.io/library/debian:sid
-            install_name: kairpods
-            smoke: test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service
             clean_install: true
           - package: oversteer-udev
             target: debian
             image: docker.io/library/debian:sid
-            install_name: oversteer-udev
-            # Upstream names its rules by wheel vendor — 99-fanatec-wheel-perms.rules,
-            # 99-logitech-wheel-perms.rules, 99-thrustmaster-wheel-perms.rules. Nothing
-            # upstream contains the string 'oversteer', so the old
-            # `-name \*oversteer\*` could never match: the package built and installed
-            # correctly and the assertion failed anyway. Assert the real filenames.
-            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
             clean_install: true
-          # Same contract the niri-rpm job asserts by hand: compositor,
-          # session launcher, wayland-session entry, portal config, and both
-          # user units (#161). libseat needs no prerequisite artifact here --
-          # libseat-dev/libseat1 are in the Ubuntu and Debian archives.
+          # The recipe's verify.smoke carries the full session contract:
+          # compositor, session launcher, wayland-session entry, portal
+          # config, and both user units (#161). libseat needs no prerequisite
+          # artifact here -- libseat-dev/libseat1 are in the Ubuntu and
+          # Debian archives.
           - package: niri
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: niri
-            smoke: niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target
             clean_install: true
           - package: niri
             target: debian
             image: docker.io/library/debian:sid
-            install_name: niri
-            smoke: niri --help && test -x /usr/bin/niri-session && test -f /usr/share/wayland-sessions/niri.desktop && test -f /usr/share/xdg-desktop-portal/niri-portals.conf && test -f /usr/lib/systemd/user/niri.service && test -f /usr/lib/systemd/user/niri-shutdown.target
             clean_install: true
           # No bazaar ubuntu cell yet. bazaar 0.9.1 asks meson for
           # blueprint-compiler >= 0.20.0 in both src/meson.build and
@@ -1439,44 +1308,30 @@ jobs:
           - package: bazaar
             target: debian
             image: docker.io/library/debian:sid
-            install_name: bazaar
-            smoke: "test -x /usr/bin/bazaar && test -x /usr/bin/bazaar-dl-worker && test -x /usr/bin/bazaar-refresh-worker"
             clean_install: true
           - package: krunner-bazaar
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: krunner-bazaar
-            smoke: test -x /usr/bin/bazaar-dbus-tool
             clean_install: true
           - package: krunner-bazaar
             target: debian
             image: docker.io/library/debian:sid
-            install_name: krunner-bazaar
-            smoke: test -x /usr/bin/bazaar-dbus-tool
             clean_install: true
           - package: cosmic-session
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: cosmic-session
-            smoke: "test -x /usr/bin/cosmic-session && test -x /usr/bin/start-cosmic && test -f /usr/share/wayland-sessions/cosmic.desktop"
             clean_install: true
           - package: cosmic-session
             target: debian
             image: docker.io/library/debian:sid
-            install_name: cosmic-session
-            smoke: "test -x /usr/bin/cosmic-session && test -x /usr/bin/start-cosmic && test -f /usr/share/wayland-sessions/cosmic.desktop"
             clean_install: true
           - package: cosmic-settings
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-            install_name: cosmic-settings
-            smoke: "test -x /usr/bin/cosmic-settings && test -f /usr/share/polkit-1/rules.d/cosmic-settings.rules"
             clean_install: true
           - package: cosmic-settings
             target: debian
             image: docker.io/library/debian:sid
-            install_name: cosmic-settings
-            smoke: "test -x /usr/bin/cosmic-settings && test -f /usr/share/polkit-1/rules.d/cosmic-settings.rules"
             clean_install: true
     steps:
       - uses: actions/checkout@v7
@@ -1524,8 +1379,14 @@ jobs:
         if: matrix.clean_install
         run: |
           set -euo pipefail
+          recipe="packages/${{ matrix.package }}/package.yaml"
           root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
-          docker run --rm --volume "$root:/work:ro" "${{ matrix.image }}" bash -lc '
+          # The recipe is the single source of how this package proves itself
+          # installed (#139): the cell derives smoke and install_name instead
+          # of a hand-written matrix copy that had to be kept byte-identical.
+          install_name=$(python3 scripts/tideforge.py verify "$recipe" --target "${{ matrix.target }}" --field install_name)
+          python3 scripts/tideforge.py verify "$recipe" --target "${{ matrix.target }}" --field smoke > "$root/verify-smoke.sh"
+          docker run --rm --env INSTALL_NAME="$install_name" --volume "$root:/work:ro" "${{ matrix.image }}" bash -lc '
             set -euo pipefail
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
@@ -1550,19 +1411,19 @@ jobs:
             # a package preinstalled in the image is replaced rather than kept.
             printf "Package: *\\nPin: origin \"\"\\nPin-Priority: 1001\\n" > /etc/apt/preferences.d/tideforge.pref
             apt-get update -qq
-            apt-get install -y ${{ matrix.install_name }}
-            dpkg-query -W ${{ matrix.install_name }}
+            apt-get install -y "$INSTALL_NAME"
+            dpkg-query -W "$INSTALL_NAME"
             # Shadowing is silent otherwise: an archive package that happens to
             # satisfy the contract would report this cell green without the
             # generated deb ever being installed.
-            set -- /var/lib/tideforge/${{ matrix.install_name }}_*.deb
+            set -- /var/lib/tideforge/"$INSTALL_NAME"_*.deb
             expected=$(dpkg-deb -f "$1" Version)
-            installed=$(dpkg-query -W ${{ matrix.install_name }} | cut -f2)
+            installed=$(dpkg-query -W "$INSTALL_NAME" | cut -f2)
             if [ "$installed" != "$expected" ]; then
               echo "installed $installed did not come from the ephemeral repo (expected $expected)" >&2
               exit 1
             fi
-            ${{ matrix.smoke }}
+            bash /work/verify-smoke.sh
           '
       - uses: actions/upload-artifact@v7
         if: always()
