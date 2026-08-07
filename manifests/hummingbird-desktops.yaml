@@ -1,29 +1,67 @@
 # Project-owned desktop RPM source catalog for Hummingbird. No COPR entries.
+#
+# `required_packages` is the desktop's contract surface — what tunaOS's desktop
+# gate refuses to ship an image without.  `install_packages` is the full set
+# tunaOS actually installs (manifests/desktops/<desktop>.yaml, `fedora:`
+# section on tuna-os/tunaOS).  Both are inputs to
+# scripts/measure-hummingbird-gap.py, which resolves their Requires: closure
+# against Fedora Rawhide and subtracts everything the target repository already
+# ships.  The result is docs/hummingbird-desktop-gap.json and the generated
+# build-order-hummingbird-desktops.yml.
+#
+# Measurement, 2026-08-06, against the target's own primary.xml (revision
+# 1786016019, sha256 b92541eaf43fd4a8…): the target repository ships 3384
+# binary package names and NONE of the desktop roots below — not gnome-shell,
+# not gtk4, not cairo, not wayland, not mesa, not pipewire.  See
+# docs/hummingbird-desktop-gap.md for the full method and numbers.
 schema: 1
 target:
   id: hummingbird-20251124-x86_64
   baseurl: https://packages.redhat.com/api/pulp-content/public-hummingbird/$arch/
   r2_path: hummingbird/20251124-x86_64
   dist: .fc43
+  # Sources come from Fedora Rawhide dist-git, imported at build time by
+  # scripts/import-fedora-distgit.py.  Rawhide is the right branch and this is
+  # measured, not assumed: of 38 core packages present in both indexes, 30 are
+  # at the byte-identical upstream version-release as Rawhide and differ only
+  # in dist tag (glib2 2.89.3-1, systemd 261.2-1, harfbuzz 14.3.0-1, qt6-qtbase
+  # 6.11.1-5, rust 1.97.1-2, meson 1.11.2-2, …).  Fedora 43 ships glib2 2.86.5
+  # and systemd 258.10; the target is nowhere near it.
+  reference: fedora-rawhide
+  # The target's own packages carry .hum1, not .fc43 — every one of the 16506
+  # (name, evr, arch) tuples in its primary.xml ends in .hum1.  `.fc43` above
+  # is what build-chain.sh stamps on OUR rebuilds; it is deliberately distinct
+  # from the target's own tag so a rebuild is identifiable, but note it sorts
+  # BELOW .hum1 for the same version, so it can never shadow a package the
+  # target later starts shipping itself.
 
 desktops:
   gnome:
     release: "50"
     sources: [{local: src/gnome-50}, {local: src/deps}]
     required_packages: [gdm, gjs, gnome-control-center, gnome-initial-setup, gnome-session, gnome-settings-daemon, gnome-shell, mutter, nautilus, xdg-desktop-portal-gnome]
+    # Contract surface tunaOS's desktop gate checks by command/path/unit, which
+    # the required_packages list above does not name: gnome-keyring-daemon,
+    # gvfsd, the pipewire/wireplumber user units and the dconf distro database.
+    # LUKS run 31100096864 job 92611346523 failed on exactly these.
+    install_packages: [ModemManager, gjs, gnome-session, NetworkManager-adsl, NetworkManager-openconnect-gnome, NetworkManager-openvpn-gnome, NetworkManager-ppp, NetworkManager-ssh-gnome, NetworkManager-vpnc-gnome, NetworkManager-wwan, avahi, dconf, fprintd-pam, gdm, glib-networking, gnome-backgrounds, gnome-bluetooth, gnome-browser-connector, gnome-classic-session, gnome-color-manager, gnome-control-center, gnome-disk-utility, gnome-initial-setup, gnome-keyring, gnome-remote-desktop, gnome-session-wayland-session, gnome-settings-daemon, gnome-shell, gnome-system-monitor, gnome-user-docs, gnome-user-share, gsettings-desktop-schemas, gtk4, gvfs, gvfs-afc, gvfs-fuse, gvfs-goa, gvfs-gphoto2, gvfs-mtp, gvfs-smb, libadwaita, librsvg2, libsane-hpaio, mesa-dri-drivers, mesa-libEGL, mesa-vulkan-drivers, mutter, nautilus, pinentry-gnome3, pipewire, polkit, ptyxis, wireplumber, xdg-desktop-portal, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, yelp]
   kde:
     release: latest
     sources: [{fedora_distgit: plasma-desktop}, {fedora_distgit: plasma-workspace}, {fedora_distgit: kde-cli-tools}, {fedora_distgit: plasma-systemsettings}, {fedora_distgit: sddm}, {fedora_distgit: xdg-desktop-portal-kde}]
     required_packages: [plasma-desktop, plasma-workspace, plasma-systemsettings, sddm, xdg-desktop-portal-kde]
+    install_packages: [sddm, dolphin, konsole, kate, ark, plasma-discover, xdg-desktop-portal-kde, qt6-qtwayland, ksshaskpass, ksystemlog, plasma-desktop, plasma-workspace, plasma-systemsettings]
   cosmic:
     release: latest
     sources: [{fedora_distgit: cosmic-session}, {fedora_distgit: cosmic-comp}, {fedora_distgit: cosmic-greeter}, {fedora_distgit: cosmic-settings}, {fedora_distgit: xdg-desktop-portal-cosmic}]
     required_packages: [cosmic-session, cosmic-comp, cosmic-greeter, cosmic-settings, xdg-desktop-portal-cosmic]
+    install_packages: [cosmic-session, cosmic-comp, cosmic-panel, cosmic-app-library, cosmic-applets, cosmic-bg, cosmic-files, cosmic-idle, cosmic-launcher, cosmic-notifications, cosmic-osd, cosmic-randr, cosmic-screenshot, cosmic-settings, cosmic-settings-daemon, cosmic-term, cosmic-wallpapers, cosmic-workspaces, cosmic-greeter, cosmic-icon-theme, greetd, xdg-desktop-portal-cosmic]
   niri:
     release: latest
     sources: [{fedora_distgit: niri}, {upstream_rpm: https://github.com/outfoxxed/quickshell}, {upstream_rpm: https://github.com/AvengeMedia/DankMaterialShell}, {fedora_distgit: greetd}]
     required_packages: [niri, quickshell, dms, dms-cli, dms-greeter, greetd]
+    install_packages: [niri, quickshell, dms, dms-cli, dms-greeter, greetd, swaylock, SwayNotificationCenter, waybar, fuzzel, swayidle, swaybg, wl-clipboard, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk, xdg-user-dirs, pipewire, wireplumber, NetworkManager-tui, brightnessctl, playerctl, blueman, pavucontrol, gnome-keyring, gnome-keyring-pam, nautilus]
   xfce:
     release: "4.21"
     sources: [{local: src/xfce-wayland}]
     required_packages: [xfconf, libxfce4ui, xfwl4]
+    install_packages: [gdm, xfwl4, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, thunar, mousepad, ristretto, xfce4-terminal, xfce4-session, xfce4-panel, xfce4-settings, xfdesktop, xfwm4, xfconf, libxfce4ui]

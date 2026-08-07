@@ -28,7 +28,11 @@ Requires: glycin-libs%{?_isa} >= %{glycin_version}
 Requires: shared-mime-info
 
 # All modules previously provided by gdk-pixbuf itself are obsoleted by Glycin.
+# EL10's gtk3 still Requires gdk-pixbuf2-modules(x86-64) — provide it so the
+# merged package satisfies that dependency instead of dnf failing to install
+# gtk3 (gtk4's builddep chain pulls gtk3 via gstreamer1-plugins-bad-free).
 Obsoletes: %{name}-modules < %{version}-%{release}
+Provides:  %{name}-modules%{?_isa} = %{version}-%{release}
 
 # Most third-party pixbuf loaders are also obsolete. If Glycin supports the
 # format, then it will take precedence and the third-party loader won't be used.

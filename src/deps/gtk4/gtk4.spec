@@ -235,6 +235,10 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_sysconfdir}/gtk-4.0/
 %{_datadir}/gettext/its/gtk4builder.*
 %{_mandir}/man1/*.1*
+# Installed but unpackaged in the first successful build (run 30939010019);
+# listed explicitly in Fedora's spec, use globs to stay robust to new tools.
+%{_datadir}/bash-completion/completions/gtk4-*
+%{_datadir}/mime/packages/gtk-mime.xml
 
 %files devel
 %{_includedir}/gtk-4.0/

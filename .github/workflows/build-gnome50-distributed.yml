@@ -816,6 +816,7 @@ jobs:
           - src/deps/python-dbusmock
           - src/deps/avahi
           - src/gnome-50/gjs
+          - src/deps/gdk-pixbuf2
     steps:
       - name: Checkout
         uses: actions/checkout@v7

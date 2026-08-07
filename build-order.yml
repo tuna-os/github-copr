@@ -107,6 +107,11 @@ tiers:
         build_tool: true
       - path: src/deps/avahi
       - path: src/gnome-50/gjs
+      # gdk-pixbuf2 2.44.x merges the modules subpackage: needs Obsoletes +
+      # Provides. Builds here (before gtk-core) using the seed's glycin so
+      # gtk4's builddep (which pulls EL10 gtk3 via gstreamer1-plugins-bad-free)
+      # can resolve gdk-pixbuf2-modules.
+      - path: src/deps/gdk-pixbuf2
 
   # Tier 11: GTK Core.
   - name: gtk-core
