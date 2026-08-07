@@ -12,8 +12,8 @@ nodes:
   wayland-protocols: {source: wayland/wayland-protocols, needs: []}
   quickshell: {source: quickshell-mirror/quickshell, needs: [cli11-devel, cpptrace-devel, ninja-build, wayland-protocols, libdrm, qt6-wayland, wayland-stack]}
   dms: {source: AvengeMedia/DankMaterialShell, needs: [quickshell]}
-  dms-cli: {source: AvengeMedia/DankMaterialShell, needs: [dms]}
-  dms-greeter: {source: AvengeMedia/DankMaterialShell, needs: [dms, greetd]}
+  dms-cli: {source: AvengeMedia/DankMaterialShell, needs: [dms, quickshell]}
+  dms-greeter: {source: AvengeMedia/DankMaterialShell, needs: [dms, greetd, quickshell]}
   dgop: {source: AvengeMedia/dgop, needs: []}
   danksearch: {source: AvengeMedia/danksearch, needs: []}
   dankcalendar: {source: AvengeMedia/dankcalendar, needs: [quickshell]}
