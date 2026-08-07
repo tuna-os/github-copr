@@ -941,6 +941,13 @@ def main() -> None:
     render_parser.add_argument("recipe", type=Path)
     render_parser.add_argument("--target", required=True)
     render_parser.add_argument("--output", required=True, type=Path)
+    # `verify` prints how the recipe proves itself installed, so the gate can
+    # read smoke/install_name from the recipe instead of carrying hand-written
+    # matrix copies of them (#139: nothing connected the cell to the recipe).
+    verify_parser = commands.add_parser("verify")
+    verify_parser.add_argument("recipe", type=Path)
+    verify_parser.add_argument("--target", required=True)
+    verify_parser.add_argument("--field", required=True, choices=["smoke", "install_name"])
     args = parser.parse_args()
     recipe = load_yaml(args.recipe)
     target = getattr(args, "target", None)
@@ -949,6 +956,13 @@ def main() -> None:
         print(f"{args.recipe}: valid")
     elif args.command == "plan":
         print(json.dumps({"package": recipe["name"], "target": target, "build_dependencies": target_dependencies(recipe, target), "format": load_targets()[target]["format"]}, indent=2))
+    elif args.command == "verify":
+        value = verify_metadata(recipe, target).get(args.field)
+        if not value or not str(value).strip():
+            # An empty smoke must be a loud failure, not an empty string a
+            # shell would happily exec as a no-op success.
+            fail(f"{args.recipe}: no verify.{args.field} for target {target}")
+        print(value)
     else:
         for relative_path, content in render(recipe, target).items():
             destination = args.output / relative_path

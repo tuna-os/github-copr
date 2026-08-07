@@ -55,47 +55,34 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # `smoke` runs after the clean install, against the installed package.
-        # Every entry asserts something the recipe claims to install; see
+        # The smoke command is read from each recipe's verify: block at
+        # clean-install time (scripts/tideforge.py verify), so a cell here is
+        # only a (package) coordinate; see
         # scripts/assert-arch-runtime-closure.sh for why the ELF closure check
-        # that runs alongside it is the part that catches under-declared
-        # `depends`.
+        # that runs alongside the smoke is the part that catches
+        # under-declared `depends`.
         include:
           - package: niri
-            smoke: niri --help
           # uupd and greetd are green on every other declared target with the
           # byte-identical contract; arch was the last declared-but-never-
           # exercised pair for both (#139 defect class).
           - package: uupd
-            smoke: uupd --help
           # First of the library/tool recipes on arch, held until the deb
           # library wave landed the common-list gcc-c++ fix its PKGBUILD
           # needed; libunwind-devel and ninja-build follow once this cell
           # proves the shape (stagger: small wave, green, then widen).
           - package: cli11-devel
-            smoke: test -f /usr/include/CLI/CLI.hpp
           - package: greetd
-            smoke: greetd --help
           - package: kairpods
-            smoke: test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service
           - package: krunner-bazaar
-            smoke: test -x /usr/bin/bazaar-dbus-tool
           - package: dgop
-            smoke: dgop --help
           - package: danksearch
-            smoke: dsearch --help
           - package: dankcalendar
-            smoke: test -x /usr/bin/dcal && test -f /usr/lib/systemd/user/dcal.service
           - package: bazaar
-            smoke: test -x /usr/bin/bazaar && test -x /usr/bin/bazaar-dl-worker && test -x /usr/bin/bazaar-refresh-worker
           - package: plasma-setup
-            smoke: test -e /usr/lib/plasma-setup && test -f /usr/lib/systemd/system/plasma-setup.service
           - package: libunwind-devel
-            smoke: "test -f /usr/include/libunwind.h && test -f /usr/include/unwind.h"
           - package: ninja-build
-            smoke: ninja --version
           - package: oversteer-udev
-            smoke: test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -129,11 +116,15 @@ jobs:
       - name: Clean-install generated package from an ephemeral repository
         run: |
           set -euo pipefail
+          # The recipe is the single source of how this package proves itself
+          # installed (#139): the cell derives the smoke instead of a
+          # hand-written matrix copy that had to be kept byte-identical.
+          python3 scripts/tideforge.py verify packages/${{ matrix.package }}/package.yaml --target arch --field smoke > .tideforge/arch/${{ matrix.package }}/verify-smoke.sh
           docker run --rm --user root \
             --volume "$PWD/.tideforge/arch/${{ matrix.package }}:/work:ro" \
             --volume "$PWD/scripts:/scripts:ro" \
             docker.io/library/archlinux:latest \
-            bash /scripts/arch-clean-install.sh ${{ matrix.package }} /work/artifacts bash -c "${{ matrix.smoke }}"
+            bash /scripts/arch-clean-install.sh ${{ matrix.package }} /work/artifacts bash /work/verify-smoke.sh
       - run: python3 scripts/validate-built-arch-package.py packages/${{ matrix.package }}/package.yaml .tideforge/arch/${{ matrix.package }}/artifacts/package-info.txt
       - if: matrix.package == 'niri'
         run: python3 scripts/compare-official-package.py packages/niri/package.yaml --strict

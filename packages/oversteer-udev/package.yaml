@@ -16,5 +16,10 @@ install:
   directories:
     - {source: data/udev, destination: usr/lib/udev/rules.d}
 verify:
+  # Upstream names its rules by wheel vendor -- 99-fanatec-wheel-perms.rules,
+  # 99-logitech-wheel-perms.rules, 99-thrustmaster-wheel-perms.rules. Nothing
+  # upstream contains the string 'oversteer', so an earlier
+  # `-name \*oversteer\*` could never match: the package built and installed
+  # correctly and the assertion failed anyway. Assert the real filenames.
   smoke: "test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules"
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
