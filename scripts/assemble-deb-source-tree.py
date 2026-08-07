@@ -4,8 +4,8 @@
 Extracted verbatim from build-tideforge-supported.yml's deb job so the
 publish workflow (tunaOS#964) runs the identical assembly -- two inline
 copies of this logic would drift, and drift in source assembly is how a
-publisher ships something the gate never tested. The gate still carries
-its inline copy today; swapping it to call this script is a follow-up.
+publisher ships something the gate never tested. The gate's deb jobs call
+this script too, so there is exactly one copy of the assembly logic.
 
 Usage: assemble-deb-source-tree.py <recipe> <root>
 """
