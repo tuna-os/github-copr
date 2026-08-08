@@ -28,14 +28,33 @@ import argparse
 import concurrent.futures
 import json
 import pathlib
+import random
 import re
 import shutil
 import subprocess
 import tempfile
+import time
 
 import yaml
 
 RELEASE = re.compile(r"^(Release:\s*)(\d+)(%\{\?dist\}.*)$", re.MULTILINE)
+
+# src.fedoraproject.org throttles concurrent clones: with --jobs in flight it
+# answers some of them with HTTP 503 or drops the connection outright ("fatal:
+# the remote end hung up unexpectedly"), and it is a different subset of
+# packages every time.  Run 31266178578 lost 17 of 24 clones that way and its
+# rerun lost 13 of the same 24, with only three packages failing in both.  One
+# attempt per package therefore turns a server-side hiccup into a failed
+# import, so each clone is retried.
+CLONE_ATTEMPTS = 4
+
+# ...unless the server is telling us the thing does not exist, which no amount
+# of waiting fixes: a package absent from dist-git, or present without the
+# requested branch, is a manifest bug and should surface on the first attempt.
+CLONE_FATAL = re.compile(
+    r"Remote branch .* not found|repository .* not found|error: 40[34]",
+    re.IGNORECASE,
+)
 
 
 def catalog_packages(catalog: pathlib.Path) -> list[tuple[str, pathlib.Path]]:
@@ -150,20 +169,33 @@ def main() -> None:
             package, _, _ = item
             checkout = tempdir / package
             url = f"https://src.fedoraproject.org/rpms/{package}.git"
-            result = subprocess.run(
-                ["git", "clone", "--depth", "1", "--branch", args.branch, url, str(checkout)],
-                capture_output=True, text=True,
-            )
-            return item, result
+            for attempt in range(1, CLONE_ATTEMPTS + 1):
+                # git leaves nothing behind when it fails this way, but a
+                # half-written checkout would make the retry fail on "already
+                # exists" rather than on the network.
+                shutil.rmtree(checkout, ignore_errors=True)
+                result = subprocess.run(
+                    ["git", "clone", "--depth", "1", "--branch", args.branch, url, str(checkout)],
+                    capture_output=True, text=True,
+                )
+                if result.returncode == 0 or CLONE_FATAL.search(result.stderr):
+                    break
+                if attempt < CLONE_ATTEMPTS:
+                    # Jittered, so the clones the server throttled together do
+                    # not all come back at the same moment and get throttled
+                    # together again.
+                    time.sleep(2**attempt + random.uniform(0, 2))
+            return item, result, attempt
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
             outcomes = list(pool.map(clone_one, pending))
 
-        for (package, relative, target), clone in outcomes:
+        for (package, relative, target), clone, attempts in outcomes:
             checkout = tempdir / package
             if clone.returncode != 0:
                 tail = clone.stderr.strip().splitlines()[-1:] or ["clone failed"]
-                print(f"FAILED {package}: {tail[0]}")
+                tries = "" if attempts == 1 else f" after {attempts} attempts"
+                print(f"FAILED {package}{tries}: {tail[0]}")
                 failed += 1
                 continue
             commit = subprocess.run(
