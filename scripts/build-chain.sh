@@ -423,6 +423,35 @@ build_package_podman() {
                 # everything after the break. A quoted phrase in this very comment
                 # did that and turned the whole container step into a no-op.
                 chown -R builder /builddir 2>/dev/null || true
+                # Hand /builddir back to root on ANY exit, not just the happy
+                # path. Mock runs as builder, so everything it writes under
+                # /builddir is builder-owned inside the container; the HOST
+                # process is the plain CI runner user, outside this container
+                # entirely, and cannot read builder-owned files through the
+                # bind mount.
+                #
+                # This was a plain command after the flock below. Under set -e
+                # it never ran when mock failed: the failure branch does exit 1
+                # INSIDE the flock string, so the flock command itself fails and
+                # aborts this script right there. So on exactly the path where
+                # the logs matter most, results stayed unreadable to the host.
+                #
+                # What that cost: the dnf5 already-installed retry below greps
+                # results/root.log to decide whether to retry. On an unreadable
+                # file grep -qs fails silently, so the guard fell through to
+                # return 1 and the retry never fired -- canary run 31242725235
+                # came back built=24 failed=8, bit-identical to its no-fix
+                # baseline. Traced directly: this chown appears in the set -x
+                # output for pytz and rust-matugen, which built, and is absent
+                # for python-wcwidth, which failed.
+                #
+                # It also predates that: without it a SUCCESSFUL build handed
+                # back results the host could not enumerate --
+                #   find: /tmp/tmp.XXXXXX/results: Permission denied
+                #   ERROR: No RPMs produced for xfce4-dev-tools
+                # -- which is what put the command here in the first place. A
+                # trap covers both, and cannot be skipped by a later early exit.
+                trap 'chown -R root:root /builddir 2>/dev/null || true' EXIT
                 # Assemble a config directory where the checked-out mock/ configs
                 # override the copies baked into this image: copy the WHOLE
                 # /etc/mock tree, then overlay the repo profiles on top.
@@ -459,19 +488,6 @@ build_package_podman() {
                             exit 1;
                         }
                 \"
-                # Mock ran as builder, so everything it wrote under /builddir is
-                # builder-owned inside the container. The container's own top
-                # level is root, and root can always chown back down — but
-                # nothing did, so control returned to the HOST process (which
-                # runs as the plain CI runner user, outside the container
-                # entirely) unable to read what mock had just produced:
-                #   find: /tmp/tmp.XXXXXX/results: Permission denied
-                #   ERROR: No RPMs produced for xfce4-dev-tools
-                # even though mock's own log said the build finished. Restore
-                # root ownership before the container exits and this handoff
-                # happens, regardless of whether mock succeeded or failed —
-                # build.log and root.log need to be host-readable on failure too.
-                chown -R root:root /builddir 2>/dev/null || true
             "
     }
 
