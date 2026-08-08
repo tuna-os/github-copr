@@ -29,30 +29,32 @@ r2_path: hummingbird/20251124-x86_64
 tiers:
   - name: bootstrap-00
     packages:
-      - path: src/hummingbird/python-editables
-        distgit: python-editables
-      - path: src/hummingbird/python-hatchling
-        distgit: python-hatchling
       - path: src/hummingbird/python-flit-core
         distgit: python-flit-core
-      - path: src/hummingbird/python-wheel
-        distgit: python-wheel
-      - path: src/hummingbird/python-installer
-        distgit: python-installer
+      - path: src/hummingbird/python-poetry-core
+        distgit: python-poetry-core
       - path: src/hummingbird/python-trove-classifiers
         distgit: python-trove-classifiers
   - name: bootstrap-01
     packages:
+      - path: src/hummingbird/python-editables
+        distgit: python-editables
+      - path: src/hummingbird/python-installer
+        distgit: python-installer
       - path: src/hummingbird/python-build
         distgit: python-build
+      - path: src/hummingbird/python-wheel
+        distgit: python-wheel
+  - name: bootstrap-02
+    packages:
+      - path: src/hummingbird/python-hatchling
+        distgit: python-hatchling
+  - name: bootstrap-03
+    packages:
       - path: src/hummingbird/python-hatch-vcs
         distgit: python-hatch-vcs
       - path: src/hummingbird/python-hatch-fancy-pypi-readme
         distgit: python-hatch-fancy-pypi-readme
-  - name: bootstrap-02
-    packages:
-      - path: src/hummingbird/python-poetry-core
-        distgit: python-poetry-core
   - name: gnome-00
     packages:
       - path: src/hummingbird/abseil-cpp
