@@ -146,6 +146,11 @@ jobs:
 
       - name: Import Fedora Rawhide packaging for the selected tiers
         run: |
+          # --jobs 4, not 8: every clone goes to the same host, and
+          # src.fedoraproject.org answers 503 when pushed. Run 31268302766
+          # needed retries on 8 of 11 clones and still lost 2. Concurrency
+          # here buys seconds and costs whole dispatches.
+          #
           # Most of the graph is unmodified Fedora Rawhide packaging and is
           # imported here rather than vendored, the same way Hummingbird's own
           # RPM project (gitlab.com/redhat/hummingbird, ci/dist_git.py) sources

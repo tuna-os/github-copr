@@ -10,7 +10,7 @@ and a red job, for nothing that is wrong with the repository.
 
 What a mistake here would break: retrying nothing leaves the flake in place,
 and retrying everything turns a package that genuinely is not in dist-git (or a
-branch that does not exist) into six attempts and a slow, misleading failure.
+branch that does not exist) into five attempts and a slow, misleading failure.
 So both halves are pinned -- transient failures are retried, definitive "not
 found" answers are not.
 
@@ -125,8 +125,8 @@ def test_transient_failure_that_never_clears_still_fails_the_import(tmp_path):
     proc, attempts = run_import(tmp_path, "cliphist", fail_times=99)
 
     assert proc.returncode == 1
-    assert attempts == 6, "retries are bounded, not endless"
-    assert "FAILED cliphist after 6 attempts" in proc.stdout
+    assert attempts == 5, "retries are bounded, not endless"
+    assert "FAILED cliphist:" in proc.stdout
     assert "failed=1" in proc.stdout
 
 
@@ -198,6 +198,34 @@ def test_each_fresh_wave_backs_off_further_up_to_the_cap():
     # Jitter adds up to 2s to each pause; the cap is on the pause, not on it.
     for expected, slept in zip([5.0, 10.0, 20.0, 20.0], clock.slept, strict=True):
         assert expected <= slept <= expected + 2, f"doubling, then capped: {clock.slept}"
+
+
+def test_a_throttled_clone_waits_with_the_batch_and_not_on_its_own():
+    """The shared cooldown replaces the per-worker backoff, it does not add to it.
+
+    A worker that also kept its own 2/4/8s schedule would resume ahead of the
+    batch and hit the limit that refused it, which is the failure `Throttle`
+    exists to stop.
+    """
+    gate, clock = throttle()
+    slept: list[float] = []
+    calls: list[list[str]] = []
+
+    def runner(cmd, **kw):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(
+            cmd, 128, stdout="", stderr="fatal: the remote end hung up unexpectedly"
+        )
+
+    importer.clone_with_retry(
+        "cliphist", "rawhide", Path("/nonexistent/co"), 3,
+        runner=runner, sleeper=slept.append, throttle=gate,
+    )
+
+    assert len(calls) == 3
+    assert slept == [], "the worker backed off privately as well as with the batch"
+    # ...and it did wait: two refusals, each followed by the shared cooldown.
+    assert len(clock.slept) == 2
 
 
 def test_a_zero_cooldown_never_sleeps():
