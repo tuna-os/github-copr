@@ -76,7 +76,8 @@ def clone_is_permanent_failure(stderr: str) -> bool:
     return any(marker in lowered for marker in PERMANENT_CLONE_ERRORS)
 
 
-def clone_with_retry(package, branch, checkout, attempts=3, runner=None, sleeper=None):
+def clone_with_retry(package, branch, checkout, attempts=3, runner=None, sleeper=None,
+                     timeout=180):
     runner = runner or subprocess.run
     sleeper = sleeper or time.sleep
     url = f"https://src.fedoraproject.org/rpms/{package}.git"
@@ -87,10 +88,41 @@ def clone_with_retry(package, branch, checkout, attempts=3, runner=None, sleeper
         # error into a permanent one.
         if checkout.exists():
             shutil.rmtree(checkout, ignore_errors=True)
-        result = runner(
-            ["git", "clone", "--depth", "1", "--branch", branch, url, str(checkout)],
-            capture_output=True, text=True,
-        )
+        try:
+            result = runner(
+                ["git",
+                 # A retry only helps a clone that FAILS. git has no default
+                 # timeout for one that STALLS, so a connection the server
+                 # accepts and then stops feeding blocks forever -- the step
+                 # hangs, the retry never fires, and the job burns its
+                 # 360-minute timeout having built nothing. The trunk import
+                 # sat here for an hour on 309 packages against a
+                 # src.fedoraproject.org that was returning 503s; expected
+                 # was four to eight minutes.
+                 #
+                 # These turn a stall into an ordinary failure, which the
+                 # retry above already knows what to do with. 1000 B/s for
+                 # 30s is well under any real transfer and well over a dead
+                 # one.
+                 "-c", "http.lowSpeedLimit=1000",
+                 "-c", "http.lowSpeedTime=30",
+                 "clone", "--depth", "1", "--branch", branch, url,
+                 str(checkout)],
+                capture_output=True, text=True,
+                # Belt and braces: lowSpeedTime does not cover a connection
+                # that hangs before the transfer begins.
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            # A timeout that propagates kills the whole import; the point of
+            # the timeout is to produce a retryable failure, not a new way to
+            # lose the run.
+            result = subprocess.CompletedProcess(
+                args=["git", "clone", url],
+                returncode=124,
+                stdout="",
+                stderr=f"timed out after {timeout}s",
+            )
         if result.returncode == 0:
             return result
         if clone_is_permanent_failure(result.stderr or ""):

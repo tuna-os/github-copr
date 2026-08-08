@@ -159,3 +159,58 @@ def test_the_workflow_does_not_pin_attempts_to_one():
 def test_permanent_marker_matching_is_case_insensitive():
     assert IFD.clone_is_permanent_failure("remote: Repository NOT FOUND")
     assert not IFD.clone_is_permanent_failure("fatal: the remote end hung up unexpectedly")
+
+
+def test_a_stalled_clone_becomes_a_retry_not_a_hang(tmp_path):
+    """git has no default timeout for a connection that stalls.
+
+    The retry only helps a clone that *fails*. A server that accepts the
+    connection and then stops feeding it leaves git waiting forever: the step
+    hangs, the retry never fires, and the job burns its 360-minute timeout
+    having built nothing. The trunk import sat in exactly that state for an
+    hour on 309 packages; expected was four to eight minutes.
+    """
+    calls = []
+
+    def run(cmd, **kw):
+        calls.append(kw.get("timeout"))
+        if len(calls) == 1:
+            raise subprocess.TimeoutExpired(cmd, kw.get("timeout") or 0)
+        return FakeResult(0)
+
+    result = IFD.clone_with_retry(
+        "python-stalled", "rawhide", tmp_path / "co", 3,
+        runner=run, sleeper=lambda _: None, timeout=5,
+    )
+    assert result.returncode == 0, "a stalled clone must be retried, not propagated"
+    assert calls == [5, 5], "the timeout must be passed to every attempt"
+
+
+def test_a_stall_that_never_clears_ends_as_a_normal_failure(tmp_path):
+    def run(cmd, **kw):
+        raise subprocess.TimeoutExpired(cmd, 5)
+
+    result = IFD.clone_with_retry(
+        "python-stalled", "rawhide", tmp_path / "co", 2,
+        runner=run, sleeper=lambda _: None, timeout=5,
+    )
+    assert result.returncode == 124
+    assert "timed out" in result.stderr
+
+
+def test_clone_asks_git_to_give_up_on_a_dead_transfer(tmp_path):
+    """lowSpeedLimit/lowSpeedTime, so git itself aborts a stalled transfer."""
+    seen = {}
+
+    def run(cmd, **kw):
+        seen["cmd"] = cmd
+        return FakeResult(0)
+
+    IFD.clone_with_retry("p", "rawhide", tmp_path / "co", 1, runner=run,
+                         sleeper=lambda _: None)
+    cmd = seen["cmd"]
+    assert "http.lowSpeedLimit=1000" in cmd
+    assert "http.lowSpeedTime=30" in cmd
+    assert cmd.index("-c") < cmd.index("clone"), (
+        "-c options must come before the subcommand or git rejects them"
+    )
