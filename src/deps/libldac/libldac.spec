@@ -16,18 +16,6 @@ Source0:        %{url}/releases/download/v%{version}/%{archivename}-%{version}.t
 # Upstream source throws error in a big-endian arch, see #1677491
 ExcludeArch:    s390x
 
-# cmake3 was the CMake 3 compat package Fedora carried through the CMake 4
-# transition. It is gone from F44 and Rawhide, and Hummingbird ships cmake
-# 4.3.0, so `BuildRequires: cmake3` matched nothing in any of the buildroot's
-# repos and dnf5 failed the whole transaction before rpmbuild ever started:
-#
-#   No match for argument: cmake3
-#
-# cmake-rpm-macros only defines %cmake<major>, so on cmake 4 the %cmake3*
-# macros do not exist either. Use the unversioned macros, and tell CMake 4 to
-# accept upstream's `cmake_minimum_required(VERSION 3.0)` -- ldacBT 2.0.2.3
-# predates the 3.5 floor CMake 4 enforces, and Rawhide's own libldac only
-# escapes it by having moved to a newer upstream release.
 BuildRequires:  cmake
 BuildRequires:  gcc
 
@@ -48,6 +36,15 @@ developing applications that use %{name}.
 %autosetup -n %{archivename}
 
 %build
+# ldacBT 2.0.2.3 opens with `cmake_minimum_required(VERSION 3.0)`, and CMake 4
+# removed compatibility below 3.5 outright:
+#
+#   Compatibility with CMake < 3.5 has been removed from CMake.
+#
+# Hummingbird ships cmake 4.3.0, so #291's move off cmake3 gets the package
+# past dnf and straight into this. Rawhide's own libldac never sees it because
+# it tracks a newer upstream release that raised its floor; we are pinned to
+# 2.0.2.3 by the tarball in Source0, so raise the policy floor instead.
 %cmake \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DLDAC_SOFT_FLOAT=OFF \

@@ -432,29 +432,31 @@ prepare_sources() {
     # GitHub-side chain build (run 30662870608, tier base-tools). Fetch any
     # sources-file entry still missing after the copy and spectool steps, and
     # verify it against the recorded checksum before trusting it.
-    #
-    # dist-git writes that file in two shapes, and a package is in whichever
-    # one it was last touched in:
-    #
-    #   SHA512 (iso-codes-v4.20.1.tar.gz) = 2b5690b1...      the current one
-    #   c0015d1bcd155b51df688467ed34137f  lockdev-...tar.gz  pre-2017, untouched since
-    #
-    # Only the first was matched, so a package still on the old shape had its
-    # tarball fetched by nobody: spectool cannot download it either (the spec
-    # carries no URL for it), and rpmbuild died on "Bad file: /builddir/
-    # SOURCES/<name>: No such file or directory" -- lockdev and redhat-menus,
-    # every run. The lookaside path names its own algorithm, so both shapes
-    # are the same fetch with a different hash in it.
     local sources_file="${abs_pkg_dir}/sources"
     if [[ -f "$sources_file" ]]; then
-        local lookaside_name entry_name entry_hash entry_algo
+        local lookaside_name entry_name entry_hash
         lookaside_name="$(basename "$abs_pkg_dir")"
+        local entry_algo
         while IFS= read -r line; do
-            if [[ "$line" =~ ^SHA512\ \((.+)\)\ =\ ([0-9a-f]{128})[[:space:]]*$ ]]; then
+            # Two formats, both current in Rawhide today.
+            #
+            #   SHA512 (foo-1.0.tar.gz) = <128 hex>     the modern one
+            #   <32 hex>  foo-1.0.tar.gz                the legacy md5 one
+            #
+            # Matching only the first silently skips the second -- `continue`
+            # on a line that is not an error -- and the package then dies in
+            # rpmbuild with "Bad file: /builddir/SOURCES/...: No such file or
+            # directory", which names the tarball but not the reason.
+            #
+            # That is what happened to lockdev and redhat-menus in gnome-00 of
+            # run 31272392927. Both still carry md5 sources files; both are
+            # old packages nobody has re-uploaded, and there are more like them
+            # across a 1248-package manifest.
+            if [[ "$line" =~ ^SHA512\ \((.+)\)\ =\ ([0-9a-f]{128})$ ]]; then
                 entry_name="${BASH_REMATCH[1]}"
                 entry_hash="${BASH_REMATCH[2]}"
                 entry_algo="sha512"
-            elif [[ "$line" =~ ^([0-9a-f]{32})[[:space:]]+(.+[^[:space:]])[[:space:]]*$ ]]; then
+            elif [[ "$line" =~ ^([0-9a-f]{32})\ \ (.+)$ ]]; then
                 entry_hash="${BASH_REMATCH[1]}"
                 entry_name="${BASH_REMATCH[2]}"
                 entry_algo="md5"
@@ -462,14 +464,17 @@ prepare_sources() {
                 continue
             fi
             [[ -f "${builddir}/SOURCES/${entry_name}" ]] && continue
-            echo "==> [${pkg_name}] Fetching ${entry_name} from the Fedora lookaside cache..."
+            echo "==> [${pkg_name}] Fetching ${entry_name} from the Fedora lookaside cache (${entry_algo})..."
+            # The lookaside path carries the algorithm, so the legacy entries
+            # live under .../md5/<hash>/... and not under sha512.
             curl -fsSL --retry 3 \
                 -o "${builddir}/SOURCES/${entry_name}" \
                 "https://src.fedoraproject.org/lookaside/pkgs/rpms/${lookaside_name}/${entry_name}/${entry_algo}/${entry_hash}/${entry_name}" || {
                 err "lookaside fetch failed for ${entry_name} (${pkg_name})"
                 return 1
             }
-            echo "${entry_hash}  ${builddir}/SOURCES/${entry_name}" | "${entry_algo}sum" --check --quiet - || {
+            echo "${entry_hash}  ${builddir}/SOURCES/${entry_name}" \
+                | "${entry_algo}sum" --check --quiet - || {
                 err "lookaside checksum mismatch for ${entry_name} (${pkg_name})"
                 return 1
             }
