@@ -35,6 +35,12 @@ MANIFEST = ROOT / "build-order-hummingbird-desktops.yml"
 WORKFLOW = ROOT / ".github/workflows/build-hummingbird-desktops.yml"
 
 # Every backend Hummingbird lacks that pyproject-rpm-macros can name.
+# PEP-517 *backends* -- the things a pyproject.toml names in
+# build-system.requires. python-build is deliberately not here: `build` is a
+# frontend, a CLI that calls a backend, and no pyproject.toml requires it.
+# Fedora's %pyproject_wheel does not use it either; pyproject_wheel.py calls
+# the backend's build_wheel() directly. Listing it here was the premise behind
+# putting it in the bootstrap tiers, and the premise was wrong.
 BACKENDS = {
     "python-hatchling",
     "python-flit-core",
@@ -42,7 +48,6 @@ BACKENDS = {
     "python-editables",
     "python-trove-classifiers",
     "python-installer",
-    "python-build",
     "python-wheel",
 }
 
@@ -91,7 +96,7 @@ def test_backends_are_built_before_the_desktops() -> None:
 #
 #   flit-core, poetry-core, hatchling   self-hosting
 #   trove-classifiers                   setuptools.build_meta  (in Hummingbird)
-#   editables, installer, build, wheel  flit_core.buildapi
+#   editables, installer, wheel         flit_core.buildapi
 #   hatch-vcs, hatch-fancy-pypi-readme  hatchling.build
 #
 # A backend must be BUILT before anything that builds with it, and packages
@@ -102,7 +107,6 @@ def test_backends_are_built_before_the_desktops() -> None:
 BACKEND_OF = {
     "python-editables": "python-flit-core",
     "python-installer": "python-flit-core",
-    "python-build": "python-flit-core",
     "python-wheel": "python-flit-core",
     "python-hatch-vcs": "python-hatchling",
     "python-hatch-fancy-pypi-readme": "python-hatchling",
@@ -189,4 +193,38 @@ def test_build_gets_pyproject_hooks_before_it_needs_it() -> None:
     assert tier_of("python-build") > tier_of("python-pyproject-hooks"), (
         "python-build must build in a later tier than python-pyproject-hooks; "
         "packages inside a tier run concurrently, so sharing one is a race"
+    )
+
+def test_the_bootstrap_does_not_carry_a_pep517_frontend() -> None:
+    """`build` is a frontend, not a backend, and nothing asked for it.
+
+    python-build was put in the bootstrap tiers on the premise that Hummingbird
+    ships no PEP-517 *backend*. That premise is right and `build` is not one of
+    them: it is a CLI frontend, and Fedora's %pyproject_wheel does not use it --
+    pyproject_wheel.py calls the backend's build_wheel() directly.
+
+    It cannot be built here anyway. Fedora's spec hard-codes its optional
+    extras, outside any bcond, so --without=tests --without=check does not
+    reach them:
+
+        pyproject_buildrequires.py --generate-extras ... -x virtualenv,uv
+        Failed to resolve the transaction:
+        Problem: package python3-uv-0.11.32-1.fc44.noarch requires
+          uv = 0.11.32-1.fc44, but none of the providers can be installed
+
+    (run 31266920109). uv is a Rust package that is not installable in this
+    buildroot, so `build` costs the whole bootstrap and every tier behind it.
+
+    Checked before removing, not after: `build` is in no desktop's closure, and
+    across every tier built so far nothing emitted a requirement on it.
+
+    If some package does turn out to need it, that will surface as a named
+    unmet BuildRequires -- and the fix then is to make uv installable, not to
+    re-add `build` on its own and rediscover this.
+    """
+    packages = {p for t in tiers() if t["name"].startswith("bootstrap-") for p in names_in(t)}
+    assert "python-build" not in packages, (
+        "python-build is back in the bootstrap tiers; it drags in an "
+        "uninstallable uv and nothing was shown to need it -- see this "
+        "test's docstring before re-adding it"
     )
