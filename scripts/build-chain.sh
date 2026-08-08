@@ -471,9 +471,16 @@ build_package_podman() {
                 chmod -R a+rX /tmp/mock-configdir
                 # SHARED lock: mock only READS /local-repo as a dnf repo, so
                 # any number of builds can hold it at once. The exclusive half
-                # is `createrepo_c --update` on the host, which rewrites the
+                # is the createrepo_c --update on the host, which rewrites the
                 # metadata mock is reading -- that is the only thing here that
                 # ever needed serializing.
+                #
+                # No backticks anywhere in this comment, for the same reason
+                # the header above bans double quotes: these lines are inside
+                # the bash -exc STRING, where a backtick is command
+                # substitution, not punctuation. Quoting createrepo_c that way
+                # made shellcheck flag SC2006 -- and it was right, the host
+                # shell would have run it while building the string.
                 #
                 # This was an EXCLUSIVE lock, with the comment: the builds
                 # \"share mock chroot initialization\". They do not, on three
