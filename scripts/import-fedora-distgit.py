@@ -57,6 +57,23 @@ def backoff_delay(attempt: int) -> float:
     return random.uniform(0, ceiling)
 
 
+# A clone that failed because the package or the branch does not exist will
+# fail the same way forever.  Retrying it only delays the report by the whole
+# backoff budget, and the thing being reported is a manifest bug that should
+# surface fast -- so these are answered on the first attempt.
+DEFINITIVE = re.compile(
+    r"repository .* not found"
+    r"|remote branch .* not found"
+    r"|could not read username"
+    r"|authentication failed",
+    re.IGNORECASE,
+)
+
+
+def is_definitive_failure(stderr: str) -> bool:
+    return bool(DEFINITIVE.search(stderr))
+
+
 def last_error_line(stderr: str) -> str:
     lines = stderr.strip().splitlines()[-1:]
     return lines[0] if lines else "clone failed"
@@ -194,6 +211,8 @@ def main() -> None:
                     capture_output=True, text=True,
                 )
                 if result.returncode == 0:
+                    return item, result
+                if is_definitive_failure(result.stderr):
                     return item, result
                 if attempt < attempts:
                     delay = backoff_delay(attempt)

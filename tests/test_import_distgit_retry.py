@@ -38,6 +38,11 @@ FAKE_GIT = textwrap.dedent(
       [ -f "$counter" ] && n="$(cat "$counter")"
       n=$((n + 1))
       echo "$n" > "$counter"
+      if [ -n "${FAKE_GIT_DEFINITIVE:-}" ]; then
+        echo "Cloning into '$dest'..." >&2
+        echo "$FAKE_GIT_DEFINITIVE" >&2
+        exit 128
+      fi
       if [ "$n" -le "${FAKE_GIT_FAILURES:-0}" ]; then
         echo "Cloning into '$dest'..." >&2
         echo "fatal: the remote end hung up unexpectedly" >&2
@@ -64,7 +69,9 @@ def load_script():
     return module
 
 
-def run_import(tmp_path: Path, failures: int, attempts: int) -> tuple[int, str, Path]:
+def run_import(
+    tmp_path: Path, failures: int, attempts: int, definitive: str | None = None
+) -> tuple[int, str, Path]:
     bindir = tmp_path / "bin"
     bindir.mkdir()
     fake = bindir / "git"
@@ -79,6 +86,8 @@ def run_import(tmp_path: Path, failures: int, attempts: int) -> tuple[int, str, 
     env["PATH"] = f"{bindir}{os.pathsep}{env['PATH']}"
     env["FAKE_GIT_FAILURES"] = str(failures)
     env["FAKE_GIT_STATE"] = str(state)
+    if definitive:
+        env["FAKE_GIT_DEFINITIVE"] = definitive
 
     proc = subprocess.run(
         [
@@ -129,6 +138,44 @@ def test_partial_checkout_does_not_block_the_next_attempt(tmp_path):
     assert code == 0, output
     files = sorted(p.name for p in (dest / "libmpdclient").iterdir())
     assert files == ["libmpdclient.spec"], files
+
+
+def test_missing_package_is_not_retried(tmp_path):
+    """A manifest bug must surface on the first attempt, not after the budget.
+
+    A package or branch that does not exist fails identically forever, so
+    retrying only delays the report by the whole backoff window.
+    """
+    code, output, _ = run_import(
+        tmp_path, failures=0, attempts=4,
+        definitive="fatal: repository 'https://src.fedoraproject.org/rpms/libmpdclient.git' not found",
+    )
+
+    assert code == 1, output
+    assert "Retrying" not in output
+    assert "failed=1" in output
+
+
+def test_missing_branch_is_not_retried(tmp_path):
+    code, output, _ = run_import(
+        tmp_path, failures=0, attempts=4,
+        definitive="fatal: Remote branch rawhide not found in upstream origin",
+    )
+
+    assert code == 1, output
+    assert "Retrying" not in output
+
+
+def test_transient_and_definitive_are_told_apart():
+    module = load_script()
+
+    assert not module.is_definitive_failure("fatal: the remote end hung up unexpectedly")
+    assert not module.is_definitive_failure("error: RPC failed; HTTP 503")
+    assert not module.is_definitive_failure("fatal: unable to access ...: Empty reply from server")
+
+    assert module.is_definitive_failure("fatal: repository 'https://x/y.git' not found")
+    assert module.is_definitive_failure("fatal: Remote branch rawhide not found in upstream origin")
+    assert module.is_definitive_failure("fatal: Authentication failed for 'https://x/'")
 
 
 def test_backoff_is_bounded_and_grows():
