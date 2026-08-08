@@ -214,3 +214,39 @@ def test_clone_asks_git_to_give_up_on_a_dead_transfer(tmp_path):
     assert cmd.index("-c") < cmd.index("clone"), (
         "-c options must come before the subcommand or git rejects them"
     )
+
+
+# --- the serial second pass -------------------------------------------------
+#
+# Per-clone retry cannot carry a large import on its own. Run 31271496131
+# imported 258 of 263 and still lost the whole run, because the step exits 1 on
+# any failure and `Build tiers` is then skipped. At a 2% residual failure rate a
+# 263-package import almost never comes out clean; the manifest is 1248.
+
+def test_serial_pass_is_the_documented_shape():
+    """After the parallel pass, survivors are retried serially after a wait."""
+    src = SCRIPT.read_text()
+    assert "failed_first" in src, "no second pass over the parallel pass's failures"
+    assert "retry_pass_delay" in src, "second pass does not wait before retrying"
+    i = src.index("outcomes = list(pool.map(clone_one, pending))")
+    j = src.index("failed_first")
+    assert i < j, "the serial pass must come after the parallel one"
+
+
+def test_second_pass_skips_packages_that_do_not_exist():
+    """A missing package is deterministic; a cooldown will not conjure it."""
+    src = SCRIPT.read_text()
+    seg = src[src.index("failed_first = ["):src.index("if failed_first:")]
+    assert "clone_is_permanent_failure" in seg, (
+        "the second pass retries permanent failures, spending the cooldown on "
+        "a package that is not there"
+    )
+
+
+def test_second_pass_results_replace_the_first_by_package_name():
+    src = SCRIPT.read_text()
+    seg = src[src.index("if failed_first:"):src.index("for (package, relative, target), clone in outcomes:")]
+    assert "retried.get(item[0]" in seg, (
+        "second-pass results must be keyed by package name; anything "
+        "identity-based silently drops them"
+    )

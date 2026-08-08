@@ -218,6 +218,11 @@ def main() -> None:
              "is being pushed -- see --clone-attempts.",
     )
     parser.add_argument(
+        "--retry-pass-delay", type=int, default=60,
+        help="Seconds to wait before the serial retry pass over whatever the "
+             "parallel pass could not clone.",
+    )
+    parser.add_argument(
         "--clone-attempts", type=int, default=5,
         help="Attempts per dist-git clone before giving up. A clone that fails "
              "because the package does not exist is not retried.",
@@ -257,6 +262,35 @@ def main() -> None:
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
             outcomes = list(pool.map(clone_one, pending))
+
+        # Second pass, serial, after a cooldown.
+        #
+        # The step exits 1 on any failure and `Build tiers` is then skipped, so
+        # the whole run turns on the worst clone of the batch. Run 31271496131
+        # imported 258 of 263 and lost the run over the other five -- after 76
+        # retries had already recovered from "the remote end hung up".
+        #
+        # Per-clone retry cannot fix that on its own: at even a 2% residual
+        # failure rate, a 263-package import almost never comes out clean, and
+        # the full manifest is 1248. What is left after the parallel pass is a
+        # handful of packages against a host that has been shedding load, so
+        # the useful move is to stop competing with ourselves -- wait, then go
+        # one at a time. Serial and patient is what a rate-limited server is
+        # asking for.
+        failed_first = [item for item, clone in outcomes if clone.returncode != 0
+                        and not clone_is_permanent_failure(clone.stderr or "")]
+        if failed_first:
+            print(f"{len(failed_first)} clone(s) still failing; "
+                  f"cooling down {args.retry_pass_delay}s then retrying serially")
+            time.sleep(args.retry_pass_delay)
+            retried = {
+                item[0]: clone_with_retry(
+                    item[0], args.branch, tempdir / item[0], args.clone_attempts
+                )
+                for item in failed_first
+            }
+            outcomes = [(item, retried.get(item[0], clone))
+                        for item, clone in outcomes]
 
         for (package, relative, target), clone in outcomes:
             checkout = tempdir / package
