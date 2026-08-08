@@ -143,19 +143,38 @@ def test_hatchling_follows_its_own_runtime_deps() -> None:
 def test_the_workflow_runs_the_bootstrap_tiers_first() -> None:
     """Selecting `desktop: gnome` must still get the backends.
 
-    The tier filter is a name prefix, so bootstrap-* matches no desktop and
-    would otherwise be skipped by every ordinary dispatch.
+    bootstrap-* is named after no desktop, so any selection that goes by tier
+    name skips it and every Python package in the run then builds against a
+    backend that is not there.
+
+    Asserted against the selection itself rather than against the text of the
+    workflow step: the step used to hold the logic inline and now shells out to
+    scripts/select-desktop-tiers.py, and the property is true of the answer
+    either way.
     """
-    select = next(
-        s
-        for s in yaml.safe_load(WORKFLOW.read_text())["jobs"]["build"]["steps"]
-        if s.get("name") == "Select tiers"
-    )["run"]
-    assert 'startswith("bootstrap-")' in select, (
-        "the Select tiers step does not single out the bootstrap tiers, so "
-        "`desktop: gnome` selects only gnome-* and builds no backends"
+    import importlib.util
+    import json
+
+    spec = importlib.util.spec_from_file_location(
+        "sdt", ROOT / "scripts" / "select-desktop-tiers.py"
     )
-    assert "boot + [" in select, "bootstrap tiers are not prepended to the selection"
+    sdt = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sdt)
+
+    manifest = yaml.safe_load(MANIFEST.read_text())
+    report = json.loads((ROOT / "docs" / "hummingbird-desktop-gap.json").read_text())
+    boot = [t["name"] for t in manifest["tiers"] if t["name"].startswith("bootstrap-")]
+    assert boot, "the manifest has no bootstrap tiers to order first"
+
+    for desktop in report["desktops"]:
+        selected = sdt.select(manifest, report, desktop)
+        assert selected[: len(boot)] == boot, (
+            f"desktop={desktop} does not start with the bootstrap tiers, so the "
+            "PEP-517 backends are missing when its Python packages build"
+        )
+
+    # And an explicit tier list still bypasses them, so one tier can be re-run.
+    assert sdt.select(manifest, report, "gnome", requested=[boot[0]]) == [boot[0]]
 
 
 def test_build_gets_pyproject_hooks_before_it_needs_it() -> None:
