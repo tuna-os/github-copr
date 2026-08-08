@@ -389,85 +389,119 @@ build_package_podman() {
     local mock_check_flag="--nocheck"
     $WITH_CHECKS && mock_check_flag=""
 
-    podman run --rm --privileged \
-        --pull=always \
-        -v "${builddir}:/builddir:Z" \
-        -v "${LOCAL_REPO}:/local-repo:Z" \
-        -v "${REPO_ROOT}/mock:/repo-mock:ro,Z" \
-        "${MOCK_CACHE_ARGS[@]}" \
-        "${BUILD_IMAGE}" \
-        bash -exc "
-            # mock refuses to run as root — even 'mock --version' exits with
-            # 'Insufficient rights.' It wants an unprivileged user in the mock
-            # group and drops privileges itself. This container runs as root,
-            # which was fine with older mock but broke every build once the
-            # runner image was rebuilt onto a newer one: mock exited before
-            # producing build.log or root.log, so the failure looked like an
-            # infrastructure glitch rather than a permissions rule.
-            #
-            # Only /builddir: that is what mock writes results into.
-            # /local-repo is a HOST-mounted directory that mock merely reads as
-            # a repo, and chowning it to the in-container builder uid locked the
-            # runner out of its own workspace, so createrepo_c could not create
-            # .repodata there.
-            #
-            # NOTE: never put a double quote in this string, not even inside a
-            # comment. It is passed as bash -exc from the host shell, so a
-            # literal double quote closes it early; bash then gets the script
-            # as two arguments, treats the second as $0, and silently drops
-            # everything after the break. A quoted phrase in this very comment
-            # did that and turned the whole container step into a no-op.
-            chown -R builder /builddir 2>/dev/null || true
-            # Assemble a config directory where the checked-out mock/ configs
-            # override the copies baked into this image: copy the WHOLE
-            # /etc/mock tree, then overlay the repo profiles on top.
-            #
-            # The whole tree, not just site-defaults.cfg and logging.ini. An
-            # include() of an ABSOLUTE path such as /etc/mock/fedora-44-x86_64.cfg
-            # resolves to the image, but that distro config then does a
-            # RELATIVE include of templates/fedora-branched.tpl, and relative
-            # includes resolve against --configdir, not /etc/mock — a
-            # configdir carrying only .cfg files orphans the templates
-            # directory and mock dies with: Could not find included config
-            # file: /tmp/mock-configdir/templates/fedora-branched.tpl
-            # (run 30654065913).
-            mkdir -p /tmp/mock-configdir
-            cp -a /etc/mock/. /tmp/mock-configdir/
-            cp /repo-mock/*.cfg /tmp/mock-configdir/
-            chmod -R a+rX /tmp/mock-configdir
-            # Use flock to ensure only one process runs mock at a time
-            # because they share mock chroot initialization.
-            flock /local-repo/repo.lock -c \"
-                setpriv --reuid=builder --regid=mock --init-groups \\
-                mock --configdir /tmp/mock-configdir -r '${MOCK_CONFIG}' \\
-                    --uniqueext='${pkg_name}' \\
-                    --rebuild /builddir/SRPMS/*.src.rpm \\
-                    --resultdir=/builddir/results \\
-                    --define 'dist ${DIST}' \\
-                    ${mock_check_flag} \\
-                    --no-clean \\
-                    --no-cleanup-after || {
-                        echo 'ERROR: mock failed. Printing build.log:';
-                        cat /builddir/results/build.log || true;
-                        echo 'ERROR: Printing root.log:';
-                        cat /builddir/results/root.log || true;
-                        exit 1;
-                    }
-            \"
-            # Mock ran as builder, so everything it wrote under /builddir is
-            # builder-owned inside the container. The container's own top
-            # level is root, and root can always chown back down — but
-            # nothing did, so control returned to the HOST process (which
-            # runs as the plain CI runner user, outside the container
-            # entirely) unable to read what mock had just produced:
-            #   find: /tmp/tmp.XXXXXX/results: Permission denied
-            #   ERROR: No RPMs produced for xfce4-dev-tools
-            # even though mock's own log said the build finished. Restore
-            # root ownership before the container exits and this handoff
-            # happens, regardless of whether mock succeeded or failed —
-            # build.log and root.log need to be host-readable on failure too.
-            chown -R root:root /builddir 2>/dev/null || true
-        "
+    # Wrapped in a function so the retry below re-runs the IDENTICAL
+    # invocation with one extra mock argument, rather than a second copy
+    # of it drifting out of sync with this one.
+    _run_mock_container() {
+        local mock_extra_args="${1:-}"
+        podman run --rm --privileged \
+            --pull=always \
+            -v "${builddir}:/builddir:Z" \
+            -v "${LOCAL_REPO}:/local-repo:Z" \
+            -v "${REPO_ROOT}/mock:/repo-mock:ro,Z" \
+            "${MOCK_CACHE_ARGS[@]}" \
+            "${BUILD_IMAGE}" \
+            bash -exc "
+                # mock refuses to run as root — even 'mock --version' exits with
+                # 'Insufficient rights.' It wants an unprivileged user in the mock
+                # group and drops privileges itself. This container runs as root,
+                # which was fine with older mock but broke every build once the
+                # runner image was rebuilt onto a newer one: mock exited before
+                # producing build.log or root.log, so the failure looked like an
+                # infrastructure glitch rather than a permissions rule.
+                #
+                # Only /builddir: that is what mock writes results into.
+                # /local-repo is a HOST-mounted directory that mock merely reads as
+                # a repo, and chowning it to the in-container builder uid locked the
+                # runner out of its own workspace, so createrepo_c could not create
+                # .repodata there.
+                #
+                # NOTE: never put a double quote in this string, not even inside a
+                # comment. It is passed as bash -exc from the host shell, so a
+                # literal double quote closes it early; bash then gets the script
+                # as two arguments, treats the second as $0, and silently drops
+                # everything after the break. A quoted phrase in this very comment
+                # did that and turned the whole container step into a no-op.
+                chown -R builder /builddir 2>/dev/null || true
+                # Assemble a config directory where the checked-out mock/ configs
+                # override the copies baked into this image: copy the WHOLE
+                # /etc/mock tree, then overlay the repo profiles on top.
+                #
+                # The whole tree, not just site-defaults.cfg and logging.ini. An
+                # include() of an ABSOLUTE path such as /etc/mock/fedora-44-x86_64.cfg
+                # resolves to the image, but that distro config then does a
+                # RELATIVE include of templates/fedora-branched.tpl, and relative
+                # includes resolve against --configdir, not /etc/mock — a
+                # configdir carrying only .cfg files orphans the templates
+                # directory and mock dies with: Could not find included config
+                # file: /tmp/mock-configdir/templates/fedora-branched.tpl
+                # (run 30654065913).
+                mkdir -p /tmp/mock-configdir
+                cp -a /etc/mock/. /tmp/mock-configdir/
+                cp /repo-mock/*.cfg /tmp/mock-configdir/
+                chmod -R a+rX /tmp/mock-configdir
+                # Use flock to ensure only one process runs mock at a time
+                # because they share mock chroot initialization.
+                flock /local-repo/repo.lock -c \"
+                    setpriv --reuid=builder --regid=mock --init-groups \\
+                    mock --configdir /tmp/mock-configdir -r '${MOCK_CONFIG}' \\
+                        --uniqueext='${pkg_name}' \\
+                        --rebuild /builddir/SRPMS/*.src.rpm \\
+                        --resultdir=/builddir/results \\
+                        --define 'dist ${DIST}' \\
+                        ${mock_check_flag} \\
+                        --no-clean \\
+                        --no-cleanup-after ${mock_extra_args} || {
+                            echo 'ERROR: mock failed. Printing build.log:';
+                            cat /builddir/results/build.log || true;
+                            echo 'ERROR: Printing root.log:';
+                            cat /builddir/results/root.log || true;
+                            exit 1;
+                        }
+                \"
+                # Mock ran as builder, so everything it wrote under /builddir is
+                # builder-owned inside the container. The container's own top
+                # level is root, and root can always chown back down — but
+                # nothing did, so control returned to the HOST process (which
+                # runs as the plain CI runner user, outside the container
+                # entirely) unable to read what mock had just produced:
+                #   find: /tmp/tmp.XXXXXX/results: Permission denied
+                #   ERROR: No RPMs produced for xfce4-dev-tools
+                # even though mock's own log said the build finished. Restore
+                # root ownership before the container exits and this handoff
+                # happens, regardless of whether mock succeeded or failed —
+                # build.log and root.log need to be host-readable on failure too.
+                chown -R root:root /builddir 2>/dev/null || true
+            "
+    }
+
+    # mock 6.7 + dnf5 5.4.2.1: mock's dynamic-BuildRequires loop
+    # (backend.py rebuild_package -> installSrpmDeps -> pkg_manager.builddep)
+    # runs dnf5 builddep on the generated .buildreqs.nosrc.rpm. When
+    # %generate_buildrequires emits requirements the base buildroot ALREADY
+    # satisfies, dnf5 fails the whole transaction with "Failed to resolve the
+    # transaction: Package \"<nevra>\" is already installed." and mock raises
+    # BuildError -- with nothing actually wrong with the package.
+    #
+    # Measured across all five parallel desktop runs: niri-00 (31231968581)
+    # 70 occurrences over 11 distinct packages, kde-00 (31215339645) 31,
+    # gnome-00 (31215535607) 25, xfce (31215533814) 4 -- and no other error
+    # shape in three of the four (kde's zimg has a genuine stale patch). One
+    # toolchain bug wearing 36 package costumes.
+    #
+    # Retry once with the loop disabled, gated on that exact signature.
+    # Disabling it cannot deprive the build of anything in this case: the
+    # error being matched is dnf5's own statement that the packages are
+    # already present, so the loop has nothing left to install. Every other
+    # failure keeps the original behavior and fails loud on the first try.
+    if ! _run_mock_container ""; then
+        if grep -qs "is already installed" "${builddir}/results/root.log"; then
+            echo "==> [${pkg_name}] mock hit the dnf5 already-installed dynamic-BuildRequires bug; retrying with dynamic_buildrequires=False"
+            _run_mock_container "--config-opts=dynamic_buildrequires=False"
+        else
+            return 1
+        fi
+    fi
 
     # Collect RPMs from results
     local rpm_count=0
