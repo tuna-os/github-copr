@@ -167,13 +167,16 @@ jobs:
           TIER_ARGS=()
           IFS=',' read -ra TIERS <<< "${{ steps.tiers.outputs.list }}"
           for tier in "${TIERS[@]}"; do TIER_ARGS+=(--tier "${tier}"); done
+          # --jobs 4, not 8: src.fedoraproject.org throttles the client, not
+          # the clone, and eight at a time went over its limit for minutes at a
+          # stretch (run 31270801603 lost 20 of 66 imports even with retries).
           python3 scripts/import-fedora-distgit.py \
             --build-order "${MANIFEST}" \
             "${TIER_ARGS[@]}" \
             --branch rawhide \
             --state hummingbird-imports.json \
             --release-bump \
-            --jobs 8
+            --jobs 4
 
       - uses: actions/upload-artifact@v7
         if: always()

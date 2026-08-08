@@ -33,6 +33,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import threading
 import time
 
 import yaml
@@ -46,7 +47,17 @@ RELEASE = re.compile(r"^(Release:\s*)(\d+)(%\{\?dist\}.*)$", re.MULTILINE)
 # rerun lost 13 of the same 24, with only three packages failing in both.  One
 # attempt per package therefore turns a server-side hiccup into a failed
 # import, so each clone is retried.
-CLONE_ATTEMPTS = 4
+CLONE_ATTEMPTS = 6
+
+# Retrying on a per-package schedule is not enough on its own: the server does
+# not throttle one clone, it throttles the client, so the whole batch is
+# refused at once and independent retries land back inside the same window and
+# add to the load that caused it.  Run 31270801603 lost 20 of 66 imports that
+# way, with four attempts each already in place.  So the backoff is shared: the
+# first throttled clone parks every worker, and each fresh wave of throttling
+# doubles the pause.
+COOLDOWN_BASE = 5.0
+COOLDOWN_CAP = 60.0
 
 # ...unless the server is telling us the thing does not exist, which no amount
 # of waiting fixes: a package absent from dist-git, or present without the
@@ -55,6 +66,48 @@ CLONE_FATAL = re.compile(
     r"Remote branch .* not found|repository .* not found|error: 40[34]",
     re.IGNORECASE,
 )
+
+
+class Throttle:
+    """A cooldown shared by every clone worker.
+
+    `penalise()` is called by whichever worker the server refused; it parks
+    *all* of them until the cooldown expires, so a throttled batch retries as
+    one quiet pause instead of as N independent retries that keep the client
+    over the limit.  Repeated waves back off further, up to `cap`.
+    """
+
+    def __init__(
+        self,
+        base: float = COOLDOWN_BASE,
+        cap: float = COOLDOWN_CAP,
+        clock=time.monotonic,
+        sleep=time.sleep,
+    ) -> None:
+        self._lock = threading.Lock()
+        self._clock = clock
+        self._sleep = sleep
+        self._cap = cap
+        self._delay = base
+        self._until = 0.0
+
+    def wait(self) -> None:
+        with self._lock:
+            remaining = self._until - self._clock()
+        if remaining > 0:
+            # Jittered, so the clones parked together do not all resume in the
+            # same instant and get throttled together again.
+            self._sleep(remaining + random.uniform(0, 2))
+
+    def penalise(self) -> None:
+        with self._lock:
+            now = self._clock()
+            if now < self._until:
+                # Already cooling down; this is another casualty of the same
+                # wave, not a sign that the wait should be longer still.
+                return
+            self._until = now + self._delay
+            self._delay = min(self._delay * 2, self._cap)
 
 
 def catalog_packages(catalog: pathlib.Path) -> list[tuple[str, pathlib.Path]]:
@@ -138,6 +191,12 @@ def main() -> None:
              "independent; the copy and the state file stay serial so the "
              "result does not depend on completion order.",
     )
+    parser.add_argument(
+        "--clone-cooldown", type=float, default=COOLDOWN_BASE, metavar="SECONDS",
+        help="First pause taken by every worker once src.fedoraproject.org "
+             "starts refusing clones; it doubles per wave. 0 disables the "
+             "wait, which is only useful against a stub server.",
+    )
     args = parser.parse_args()
 
     if args.packages:
@@ -165,11 +224,17 @@ def main() -> None:
                 continue
             pending.append((package, relative, target))
 
+        throttle = Throttle(base=args.clone_cooldown)
+
         def clone_one(item):
             package, _, _ = item
             checkout = tempdir / package
             url = f"https://src.fedoraproject.org/rpms/{package}.git"
             for attempt in range(1, CLONE_ATTEMPTS + 1):
+                # Nothing is asked of the server while it is refusing clones,
+                # including this worker's first attempt: joining a throttled
+                # wave only prolongs it.
+                throttle.wait()
                 # git leaves nothing behind when it fails this way, but a
                 # half-written checkout would make the retry fail on "already
                 # exists" rather than on the network.
@@ -180,11 +245,7 @@ def main() -> None:
                 )
                 if result.returncode == 0 or CLONE_FATAL.search(result.stderr):
                     break
-                if attempt < CLONE_ATTEMPTS:
-                    # Jittered, so the clones the server throttled together do
-                    # not all come back at the same moment and get throttled
-                    # together again.
-                    time.sleep(2**attempt + random.uniform(0, 2))
+                throttle.penalise()
             return item, result, attempt
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
