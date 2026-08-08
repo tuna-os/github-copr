@@ -36,15 +36,17 @@ developing applications that use %{name}.
 %autosetup -n %{archivename}
 
 %build
-# ldacBT 2.0.2.3 opens with `cmake_minimum_required(VERSION 3.0)`, and CMake 4
-# removed compatibility below 3.5 outright:
+# libldac's upstream CMakeLists.txt opens with a cmake_minimum_required below
+# 3.5, and current CMake refuses it outright:
 #
-#   Compatibility with CMake < 3.5 has been removed from CMake.
+#   CMake Error at CMakeLists.txt:1 (cmake_minimum_required):
+#     Compatibility with CMake < 3.5 has been removed from CMake.
+#     Or, add -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
 #
-# Hummingbird ships cmake 4.3.0, so #291's move off cmake3 gets the package
-# past dnf and straight into this. Rawhide's own libldac never sees it because
-# it tracks a newer upstream release that raised its floor; we are pinned to
-# 2.0.2.3 by the tarball in Source0, so raise the policy floor instead.
+# The flag is CMake's own prescribed escape hatch, and it is the right one
+# here: the project is a small codec library that has not been touched
+# upstream in years, so raising its declared minimum is not something we can
+# do without carrying a patch against a dead tree.
 %cmake \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DLDAC_SOFT_FLOAT=OFF \
