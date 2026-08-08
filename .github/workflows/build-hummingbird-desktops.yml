@@ -101,6 +101,33 @@ jobs:
               selected = [n for n in names if n.startswith(desktop + "-")]
           if not selected:
               raise SystemExit(f"no tiers match desktop={desktop}")
+          # The Python build backends come first, always, whatever was asked
+          # for. Hummingbird ships pyproject-rpm-macros, python3-devel,
+          # setuptools, packaging, pytest, pathspec and pluggy -- but NOT ONE
+          # PEP-517 backend: no hatchling, flit-core, poetry-core, wheel,
+          # installer, build, editables or trove-classifiers (measured against
+          # the target's own primary.xml, 3384 distinct names).
+          #
+          # So %pyproject_buildrequires emits e.g. python3-hatchling, dnf finds
+          # it only in Rawhide, and Rawhide's build is for Python 3.15 while
+          # Hummingbird is on 3.14 (docs/hummingbird-desktop-gap.md, Finding 3:
+          # "different libpython3.x.so.1.0"). The 3.15 backend then demands
+          # python3.15dist(packaging), the installed packaging provides
+          # python3.14dist(...), and the transaction is unresolvable:
+          #
+          #   cannot install both python3-packaging-26.2-4.fc45.noarch from
+          #   fedora and python3-packaging-26.2-4.1.hum1.noarch from @System
+          #
+          # That is what failed all 8 python-* packages of niri-00 in runs
+          # 31231968581, 31242725235 and 31248093019 -- identically each time,
+          # and it is not specific to those 8. Every Python package in the
+          # 670-package gap builds through a PEP-517 backend.
+          #
+          # Skipped when explicitly requested, so a bootstrap tier can still be
+          # re-run on its own.
+          boot = [n for n in names if n.startswith("bootstrap-")]
+          if not requested:
+              selected = boot + [n for n in selected if n not in boot]
           print("list=" + ",".join(selected))
           PY
 
