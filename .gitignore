@@ -54,3 +54,6 @@ Thumbs.db
 
 # Dist-git import state written by the build workflow
 hummingbird-imports.json
+
+# Cloudflare Wrangler local cache (never commit account auth)
+.wrangler/
