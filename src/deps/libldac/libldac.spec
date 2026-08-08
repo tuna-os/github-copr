@@ -36,7 +36,19 @@ developing applications that use %{name}.
 %autosetup -n %{archivename}
 
 %build
+# libldac's upstream CMakeLists.txt opens with a cmake_minimum_required below
+# 3.5, and current CMake refuses it outright:
+#
+#   CMake Error at CMakeLists.txt:1 (cmake_minimum_required):
+#     Compatibility with CMake < 3.5 has been removed from CMake.
+#     Or, add -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+#
+# The flag is CMake's own prescribed escape hatch, and it is the right one
+# here: the project is a small codec library that has not been touched
+# upstream in years, so raising its declared minimum is not something we can
+# do without carrying a patch against a dead tree.
 %cmake \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DLDAC_SOFT_FLOAT=OFF \
     -DINSTALL_LIBDIR=%{_libdir}
 
