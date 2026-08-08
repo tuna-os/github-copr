@@ -41,12 +41,14 @@ tiers:
         distgit: python-editables
       - path: src/hummingbird/python-installer
         distgit: python-installer
-      - path: src/hummingbird/python-build
-        distgit: python-build
+      - path: src/hummingbird/python-pyproject-hooks
+        distgit: python-pyproject-hooks
       - path: src/hummingbird/python-wheel
         distgit: python-wheel
   - name: bootstrap-02
     packages:
+      - path: src/hummingbird/python-build
+        distgit: python-build
       - path: src/hummingbird/python-hatchling
         distgit: python-hatchling
   - name: bootstrap-03
