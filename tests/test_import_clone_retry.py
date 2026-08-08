@@ -83,6 +83,46 @@ def test_backoff_grows(tmp_path):
     assert slept == [2, 4, 8]
 
 
+def test_a_503_is_transient(tmp_path):
+    """The host answers 503 under load, and we are part of the load.
+
+    Run 31268302766 needed retries on 8 of 11 clones; six recovered. Treating
+    503 as permanent would have failed all eight.
+    """
+    assert not IFD.clone_is_permanent_failure(
+        "fatal: unable to access 'https://src.fedoraproject.org/rpms/python-wheel.git/': "
+        "The requested URL returned error: 503"
+    )
+
+
+def test_default_attempts_outlast_a_busy_host():
+    """Three attempts over six seconds is too impatient for a 503.
+
+    Two of eleven clones still failed at that setting after exhausting their
+    retries, so the default has to be patient enough to ride out the window,
+    not merely non-zero.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    src = SCRIPT.read_text()
+    assert '"--clone-attempts", type=int, default=5' in src, (
+        "default attempts dropped below 5; a 503 window outlasts three tries"
+    )
+
+
+def test_the_workflow_does_not_hammer_one_host():
+    """Import concurrency is also how hard src.fedoraproject.org is pushed."""
+    workflow = (REPO / ".github/workflows/build-hummingbird-desktops.yml").read_text()
+    import re
+    jobs = re.findall(r"import-fedora-distgit\.py.*?--jobs (\d+)", workflow, re.S)
+    assert jobs, "could not find the import step's --jobs"
+    assert int(jobs[0]) <= 4, (
+        f"import runs {jobs[0]} concurrent clones against one host; it answers "
+        "503 when pushed and the run is lost when a clone finally gives up"
+    )
+
+
 def test_partial_checkout_is_cleared_between_attempts(tmp_path):
     """git refuses to clone into a non-empty directory.
 

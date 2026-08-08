@@ -40,17 +40,28 @@ RELEASE = re.compile(r"^(Release:\s*)(\d+)(%\{\?dist\}.*)$", re.MULTILINE)
 
 
 
-# A dist-git clone that fails is usually just src.fedoraproject.org dropping
-# the connection, not a package that does not exist:
+# A dist-git clone that fails is usually src.fedoraproject.org refusing or
+# dropping the connection, not a package that does not exist:
 #
 #   FAILED python-hatchling: fatal: the remote end hung up unexpectedly
 #   FAILED python-hatch-fancy-pypi-readme: fatal: the remote end hung up unexpectedly
 #   imported=9 skipped=0 failed=2
 #
 # (run 31266605500). The step exits 1 on any failure and `Build tiers` is
-# skipped, so two dropped connections cost the whole run. At that rate a tier
-# of eleven packages fails roughly one time in three, and the full 1248-package
-# manifest would essentially never get through the import at all.
+# skipped, so two dropped connections cost the whole run. Three consecutive
+# dispatches were lost this way before anything was built.
+#
+# The host also returns 503 under load, and we are part of that load -- the
+# workflow clones with --jobs 8, all against one server. Run 31268302766 with
+# retries on:
+#
+#   Retrying python-wheel (1/2): ... The requested URL returned error: 503
+#   Retrying python-editables (2/2): ... The requested URL returned error: 503
+#   imported=8 skipped=0 failed=2
+#
+# Eight of eleven clones needed a retry and six of them recovered, so retrying
+# is right; three attempts over six seconds is just too impatient for a server
+# that is asking us to slow down. Hence five attempts, backing off to 16s.
 PERMANENT_CLONE_ERRORS = ("not found", "does not exist", "could not read username")
 
 
@@ -170,10 +181,12 @@ def main() -> None:
         "--jobs", type=int, default=4,
         help="Parallel dist-git clones. The clones are network-bound and "
              "independent; the copy and the state file stay serial so the "
-             "result does not depend on completion order.",
+             "result does not depend on completion order. They all hit one "
+             "host, though, so this is also how hard src.fedoraproject.org "
+             "is being pushed -- see --clone-attempts.",
     )
     parser.add_argument(
-        "--clone-attempts", type=int, default=3,
+        "--clone-attempts", type=int, default=5,
         help="Attempts per dist-git clone before giving up. A clone that fails "
              "because the package does not exist is not retried.",
     )
