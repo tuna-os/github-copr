@@ -28,14 +28,38 @@ import argparse
 import concurrent.futures
 import json
 import pathlib
+import random
 import re
 import shutil
 import subprocess
 import tempfile
+import time
 
 import yaml
 
 RELEASE = re.compile(r"^(Release:\s*)(\d+)(%\{\?dist\}.*)$", re.MULTILINE)
+
+# Retry ceiling for a failed clone, in seconds: 2, 4, 8 ... capped.
+BACKOFF_BASE = 2.0
+BACKOFF_CAP = 30.0
+
+
+def backoff_delay(attempt: int) -> float:
+    """Full-jitter exponential backoff: a uniform draw from [0, ceiling].
+
+    The jitter is the point, not a refinement.  --jobs clones run as one burst,
+    so when src.fedoraproject.org sheds load they fail *together*; a fixed
+    delay would re-issue all of them in the same instant and reproduce the
+    burst that caused the failure.  Drawing each retry independently spreads
+    them across the window instead.
+    """
+    ceiling = min(BACKOFF_CAP, BACKOFF_BASE * (2 ** (attempt - 1)))
+    return random.uniform(0, ceiling)
+
+
+def last_error_line(stderr: str) -> str:
+    lines = stderr.strip().splitlines()[-1:]
+    return lines[0] if lines else "clone failed"
 
 
 def catalog_packages(catalog: pathlib.Path) -> list[tuple[str, pathlib.Path]]:
@@ -119,6 +143,13 @@ def main() -> None:
              "independent; the copy and the state file stay serial so the "
              "result does not depend on completion order.",
     )
+    parser.add_argument(
+        "--clone-attempts", type=int, default=4,
+        help="Tries per package before it counts as failed. src.fedoraproject.org "
+             "sheds load under a parallel clone burst (HTTP 503, or 'the remote "
+             "end hung up unexpectedly'), and one unlucky package used to fail "
+             "the entire import.",
+    )
     args = parser.parse_args()
 
     if args.packages:
@@ -146,14 +177,33 @@ def main() -> None:
                 continue
             pending.append((package, relative, target))
 
+        attempts = max(1, args.clone_attempts)
+
         def clone_one(item):
             package, _, _ = item
             checkout = tempdir / package
             url = f"https://src.fedoraproject.org/rpms/{package}.git"
-            result = subprocess.run(
-                ["git", "clone", "--depth", "1", "--branch", args.branch, url, str(checkout)],
-                capture_output=True, text=True,
-            )
+            result = None
+            for attempt in range(1, attempts + 1):
+                # git refuses to clone into a non-empty directory, so a partial
+                # checkout left by the previous attempt has to go first.
+                if checkout.exists():
+                    shutil.rmtree(checkout)
+                result = subprocess.run(
+                    ["git", "clone", "--depth", "1", "--branch", args.branch, url, str(checkout)],
+                    capture_output=True, text=True,
+                )
+                if result.returncode == 0:
+                    return item, result
+                if attempt < attempts:
+                    delay = backoff_delay(attempt)
+                    print(
+                        f"Retrying {package} in {delay:.1f}s "
+                        f"(attempt {attempt}/{attempts}): "
+                        f"{last_error_line(result.stderr)}",
+                        flush=True,
+                    )
+                    time.sleep(delay)
             return item, result
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
@@ -162,8 +212,7 @@ def main() -> None:
         for (package, relative, target), clone in outcomes:
             checkout = tempdir / package
             if clone.returncode != 0:
-                tail = clone.stderr.strip().splitlines()[-1:] or ["clone failed"]
-                print(f"FAILED {package}: {tail[0]}")
+                print(f"FAILED {package}: {last_error_line(clone.stderr)}")
                 failed += 1
                 continue
             commit = subprocess.run(
