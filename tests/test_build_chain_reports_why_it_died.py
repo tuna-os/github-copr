@@ -70,3 +70,63 @@ def test_the_handler_cannot_itself_fail(tmp_path: Path) -> None:
         f"handler produced no report: {proc.stderr!r}"
     )
     assert "tier filter : demo" in proc.stderr
+
+
+def _drive_handler(tmp_path: Path, epilogue: str) -> subprocess.CompletedProcess:
+    """Run the real trap preamble followed by `epilogue`."""
+    harness = tmp_path / "harness.sh"
+    body = SCRIPT.read_text().split("SCRIPT_DIR=", 1)[0]
+    harness.write_text(body + textwrap.dedent(epilogue))
+    return subprocess.run(["bash", str(harness)], capture_output=True, text=True)
+
+
+def test_it_names_the_command_that_actually_failed(tmp_path: Path) -> None:
+    """`command : main` is not a diagnostic.
+
+    The handler used to read a DEBUG trap. DEBUG is not inherited by functions
+    or subshells without `set -T`, so it only ever recorded the top-level
+    `main "$@"` -- i.e. every in-function death, which is all of them. Run
+    31264779379 died inside build_package_podman and reported `main`.
+
+    `set -T` is not the fix: functrace also makes RETURN traps inherited, and
+    this script hangs `rm -rf "$builddir"` off RETURN.
+    """
+    proc = _drive_handler(tmp_path, """
+        FILTER_TIER=demo
+        inner() { nosuchcommand_xyz --flag; }
+        outer() { inner; }
+        outer
+    """)
+    assert proc.returncode != 0
+    assert "command     : nosuchcommand_xyz --flag" in proc.stderr, (
+        f"handler did not name the failing command: {proc.stderr!r}"
+    )
+    assert "command     : main" not in proc.stderr
+
+
+def test_a_failed_package_does_not_claim_the_script_died(tmp_path: Path) -> None:
+    """Packages build in background subshells, which -E hands this trap too.
+
+    Run 31264779379 printed "build-chain.sh FAILED" three times and died of
+    none of them: each was one worker exiting on an ordinary package failure
+    that the tier loop recorded and carried on from. A banner that cries abort
+    during normal operation trains the reader to ignore it.
+    """
+    proc = _drive_handler(tmp_path, """
+        FILTER_TIER=demo
+        pkg_name=somepkg
+        ( false ) &
+        wait $! || echo "parent still running" >&2
+        echo "reached the end" >&2
+    """)
+    assert proc.returncode == 0, (
+        f"a worker failure must not kill the script: {proc.stderr!r}"
+    )
+    assert "reached the end" in proc.stderr
+    assert "build-chain.sh FAILED" not in proc.stderr, (
+        f"worker failure claimed the script died: {proc.stderr!r}"
+    )
+    assert "package build FAILED (worker)" in proc.stderr, (
+        f"worker failure went unreported: {proc.stderr!r}"
+    )
+    assert "package     : somepkg" in proc.stderr

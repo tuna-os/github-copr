@@ -49,17 +49,43 @@ set -eEuo pipefail
 # thing printed, so the tail always carries it. Everything here is guarded
 # with || true: a diagnostic that dies while reporting a death tells you even
 # less than no diagnostic.
-_build_chain_last_command=""
-trap '_build_chain_last_command="$BASH_COMMAND"' DEBUG
+#
+# Two things this got wrong on first contact with a real failure (run
+# 31264779379), both visible in its own output:
+#
+#   command     : main
+#
+# A DEBUG trap used to record the last command. DEBUG is NOT inherited by
+# functions or subshells without `set -T`, so it only ever saw the top-level
+# `main "$@"` -- which is every in-function death, i.e. all of them. $BASH_COMMAND
+# read as the first thing in the handler is the command that actually tripped
+# the trap, with no DEBUG trap and no per-command overhead. `set -T` is not the
+# alternative here: functrace also makes RETURN traps inherited, and this script
+# hangs `rm -rf "$builddir"` off RETURN, so every nested call would delete the
+# build directory out from under the build.
+#
+# The second was the headline. Packages build in background subshells, and -E
+# gives each of them this trap, so an ordinary package failure printed
+# "build-chain.sh FAILED" from a worker while the script carried on to the next
+# tier. That run printed it three times and never died of any of them. A banner
+# that cries abort during normal operation is worse than none, because it
+# retrains the reader to ignore it. $BASHPID differs from $$ in a subshell and
+# nowhere else, which separates "the script died" from "a package failed".
 _on_error() {
-    local rc=$?
+    local rc=$? cmd=$BASH_COMMAND
     set +e
-    trap - DEBUG ERR
+    trap - ERR
     echo "" >&2
-    echo "=================== build-chain.sh FAILED ===================" >&2
+    if [[ "$BASHPID" == "$$" ]]; then
+        echo "=================== build-chain.sh FAILED ===================" >&2
+    else
+        # A worker subshell. The script is still running; the tier loop records
+        # this package as failed and the end-of-run summary names it.
+        echo "=============== package build FAILED (worker) ===============" >&2
+    fi
     echo "exit status : ${rc}" >&2
     echo "at line     : ${BASH_LINENO[0]:-?}" >&2
-    echo "command     : ${_build_chain_last_command}" >&2
+    echo "command     : ${cmd}" >&2
     echo "tier filter : ${FILTER_TIER:-<all>}" >&2
     echo "package     : ${pkg_name:-<none in scope>}" >&2
     # The build logs mock leaves behind, if this died during a package build.
