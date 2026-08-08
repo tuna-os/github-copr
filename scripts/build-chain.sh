@@ -469,9 +469,34 @@ build_package_podman() {
                 cp -a /etc/mock/. /tmp/mock-configdir/
                 cp /repo-mock/*.cfg /tmp/mock-configdir/
                 chmod -R a+rX /tmp/mock-configdir
-                # Use flock to ensure only one process runs mock at a time
-                # because they share mock chroot initialization.
-                flock /local-repo/repo.lock -c \"
+                # SHARED lock: mock only READS /local-repo as a dnf repo, so
+                # any number of builds can hold it at once. The exclusive half
+                # is the createrepo_c --update on the host, which rewrites the
+                # metadata mock is reading -- that is the only thing here that
+                # ever needed serializing.
+                #
+                # No backticks anywhere in this comment, for the same reason
+                # the header above bans double quotes: these lines are inside
+                # the bash -exc STRING, where a backtick is command
+                # substitution, not punctuation. Quoting createrepo_c that way
+                # made shellcheck flag SC2006 -- and it was right, the host
+                # shell would have run it while building the string.
+                #
+                # This was an EXCLUSIVE lock, with the comment: the builds
+                # \"share mock chroot initialization\". They do not, on three
+                # counts, all of which predate this change:
+                #   * --uniqueext below gives every package its own chroot
+                #     (/var/lib/mock/<config>-<pkg>), which is what the flag is
+                #     for;
+                #   * /var/lib/mock lives INSIDE this container and is thrown
+                #     away with it, so two concurrent builds cannot see each
+                #     other's chroots at all;
+                #   * /var/cache/mock is only bind-mounted when MOCK_CACHE_DIR
+                #     is set, and the Hummingbird workflow does not set it.
+                # So the exclusive lock protected nothing, while serialising
+                # the single most expensive step in the run: --jobs N started N
+                # workers that then took turns compiling one at a time.
+                flock -s /local-repo/repo.lock -c \"
                     setpriv --reuid=builder --regid=mock --init-groups \\
                     mock --configdir /tmp/mock-configdir -r '${MOCK_CONFIG}' \\
                         --uniqueext='${pkg_name}' \\

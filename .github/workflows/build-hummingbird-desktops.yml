@@ -159,8 +159,14 @@ jobs:
       - name: Build tiers
         run: |
           IFS=',' read -ra TIERS <<< "${{ steps.tiers.outputs.list }}"
+          # One worker per core. This was hardcoded to 2, which was the right
+          # number while every mock run held an EXCLUSIVE lock on the local
+          # repo -- extra workers could only queue behind it, so raising this
+          # bought nothing and just burned memory. That lock is now shared, so
+          # workers genuinely build at the same time and the core count is the
+          # real ceiling.
           ARGS=(--manifest "${MANIFEST}" --mock-config hummingbird-ci
-                --local-repo "$PWD/local-repo-hummingbird" --jobs 2)
+                --local-repo "$PWD/local-repo-hummingbird" --jobs "$(nproc)")
           if [[ "${{ inputs.force }}" == "true" ]]; then ARGS+=(--force); fi
           for tier in "${TIERS[@]}"; do
             echo "::group::tier ${tier}"
