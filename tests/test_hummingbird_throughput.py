@@ -110,11 +110,20 @@ def test_one_desktop_failing_does_not_cancel_the_others() -> None:
 
 
 def test_the_tier_filter_follows_the_matrix_not_the_input() -> None:
-    """`inputs.desktop` is the fan-out; `matrix.desktop` is this job's share."""
-    select = step("Select tiers")["run"]
-    assert 'desktop = "${{ matrix.desktop }}"' in select, (
+    """`inputs.desktop` is the fan-out; `matrix.desktop` is this job's share.
+
+    The selection itself is scripts/select-desktop-tiers.py (#276), which
+    resolves a desktop through the gap report rather than by tier-name prefix;
+    what this pins is which desktop that script is asked about.
+    """
+    select = step("Select tiers")
+    assert select["env"]["IN_DESKTOP"] == "${{ matrix.desktop }}", (
         "Select tiers still reads inputs.desktop, so every matrix job would "
         "select the same tiers and build the identical work five times"
+    )
+    assert "inputs.desktop" not in select["run"], (
+        "the run block reaches around IN_DESKTOP and back to the dispatch "
+        "input, which collapses the matrix"
     )
 
 
