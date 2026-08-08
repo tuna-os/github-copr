@@ -25,7 +25,56 @@
 #   --with-checks        Run the RPM %check section (release-gate mode)
 #   --dry-run            Print what would be built without building
 
-set -euo pipefail
+# -E so the ERR trap below is inherited by functions, subshells and command
+# substitutions. Without it a trap set here never fires for a failure inside
+# build_package_podman -- which is where essentially every real failure is --
+# and the script dies silently. Verified: with plain `set -e` the trap did not
+# print for a `command not found` inside ensure_local_repo.
+set -eEuo pipefail
+
+# Say why we died, as the LAST thing in the log.
+#
+# set -e means any unhandled non-zero command kills this script on the spot,
+# before the end-of-run summary that lists failed packages. When that happens
+# inside a long tier the reason ends up buried in the middle of a log that can
+# be hundreds of MB, and every practical way of reading a CI log -- the GitHub
+# API, `gh run view --log-failed`, the web viewer -- gives you the TAIL.
+#
+# Measured cost: six independent retrieval paths were tried against one failed
+# Hummingbird run (job logs three ways, check-run annotations twice, the web
+# UI) and not one returned the failing line. The run was reduced to "Process
+# completed with exit code 1" with no package named, which is unactionable.
+#
+# An ERR trap costs nothing on the happy path and makes the failure the last
+# thing printed, so the tail always carries it. Everything here is guarded
+# with || true: a diagnostic that dies while reporting a death tells you even
+# less than no diagnostic.
+_build_chain_last_command=""
+trap '_build_chain_last_command="$BASH_COMMAND"' DEBUG
+_on_error() {
+    local rc=$?
+    set +e
+    trap - DEBUG ERR
+    echo "" >&2
+    echo "=================== build-chain.sh FAILED ===================" >&2
+    echo "exit status : ${rc}" >&2
+    echo "at line     : ${BASH_LINENO[0]:-?}" >&2
+    echo "command     : ${_build_chain_last_command}" >&2
+    echo "tier filter : ${FILTER_TIER:-<all>}" >&2
+    echo "package     : ${pkg_name:-<none in scope>}" >&2
+    # The build logs mock leaves behind, if this died during a package build.
+    local log
+    for log in "${builddir:-/nonexistent}/results/build.log" \
+               "${builddir:-/nonexistent}/results/root.log"; do
+        if [[ -r "$log" ]]; then
+            echo "--- tail of ${log} ---" >&2
+            tail -n 40 "$log" >&2 || true
+        fi
+    done
+    echo "=============================================================" >&2
+    exit "$rc"
+}
+trap _on_error ERR
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
