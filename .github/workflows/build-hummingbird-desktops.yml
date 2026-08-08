@@ -47,7 +47,6 @@ on:
 
 env:
   R2_BUCKET: bluefin
-  R2_REPO_PATH: hummingbird/20251124-x86_64
   MANIFEST: build-order-hummingbird-desktops.yml
   # Fedora + mock toolchain (mock/Containerfile). The tag names the chroot the
   # image was first built for, not the chroot it can build; mock pulls the
@@ -59,8 +58,35 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    strategy:
+      matrix:
+        # The target this builds for, named rather than implied. It selects the
+        # mock config below and the R2 path is read from the target's own entry
+        # in manifests/package-factory.yaml, so this is the value the run turns
+        # on and not a label.
+        #
+        # It is also what makes hummingbird a covered target:
+        # validate-package-factory.py refuses a target no gate job exercises,
+        # which is how openSUSE sat declared-but-unbuilt for months (#139).
+        target: [hummingbird]
     steps:
       - uses: actions/checkout@v7
+
+      - name: Resolve the target's R2 path from the package factory manifest
+        id: target
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          # Single source of truth. This path was duplicated here and in
+          # manifests/hummingbird-desktops.yaml, which is the sort of pair that
+          # silently disagrees.
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, yaml
+          factory = yaml.safe_load(open("manifests/package-factory.yaml"))
+          target = factory["targets"][os.environ["TARGET"]]
+          print("r2_path=" + target["r2_path"])
+          PY
+          echo "resolved r2_path for ${TARGET}"
 
       - name: Install build tools
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm gpg gpgconf python3-yaml
@@ -87,7 +113,7 @@ jobs:
           mkdir -p local-repo-hummingbird
           # Seed from R2 so a resumed run does not rebuild what an earlier tier
           # already published. Non-fatal: the first run has nothing to seed.
-          rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo-hummingbird/ || true
+          rclone copy "r2:${R2_BUCKET}/${{ steps.target.outputs.r2_path }}/" local-repo-hummingbird/ || true
 
       - name: Select tiers
         id: tiers
@@ -142,7 +168,42 @@ jobs:
           path: hummingbird-imports.json
           if-no-files-found: warn
 
+      # Caching, matching what the rest of Tideforge does. None of this
+      # existed for the desktop builds, which is why every dispatch paid for
+      # the same downloads again: the buildroot each package resolves, and
+      # every upstream tarball in the tier.
+      #
+      # build-chain.sh has honoured both variables for a while; the workflow
+      # simply never set them.
+      - name: Cache the mock chroot and its dnf downloads
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          # Keyed on the chroot definition and the tier set, not the run: a
+          # re-dispatch of the same tiers should hit. github.run_id makes each
+          # run's save unique so concurrent runs do not race, and the
+          # restore-keys walk back to the most recent compatible entry.
+          key: hummingbird-mock-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ steps.tiers.outputs.list }}-${{ github.run_id }}
+          restore-keys: |
+            hummingbird-mock-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ steps.tiers.outputs.list }}-
+            hummingbird-mock-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
+
+      - name: Cache upstream source tarballs
+        uses: actions/cache@v6
+        with:
+          path: .sources-cache
+          # Content of the sources is pinned by the specs, which come from the
+          # import; key on the manifest so a regenerated build order gets a
+          # fresh store rather than an ever-growing one.
+          key: hummingbird-sources-${{ hashFiles('build-order-hummingbird-desktops.yml') }}-${{ github.run_id }}
+          restore-keys: |
+            hummingbird-sources-${{ hashFiles('build-order-hummingbird-desktops.yml') }}-
+            hummingbird-sources-
+
       - name: Build tiers
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+          RPM_SOURCES_CACHE: ${{ github.workspace }}/.sources-cache
         run: |
           IFS=',' read -ra TIERS <<< "${{ steps.tiers.outputs.list }}"
           # One worker per core. This was hardcoded to 2, which was the right
@@ -151,7 +212,7 @@ jobs:
           # bought nothing and just burned memory. That lock is now shared, so
           # workers genuinely build at the same time and the core count is the
           # real ceiling.
-          ARGS=(--manifest "${MANIFEST}" --mock-config hummingbird-ci
+          ARGS=(--manifest "${MANIFEST}" --mock-config "${{ matrix.target }}-ci"
                 --local-repo "$PWD/local-repo-hummingbird" --jobs "$(nproc)")
           if [[ "${{ inputs.force }}" == "true" ]]; then ARGS+=(--force); fi
           # Keep going after a tier that had failures, and fail the step at
@@ -213,8 +274,8 @@ jobs:
           createrepo_c --update local-repo-hummingbird
           # copy, not sync: a partial tier run must never delete packages an
           # earlier tier published. Removal is a deliberate, separate action.
-          rclone copy local-repo-hummingbird/ "r2:${R2_BUCKET}/${R2_REPO_PATH}/"
-          rclone copy public.gpg "r2:${R2_BUCKET}/${R2_REPO_PATH}/"
+          rclone copy local-repo-hummingbird/ "r2:${R2_BUCKET}/${{ steps.target.outputs.r2_path }}/"
+          rclone copy public.gpg "r2:${R2_BUCKET}/${{ steps.target.outputs.r2_path }}/"
 
       - uses: actions/upload-artifact@v7
         if: always()
