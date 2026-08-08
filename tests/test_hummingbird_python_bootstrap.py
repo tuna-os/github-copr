@@ -156,3 +156,37 @@ def test_the_workflow_runs_the_bootstrap_tiers_first() -> None:
         "`desktop: gnome` selects only gnome-* and builds no backends"
     )
     assert "boot + [" in select, "bootstrap tiers are not prepended to the selection"
+
+
+def test_build_gets_pyproject_hooks_before_it_needs_it() -> None:
+    """`build` requires pyproject_hooks at runtime, and nothing shipped it.
+
+    Measured, not inferred -- run 31265856203, bootstrap-01, after flit-core
+    had already built and been picked up:
+
+        Handling flit-core >= 3.11 from build-system.requires
+        Requirement satisfied: flit-core>=3.11
+           (installed: flit-core 3.12.0)
+        Handling pyproject_hooks from hook generated metadata: Requires-Dist (build)
+        Requirement not satisfied: pyproject_hooks
+
+    It is a plain Requires-Dist, so no bcond and no --nocheck reaches it: the
+    only fix is to build it. docs/hummingbird-desktop-gap.md lists it among
+    what `python-build` pulls, and the manifest then did not contain it --
+    which is the gap the report exists to close, left open in the one tier
+    every other tier waits on.
+    """
+    order = [t["name"] for t in tiers()]
+    by_name = {t["name"]: names_in(t) for t in tiers()}
+
+    def tier_of(pkg: str) -> int:
+        return next(i for i, n in enumerate(order) if pkg in by_name[n])
+
+    assert any("python-pyproject-hooks" in by_name[n] for n in order), (
+        "python-pyproject-hooks is in no tier, so python-build cannot resolve "
+        "its BuildRequires however the tiers are ordered"
+    )
+    assert tier_of("python-build") > tier_of("python-pyproject-hooks"), (
+        "python-build must build in a later tier than python-pyproject-hooks; "
+        "packages inside a tier run concurrently, so sharing one is a race"
+    )
