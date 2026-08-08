@@ -35,6 +35,8 @@ tiers:
         distgit: python-hatchling
       - path: src/hummingbird/python-flit-core
         distgit: python-flit-core
+      - path: src/hummingbird/python-wheel
+        distgit: python-wheel
       - path: src/hummingbird/python-installer
         distgit: python-installer
       - path: src/hummingbird/python-trove-classifiers
@@ -49,8 +51,6 @@ tiers:
         distgit: python-hatch-fancy-pypi-readme
   - name: bootstrap-02
     packages:
-      - path: src/hummingbird/python-wheel
-        distgit: python-wheel
       - path: src/hummingbird/python-poetry-core
         distgit: python-poetry-core
   - name: gnome-00
