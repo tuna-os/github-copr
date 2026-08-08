@@ -154,11 +154,37 @@ jobs:
           ARGS=(--manifest "${MANIFEST}" --mock-config hummingbird-ci
                 --local-repo "$PWD/local-repo-hummingbird" --jobs "$(nproc)")
           if [[ "${{ inputs.force }}" == "true" ]]; then ARGS+=(--force); fi
+          # Keep going after a tier that had failures, and fail the step at
+          # the end instead.
+          #
+          # The step runs under `set -e`, so a tier exiting non-zero used to
+          # abort the loop and every later tier was simply never attempted.
+          # A dispatch therefore yielded exactly one tier no matter how many
+          # were asked for: gnome-01 stopped at 30 of 33 with gnome-02..09
+          # untouched (run 31277092125), then gnome-02 stopped at 11 of 14
+          # with gnome-03..09 untouched (run 31279618402).
+          #
+          # A tier's failures rarely block the whole tail. gnome-02's three
+          # were libglvnd, libheif and samba; most of what follows does not
+          # BuildRequire any of them. Anything that genuinely does will fail
+          # on its own and say so, which is information rather than harm --
+          # and publishing is copy-not-sync, so nothing already built is lost.
+          #
+          # The step still fails if any tier did, so a red run stays red.
+          rc=0
+          failed_tiers=()
           for tier in "${TIERS[@]}"; do
             echo "::group::tier ${tier}"
-            ./scripts/build-chain.sh "${ARGS[@]}" --tier "${tier}"
+            ./scripts/build-chain.sh "${ARGS[@]}" --tier "${tier}" || {
+              rc=1
+              failed_tiers+=("${tier}")
+            }
             echo "::endgroup::"
           done
+          if (( rc )); then
+            echo "::error::tiers with failures: ${failed_tiers[*]}"
+          fi
+          exit "${rc}"
 
       # !cancelled(): publish what BUILT even when some packages in the tier
       # failed. Tier gnome-00's first real run built 108 of 124 packages and
