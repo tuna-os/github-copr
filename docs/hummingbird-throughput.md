@@ -130,3 +130,46 @@ for the same reason at a larger scale: each additional job pays the fixed
 per-job cost measured at **184 s** (setup + checkout + apt + podman pull + R2
 seed, run 31242725235, 05:54:29→05:57:33), so one job per package for all 680
 would spend ~35 runner-hours on setup to parallelise ~24 runner-hours of work.
+
+## Canary A/B, and the flag that made the first attempt worthless
+
+Tier `niri-00`, 24 packages, `force: true`, `publish: false`, same runner
+class, both after #266 landed (so `--jobs $(nproc)` = 4):
+
+| run | branch | build-chain wall | Σ mock | `creating root cache` | `unpacking root cache` |
+|---|---|---|---|---|---|
+| [31265993115](https://github.com/tuna-os/tunaos-packages/actions/runs/31265993115) | `main` | **39.02 m** | 74.2 m | 24 | 0 |
+| [31268488082](https://github.com/tuna-os/tunaos-packages/actions/runs/31268488082) | + `MOCK_CACHE_DIR` | **39.49 m** | — | 24 | 0 |
+
+**No improvement.**  The mount was correct — the log shows mock writing
+`/var/cache/mock/hummingbird-ci/root_cache/cache.tar.gz` with return code 0,
+on the shared path with no uniqueext in it, exactly as
+`buildroot.py`'s `shared_root_name` predicts.  What it also shows, 18 times:
+
+```
+INFO: /tmp/mock-configdir/hummingbird-ci.cfg newer than root cache; cache will be rebuilt
+```
+
+`_unpack_root_cache` unlinks the tarball when any file in `config_paths` is
+newer than it.  `build-chain.sh` assembles the configdir inside every
+package's container with
+
+```sh
+cp -a /etc/mock/. /tmp/mock-configdir/
+cp    /repo-mock/*.cfg /tmp/mock-configdir/
+```
+
+and the second `cp` has no `-p`, so `hummingbird-ci.cfg` is stamped with the
+current time microseconds before mock starts — always newer than a cache any
+earlier package wrote.  Every package deleted the cache, rebuilt the
+buildroot, re-tarred it, and threw it away.
+
+With `-p` the profile keeps its checkout mtime, which precedes every cache
+the run writes.  That is the whole fix, and nothing in the run reports its
+absence: an invalidated root cache is merely slow.
+
+Concurrency, for the record, is now 74.2 m of mock over 39.02 m of wall =
+**1.90**, not the 4 that `--jobs $(nproc)` asks for, and per-package mock
+time roughly doubled (median 77.5 s at jobs=2-but-serialised, 138.5 s at
+jobs=4) because four builds share four cores with `%{_smp_mflags}`.  That is
+the ceiling more machines address and in-job concurrency does not.

@@ -179,3 +179,30 @@ def test_the_plan_output_is_a_github_output_line() -> None:
     key, _, value = buf.getvalue().strip().partition("=")
     assert key == "desktops"
     assert json.loads(value) == desktops_in(manifest())
+
+
+# --- the flag that made the cache worthless -------------------------------
+
+
+def test_the_repo_mock_configs_are_copied_with_their_mtimes() -> None:
+    """`cp -p`, not `cp`. Measured, not theorised.
+
+    mock invalidates its root cache when any file in `config_paths` is newer
+    than the cache tarball (`plugins/root_cache.py _unpack_root_cache`).
+    build-chain.sh assembles /tmp/mock-configdir fresh inside every package's
+    container, so a plain `cp` stamps the profile with the current time and
+    the config is ALWAYS newer than a cache an earlier package wrote.
+
+    Run 31268488082 had MOCK_CACHE_DIR set, the bind mount working and the
+    tarball being written to /var/cache/mock/hummingbird-ci/root_cache/ --
+    and still logged `hummingbird-ci.cfg newer than root cache; cache will be
+    rebuilt` 18 times, unpacked the cache 0 times, and finished in 39.5m
+    against a 39.0m no-cache baseline (31265993115).  The whole win rests on
+    this one flag, and nothing else in the run reports its absence.
+    """
+    script = (ROOT / "scripts" / "build-chain.sh").read_text()
+    assert "cp -p /repo-mock/*.cfg" in script, (
+        "the repo mock profiles are copied into the container's configdir "
+        "without -p, so every container re-stamps them with the current time "
+        "and mock deletes the shared root cache before it can ever be read"
+    )
