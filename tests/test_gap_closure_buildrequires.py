@@ -1,0 +1,93 @@
+"""The gap closure must walk BuildRequires:, not only runtime Requires:.
+
+The target is a base OS image, so by definition it ships no build-only
+packages.  A build tool appears only in BuildRequires: and never in any runtime
+dependency, so a closure over Requires: alone cannot see one -- it is not that
+the tool is judged present, it is that it is never considered.
+
+Measured against Hummingbird's own index (22335 capabilities) and Fedora's
+source index (23166 SRPMs): 413 capabilities the build order needs that nothing
+provides, blocking 462 of its 680 packages.  extra-cmake-modules alone blocks
+112, kf6-rpm-macros 106, gtk-doc 62.  bison and flex -- 17 each -- are the
+tell: ordinary buildroot tools, absent from a base OS precisely because nothing
+at runtime needs them.
+
+The PEP-517 backends fixed in #268/#269 were the first instance to reach CI.
+They were one case of this class, not a special case, which is why the fix
+belongs in the closure rather than in a hand-written bootstrap tier.
+"""
+from __future__ import annotations
+
+import importlib.util
+import pathlib
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location(
+    "gap", ROOT / "scripts" / "measure-hummingbird-gap.py"
+)
+gap = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(gap)
+
+
+def reference():
+    """app -> lib at runtime; the SOURCE of lib BuildRequires a build tool."""
+    return {
+        "packages": {
+            "app": {"arch": "x86_64", "evr": "1-1", "srpm": "app-1-1.fc45.src.rpm",
+                    "requires": ["lib"]},
+            "lib": {"arch": "x86_64", "evr": "1-1", "srpm": "lib-1-1.fc45.src.rpm",
+                    "requires": []},
+            "buildtool": {"arch": "x86_64", "evr": "1-1",
+                          "srpm": "buildtool-1-1.fc45.src.rpm", "requires": ["helper"]},
+            "helper": {"arch": "noarch", "evr": "1-1",
+                       "srpm": "helper-1-1.fc45.src.rpm", "requires": []},
+        },
+        "provides": {
+            "app": {"app"}, "lib": {"lib"},
+            "buildtool": {"buildtool"}, "helper": {"helper"},
+        },
+        "files": set(),
+    }
+
+
+SOURCE_INDEX = {"app": [], "lib": ["buildtool"], "buildtool": [], "helper": []}
+
+
+def test_runtime_only_closure_cannot_see_a_build_tool() -> None:
+    """The old behaviour, pinned so the regression is legible."""
+    seen, _, _ = gap.closure(["app"], reference(), have=set())
+    assert seen == {"app", "lib"}
+    assert "buildtool" not in seen
+
+
+def test_buildrequires_are_pulled_into_the_closure() -> None:
+    seen, _, _ = gap.closure(["app"], reference(), set(), source_index=SOURCE_INDEX)
+    assert "buildtool" in seen, (
+        "lib's source BuildRequires buildtool and the target does not ship it, "
+        "so it has to be built"
+    )
+
+
+def test_the_build_tools_own_runtime_deps_come_too() -> None:
+    """A tool that cannot run is no better than one that is absent."""
+    seen, _, _ = gap.closure(["app"], reference(), set(), source_index=SOURCE_INDEX)
+    assert "helper" in seen, (
+        "buildtool Requires: helper -- pulling the tool in without its runtime "
+        "closure yields an uninstallable buildroot"
+    )
+
+
+def test_what_the_target_already_ships_is_not_rebuilt() -> None:
+    seen, _, _ = gap.closure(
+        ["app"], reference(), have={"buildtool"}, source_index=SOURCE_INDEX
+    )
+    assert "buildtool" not in seen
+    assert "helper" not in seen
+
+
+def test_a_buildrequires_nothing_provides_is_reported_not_dropped() -> None:
+    """Silence here is how 413 missing capabilities went unnoticed."""
+    src = dict(SOURCE_INDEX, lib=["nonexistent-tool"])
+    _, _, unresolved = gap.closure(["app"], reference(), set(), source_index=src)
+    assert "nonexistent-tool" in unresolved
+    assert "lib" in unresolved["nonexistent-tool"]

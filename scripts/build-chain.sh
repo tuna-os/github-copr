@@ -94,6 +94,40 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Without --with-checks the build already passes --nocheck, so %check never
+# runs -- but its BuildRequires: are still installed, and they are not free.
+# Fedora guards them behind a bcond, and the guarded lines are exactly the
+# packages a bootstrap buildroot does not have:
+#
+#   python-flit-core    %bcond tests   -> python3-pytest, python3-testpath
+#   python-poetry-core  %bcond tests   -> python3-pytest-mock, python3-virtualenv,
+#                                         python3-build, python3-tomli-w, ...
+#
+# Those exist only in Rawhide, built for Python 3.15, while Hummingbird is on
+# 3.14. dnf5 then cannot resolve the buildroot at all and the build dies
+# before rpmbuild starts (run 31262874931, both packages of bootstrap-00):
+#
+#   package python3-testpath-0.6.0-27.fc45.noarch from fedora requires
+#   python(abi) = 3.15, but none of the providers can be installed
+#   - cannot install both python3-3.15.0~rc1-1.fc45.x86_64 from fedora and
+#     python3-3.14.6-2.2.hum1.x86_64 from hummingbird
+#
+# So turn the bconds off alongside %check. It goes on the SRPM build because
+# that header is what mock's `dnf builddep` reads, and on mock itself so the
+# dynamic-BuildRequires pass inside the chroot agrees with it.
+#
+# `tests` and `check` are the two names Fedora uses. --without on a spec that
+# declares neither only defines a macro nothing reads, so this is inert for
+# every other package.
+SRPM_BCOND_ARGS=()
+MOCK_BCOND_ARGS=""
+if ! $WITH_CHECKS; then
+    for _bcond in tests check; do
+        SRPM_BCOND_ARGS+=(--without "$_bcond")
+        MOCK_BCOND_ARGS+="--without=${_bcond} "
+    done
+fi
+
 # --- Helpers ---
 log() { echo "==> $*"; }
 err() { echo "ERROR: $*" >&2; }
@@ -348,7 +382,8 @@ build_package_podman() {
         "${BUILD_IMAGE}" \
         rpmbuild -bs "/builddir/SPECS/${spec_basename}" \
             --define "_topdir /builddir" \
-            --define "dist ${DIST}"
+            --define "dist ${DIST}" \
+            "${SRPM_BCOND_ARGS[@]}"
 
     local srpm
     srpm="$(find "${builddir}/SRPMS" -name "*.src.rpm" | head -1)"
@@ -503,7 +538,7 @@ build_package_podman() {
                         --rebuild /builddir/SRPMS/*.src.rpm \\
                         --resultdir=/builddir/results \\
                         --define 'dist ${DIST}' \\
-                        ${mock_check_flag} \\
+                        ${mock_check_flag} ${MOCK_BCOND_ARGS} \\
                         --no-clean \\
                         --no-cleanup-after ${mock_extra_args} || {
                             echo 'ERROR: mock failed. Printing build.log:';
@@ -592,7 +627,8 @@ build_package_mock() {
         "${BUILD_IMAGE}" \
         rpmbuild -bs "/builddir/SPECS/${spec_basename}" \
             --define "_topdir /builddir" \
-            --define "dist ${DIST}"
+            --define "dist ${DIST}" \
+            "${SRPM_BCOND_ARGS[@]}"
 
     local srpm
     srpm="$(find "${builddir}/SRPMS" -name "*.src.rpm" | head -1)"
@@ -618,7 +654,7 @@ build_package_mock() {
             --rebuild \"$srpm\" \\
             --resultdir=\"$resultdir\" \\
             --define \"dist ${DIST}\" \\
-            ${mock_check_flag} \\
+            ${mock_check_flag} ${MOCK_BCOND_ARGS} \\
             --no-clean \\
             --no-cleanup-after || {
                 echo 'ERROR: mock failed. Printing build.log:';
