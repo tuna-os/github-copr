@@ -793,6 +793,12 @@ build_package() {
     esac
 }
 
+# How many RPMs the local repo holds. Used to decide whether a tier's failures
+# are worth retrying: a retry can only help if something new landed.
+_repo_rpm_count() {
+    find "$LOCAL_REPO" -maxdepth 1 -name '*.rpm' 2>/dev/null | wc -l
+}
+
 # Run all packages in a tier with up to $JOBS parallel workers.
 build_tier() {
     local tier_name="$1"
@@ -807,6 +813,8 @@ build_tier() {
     local pids=()
     local pkg_paths=()
     local active=0
+    local _tier_start_rpms
+    _tier_start_rpms="$(_repo_rpm_count)"
 
     wait_one() {
         for i in "${!pids[@]}"; do
@@ -860,6 +868,41 @@ build_tier() {
     while [[ $active -gt 0 ]]; do
         wait_one
     done
+
+    # Retry this tier's failures once, if the tier produced anything.
+    #
+    # Tiers are a topological order over BuildRequires, but the ordering is not
+    # perfect: measured on the regenerated manifest, 43 one-way BuildRequires
+    # edges fall INSIDE a tier -- 27 in cosmic-10, 9 in cosmic-00, 5 in
+    # gnome-04, 2 in niri-15. Packages within a tier build concurrently, so
+    # those start before the thing they need exists. They are real edges, not
+    # artifacts: libepoxy BuildRequires mutter, libdecor BuildRequires gtk3 and
+    # libsoup3 BuildRequires glib-networking, and each pair shares gnome-04.
+    #
+    # A second pass fixes exactly that class by construction -- mutter is in
+    # the local repo by the time libepoxy is retried -- without needing to know
+    # why tier_sources mis-assigned them. Two hypotheses for that have already
+    # been proposed and disproved; this does not depend on the answer.
+    #
+    # Gated on the repo having GROWN during the tier. If nothing built, nothing
+    # a retry could need has appeared, so retrying is just a second identical
+    # failure at twice the cost. That gate is what keeps this from being a
+    # blanket "try everything twice".
+    if ((${#_tier_failed[@]})) && [[ "$(_repo_rpm_count)" -gt "$_tier_start_rpms" ]]; then
+        local retry=("${_tier_failed[@]}")
+        _tier_failed=()
+        log "  ${#retry[@]} package(s) failed but the repo grew during this tier;"
+        log "  retrying them once in case they lost an intra-tier race"
+        local path
+        for path in "${retry[@]}"; do
+            if build_package "$path" ""; then
+                log "  [retry] ${path} built on the second pass"
+            else
+                err "Failed: ${path}"
+                _tier_failed+=("${path}")
+            fi
+        done
+    fi
 }
 
 # --- Main ---
