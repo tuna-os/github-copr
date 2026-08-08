@@ -3,6 +3,25 @@ import yaml
 import sys
 import os
 
+def _rclone_conf(r2_state):
+    """One rclone endpoint for the whole workflow.
+
+    The seed and publish jobs built theirs from CLOUDFLARE_ACCOUNT_ID while
+    the per-tier jobs use R2_ENDPOINT. Two secrets for one endpoint means
+    whichever is unset fails at runtime, two minutes in, in a job that looks
+    unrelated to the change that introduced it. --r2-state makes every job
+    use R2_ENDPOINT, which is the secret the existing Hummingbird workflow
+    has been publishing with.
+    """
+    endpoint = ('${{ secrets.R2_ENDPOINT }}' if r2_state
+                else 'https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com')
+    return ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n'
+            '[r2]\ntype = s3\nprovider = Cloudflare\n'
+            'access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\n'
+            'secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\n'
+            f'endpoint = {endpoint}\nEOF\n')
+
+
 def generate_workflow(manifest_path, output_path, workflow_name='Distributed Build and Publish RPMs',
                       r2_path='repo/10-stream-x86_64', secondary_r2_path='repo/10-x86_64',
                       install_script='contrib/install.sh', install_r2_dest='install.sh',
@@ -47,7 +66,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         'steps': [
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
             {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c'},
-            {'name': 'Configure rclone', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\nmkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com\nEOF\n'},
+            {'name': 'Configure rclone', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\n' + _rclone_conf(r2_state)},
             {'name': 'Seed local repo from R2', 'run': f'mkdir -p local-repo\necho "Downloading existing repo from R2..."\nrclone sync "r2:${{R2_BUCKET}}/{r2_path}/" "local-repo/" --exclude "repodata/**" || true\ncreaterepo_c local-repo\n'},
             # With R2 as the shared state this job exists to guarantee the
             # repository has valid metadata before any runner seeds from it;
@@ -161,7 +180,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
             {'name': 'Import GPG key', 'id': 'import-gpg', 'uses': 'crazy-max/ghaction-import-gpg@v7', 'with': {'gpg_private_key': '${{ secrets.GPG_PRIVATE_KEY }}', 'passphrase': '${{ secrets.GPG_PASSPHRASE }}', 'git_committer_name': 'RPM Builder', 'git_committer_email': 'rpm-signing@tunaos.org'}},
             {'name': 'Configure RPM macros', 'run': 'echo "%_signature gpg" > ~/.rpmmacros\necho "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros\necho "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \\"%{_gpg_name}\\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros\n'},
             {'name': 'Sign RPMs', 'run': 'find local-repo -name "*.rpm" -exec rpmsign --addsign {} \\;\ncreaterepo_c --update local-repo\n'},
-            {'name': 'Configure rclone', 'run': 'mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com\nEOF\n'},
+            {'name': 'Configure rclone', 'run': _rclone_conf(r2_state)},
             {'name': 'Upload to R2', 'run': _build_upload_run(r2_path, secondary_r2_path, install_script, install_r2_dest)}
         ]
     }

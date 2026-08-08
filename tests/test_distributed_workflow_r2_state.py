@@ -115,3 +115,28 @@ def test_tiers_publish_with_copy_not_sync(tmp_path):
                    if s.get("name") == "Publish this tier to R2")
     assert "rclone copy" in publish["run"]
     assert "rclone sync" not in publish["run"]
+
+
+def test_one_r2_endpoint_secret_across_the_whole_workflow(tmp_path):
+    """Two secrets for one endpoint means whichever is unset fails at runtime.
+
+    The seed and publish jobs built their endpoint from CLOUDFLARE_ACCOUNT_ID
+    while every per-tier job used R2_ENDPOINT. In a 158-job workflow that
+    surfaces as two unrelated-looking jobs dying two minutes in, long after the
+    change that caused it.
+
+    R2_ENDPOINT is the one the existing Hummingbird workflow publishes with.
+    """
+    wf = generate(tmp_path, "--r2-state")
+    text = yaml.safe_dump(wf)
+    assert "CLOUDFLARE_ACCOUNT_ID" not in text, (
+        "some job still builds its R2 endpoint from CLOUDFLARE_ACCOUNT_ID; "
+        "under --r2-state every job must use R2_ENDPOINT"
+    )
+    assert "secrets.R2_ENDPOINT" in text
+
+
+def test_the_default_still_uses_the_account_id_form(tmp_path):
+    """The other caller's secrets are not ours to change."""
+    wf = generate(tmp_path)
+    assert "CLOUDFLARE_ACCOUNT_ID" in yaml.safe_dump(wf)
