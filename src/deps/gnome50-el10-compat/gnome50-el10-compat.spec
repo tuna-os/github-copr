@@ -1,6 +1,6 @@
 Name:           gnome50-el10-compat
-Version:        1.2.7
-Release:        3%{?dist}
+Version:        1.2.8
+Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
 License:        MIT
@@ -147,6 +147,14 @@ fi
 %{_libexecdir}/%{name}/useradd
 
 %changelog
+* Thu Jul 24 2026 James Reilly <jreilly1821@gmail.com> - 1.2.8-1
+- gdm-gnome50.te: add unix_stream_socket bind+listen permissions for xdm_t.
+  GDM 50 registers a systemd-userdb Varlink socket and calls bind()/listen()
+  on its own socket; sock_file:create alone is insufficient — SELinux also
+  requires unix_stream_socket:{bind listen} on self. Without this, GDM fails
+  with "Failed to listen on userdb socket: Permission denied" on EL10 COPR
+  CI runners with SELinux enforcing. Fixes #70.
+
 * Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.7-3
 - Add useradd wrapper via alternatives(8) to handle existing home
   directory gracefully. EL10 shadow-utils 4.15 treats mkdir()→EEXIST
