@@ -31,11 +31,64 @@ import pathlib
 import re
 import shutil
 import subprocess
+import time
 import tempfile
 
 import yaml
 
 RELEASE = re.compile(r"^(Release:\s*)(\d+)(%\{\?dist\}.*)$", re.MULTILINE)
+
+
+
+# A dist-git clone that fails is usually just src.fedoraproject.org dropping
+# the connection, not a package that does not exist:
+#
+#   FAILED python-hatchling: fatal: the remote end hung up unexpectedly
+#   FAILED python-hatch-fancy-pypi-readme: fatal: the remote end hung up unexpectedly
+#   imported=9 skipped=0 failed=2
+#
+# (run 31266605500). The step exits 1 on any failure and `Build tiers` is
+# skipped, so two dropped connections cost the whole run. At that rate a tier
+# of eleven packages fails roughly one time in three, and the full 1248-package
+# manifest would essentially never get through the import at all.
+PERMANENT_CLONE_ERRORS = ("not found", "does not exist", "could not read username")
+
+
+def clone_is_permanent_failure(stderr: str) -> bool:
+    """True when retrying cannot help -- the package is not there.
+
+    Everything else is treated as transient. Getting this wrong in the
+    permanent direction is much worse than in the transient direction: a
+    retried 404 wastes seconds, while a non-retried flake wastes the run.
+    """
+    lowered = stderr.lower()
+    return any(marker in lowered for marker in PERMANENT_CLONE_ERRORS)
+
+
+def clone_with_retry(package, branch, checkout, attempts=3, runner=None, sleeper=None):
+    runner = runner or subprocess.run
+    sleeper = sleeper or time.sleep
+    url = f"https://src.fedoraproject.org/rpms/{package}.git"
+    result = None
+    for attempt in range(1, max(1, attempts) + 1):
+        # git refuses to clone into an existing non-empty directory, so a
+        # partial checkout left by a failed attempt would turn one transient
+        # error into a permanent one.
+        if checkout.exists():
+            shutil.rmtree(checkout, ignore_errors=True)
+        result = runner(
+            ["git", "clone", "--depth", "1", "--branch", branch, url, str(checkout)],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            return result
+        if clone_is_permanent_failure(result.stderr or ""):
+            return result
+        if attempt < max(1, attempts):
+            tail = (result.stderr or "").strip().splitlines()[-1:] or ["clone failed"]
+            print(f"Retrying {package} ({attempt}/{attempts - 1}): {tail[0]}")
+            sleeper(2 ** attempt)
+    return result
 
 
 def catalog_packages(catalog: pathlib.Path) -> list[tuple[str, pathlib.Path]]:
@@ -119,6 +172,11 @@ def main() -> None:
              "independent; the copy and the state file stay serial so the "
              "result does not depend on completion order.",
     )
+    parser.add_argument(
+        "--clone-attempts", type=int, default=3,
+        help="Attempts per dist-git clone before giving up. A clone that fails "
+             "because the package does not exist is not retried.",
+    )
     args = parser.parse_args()
 
     if args.packages:
@@ -148,13 +206,9 @@ def main() -> None:
 
         def clone_one(item):
             package, _, _ = item
-            checkout = tempdir / package
-            url = f"https://src.fedoraproject.org/rpms/{package}.git"
-            result = subprocess.run(
-                ["git", "clone", "--depth", "1", "--branch", args.branch, url, str(checkout)],
-                capture_output=True, text=True,
+            return item, clone_with_retry(
+                package, args.branch, tempdir / package, args.clone_attempts
             )
-            return item, result
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
             outcomes = list(pool.map(clone_one, pending))
