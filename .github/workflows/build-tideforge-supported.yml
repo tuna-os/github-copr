@@ -51,6 +51,65 @@ jobs:
             echo "relevant=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # ── The dispatcher ─────────────────────────────────────────────────────────
+  # detect-changes answers one question for the whole gate: did anything
+  # Tideforge-relevant change?  If yes, all 84 declared cells build -- so
+  # editing one recipe rebuilt 83 bit-identical artifacts, each paying for a
+  # runner and a container image pull.  This turns that boolean into a plan.
+  #
+  # It only ever SUBTRACTS from what the jobs below already declare, and it
+  # fails toward building: no diff information, an unreadable file, or a change
+  # to any shared input (scripts/, mock/, these workflows, .github/actions/)
+  # restores the full run.  See scripts/plan_gate_matrix.py for the rules and
+  # tests/test_plan_gate_matrix.py for what pins them.
+  #
+  # Only the matrix-free jobs consume it today.  A job with a static `include:`
+  # cannot also take a computed matrix, and those declarations are what the
+  # planner reads out of this file, so moving them is its own change.
+  plan:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.relevant == 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      gtkgreet_rpm_run: ${{ steps.plan.outputs.gtkgreet_rpm_run }}
+      cpptrace_rpm_run: ${{ steps.plan.outputs.cpptrace_rpm_run }}
+      quickshell_rpm_run: ${{ steps.plan.outputs.quickshell_rpm_run }}
+      niri_rpm_run: ${{ steps.plan.outputs.niri_rpm_run }}
+      iio_niri_rpm_run: ${{ steps.plan.outputs.iio_niri_rpm_run }}
+      dms_stack_rpm_run: ${{ steps.plan.outputs.dms_stack_rpm_run }}
+      cosmic_icon_theme_rpm_run: ${{ steps.plan.outputs.cosmic_icon_theme_rpm_run }}
+      cosmic_comp_rpm_run: ${{ steps.plan.outputs.cosmic_comp_rpm_run }}
+      cosmic_bg_rpm_run: ${{ steps.plan.outputs.cosmic_bg_rpm_run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - name: Collect the changed paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          # No base to diff against (dispatch/push/schedule) means no file, and
+          # the planner treats a missing file as "build everything".
+          if [ -n "${BASE_SHA:-}" ]; then
+            git diff --name-only "$BASE_SHA"...HEAD > changed-files.txt
+            echo "changed paths:"; cat changed-files.txt
+          fi
+      - id: plan
+        name: Plan which gate cells need to run
+        run: |
+          set -euo pipefail
+          args=(--workflow .github/workflows/build-tideforge-supported.yml
+                --github-output "$GITHUB_OUTPUT")
+          if [ -f changed-files.txt ]; then
+            args+=(--changed-files changed-files.txt)
+          fi
+          python3 scripts/plan_gate_matrix.py "${args[@]}"
+
   rpm-payload:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.relevant == 'true' }}
@@ -400,7 +459,8 @@ jobs:
 
   gtkgreet-rpm:
     name: gtkgreet (el10 staged closure RPM)
-    needs: [detect-changes, rpm]
+    needs: [detect-changes, plan, rpm]
+    if: ${{ needs.plan.outputs.gtkgreet_rpm_run == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -472,7 +532,8 @@ jobs:
 
   cpptrace-rpm:
     name: cpptrace-devel (el10 RPM)
-    needs: [detect-changes, rpm]
+    needs: [detect-changes, plan, rpm]
+    if: ${{ needs.plan.outputs.cpptrace_rpm_run == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -614,7 +675,8 @@ jobs:
 
   quickshell-rpm:
     name: quickshell (el10 RPM)
-    needs: [detect-changes, rpm, cpptrace-rpm]
+    needs: [detect-changes, plan, rpm, cpptrace-rpm]
+    if: ${{ needs.plan.outputs.quickshell_rpm_run == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -696,7 +758,8 @@ jobs:
 
   niri-rpm:
     name: niri (el10 RPM)
-    needs: [detect-changes, rpm]
+    needs: [detect-changes, plan, rpm]
+    if: ${{ needs.plan.outputs.niri_rpm_run == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -767,7 +830,8 @@ jobs:
 
   iio-niri-rpm:
     name: iio-niri (el10 RPM)
-    needs: [detect-changes, rpm, niri-rpm]
+    needs: [detect-changes, plan, rpm, niri-rpm]
+    if: ${{ needs.plan.outputs.iio_niri_rpm_run == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -834,7 +898,8 @@ jobs:
 
   dms-stack-rpm:
     name: DMS stack (el10 RPM integration)
-    needs: [detect-changes, rpm-payload, rpm, cpptrace-rpm, quickshell-rpm]
+    needs: [detect-changes, plan, rpm-payload, rpm, cpptrace-rpm, quickshell-rpm]
+    if: ${{ needs.plan.outputs.dms_stack_rpm_run == 'true' }}
     runs-on: ubuntu-latest
     steps:
       # Checkout first, and only then download artifacts: actions/checkout
@@ -904,7 +969,8 @@ jobs:
   # clean-install and assert the recipe's contract.
   cosmic-icon-theme-rpm:
     name: cosmic-icon-theme (el10 RPM)
-    needs: [detect-changes, rpm]
+    needs: [detect-changes, plan, rpm]
+    if: ${{ needs.plan.outputs.cosmic_icon_theme_rpm_run == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -967,7 +1033,8 @@ jobs:
 
   cosmic-comp-rpm:
     name: cosmic-comp (el10 RPM)
-    needs: [detect-changes, rpm, cosmic-icon-theme-rpm]
+    needs: [detect-changes, plan, rpm, cosmic-icon-theme-rpm]
+    if: ${{ needs.plan.outputs.cosmic_comp_rpm_run == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -1051,7 +1118,8 @@ jobs:
   # the ephemeral repo, then install and assert the recipe's contract.
   cosmic-bg-rpm:
     name: cosmic-bg (el10 RPM)
-    needs: [detect-changes, rpm, cosmic-icon-theme-rpm]
+    needs: [detect-changes, plan, rpm, cosmic-icon-theme-rpm]
+    if: ${{ needs.plan.outputs.cosmic_bg_rpm_run == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -1434,9 +1502,24 @@ jobs:
 
   # The single check worth requiring in branch protection (#173). It always
   # reports: not-applicable PRs pass via detect-changes, and any needed job
-  # that failed, was cancelled, OR WAS SKIPPED fails it -- a skipped cell is
-  # unproven, not passed. Making this required is a deliberate repo-settings
-  # step, not something this file can do.
+  # that failed or was cancelled fails it. Making this required is a
+  # deliberate repo-settings step, not something this file can do.
+  #
+  # SKIPPED used to fail this gate too, on the rule "a skipped cell is
+  # unproven, not passed". That rule was right while the only way to skip was
+  # an upstream dying. The planner (job `plan`) introduces a second, legitimate
+  # reason: the cell's recipe and every input feeding it are unchanged, so
+  # there is nothing new to prove. Failing on that would make the dispatcher
+  # impossible.
+  #
+  # Accepting skipped does NOT re-open the hole the old rule guarded, because
+  # the two causes are still distinguishable from here: every gate job is in
+  # this job's `needs:`, so a job that actually broke reports failure/cancelled
+  # to this step directly. A dependent going skipped in that scenario is always
+  # accompanied by its upstream's own non-success result, which still fails the
+  # gate. What is no longer required is that every cell RAN -- and that is the
+  # planner's job to justify, which it does by logging every skip with the
+  # reason that produced it.
   # Staged deb closure gate (#169 / tunaOS#964): cosmic-icon-theme Requires
   # the tideforge-built pop-icon-theme at install time. The gate stays
   # independent of the PUBLISHED tideforge repo on purpose -- a gate that
@@ -1629,7 +1712,7 @@ jobs:
 
   tideforge-gate:
     name: Tideforge gate
-    needs: [detect-changes, rpm-payload, rpm, opensuse-rpm, xfconf-split, gtkgreet-rpm, cpptrace-rpm, input-remapper-rpm, quickshell-rpm, niri-rpm, iio-niri-rpm, dms-stack-rpm, cosmic-icon-theme-rpm, cosmic-comp-rpm, cosmic-bg-rpm, deb, cosmic-icon-theme-deb, cosmic-comp-deb]
+    needs: [detect-changes, plan, rpm-payload, rpm, opensuse-rpm, xfconf-split, gtkgreet-rpm, cpptrace-rpm, input-remapper-rpm, quickshell-rpm, niri-rpm, iio-niri-rpm, dms-stack-rpm, cosmic-icon-theme-rpm, cosmic-comp-rpm, cosmic-bg-rpm, deb, cosmic-icon-theme-deb, cosmic-comp-deb]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -1645,7 +1728,13 @@ jobs:
             echo "No Tideforge-relevant changes; gate not applicable."
             exit 0
           fi
-          bad=$(echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success") | "\(.key)=\(.value.result)"')
+          # A job the planner trimmed reports "skipped", and that is a pass:
+          # its cells had nothing to prove.  Accepting skipped cannot hide a
+          # real failure, because every gate job is in this job's `needs:`, so
+          # a genuine failure appears here as failure/cancelled on the job
+          # itself -- a dependent going skipped because its upstream broke is
+          # always accompanied by that upstream's own non-success result.
+          bad=$(echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "\(.key)=\(.value.result)"')
           if [ -n "$bad" ]; then
             echo "Gate jobs not successful:" >&2
             echo "$bad" >&2
