@@ -9,9 +9,9 @@
 #     --report-json docs/hummingbird-desktop-gap.json \
 #     --build-order build-order-hummingbird-desktops.yml
 #
-# Measured 2026-08-06T14:49:23.333225+00:00
-# target primary.xml   sha256 b92541eaf43fd4a8976710fa0035ae0c69b38aae7a0f241d61d87cd9bdd2a512
-# reference primary.xml sha256 dc3c7ec50508105e880c74f0178bf4723e770c73766654d833d1b2ad541e3774
+# Measured 2026-08-08T14:44:50.001394+00:00
+# target primary.xml   sha256 3c2eaf99d82289b58747895801df4d7a9e5fbe4328899d7e93626b5ffb0f0c68
+# reference primary.xml sha256 f0af43336f6a0d7043d3508e19feaa56ada38c153da334e29085ac05032aba77
 #
 # `distgit:` means the packaging is imported from Fedora Rawhide
 # dist-git at build time (scripts/import-fedora-distgit.py).  A package
@@ -41,12 +41,14 @@ tiers:
         distgit: python-editables
       - path: src/hummingbird/python-installer
         distgit: python-installer
-      - path: src/hummingbird/python-build
-        distgit: python-build
+      - path: src/hummingbird/python-pyproject-hooks
+        distgit: python-pyproject-hooks
       - path: src/hummingbird/python-wheel
         distgit: python-wheel
   - name: bootstrap-02
     packages:
+      - path: src/hummingbird/python-build
+        distgit: python-build
       - path: src/hummingbird/python-hatchling
         distgit: python-hatchling
   - name: bootstrap-03
@@ -67,6 +69,7 @@ tiers:
         distgit: color-filesystem
       - path: src/hummingbird/dconf
         distgit: dconf
+        bootstrap: true
       - path: src/hummingbird/duktape
         distgit: duktape
       - path: src/hummingbird/exempi
@@ -103,6 +106,7 @@ tiers:
         distgit: iso-codes
       - path: src/hummingbird/lame
         distgit: lame
+        bootstrap: true
       - path: src/hummingbird/lcms2
         distgit: lcms2
       - path: src/hummingbird/libICE
@@ -152,6 +156,7 @@ tiers:
         distgit: libndp
       - path: src/hummingbird/libnvme
         distgit: libnvme
+        bootstrap: true
       - path: src/hummingbird/libogg
         distgit: libogg
       - path: src/hummingbird/libpciaccess
@@ -170,8 +175,10 @@ tiers:
         distgit: libuser
       - path: src/hummingbird/libvisual
         distgit: libvisual
+        bootstrap: true
       - path: src/hummingbird/libvpx
         distgit: libvpx
+        bootstrap: true
       - path: src/deps/libxcvt
       - path: src/hummingbird/libxkbfile
         distgit: libxkbfile
@@ -183,6 +190,7 @@ tiers:
         distgit: linux-atm
       - path: src/hummingbird/lm_sensors
         distgit: lm_sensors
+        bootstrap: true
       - path: src/hummingbird/lockdev
         distgit: lockdev
       - path: src/hummingbird/mdadm
@@ -203,16 +211,19 @@ tiers:
         distgit: opencore-amr
       - path: src/hummingbird/openjph
         distgit: openjph
+        bootstrap: true
       - path: src/hummingbird/opus
         distgit: opus
       - path: src/hummingbird/orc
         distgit: orc
+        bootstrap: true
       - path: src/hummingbird/pixman
         distgit: pixman
       - path: src/hummingbird/pkcs11-helper
         distgit: pkcs11-helper
       - path: src/hummingbird/python-argcomplete
         distgit: python-argcomplete
+        bootstrap: true
       - path: src/hummingbird/python-pam
         distgit: python-pam
       - path: src/hummingbird/redhat-menus
@@ -240,6 +251,7 @@ tiers:
         distgit: uchardet
       - path: src/hummingbird/v4l-utils
         distgit: v4l-utils
+        bootstrap: true
       - path: src/hummingbird/volume_key
         distgit: volume_key
       - path: src/hummingbird/vpnc
@@ -282,6 +294,7 @@ tiers:
         distgit: hunspell-en
       - path: src/hummingbird/jpegxl
         distgit: jpegxl
+        bootstrap: true
       - path: src/hummingbird/libSM
         distgit: libSM
       - path: src/hummingbird/libXcursor
@@ -290,6 +303,7 @@ tiers:
         distgit: libXdamage
       - path: src/hummingbird/libbluray
         distgit: libbluray
+        bootstrap: true
       - path: src/hummingbird/libcdio-paranoia
         distgit: libcdio-paranoia
       - path: src/hummingbird/libdisplay-info
@@ -314,6 +328,7 @@ tiers:
         distgit: net-snmp
       - path: src/hummingbird/openjpeg
         distgit: openjpeg
+        bootstrap: true
       - path: src/hummingbird/openvpn
         distgit: openvpn
       - path: src/hummingbird/setxkbmap
@@ -341,6 +356,7 @@ tiers:
         bootstrap: true
       - path: src/hummingbird/libtheora
         distgit: libtheora
+        bootstrap: true
       - path: src/hummingbird/libusbmuxd
         distgit: libusbmuxd
       - path: src/hummingbird/libva
@@ -354,6 +370,7 @@ tiers:
         bootstrap: true
       - path: src/hummingbird/samba
         distgit: samba
+        bootstrap: true
       - path: src/hummingbird/sane-backends
         distgit: sane-backends
       - path: src/hummingbird/xkeyboard-config
@@ -720,6 +737,7 @@ tiers:
         distgit: desktop-backgrounds
       - path: src/hummingbird/desktop-file-utils
         distgit: desktop-file-utils
+        bootstrap: true
       - path: src/hummingbird/docbook-dtds
         distgit: docbook-dtds
       - path: src/hummingbird/docbook-style-xsl
@@ -732,6 +750,7 @@ tiers:
         distgit: i2c-tools
       - path: src/hummingbird/imath
         distgit: imath
+        bootstrap: true
       - path: src/hummingbird/jsoncpp
         distgit: jsoncpp
       - path: src/hummingbird/kde-filesystem
@@ -746,6 +765,7 @@ tiers:
         distgit: libdmtx
       - path: src/hummingbird/libfyaml
         distgit: libfyaml
+        bootstrap: true
       - path: src/hummingbird/libmodplug
         distgit: libmodplug
       - path: src/hummingbird/libmysofa
@@ -760,6 +780,7 @@ tiers:
         distgit: libutempter
       - path: src/hummingbird/libvdpau
         distgit: libvdpau
+        bootstrap: true
       - path: src/hummingbird/lpcnetfreedv
         distgit: lpcnetfreedv
       - path: src/hummingbird/minizip-ng
@@ -772,12 +793,14 @@ tiers:
         distgit: pugixml
       - path: src/hummingbird/qrencode
         distgit: qrencode
+        bootstrap: true
       - path: src/hummingbird/qt6-qtserialport
         distgit: qt6-qtserialport
       - path: src/hummingbird/rust-dolby_vision
         distgit: rust-dolby_vision
       - path: src/hummingbird/serd
         distgit: serd
+        bootstrap: true
       - path: src/hummingbird/snowball
         distgit: snowball
       - path: src/hummingbird/socat
@@ -804,8 +827,10 @@ tiers:
         distgit: zimg
       - path: src/hummingbird/zix
         distgit: zix
+        bootstrap: true
       - path: src/hummingbird/zxing-cpp
         distgit: zxing-cpp
+        bootstrap: true
 
   - name: kde-01
     packages:
@@ -825,23 +850,29 @@ tiers:
         distgit: kf6-karchive
       - path: src/hummingbird/leptonica
         distgit: leptonica
+        bootstrap: true
       - path: src/hummingbird/libass
         distgit: libass
+        bootstrap: true
       - path: src/hummingbird/libdvdnav
         distgit: libdvdnav
       - path: src/hummingbird/librist
         distgit: librist
       - path: src/hummingbird/libxmlb
         distgit: libxmlb
+        bootstrap: true
       - path: src/hummingbird/ocean-sound-theme
         distgit: ocean-sound-theme
       - path: src/hummingbird/openexr
         distgit: openexr
+        bootstrap: true
       - path: src/deps/shaderc
       - path: src/hummingbird/sord
         distgit: sord
+        bootstrap: true
       - path: src/hummingbird/vid.stab
         distgit: vid.stab
+        bootstrap: true
       - path: src/hummingbird/xcb-util-image
         distgit: xcb-util-image
       - path: src/hummingbird/xcb-util-keysyms
@@ -863,6 +894,7 @@ tiers:
         distgit: signon
       - path: src/hummingbird/sratom
         distgit: sratom
+        bootstrap: true
       - path: src/hummingbird/xcb-util-cursor
         distgit: xcb-util-cursor
 
@@ -891,6 +923,7 @@ tiers:
         distgit: libXaw
       - path: src/hummingbird/libplacebo
         distgit: libplacebo
+        bootstrap: true
       - path: src/hummingbird/libvpl
         distgit: libvpl
       - path: src/hummingbird/lilv
@@ -898,6 +931,7 @@ tiers:
         bootstrap: true
       - path: src/hummingbird/openxr
         distgit: openxr
+        bootstrap: true
       - path: src/hummingbird/poly2tri
         distgit: poly2tri
       - path: src/hummingbird/pycairo
@@ -917,6 +951,7 @@ tiers:
         distgit: assimp
       - path: src/hummingbird/game-music-emu
         distgit: game-music-emu
+        bootstrap: true
       - path: src/hummingbird/gpsd
         distgit: gpsd
       - path: src/hummingbird/kf6-bluez-qt
@@ -941,6 +976,7 @@ tiers:
         distgit: libaccounts-glib
       - path: src/hummingbird/libbs2b
         distgit: libbs2b
+        bootstrap: true
       - path: src/hummingbird/libopenmpt
         distgit: libopenmpt
         bootstrap: true
@@ -957,6 +993,7 @@ tiers:
         distgit: qt6-qtquicktimeline
       - path: src/hummingbird/qt6-qttools
         distgit: qt6-qttools
+        bootstrap: true
       - path: src/hummingbird/qt6-qtvirtualkeyboard
         distgit: qt6-qtvirtualkeyboard
       - path: src/hummingbird/qt6-qtwayland
@@ -965,6 +1002,7 @@ tiers:
         distgit: qt6-qtwebsockets
       - path: src/hummingbird/tesseract
         distgit: tesseract
+        bootstrap: true
       - path: src/hummingbird/unity-gtk-module
         distgit: unity-gtk-module
       - path: src/hummingbird/xmessage
@@ -974,6 +1012,7 @@ tiers:
     packages:
       - path: src/hummingbird/appstream
         distgit: appstream
+        bootstrap: true
       - path: src/hummingbird/codec2
         distgit: codec2
         bootstrap: true
@@ -1031,6 +1070,7 @@ tiers:
         distgit: qtkeychain
       - path: src/hummingbird/rubberband
         distgit: rubberband
+        bootstrap: true
       - path: src/hummingbird/sddm
 
   - name: kde-07
@@ -1236,280 +1276,1629 @@ tiers:
     packages:
       - path: src/hummingbird/acpid
         distgit: acpid
+      - path: src/hummingbird/adobe-mappings-cmap
+        distgit: adobe-mappings-cmap
+      - path: src/hummingbird/adobe-mappings-pdf
+        distgit: adobe-mappings-pdf
+      - path: src/hummingbird/adobe-source-code-pro-fonts
+        distgit: adobe-source-code-pro-fonts
       - path: src/hummingbird/adw-gtk3-theme
         distgit: adw-gtk3-theme
+      - path: src/hummingbird/autoconf-archive
+        distgit: autoconf-archive
+      - path: src/hummingbird/byacc
+        distgit: byacc
+      - path: src/hummingbird/chrpath
+        distgit: chrpath
       - path: src/hummingbird/cosmic-config-fedora
         distgit: cosmic-config-fedora
-      - path: src/hummingbird/cosmic-icon-theme
-        distgit: cosmic-icon-theme
       - path: src/hummingbird/cosmic-wallpapers
         distgit: cosmic-wallpapers
+      - path: src/hummingbird/dejavu-fonts
+        distgit: dejavu-fonts
       - path: src/hummingbird/dmidecode
         distgit: dmidecode
-      - path: src/hummingbird/ethtool
-        distgit: ethtool
-      - path: src/hummingbird/greetd
+      - path: src/hummingbird/docbook5-style-xsl
+        distgit: docbook5-style-xsl
+      - path: src/hummingbird/gc
+        distgit: gc
+      - path: src/hummingbird/gflags
+        distgit: gflags
+      - path: src/hummingbird/google-droid-fonts
+        distgit: google-droid-fonts
+      - path: src/hummingbird/google-roboto-slab-fonts
+        distgit: google-roboto-slab-fonts
+      - path: src/hummingbird/gtest
+        distgit: gtest
       - path: src/hummingbird/hdparm
         distgit: hdparm
-      - path: src/hummingbird/open-sans-fonts
-        distgit: open-sans-fonts
+      - path: src/hummingbird/isns-utils
+        distgit: isns-utils
+      - path: src/hummingbird/itstool
+        distgit: itstool
+      - path: src/hummingbird/jbig2dec
+        distgit: jbig2dec
+      - path: src/hummingbird/lato-fonts
+        distgit: lato-fonts
+      - path: src/hummingbird/libell
+        distgit: libell
+      - path: src/hummingbird/libid3tag
+        distgit: libid3tag
+      - path: src/hummingbird/libijs
+        distgit: libijs
+      - path: src/hummingbird/liblqr-1
+        distgit: liblqr-1
+      - path: src/hummingbird/libmad
+        distgit: libmad
+      - path: src/hummingbird/libnfs
+        distgit: libnfs
+      - path: src/hummingbird/libraw1394
+        distgit: libraw1394
+      - path: src/hummingbird/libusb-compat-0.1
+        distgit: libusb-compat-0.1
+      - path: src/hummingbird/libvarlink
+        distgit: libvarlink
+      - path: src/hummingbird/lynx
+        distgit: lynx
+      - path: src/hummingbird/mandoc
+        distgit: mandoc
+      - path: src/hummingbird/openfec
+        distgit: openfec
+      - path: src/hummingbird/pam_wrapper
+        distgit: pam_wrapper
+      - path: src/hummingbird/perl-ExtUtils-MakeMaker
+        distgit: perl-ExtUtils-MakeMaker
+        bootstrap: true
+      - path: src/hummingbird/perl-Fedora-VSP
+        distgit: perl-Fedora-VSP
+        bootstrap: true
+      - path: src/hummingbird/perl-JSON-PP
+        distgit: perl-JSON-PP
+        bootstrap: true
+      - path: src/hummingbird/perl-Math-BigInt
+        distgit: perl-Math-BigInt
+        bootstrap: true
+      - path: src/hummingbird/perl-Module-Metadata
+        distgit: perl-Module-Metadata
+        bootstrap: true
+      - path: src/hummingbird/perl-Term-Table
+        distgit: perl-Term-Table
+        bootstrap: true
+      - path: src/hummingbird/perl-Test-Harness
+        distgit: perl-Test-Harness
+        bootstrap: true
+      - path: src/hummingbird/perl-Test-Simple
+        distgit: perl-Test-Simple
+        bootstrap: true
+      - path: src/hummingbird/perl-generators
+        distgit: perl-generators
+        bootstrap: true
+      - path: src/hummingbird/perl-version
+        distgit: perl-version
+        bootstrap: true
       - path: src/hummingbird/pop-icon-theme
         distgit: pop-icon-theme
+      - path: src/hummingbird/python-docutils
+        distgit: python-docutils
+      - path: src/hummingbird/python-imagesize
+        distgit: python-imagesize
       - path: src/hummingbird/python-linux-procfs
         distgit: python-linux-procfs
+      - path: src/hummingbird/python-lxml
+        distgit: python-lxml
+        bootstrap: true
+      - path: src/hummingbird/python-mako
+        distgit: python-mako
+      - path: src/hummingbird/python-markdown
+        distgit: python-markdown
+      - path: src/hummingbird/python-ptyprocess
+        distgit: python-ptyprocess
       - path: src/hummingbird/python-pyinotify
         distgit: python-pyinotify
       - path: src/hummingbird/python-pyudev
         distgit: python-pyudev
+      - path: src/hummingbird/python-rdflib
+        distgit: python-rdflib
+        bootstrap: true
+      - path: src/hummingbird/python-roman-numerals
+        distgit: python-roman-numerals
+      - path: src/hummingbird/python-setuptools_scm
+        distgit: python-setuptools_scm
+        bootstrap: true
+      - path: src/hummingbird/python-sphinx-theme-alabaster
+        distgit: python-sphinx-theme-alabaster
+      - path: src/hummingbird/qt5-qtsvg
+        distgit: qt5-qtsvg
+      - path: src/hummingbird/rubygem-asciidoctor
+        distgit: rubygem-asciidoctor
+      - path: src/hummingbird/rust-bindgen-cli
+        distgit: rust-bindgen-cli
+      - path: src/hummingbird/rust-cargo-c
+        distgit: rust-cargo-c
+      - path: src/hummingbird/rust-cbindgen
+        distgit: rust-cbindgen
       - path: src/hummingbird/rust-fd-find
         distgit: rust-fd-find
-      - path: src/hummingbird/seatd
-        distgit: seatd
+      - path: src/hummingbird/rust-just
+        distgit: rust-just
+      - path: src/hummingbird/rust-mdbook
+        distgit: rust-mdbook
+      - path: src/hummingbird/scdoc
+        distgit: scdoc
+      - path: src/hummingbird/slang
+        distgit: slang
+      - path: src/hummingbird/spirv-headers
+        distgit: spirv-headers
+      - path: src/hummingbird/ttembed
+        distgit: ttembed
       - path: src/hummingbird/virt-what
         distgit: virt-what
+      - path: src/hummingbird/vulkan-headers
+        distgit: vulkan-headers
+      - path: src/hummingbird/xmlrpc-c
+        distgit: xmlrpc-c
+      - path: src/hummingbird/xorg-x11-proto-devel
+        distgit: xorg-x11-proto-devel
+      - path: src/hummingbird/xorg-x11-util-macros
+        distgit: xorg-x11-util-macros
+      - path: src/hummingbird/xwayland-run
+        distgit: xwayland-run
 
   - name: cosmic-01
     packages:
-      - path: src/hummingbird/cosmic-randr
-        distgit: cosmic-randr
-      - path: src/hummingbird/cosmic-screenshot
-        distgit: cosmic-screenshot
-      - path: src/hummingbird/cosmic-session
+      - path: src/hummingbird/cosmic-icon-theme
+        distgit: cosmic-icon-theme
+      - path: src/hummingbird/dbus-glib
+        distgit: dbus-glib
+      - path: src/hummingbird/docbook-style-dsssl
+        distgit: docbook-style-dsssl
+      - path: src/hummingbird/fontawesome4-fonts
+        distgit: fontawesome4-fonts
+      - path: src/hummingbird/greetd
+      - path: src/hummingbird/guile22
+        distgit: guile22
+      - path: src/hummingbird/help2man
+        distgit: help2man
+      - path: src/hummingbird/libXres
+        distgit: libXres
+      - path: src/hummingbird/libdaemon
+        distgit: libdaemon
+      - path: src/hummingbird/libdb
+        distgit: libdb
+      - path: src/hummingbird/libiec61883
+        distgit: libiec61883
+      - path: src/hummingbird/libsigc++20
+        distgit: libsigc++20
+      - path: src/hummingbird/libultrahdr
+        distgit: libultrahdr
+      - path: src/hummingbird/mingw-filesystem
+        distgit: mingw-filesystem
+      - path: src/hummingbird/nkf
+        distgit: nkf
+      - path: src/hummingbird/open-sans-fonts
+        distgit: open-sans-fonts
+      - path: src/hummingbird/perl-Class-Inspector
+        distgit: perl-Class-Inspector
+      - path: src/hummingbird/perl-Clone
+        distgit: perl-Clone
+      - path: src/hummingbird/perl-Compress-Raw-Bzip2
+        distgit: perl-Compress-Raw-Bzip2
+      - path: src/hummingbird/perl-Compress-Raw-Zlib
+        distgit: perl-Compress-Raw-Zlib
+      - path: src/hummingbird/perl-Data-Dump
+        distgit: perl-Data-Dump
+      - path: src/hummingbird/perl-Digest-SHA
+        distgit: perl-Digest-SHA
+      - path: src/hummingbird/perl-Encode-Locale
+        distgit: perl-Encode-Locale
+      - path: src/hummingbird/perl-HTML-Tagset
+        distgit: perl-HTML-Tagset
+      - path: src/hummingbird/perl-IO-HTML
+        distgit: perl-IO-HTML
+      - path: src/hummingbird/perl-LWP-MediaTypes
+        distgit: perl-LWP-MediaTypes
+      - path: src/hummingbird/perl-Module-CoreList
+        distgit: perl-Module-CoreList
+      - path: src/hummingbird/perl-Module-Load
+        distgit: perl-Module-Load
+      - path: src/hummingbird/perl-Params-Check
+        distgit: perl-Params-Check
+      - path: src/hummingbird/perl-SGMLSpm
+        distgit: perl-SGMLSpm
+      - path: src/hummingbird/perl-Text-Unidecode
+        distgit: perl-Text-Unidecode
+      - path: src/hummingbird/perl-TimeDate
+        distgit: perl-TimeDate
+      - path: src/hummingbird/perl-Try-Tiny
+        distgit: perl-Try-Tiny
+      - path: src/hummingbird/perl-Unicode-EastAsianWidth
+        distgit: perl-Unicode-EastAsianWidth
+      - path: src/hummingbird/perl-Unicode-Normalize
+        distgit: perl-Unicode-Normalize
+      - path: src/hummingbird/perl-WWW-RobotRules
+        distgit: perl-WWW-RobotRules
+      - path: src/hummingbird/perl-XML-NamespaceSupport
+        distgit: perl-XML-NamespaceSupport
+      - path: src/hummingbird/perl-XML-SAX-Base
+        distgit: perl-XML-SAX-Base
+      - path: src/hummingbird/perl-bignum
+        distgit: perl-bignum
+      - path: src/hummingbird/python-pexpect
+        distgit: python-pexpect
+      - path: src/hummingbird/seatd
+        distgit: seatd
+      - path: src/hummingbird/valgrind
+        distgit: valgrind
+      - path: src/hummingbird/xorg-x11-xtrans-devel
+        distgit: xorg-x11-xtrans-devel
+
+  - name: cosmic-02
+    packages:
+      - path: src/hummingbird/autogen
+        distgit: autogen
+      - path: src/hummingbird/bison
+        distgit: bison
+        bootstrap: true
+      - path: src/hummingbird/flex
+        distgit: flex
+        bootstrap: true
+      - path: src/hummingbird/glslang
+        distgit: glslang
+      - path: src/hummingbird/libpaper
+        distgit: libpaper
+      - path: src/hummingbird/mingw-headers
+        distgit: mingw-headers
+      - path: src/hummingbird/perl-Digest-HMAC
+        distgit: perl-Digest-HMAC
+      - path: src/hummingbird/perl-File-ShareDir
+        distgit: perl-File-ShareDir
+      - path: src/hummingbird/perl-HTTP-Date
+        distgit: perl-HTTP-Date
+      - path: src/hummingbird/perl-IO-Compress
+        distgit: perl-IO-Compress
+      - path: src/hummingbird/perl-Module-Load-Conditional
+        distgit: perl-Module-Load-Conditional
+      - path: src/hummingbird/perl-XML-SAX
+        distgit: perl-XML-SAX
+      - path: src/hummingbird/spirv-llvm-translator
+        distgit: spirv-llvm-translator
 
   - name: cosmic-03
     packages:
-      - path: src/hummingbird/cosmic-app-library
-        distgit: cosmic-app-library
+      - path: src/hummingbird/augeas
+        distgit: augeas
+      - path: src/hummingbird/iscsi-initiator-utils
+        distgit: iscsi-initiator-utils
+      - path: src/hummingbird/libclc
+        distgit: libclc
+      - path: src/hummingbird/perl-File-Listing
+        distgit: perl-File-Listing
+      - path: src/hummingbird/perl-HTTP-Message
+        distgit: perl-HTTP-Message
+      - path: src/hummingbird/perl-IPC-Cmd
+        distgit: perl-IPC-Cmd
+      - path: src/hummingbird/perl-NTLM
+        distgit: perl-NTLM
+      - path: src/hummingbird/perl-Net-HTTP
+        distgit: perl-Net-HTTP
+      - path: src/hummingbird/perl-libintl-perl
+        distgit: perl-libintl-perl
+      - path: src/hummingbird/swig
+        distgit: swig
+      - path: src/hummingbird/xmlto
+        distgit: xmlto
+
+  - name: cosmic-04
+    packages:
+      - path: src/hummingbird/libteam
+        distgit: libteam
+      - path: src/hummingbird/ndctl
+        distgit: ndctl
+      - path: src/hummingbird/perl-HTML-Parser
+        distgit: perl-HTML-Parser
+      - path: src/hummingbird/perl-HTTP-Cookies
+        distgit: perl-HTTP-Cookies
+      - path: src/hummingbird/perl-HTTP-Negotiate
+        distgit: perl-HTTP-Negotiate
+      - path: src/hummingbird/texinfo
+        distgit: texinfo
+      - path: src/hummingbird/zziplib
+        distgit: zziplib
+        bootstrap: true
+
+  - name: cosmic-05
+    packages:
+      - path: src/hummingbird/cln
+        distgit: cln
+      - path: src/hummingbird/cosmic-randr
+        distgit: cosmic-randr
+      - path: src/hummingbird/gpm
+        distgit: gpm
+      - path: src/hummingbird/libconfig
+        distgit: libconfig
+      - path: src/hummingbird/mingw-binutils
+        distgit: mingw-binutils
+      - path: src/hummingbird/perl-libwww-perl
+        distgit: perl-libwww-perl
+      - path: src/deps/wayland-protocols
+
+  - name: cosmic-06
+    packages:
+      - path: src/hummingbird/mingw-crt
+        distgit: mingw-crt
+        bootstrap: true
+      - path: src/hummingbird/mingw-gcc
+        distgit: mingw-gcc
+        bootstrap: true
+      - path: src/hummingbird/mingw-winpthreads
+        distgit: mingw-winpthreads
+        bootstrap: true
+      - path: src/hummingbird/perl-XML-Parser
+        distgit: perl-XML-Parser
+
+  - name: cosmic-07
+    packages:
+      - path: src/hummingbird/DirectX-Headers
+        distgit: DirectX-Headers
+      - path: src/hummingbird/check
+        distgit: check
+        bootstrap: true
+      - path: src/hummingbird/glibmm2.4
+        distgit: glibmm2.4
+      - path: src/hummingbird/intltool
+        distgit: intltool
+      - path: src/hummingbird/mingw-brotli
+        distgit: mingw-brotli
+      - path: src/hummingbird/mingw-libffi
+        distgit: mingw-libffi
+      - path: src/hummingbird/mingw-libidn2
+        distgit: mingw-libidn2
+      - path: src/hummingbird/mingw-libogg
+        distgit: mingw-libogg
+      - path: src/hummingbird/mingw-libunistring
+        distgit: mingw-libunistring
+      - path: src/hummingbird/mingw-pcre2
+        distgit: mingw-pcre2
+      - path: src/hummingbird/mingw-termcap
+        distgit: mingw-termcap
+      - path: src/hummingbird/mingw-win-iconv
+        distgit: mingw-win-iconv
+      - path: src/hummingbird/mingw-zlib
+        distgit: mingw-zlib
+      - path: src/hummingbird/mingw-zstd
+        distgit: mingw-zstd
+      - path: src/hummingbird/perl-XML-Simple
+        distgit: perl-XML-Simple
+      - path: src/hummingbird/perl-XML-XPath
+        distgit: perl-XML-XPath
+      - path: src/hummingbird/subunit
+        distgit: subunit
+        bootstrap: true
+      - path: src/hummingbird/xmltoman
+        distgit: xmltoman
+
+  - name: cosmic-08
+    packages:
       - path: src/hummingbird/cosmic-bg
         distgit: cosmic-bg
-      - path: src/hummingbird/cosmic-comp
-      - path: src/hummingbird/cosmic-files
-        distgit: cosmic-files
-      - path: src/hummingbird/cosmic-greeter
       - path: src/hummingbird/cosmic-idle
         distgit: cosmic-idle
-      - path: src/hummingbird/cosmic-launcher
-        distgit: cosmic-launcher
       - path: src/hummingbird/cosmic-notifications
         distgit: cosmic-notifications
       - path: src/hummingbird/cosmic-panel
         distgit: cosmic-panel
+      - path: src/hummingbird/icon-naming-utils
+        distgit: icon-naming-utils
+      - path: src/hummingbird/libxml++30
+        distgit: libxml++30
+      - path: src/hummingbird/mingw-gettext
+        distgit: mingw-gettext
+      - path: src/hummingbird/mingw-libpng
+        distgit: mingw-libpng
+      - path: src/hummingbird/mingw-libpsl
+        distgit: mingw-libpsl
+      - path: src/hummingbird/mingw-sqlite
+        distgit: mingw-sqlite
+      - path: src/hummingbird/opusfile
+        distgit: opusfile
+      - path: src/hummingbird/parted
+        distgit: parted
+
+  - name: cosmic-09
+    packages:
+      - path: src/hummingbird/mingw-glib2
+        distgit: mingw-glib2
+
+  - name: cosmic-10
+    packages:
+      - path: src/hummingbird/ImageMagick
+        distgit: ImageMagick
+        bootstrap: true
+      - path: src/hummingbird/asciidoc
+        distgit: asciidoc
+        bootstrap: true
+      - path: src/hummingbird/babel
+        distgit: babel
+        bootstrap: true
+      - path: src/hummingbird/dbus-python
+        distgit: dbus-python
+        bootstrap: true
+      - path: src/hummingbird/docbook-utils
+        distgit: docbook-utils
+        bootstrap: true
+      - path: src/hummingbird/emacs
+        distgit: emacs
+        bootstrap: true
+      - path: src/hummingbird/firewalld
+        distgit: firewalld
+        bootstrap: true
+      - path: src/hummingbird/ghostscript
+        distgit: ghostscript
+        bootstrap: true
+      - path: src/deps/gi-docgen
+        bootstrap: true
+      - path: src/hummingbird/gtk-doc
+        distgit: gtk-doc
+        bootstrap: true
+      - path: src/hummingbird/gtk2
+        distgit: gtk2
+        bootstrap: true
+      - path: src/hummingbird/jack-audio-connection-kit
+        distgit: jack-audio-connection-kit
+        bootstrap: true
+      - path: src/hummingbird/libao
+        distgit: libao
+        bootstrap: true
+      - path: src/hummingbird/libappstream-glib
+        distgit: libappstream-glib
+        bootstrap: true
+      - path: src/hummingbird/libcamera
+        distgit: libcamera
+        bootstrap: true
+      - path: src/hummingbird/libdbi
+        distgit: libdbi
+        bootstrap: true
+      - path: src/hummingbird/libffado
+        distgit: libffado
+        bootstrap: true
+      - path: src/hummingbird/libraqm
+        distgit: libraqm
+        bootstrap: true
+      - path: src/hummingbird/libwmf
+        distgit: libwmf
+        bootstrap: true
+      - path: src/hummingbird/lirc
+        distgit: lirc
+        bootstrap: true
+      - path: src/hummingbird/lttng-ust
+        distgit: lttng-ust
+        bootstrap: true
+      - path: src/hummingbird/lv2
+        distgit: lv2
+        bootstrap: true
+      - path: src/hummingbird/mesa-libGLU
+        distgit: mesa-libGLU
+        bootstrap: true
+      - path: src/hummingbird/mingw-lcms2
+        distgit: mingw-lcms2
+        bootstrap: true
+      - path: src/hummingbird/mingw-libjpeg-turbo
+        distgit: mingw-libjpeg-turbo
+        bootstrap: true
+      - path: src/hummingbird/mingw-libtiff
+        distgit: mingw-libtiff
+        bootstrap: true
+      - path: src/hummingbird/nasm
+        distgit: nasm
+        bootstrap: true
+      - path: src/hummingbird/newt
+        distgit: newt
+        bootstrap: true
+      - path: src/hummingbird/openjade
+        distgit: openjade
+        bootstrap: true
+      - path: src/hummingbird/opensp
+        distgit: opensp
+        bootstrap: true
+      - path: src/hummingbird/portaudio
+        distgit: portaudio
+        bootstrap: true
+      - path: src/deps/python-dbusmock
+        bootstrap: true
+      - path: src/deps/python-smartypants
+        bootstrap: true
+      - path: src/hummingbird/python-sphinx
+        distgit: python-sphinx
+        bootstrap: true
+      - path: src/hummingbird/python-sphinx_rtd_theme
+        distgit: python-sphinx_rtd_theme
+        bootstrap: true
+      - path: src/deps/python-typogrify
+        bootstrap: true
+      - path: src/hummingbird/redhat-fonts
+        distgit: redhat-fonts
+        bootstrap: true
+      - path: src/hummingbird/roc-toolkit
+        distgit: roc-toolkit
+        bootstrap: true
+      - path: src/hummingbird/rrdtool
+        distgit: rrdtool
+        bootstrap: true
+      - path: src/hummingbird/sox
+        distgit: sox
+        bootstrap: true
+      - path: src/hummingbird/systemtap
+        distgit: systemtap
+        bootstrap: true
+      - path: src/hummingbird/texlive-base
+        distgit: texlive-base
+        bootstrap: true
+      - path: src/hummingbird/texlive-collection-basic
+        distgit: texlive-collection-basic
+        bootstrap: true
+      - path: src/hummingbird/texlive-collection-fontsrecommended
+        distgit: texlive-collection-fontsrecommended
+        bootstrap: true
+      - path: src/hummingbird/texlive-collection-latex
+        distgit: texlive-collection-latex
+        bootstrap: true
+      - path: src/hummingbird/texlive-collection-latexextra
+        distgit: texlive-collection-latexextra
+        bootstrap: true
+      - path: src/hummingbird/texlive-collection-latexrecommended
+        distgit: texlive-collection-latexrecommended
+        bootstrap: true
+      - path: src/deps/umockdev
+        bootstrap: true
+      - path: src/hummingbird/urw-base35-fonts
+        distgit: urw-base35-fonts
+        bootstrap: true
+      - path: src/hummingbird/vala
+        distgit: vala
+        bootstrap: true
+      - path: src/hummingbird/weston
+        distgit: weston
+        bootstrap: true
+      - path: src/hummingbird/xpdf
+        distgit: xpdf
+        bootstrap: true
+
+  - name: cosmic-11
+    packages:
+      - path: src/hummingbird/cosmic-app-library
+        distgit: cosmic-app-library
+      - path: src/hummingbird/cosmic-applets
+        distgit: cosmic-applets
+      - path: src/hummingbird/cosmic-comp
+      - path: src/hummingbird/cosmic-files
+        distgit: cosmic-files
+      - path: src/hummingbird/cosmic-greeter
+      - path: src/hummingbird/cosmic-launcher
+        distgit: cosmic-launcher
+      - path: src/hummingbird/cosmic-osd
+        distgit: cosmic-osd
+      - path: src/hummingbird/cosmic-screenshot
+        distgit: cosmic-screenshot
+      - path: src/hummingbird/cosmic-session
+      - path: src/hummingbird/cosmic-settings
+      - path: src/hummingbird/cosmic-settings-daemon
+        distgit: cosmic-settings-daemon
       - path: src/hummingbird/cosmic-term
         distgit: cosmic-term
       - path: src/hummingbird/cosmic-workspaces
         distgit: cosmic-workspaces
+      - path: src/hummingbird/ethtool
+        distgit: ethtool
+      - path: src/hummingbird/gnome-icon-theme
+        distgit: gnome-icon-theme
+      - path: src/hummingbird/libdbusmenu
+        distgit: libdbusmenu
+        bootstrap: true
+      - path: src/deps/libglib-testing
       - path: src/hummingbird/pop-launcher
         distgit: pop-launcher
+      - path: src/hummingbird/pyparsing
+        distgit: pyparsing
+      - path: src/hummingbird/satyr
+        distgit: satyr
+      - path: src/hummingbird/texlive-collection-langgerman
+        distgit: texlive-collection-langgerman
+      - path: src/hummingbird/tuned
+        distgit: tuned
+      - path: src/hummingbird/w3m
+        distgit: w3m
+      - path: src/hummingbird/xdg-desktop-portal-cosmic
 
-  - name: cosmic-04
+  - name: cosmic-12
     packages:
       - path: src/deps/flatpak
         bootstrap: true
-      - path: src/hummingbird/gnome-icon-theme
-        distgit: gnome-icon-theme
+      - path: src/hummingbird/libappindicator
+        distgit: libappindicator
 
-  - name: cosmic-05
+  - name: cosmic-13
     packages:
       - path: src/hummingbird/cosmic-initial-setup
         distgit: cosmic-initial-setup
-
-  - name: cosmic-06
-    packages:
-      - path: src/hummingbird/dbus-python
-        distgit: dbus-python
-        bootstrap: true
-
-  - name: cosmic-07
-    packages:
-      - path: src/hummingbird/cosmic-applets
-        distgit: cosmic-applets
-      - path: src/hummingbird/cosmic-osd
-        distgit: cosmic-osd
-      - path: src/hummingbird/cosmic-settings
-      - path: src/hummingbird/cosmic-settings-daemon
-        distgit: cosmic-settings-daemon
-      - path: src/hummingbird/tuned
-        distgit: tuned
-      - path: src/hummingbird/xdg-desktop-portal-cosmic
-
-  - name: cosmic-09
-    packages:
       - path: src/hummingbird/network-manager-applet
         distgit: network-manager-applet
 
   - name: niri-00
     packages:
-      - path: src/hummingbird/DankMaterialShell
-        distgit: DankMaterialShell
+      - path: src/hummingbird/AMF
+        distgit: AMF
+      - path: src/hummingbird/CharLS
+        distgit: CharLS
+      - path: src/hummingbird/Cython
+        distgit: Cython
+      - path: src/hummingbird/asl
+        distgit: asl
+      - path: src/hummingbird/blosc
+        distgit: blosc
       - path: src/hummingbird/brightnessctl
         distgit: brightnessctl
+      - path: src/hummingbird/catch
+        distgit: catch
+      - path: src/hummingbird/cfitsio
+        distgit: cfitsio
+      - path: src/hummingbird/cliquer
+        distgit: cliquer
+      - path: src/hummingbird/cmocka
+        distgit: cmocka
+      - path: src/hummingbird/decklink
+        distgit: decklink
+      - path: src/hummingbird/enca
+        distgit: enca
+      - path: src/hummingbird/faad2
+        distgit: faad2
+      - path: src/hummingbird/fdupes
+        distgit: fdupes
+      - path: src/hummingbird/flexiblas
+        distgit: flexiblas
+      - path: src/hummingbird/fluid-soundfont
+        distgit: fluid-soundfont
+      - path: src/hummingbird/ghc-pandoc
+        distgit: ghc-pandoc
+      - path: src/hummingbird/iniparser
+        distgit: iniparser
+      - path: src/hummingbird/kde-qdoc-common
+        distgit: kde-qdoc-common
+      - path: src/hummingbird/langtable
+        distgit: langtable
+      - path: src/hummingbird/laszip
+        distgit: laszip
+      - path: src/hummingbird/libaec
+        distgit: libaec
+      - path: src/hummingbird/libdca
+        distgit: libdca
+      - path: src/hummingbird/libgdither
+        distgit: libgdither
+      - path: src/hummingbird/libgta
+        distgit: libgta
+      - path: src/hummingbird/libharu
+        distgit: libharu
+      - path: src/hummingbird/libklvanc
+        distgit: libklvanc
+      - path: src/hummingbird/libmicrodns
+        distgit: libmicrodns
+      - path: src/hummingbird/libmpcdec
+        distgit: libmpcdec
+      - path: src/hummingbird/libmpdclient
+        distgit: libmpdclient
+      - path: src/hummingbird/libsass
+        distgit: libsass
+      - path: src/hummingbird/luajit
+        distgit: luajit
+      - path: src/hummingbird/mm-common
+        distgit: mm-common
+      - path: src/hummingbird/muParser
+        distgit: muParser
+      - path: src/hummingbird/nettle3.10
+        distgit: nettle3.10
+      - path: src/hummingbird/nv-codec-headers
+        distgit: nv-codec-headers
+      - path: src/hummingbird/opencl-headers
+        distgit: opencl-headers
+      - path: src/hummingbird/pps-tools
+        distgit: pps-tools
+      - path: src/hummingbird/pyserial
+        distgit: pyserial
+      - path: src/hummingbird/python-aiodns
+        distgit: python-aiodns
+      - path: src/hummingbird/python-click
+        distgit: python-click
+      - path: src/hummingbird/python-configobj
+        distgit: python-configobj
+      - path: src/hummingbird/python-decorator
+        distgit: python-decorator
+      - path: src/hummingbird/python-pyproject-hooks
+        distgit: python-pyproject-hooks
+      - path: src/hummingbird/python-setproctitle
+        distgit: python-setproctitle
+      - path: src/hummingbird/python-six
+        distgit: python-six
+      - path: src/hummingbird/python-trove-classifiers
+        distgit: python-trove-classifiers
+      - path: src/hummingbird/pytz
+        distgit: pytz
+      - path: src/hummingbird/qt5-qtdeclarative
+        distgit: qt5-qtdeclarative
+      - path: src/hummingbird/qt5-qtserialport
+        distgit: qt5-qtserialport
+      - path: src/hummingbird/qt5-qtx11extras
+        distgit: qt5-qtx11extras
+      - path: src/hummingbird/qt6-doc
+        distgit: qt6-doc
+      - path: src/hummingbird/qt6-qtlanguageserver
+        distgit: qt6-qtlanguageserver
+      - path: src/hummingbird/rpcsvc-proto
+        distgit: rpcsvc-proto
+      - path: src/hummingbird/rtmpdump
+        distgit: rtmpdump
+      - path: src/hummingbird/rust-askalono-cli
+        distgit: rust-askalono-cli
+      - path: src/hummingbird/rust-matugen
+        distgit: rust-matugen
+      - path: src/hummingbird/scons
+        distgit: scons
+      - path: src/hummingbird/soundtouch
+        distgit: soundtouch
+      - path: src/hummingbird/stb
+        distgit: stb
+      - path: src/hummingbird/teckit
+        distgit: teckit
+      - path: src/hummingbird/tllist
+        distgit: tllist
+      - path: src/hummingbird/userspace-rcu
+        distgit: userspace-rcu
+      - path: src/hummingbird/utf8cpp
+        distgit: utf8cpp
+      - path: src/hummingbird/wildmidi
+        distgit: wildmidi
+      - path: src/hummingbird/yajl
+        distgit: yajl
+
+  - name: niri-01
+    packages:
+      - path: src/hummingbird/arpack
+        distgit: arpack
+      - path: src/hummingbird/bdftopcf
+        distgit: bdftopcf
+      - path: src/hummingbird/cli11
+        distgit: cli11
+      - path: src/hummingbird/earcut-hpp
+        distgit: earcut-hpp
+      - path: src/hummingbird/gavl
+        distgit: gavl
+      - path: src/hummingbird/libXScrnSaver
+        distgit: libXScrnSaver
+      - path: src/hummingbird/libavc1394
+        distgit: libavc1394
+      - path: src/hummingbird/libavtp
+        distgit: libavtp
+      - path: src/hummingbird/libmng
+        distgit: libmng
+      - path: src/hummingbird/openvr
+        distgit: openvr
+      - path: src/hummingbird/pandoc-cli
+        distgit: pandoc-cli
+      - path: src/hummingbird/python-click-log
+        distgit: python-click-log
+      - path: src/hummingbird/python-click-threading
+        distgit: python-click-threading
+      - path: src/hummingbird/python-gssapi
+        distgit: python-gssapi
+      - path: src/hummingbird/python-hatchling
+        distgit: python-hatchling
+      - path: src/hummingbird/python-regex
+        distgit: python-regex
+      - path: src/hummingbird/qhull
+        distgit: qhull
+      - path: src/hummingbird/qt5-qtsensors
+        distgit: qt5-qtsensors
+      - path: src/hummingbird/qt5-qtwebsockets
+        distgit: qt5-qtwebsockets
+      - path: src/hummingbird/qt5-qtxmlpatterns
+        distgit: qt5-qtxmlpatterns
+      - path: src/hummingbird/quota
+        distgit: quota
+      - path: src/hummingbird/sassc
+        distgit: sassc
+      - path: src/hummingbird/suitesparse
+        distgit: suitesparse
+
+  - name: niri-02
+    packages:
+      - path: src/hummingbird/armadillo
+        distgit: armadillo
+      - path: src/hummingbird/glpk
+        distgit: glpk
+      - path: src/hummingbird/libdc1394
+        distgit: libdc1394
+      - path: src/hummingbird/python-dns
+        distgit: python-dns
+      - path: src/hummingbird/python-expandvars
+        distgit: python-expandvars
+      - path: src/hummingbird/python-re-assert
+        distgit: python-re-assert
+      - path: src/hummingbird/python-requests-gssapi
+        distgit: python-requests-gssapi
+      - path: src/hummingbird/python-wcwidth
+        distgit: python-wcwidth
+      - path: src/hummingbird/qt5-qtwebchannel
+        distgit: qt5-qtwebchannel
+
+  - name: niri-03
+    packages:
+      - path: src/hummingbird/coin-or-CoinUtils
+        distgit: coin-or-CoinUtils
+      - path: src/hummingbird/python-frozenlist
+        distgit: python-frozenlist
+      - path: src/hummingbird/sombok
+        distgit: sombok
+
+  - name: niri-04
+    packages:
+      - path: src/hummingbird/coin-or-Osi
+        distgit: coin-or-Osi
+      - path: src/hummingbird/perl-ExtUtils-Install
+        distgit: perl-ExtUtils-Install
+        bootstrap: true
+      - path: src/hummingbird/perl-ExtUtils-Manifest
+        distgit: perl-ExtUtils-Manifest
+        bootstrap: true
+      - path: src/hummingbird/perl-ExtUtils-ParseXS
+        distgit: perl-ExtUtils-ParseXS
+        bootstrap: true
+      - path: src/hummingbird/perl-MIME-Charset
+        distgit: perl-MIME-Charset
+        bootstrap: true
+      - path: src/hummingbird/perl-Unicode-LineBreak
+        distgit: perl-Unicode-LineBreak
+        bootstrap: true
+
+  - name: niri-05
+    packages:
+      - path: src/hummingbird/latexmk
+        distgit: latexmk
+      - path: src/hummingbird/perl-Algorithm-Diff
+        distgit: perl-Algorithm-Diff
+      - path: src/hummingbird/perl-Business-ISBN-Data
+        distgit: perl-Business-ISBN-Data
+      - path: src/hummingbird/perl-Business-ISSN
+        distgit: perl-Business-ISSN
+      - path: src/hummingbird/perl-Class-Accessor
+        distgit: perl-Class-Accessor
+      - path: src/hummingbird/perl-Class-Data-Inheritable
+        distgit: perl-Class-Data-Inheritable
+      - path: src/hummingbird/perl-Class-Method-Modifiers
+        distgit: perl-Class-Method-Modifiers
+      - path: src/hummingbird/perl-Class-Singleton
+        distgit: perl-Class-Singleton
+      - path: src/hummingbird/perl-Clone-PP
+        distgit: perl-Clone-PP
+      - path: src/hummingbird/perl-Compress-Raw-Lzma
+        distgit: perl-Compress-Raw-Lzma
+      - path: src/hummingbird/perl-Convert-ASN1
+        distgit: perl-Convert-ASN1
+      - path: src/hummingbird/perl-Crypt-URandom
+        distgit: perl-Crypt-URandom
+      - path: src/hummingbird/perl-Data-Uniqid
+        distgit: perl-Data-Uniqid
+      - path: src/hummingbird/perl-Date-ISO8601
+        distgit: perl-Date-ISO8601
+      - path: src/hummingbird/perl-Date-Manip
+        distgit: perl-Date-Manip
+      - path: src/hummingbird/perl-Devel-StackTrace
+        distgit: perl-Devel-StackTrace
+      - path: src/hummingbird/perl-DynaLoader-Functions
+        distgit: perl-DynaLoader-Functions
+      - path: src/hummingbird/perl-Email-Date-Format
+        distgit: perl-Email-Date-Format
+      - path: src/hummingbird/perl-File-Slurper
+        distgit: perl-File-Slurper
+      - path: src/hummingbird/perl-GSSAPI
+        distgit: perl-GSSAPI
+      - path: src/hummingbird/perl-Getopt-Tabular
+        distgit: perl-Getopt-Tabular
+      - path: src/hummingbird/perl-IO-String
+        distgit: perl-IO-String
+      - path: src/hummingbird/perl-IPC-Run3
+        distgit: perl-IPC-Run3
+      - path: src/hummingbird/perl-IPC-SysV
+        distgit: perl-IPC-SysV
+      - path: src/hummingbird/perl-JSON
+        distgit: perl-JSON
+      - path: src/hummingbird/perl-Lingua-Translit
+        distgit: perl-Lingua-Translit
+      - path: src/hummingbird/perl-List-UtilsBy
+        distgit: perl-List-UtilsBy
+      - path: src/hummingbird/perl-MRO-Compat
+        distgit: perl-MRO-Compat
+      - path: src/hummingbird/perl-Module-Runtime
+        distgit: perl-Module-Runtime
+      - path: src/hummingbird/perl-Mozilla-CA
+        distgit: perl-Mozilla-CA
+      - path: src/hummingbird/perl-Net-SMTP-SSL
+        distgit: perl-Net-SMTP-SSL
+      - path: src/hummingbird/perl-Number-Compare
+        distgit: perl-Number-Compare
+      - path: src/hummingbird/perl-PadWalker
+        distgit: perl-PadWalker
+      - path: src/hummingbird/perl-Params-Util
+        distgit: perl-Params-Util
+      - path: src/hummingbird/perl-Parse-Yapp
+        distgit: perl-Parse-Yapp
+      - path: src/hummingbird/perl-Ref-Util-XS
+        distgit: perl-Ref-Util-XS
+      - path: src/hummingbird/perl-Regexp-Common
+        distgit: perl-Regexp-Common
+      - path: src/hummingbird/perl-Sort-Key
+        distgit: perl-Sort-Key
+      - path: src/hummingbird/perl-Sub-Install
+        distgit: perl-Sub-Install
+      - path: src/hummingbird/perl-Sys-Hostname-Long
+        distgit: perl-Sys-Hostname-Long
+      - path: src/hummingbird/perl-Sys-Syslog
+        distgit: perl-Sys-Syslog
+      - path: src/hummingbird/perl-Text-Balanced
+        distgit: perl-Text-Balanced
+      - path: src/hummingbird/perl-Text-CSV
+        distgit: perl-Text-CSV
+      - path: src/hummingbird/perl-Text-Glob
+        distgit: perl-Text-Glob
+      - path: src/hummingbird/perl-Text-Roman
+        distgit: perl-Text-Roman
+      - path: src/hummingbird/perl-Text-Soundex
+        distgit: perl-Text-Soundex
+      - path: src/hummingbird/perl-Tie-Cycle
+        distgit: perl-Tie-Cycle
+      - path: src/hummingbird/perl-Tie-RefHash
+        distgit: perl-Tie-RefHash
+      - path: src/hummingbird/perl-Variable-Magic
+        distgit: perl-Variable-Magic
+      - path: src/hummingbird/perl-XString
+        distgit: perl-XString
+      - path: src/hummingbird/perl-autovivification
+        distgit: perl-autovivification
+
+  - name: niri-06
+    packages:
+      - path: src/hummingbird/metis
+        distgit: metis
+      - path: src/hummingbird/nauty
+        distgit: nauty
+      - path: src/hummingbird/perl-Business-ISBN
+        distgit: perl-Business-ISBN
+      - path: src/hummingbird/perl-Business-ISMN
+        distgit: perl-Business-ISMN
+      - path: src/hummingbird/perl-Data-OptList
+        distgit: perl-Data-OptList
+      - path: src/hummingbird/perl-Devel-CallChecker
+        distgit: perl-Devel-CallChecker
+      - path: src/hummingbird/perl-Devel-Caller
+        distgit: perl-Devel-Caller
+      - path: src/hummingbird/perl-Dist-CheckConflicts
+        distgit: perl-Dist-CheckConflicts
+      - path: src/hummingbird/perl-Exception-Class
+        distgit: perl-Exception-Class
+      - path: src/hummingbird/perl-File-Find-Rule
+        distgit: perl-File-Find-Rule
+      - path: src/hummingbird/perl-MIME-Lite
+        distgit: perl-MIME-Lite
+      - path: src/hummingbird/perl-Mail-Sender
+        distgit: perl-Mail-Sender
+      - path: src/hummingbird/perl-Mail-Sendmail
+        distgit: perl-Mail-Sendmail
+      - path: src/hummingbird/perl-MailTools
+        distgit: perl-MailTools
+      - path: src/hummingbird/perl-Module-Implementation
+        distgit: perl-Module-Implementation
+      - path: src/hummingbird/perl-Package-Generator
+        distgit: perl-Package-Generator
+      - path: src/hummingbird/perl-Package-Stash-XS
+        distgit: perl-Package-Stash-XS
+      - path: src/hummingbird/perl-Parse-RecDescent
+        distgit: perl-Parse-RecDescent
+      - path: src/hummingbird/perl-Ref-Util
+        distgit: perl-Ref-Util
+      - path: src/hummingbird/perl-Role-Tiny
+        distgit: perl-Role-Tiny
+      - path: src/hummingbird/perl-Text-BibTeX
+        distgit: perl-Text-BibTeX
+      - path: src/hummingbird/perl-Text-Diff
+        distgit: perl-Text-Diff
+      - path: src/hummingbird/perl-Unicode-Collate
+        distgit: perl-Unicode-Collate
+      - path: src/hummingbird/perl-XML-Writer
+        distgit: perl-XML-Writer
+      - path: src/hummingbird/perl-autodie
+        distgit: perl-autodie
+      - path: src/hummingbird/rapidjson
+        distgit: rapidjson
+
+  - name: niri-07
+    packages:
+      - path: src/hummingbird/hdf
+        distgit: hdf
+      - path: src/hummingbird/libpq
+        distgit: libpq
+      - path: src/hummingbird/perl-Authen-SASL
+        distgit: perl-Authen-SASL
+      - path: src/hummingbird/perl-Data-Compare
+        distgit: perl-Data-Compare
+      - path: src/hummingbird/perl-Devel-LexAlias
+        distgit: perl-Devel-LexAlias
+      - path: src/hummingbird/perl-IO-Compress-Lzma
+        distgit: perl-IO-Compress-Lzma
+      - path: src/hummingbird/perl-IO-Zlib
+        distgit: perl-IO-Zlib
+      - path: src/hummingbird/perl-List-SomeUtils
+        distgit: perl-List-SomeUtils
+      - path: src/hummingbird/perl-Package-Stash
+        distgit: perl-Package-Stash
+      - path: src/hummingbird/perl-Params-Classify
+        distgit: perl-Params-Classify
+      - path: src/hummingbird/perl-Params-Validate
+        distgit: perl-Params-Validate
+      - path: src/hummingbird/perl-Sub-Exporter
+        distgit: perl-Sub-Exporter
+      - path: src/hummingbird/qt5-qtlocation
+        distgit: qt5-qtlocation
+      - path: src/hummingbird/scotch
+        distgit: scotch
+      - path: src/hummingbird/unixODBC
+        distgit: unixODBC
+
+  - name: niri-08
+    packages:
+      - path: src/hummingbird/MUMPS
+        distgit: MUMPS
+      - path: src/hummingbird/netcdf
+        distgit: netcdf
+      - path: src/hummingbird/perl-Archive-Tar
+        distgit: perl-Archive-Tar
+      - path: src/hummingbird/perl-DateTime-TimeZone-SystemV
+        distgit: perl-DateTime-TimeZone-SystemV
+      - path: src/hummingbird/perl-List-AllUtils
+        distgit: perl-List-AllUtils
+      - path: src/hummingbird/perl-Sub-Exporter-Progressive
+        distgit: perl-Sub-Exporter-Progressive
+      - path: src/hummingbird/perl-XML-LibXML
+        distgit: perl-XML-LibXML
+
+  - name: niri-09
+    packages:
+      - path: src/hummingbird/bc
+        distgit: bc
+      - path: src/hummingbird/coin-or-Cbc
+        distgit: coin-or-Cbc
+        bootstrap: true
+      - path: src/hummingbird/coin-or-Cgl
+        distgit: coin-or-Cgl
+        bootstrap: true
+      - path: src/hummingbird/coin-or-Clp
+        distgit: coin-or-Clp
+        bootstrap: true
+      - path: src/hummingbird/perl-B-Hooks-EndOfScope
+        distgit: perl-B-Hooks-EndOfScope
+      - path: src/hummingbird/perl-DateTime-TimeZone-Tzfile
+        distgit: perl-DateTime-TimeZone-Tzfile
+      - path: src/hummingbird/perl-Devel-GlobalDestruction
+        distgit: perl-Devel-GlobalDestruction
+      - path: src/hummingbird/perl-XML-LibXML-Simple
+        distgit: perl-XML-LibXML-Simple
+      - path: src/hummingbird/perl-XML-LibXSLT
+        distgit: perl-XML-LibXSLT
+      - path: src/hummingbird/perltidy
+        distgit: perltidy
+      - path: src/hummingbird/pyxdg
+        distgit: pyxdg
+      - path: src/hummingbird/xwayland-satellite
+        distgit: xwayland-satellite
+
+  - name: niri-10
+    packages:
+      - path: src/hummingbird/perl-Eval-Closure
+        distgit: perl-Eval-Closure
+      - path: src/hummingbird/perl-LDAP
+        distgit: perl-LDAP
+      - path: src/hummingbird/perl-LWP-Protocol-https
+        distgit: perl-LWP-Protocol-https
+      - path: src/hummingbird/perl-namespace-clean
+        distgit: perl-namespace-clean
+      - path: src/hummingbird/swayidle
+        distgit: swayidle
+      - path: src/hummingbird/wl-clipboard
+        distgit: wl-clipboard
+
+  - name: niri-11
+    packages:
+      - path: src/hummingbird/geos
+        distgit: geos
+      - path: src/hummingbird/jxrlib
+        distgit: jxrlib
+      - path: src/hummingbird/mingw-bzip2
+        distgit: mingw-bzip2
+      - path: src/hummingbird/mingw-gmp
+        distgit: mingw-gmp
+      - path: src/hummingbird/mingw-xz
+        distgit: mingw-xz
+      - path: src/hummingbird/perl-namespace-autoclean
+        distgit: perl-namespace-autoclean
+      - path: src/hummingbird/xerces-c
+        distgit: xerces-c
+
+  - name: niri-12
+    packages:
+      - path: src/hummingbird/freexl
+        distgit: freexl
+      - path: src/hummingbird/libkml
+        distgit: libkml
+      - path: src/hummingbird/librttopo
+        distgit: librttopo
+      - path: src/hummingbird/mingw-nettle
+        distgit: mingw-nettle
+      - path: src/hummingbird/perl-Specio
+        distgit: perl-Specio
+      - path: src/hummingbird/qt6-qtnetworkauth
+        distgit: qt6-qtnetworkauth
+      - path: src/hummingbird/qt6-qtserialbus
+        distgit: qt6-qtserialbus
+      - path: src/hummingbird/xfsprogs
+        distgit: xfsprogs
+
+  - name: niri-13
+    packages:
+      - path: src/hummingbird/mingw-libxml2
+        distgit: mingw-libxml2
+      - path: src/hummingbird/perl-Params-ValidationCompiler
+        distgit: perl-Params-ValidationCompiler
+
+  - name: niri-14
+    packages:
+      - path: src/hummingbird/mingw-json-glib
+        distgit: mingw-json-glib
+      - path: src/hummingbird/mingw-libarchive
+        distgit: mingw-libarchive
+      - path: src/hummingbird/mingw-libxslt
+        distgit: mingw-libxslt
+      - path: src/hummingbird/perl-DateTime-Locale
+        distgit: perl-DateTime-Locale
+      - path: src/hummingbird/perl-DateTime-TimeZone
+        distgit: perl-DateTime-TimeZone
+      - path: src/hummingbird/perl-Log-Dispatch
+        distgit: perl-Log-Dispatch
+      - path: src/hummingbird/qt6-qtcharts
+        distgit: qt6-qtcharts
+      - path: src/hummingbird/qt6-qtdatavis3d
+        distgit: qt6-qtdatavis3d
+      - path: src/hummingbird/qt6-qtremoteobjects
+        distgit: qt6-qtremoteobjects
+      - path: src/hummingbird/qt6-qtscxml
+        distgit: qt6-qtscxml
+      - path: src/hummingbird/qt6-qtsensors
+        distgit: qt6-qtsensors
+
+  - name: niri-15
+    packages:
+      - path: src/hummingbird/PDAL
+        distgit: PDAL
+        bootstrap: true
+      - path: src/hummingbird/alembic
+        distgit: alembic
+        bootstrap: true
+      - path: src/hummingbird/bullet
+        distgit: bullet
+        bootstrap: true
+      - path: src/hummingbird/cepces
+        distgit: cepces
+        bootstrap: true
+      - path: src/hummingbird/cgnslib
+        distgit: cgnslib
+        bootstrap: true
+      - path: src/hummingbird/dblatex
+        distgit: dblatex
+        bootstrap: true
+      - path: src/hummingbird/dbus-c++
+        distgit: dbus-c++
+        bootstrap: true
+      - path: src/hummingbird/efl
+        distgit: efl
+        bootstrap: true
+      - path: src/hummingbird/fish
+        distgit: fish
+        bootstrap: true
+      - path: src/hummingbird/fluidsynth
+        distgit: fluidsynth
+        bootstrap: true
+      - path: src/hummingbird/freeglut
+        distgit: freeglut
+        bootstrap: true
+      - path: src/hummingbird/frei0r-plugins
+        distgit: frei0r-plugins
+        bootstrap: true
+      - path: src/hummingbird/gdal
+        distgit: gdal
+        bootstrap: true
+      - path: src/hummingbird/gdcm
+        distgit: gdcm
+        bootstrap: true
+      - path: src/hummingbird/jasper
+        distgit: jasper
+        bootstrap: true
+      - path: src/hummingbird/ladspa
+        distgit: ladspa
+        bootstrap: true
+      - path: src/hummingbird/libcaca
+        distgit: libcaca
+        bootstrap: true
+      - path: src/hummingbird/libdicom
+        distgit: libdicom
+        bootstrap: true
+      - path: src/hummingbird/libgeotiff
+        distgit: libgeotiff
+        bootstrap: true
+      - path: src/hummingbird/liblas
+        distgit: liblas
+        bootstrap: true
+      - path: src/hummingbird/liblrdf
+        distgit: liblrdf
+        bootstrap: true
+      - path: src/hummingbird/libspatialite
+        distgit: libspatialite
+        bootstrap: true
+      - path: src/hummingbird/libspectre
+        distgit: libspectre
+        bootstrap: true
+      - path: src/hummingbird/libsrtp
+        distgit: libsrtp
+        bootstrap: true
+      - path: src/hummingbird/mjpegtools
+        distgit: mjpegtools
+        bootstrap: true
+      - path: src/hummingbird/netpbm
+        distgit: netpbm
+        bootstrap: true
+      - path: src/hummingbird/ocl-icd
+        distgit: ocl-icd
+        bootstrap: true
+      - path: src/hummingbird/openal-soft
+        distgit: openal-soft
+        bootstrap: true
+      - path: src/hummingbird/opencascade
+        distgit: opencascade
+        bootstrap: true
+      - path: src/hummingbird/opencv
+        distgit: opencv
+        bootstrap: true
+      - path: src/hummingbird/openslide
+        distgit: openslide
+        bootstrap: true
+      - path: src/hummingbird/perl-DateTime
+        distgit: perl-DateTime
+      - path: src/hummingbird/perl-Log-Dispatch-FileRotate
+        distgit: perl-Log-Dispatch-FileRotate
+      - path: src/hummingbird/proj
+        distgit: proj
+        bootstrap: true
+      - path: src/hummingbird/python-accessible-pygments
+        distgit: python-accessible-pygments
+        bootstrap: true
+      - path: src/hummingbird/python-beautifulsoup4
+        distgit: python-beautifulsoup4
+        bootstrap: true
+      - path: src/hummingbird/python-breathe
+        distgit: python-breathe
+        bootstrap: true
+      - path: src/hummingbird/python-build
+        distgit: python-build
+        bootstrap: true
+      - path: src/hummingbird/python-cssselect
+        distgit: python-cssselect
+        bootstrap: true
+      - path: src/hummingbird/python-dateutil
+        distgit: python-dateutil
+        bootstrap: true
+      - path: src/hummingbird/python-execnet
+        distgit: python-execnet
+        bootstrap: true
+      - path: src/hummingbird/python-freezegun
+        distgit: python-freezegun
+        bootstrap: true
+      - path: src/hummingbird/python-furo
+        distgit: python-furo
+        bootstrap: true
+      - path: src/hummingbird/python-hatch-fancy-pypi-readme
+        distgit: python-hatch-fancy-pypi-readme
+        bootstrap: true
+      - path: src/hummingbird/python-hatch-vcs
+        distgit: python-hatch-vcs
+        bootstrap: true
+      - path: src/hummingbird/python-html5lib
+        distgit: python-html5lib
+        bootstrap: true
+      - path: src/hummingbird/python-hypothesis
+        distgit: python-hypothesis
+        bootstrap: true
+      - path: src/hummingbird/python-lxml-html-clean
+        distgit: python-lxml-html-clean
+        bootstrap: true
+      - path: src/hummingbird/python-poetry-core
+        distgit: python-poetry-core
+        bootstrap: true
+      - path: src/hummingbird/python-psutil
+        distgit: python-psutil
+        bootstrap: true
+      - path: src/hummingbird/python-pyasn1
+        distgit: python-pyasn1
+        bootstrap: true
+      - path: src/hummingbird/python-pytest-asyncio
+        distgit: python-pytest-asyncio
+        bootstrap: true
+      - path: src/hummingbird/python-pytest-mock
+        distgit: python-pytest-mock
+        bootstrap: true
+      - path: src/hummingbird/python-pytest-xdist
+        distgit: python-pytest-xdist
+        bootstrap: true
+      - path: src/hummingbird/python-qt5
+        distgit: python-qt5
+        bootstrap: true
+      - path: src/hummingbird/python-soupsieve
+        distgit: python-soupsieve
+        bootstrap: true
+      - path: src/hummingbird/python-sphinx-basic-ng
+        distgit: python-sphinx-basic-ng
+        bootstrap: true
+      - path: src/hummingbird/python-sphinx-copybutton
+        distgit: python-sphinx-copybutton
+        bootstrap: true
+      - path: src/hummingbird/python-webencodings
+        distgit: python-webencodings
+        bootstrap: true
+      - path: src/hummingbird/python-wheel
+        distgit: python-wheel
+        bootstrap: true
+      - path: src/hummingbird/qt5-qtconnectivity
+        distgit: qt5-qtconnectivity
+        bootstrap: true
+      - path: src/hummingbird/qt5-qtmultimedia
+        distgit: qt5-qtmultimedia
+        bootstrap: true
+      - path: src/hummingbird/qt5-qttools
+        distgit: qt5-qttools
+        bootstrap: true
+      - path: src/hummingbird/qt6-qthttpserver
+        distgit: qt6-qthttpserver
+      - path: src/hummingbird/raptor2
+        distgit: raptor2
+        bootstrap: true
+      - path: src/hummingbird/sdl12-compat
+        distgit: sdl12-compat
+        bootstrap: true
+      - path: src/hummingbird/texlive-collection-fontsextra
+        distgit: texlive-collection-fontsextra
+        bootstrap: true
+      - path: src/hummingbird/texlive-collection-formatsextra
+        distgit: texlive-collection-formatsextra
+        bootstrap: true
+      - path: src/hummingbird/texlive-collection-luatex
+        distgit: texlive-collection-luatex
+        bootstrap: true
+      - path: src/hummingbird/texlive-collection-mathscience
+        distgit: texlive-collection-mathscience
+        bootstrap: true
+      - path: src/hummingbird/texlive-collection-pictures
+        distgit: texlive-collection-pictures
+        bootstrap: true
+      - path: src/hummingbird/texlive-collection-xetex
+        distgit: texlive-collection-xetex
+        bootstrap: true
+      - path: src/hummingbird/transfig
+        distgit: transfig
+        bootstrap: true
+      - path: src/hummingbird/vapoursynth
+        distgit: vapoursynth
+        bootstrap: true
+      - path: src/hummingbird/vtk
+        distgit: vtk
+        bootstrap: true
+      - path: src/hummingbird/zbar
+        distgit: zbar
+        bootstrap: true
+
+  - name: niri-16
+    packages:
+      - path: src/hummingbird/atkmm
+        distgit: atkmm
+      - path: src/hummingbird/blueprint-compiler
+        distgit: blueprint-compiler
+      - path: src/hummingbird/cairomm
+        distgit: cairomm
+      - path: src/hummingbird/cava
+        distgit: cava
+      - path: src/hummingbird/certmonger
+        distgit: certmonger
+      - path: src/hummingbird/extra-cmake-modules
+        distgit: extra-cmake-modules
+      - path: src/hummingbird/fcft
+        distgit: fcft
+      - path: src/hummingbird/glfw
+        distgit: glfw
+      - path: src/xfce-wayland/gtk-layer-shell
+      - path: src/hummingbird/gtk4-layer-shell
+        distgit: gtk4-layer-shell
+      - path: src/hummingbird/libgee
+        distgit: libgee
+      - path: src/hummingbird/mako
+        distgit: mako
+      - path: src/hummingbird/marshalparser
+        distgit: marshalparser
+      - path: src/hummingbird/niri
+      - path: src/hummingbird/perl-DateTime-Calendar-Julian
+        distgit: perl-DateTime-Calendar-Julian
+      - path: src/hummingbird/perl-DateTime-Format-Strptime
+        distgit: perl-DateTime-Format-Strptime
+      - path: src/hummingbird/perl-Log-Log4perl
+        distgit: perl-Log-Log4perl
+      - path: src/hummingbird/playerctl
+        distgit: playerctl
+      - path: src/hummingbird/protobuf3
+        distgit: protobuf3
+      - path: src/hummingbird/python-aiohappyeyeballs
+        distgit: python-aiohappyeyeballs
+      - path: src/hummingbird/python-aiosignal
+        distgit: python-aiosignal
+      - path: src/hummingbird/python-blinker
+        distgit: python-blinker
+      - path: src/hummingbird/python-boolean.py
+        distgit: python-boolean.py
+      - path: src/hummingbird/python-cloudpickle
+        distgit: python-cloudpickle
+      - path: src/hummingbird/python-greenlet
+        distgit: python-greenlet
+      - path: src/hummingbird/python-gunicorn
+        distgit: python-gunicorn
+      - path: src/hummingbird/python-icalendar
+        distgit: python-icalendar
+      - path: src/hummingbird/python-itsdangerous
+        distgit: python-itsdangerous
+      - path: src/hummingbird/python-multidict
+        distgit: python-multidict
+      - path: src/hummingbird/python-pkgconfig
+        distgit: python-pkgconfig
+      - path: src/hummingbird/python-propcache
+        distgit: python-propcache
+      - path: src/hummingbird/python-sphinxext-opengraph
+        distgit: python-sphinxext-opengraph
+      - path: src/hummingbird/python-tzlocal
+        distgit: python-tzlocal
+      - path: src/hummingbird/python-urwid
+        distgit: python-urwid
+      - path: src/hummingbird/python-werkzeug
+        distgit: python-werkzeug
+      - path: src/hummingbird/python-zlib-ng
+        distgit: python-zlib-ng
+      - path: src/hummingbird/qt
+        distgit: qt
+      - path: src/hummingbird/qt6-qtconnectivity
+        distgit: qt6-qtconnectivity
+      - path: src/hummingbird/qt6-qtimageformats
+        distgit: qt6-qtimageformats
+      - path: src/hummingbird/quickshell
+        distgit: quickshell
+      - path: src/hummingbird/swaybg
+        distgit: swaybg
+      - path: src/hummingbird/swaylock
+        distgit: swaylock
+      - path: src/hummingbird/texlive-collection-bibtexextra
+        distgit: texlive-collection-bibtexextra
+      - path: src/hummingbird/texlive-collection-humanities
+        distgit: texlive-collection-humanities
+      - path: src/hummingbird/texlive-collection-langarabic
+        distgit: texlive-collection-langarabic
+      - path: src/hummingbird/texlive-collection-langchinese
+        distgit: texlive-collection-langchinese
+      - path: src/hummingbird/texlive-collection-langcjk
+        distgit: texlive-collection-langcjk
+      - path: src/hummingbird/texlive-collection-langcyrillic
+        distgit: texlive-collection-langcyrillic
+      - path: src/hummingbird/texlive-collection-langenglish
+        distgit: texlive-collection-langenglish
+      - path: src/hummingbird/texlive-collection-langjapanese
+        distgit: texlive-collection-langjapanese
+      - path: src/hummingbird/texlive-collection-langkorean
+        distgit: texlive-collection-langkorean
+      - path: src/hummingbird/texlive-collection-langother
+        distgit: texlive-collection-langother
+      - path: src/hummingbird/texlive-collection-plaingeneric
+        distgit: texlive-collection-plaingeneric
+      - path: src/hummingbird/texlive-collection-pstricks
+        distgit: texlive-collection-pstricks
+
+  - name: niri-17
+    packages:
+      - path: src/hummingbird/SwayNotificationCenter
+        distgit: SwayNotificationCenter
+      - path: src/hummingbird/blueman
+        distgit: blueman
+      - path: src/hummingbird/emacs-auctex
+        distgit: emacs-auctex
+      - path: src/hummingbird/khal
+        distgit: khal
+      - path: src/hummingbird/liborc
+        distgit: liborc
+      - path: src/hummingbird/nanosvg
+        distgit: nanosvg
+      - path: src/hummingbird/pangomm
+        distgit: pangomm
+      - path: src/hummingbird/perl-DateTime-Format-Builder
+        distgit: perl-DateTime-Format-Builder
+      - path: src/hummingbird/plasma-wayland-protocols
+        distgit: plasma-wayland-protocols
+      - path: src/hummingbird/python-aiohttp
+        distgit: python-aiohttp
+      - path: src/hummingbird/python-flask
+        distgit: python-flask
+      - path: src/hummingbird/python-license-expression
+        distgit: python-license-expression
+      - path: src/hummingbird/python-oauthlib
+        distgit: python-oauthlib
+      - path: src/hummingbird/python-pytest-httpserver
+        distgit: python-pytest-httpserver
+      - path: src/hummingbird/python-pytest-localserver
+        distgit: python-pytest-localserver
+
+  - name: niri-18
+    packages:
+      - path: src/hummingbird/biber
+        distgit: biber
+      - path: src/hummingbird/fuzzel
+        distgit: fuzzel
+      - path: src/hummingbird/go-vendor-tools
+        distgit: go-vendor-tools
+      - path: src/hummingbird/gtkmm3.0
+        distgit: gtkmm3.0
+      - path: src/hummingbird/libarrow
+        distgit: libarrow
+      - path: src/hummingbird/python-aiohttp-oauthlib
+        distgit: python-aiohttp-oauthlib
+      - path: src/hummingbird/python-httpbin
+        distgit: python-httpbin
+      - path: src/hummingbird/qt6-qt3d
+        distgit: qt6-qt3d
+
+  - name: niri-19
+    packages:
+      - path: src/hummingbird/DankMaterialShell
+        distgit: DankMaterialShell
       - path: src/hummingbird/cliphist
         distgit: cliphist
       - path: src/hummingbird/danksearch
         distgit: danksearch
       - path: src/hummingbird/dgop
         distgit: dgop
-      - path: src/hummingbird/iniparser
-        distgit: iniparser
-      - path: src/hummingbird/libconfig
-        distgit: libconfig
-      - path: src/hummingbird/libdb
-        distgit: libdb
-      - path: src/hummingbird/libmpdclient
-        distgit: libmpdclient
-      - path: src/hummingbird/libraw1394
-        distgit: libraw1394
-      - path: src/hummingbird/libsigc++20
-        distgit: libsigc++20
-      - path: src/hummingbird/python-aiohappyeyeballs
-        distgit: python-aiohappyeyeballs
-      - path: src/hummingbird/python-click
-        distgit: python-click
-      - path: src/hummingbird/python-configobj
-        distgit: python-configobj
-      - path: src/hummingbird/python-frozenlist
-        distgit: python-frozenlist
-      - path: src/hummingbird/python-lxml
-        distgit: python-lxml
-      - path: src/hummingbird/python-oauthlib
-        distgit: python-oauthlib
-      - path: src/hummingbird/python-propcache
-        distgit: python-propcache
-      - path: src/hummingbird/python-six
-        distgit: python-six
-      - path: src/hummingbird/python-tzlocal
-        distgit: python-tzlocal
-      - path: src/hummingbird/python-wcwidth
-        distgit: python-wcwidth
-      - path: src/hummingbird/pytz
-        distgit: pytz
-      - path: src/hummingbird/rust-matugen
-        distgit: rust-matugen
-      - path: src/hummingbird/slang
-        distgit: slang
-
-  - name: niri-01
-    packages:
-      - path: src/hummingbird/fcft
-        distgit: fcft
-      - path: src/hummingbird/glibmm2.4
-        distgit: glibmm2.4
-      - path: src/hummingbird/libiec61883
-        distgit: libiec61883
-      - path: src/hummingbird/libmng
-        distgit: libmng
-      - path: src/hummingbird/newt
-        distgit: newt
-      - path: src/hummingbird/python-aiosignal
-        distgit: python-aiosignal
-      - path: src/hummingbird/python-click-log
-        distgit: python-click-log
-      - path: src/hummingbird/python-click-threading
-        distgit: python-click-threading
-      - path: src/hummingbird/python-dateutil
-        distgit: python-dateutil
-      - path: src/hummingbird/python-urwid
-        distgit: python-urwid
-      - path: src/hummingbird/pyxdg
-        distgit: pyxdg
-      - path: src/hummingbird/swayidle
-        distgit: swayidle
-      - path: src/hummingbird/wl-clipboard
-        distgit: wl-clipboard
-
-  - name: niri-02
-    packages:
-      - path: src/hummingbird/khal
-        distgit: khal
-      - path: src/hummingbird/libxml++30
-        distgit: libxml++30
-      - path: src/hummingbird/python-aiohttp
-        distgit: python-aiohttp
-      - path: src/hummingbird/python-icalendar
-        distgit: python-icalendar
-
-  - name: niri-03
-    packages:
-      - path: src/hummingbird/jasper
-        distgit: jasper
-      - path: src/hummingbird/nanosvg
-        distgit: nanosvg
-      - path: src/hummingbird/python-aiohttp-oauthlib
-        distgit: python-aiohttp-oauthlib
-      - path: src/hummingbird/xwayland-satellite
-        distgit: xwayland-satellite
-
-  - name: niri-04
-    packages:
-      - path: src/hummingbird/jack-audio-connection-kit
-        distgit: jack-audio-connection-kit
-        bootstrap: true
-      - path: src/hummingbird/libffado
-        distgit: libffado
-        bootstrap: true
-      - path: src/hummingbird/qt6-qtimageformats
-        distgit: qt6-qtimageformats
-      - path: src/hummingbird/vdirsyncer
-        distgit: vdirsyncer
-
-  - name: niri-05
-    packages:
-      - path: src/hummingbird/atkmm
-        distgit: atkmm
-      - path: src/hummingbird/cairomm
-        distgit: cairomm
-      - path: src/hummingbird/cava
-        distgit: cava
-      - path: src/hummingbird/fuzzel
-        distgit: fuzzel
-      - path: src/xfce-wayland/gtk-layer-shell
-      - path: src/hummingbird/gtk4-layer-shell
-        distgit: gtk4-layer-shell
-      - path: src/hummingbird/libdbusmenu
-        distgit: libdbusmenu
-      - path: src/hummingbird/libgee
-        distgit: libgee
-      - path: src/hummingbird/mako
-        distgit: mako
-      - path: src/hummingbird/playerctl
-        distgit: playerctl
-      - path: src/hummingbird/swaybg
-        distgit: swaybg
-      - path: src/hummingbird/swaylock
-        distgit: swaylock
-
-  - name: niri-06
-    packages:
-      - path: src/hummingbird/SwayNotificationCenter
-        distgit: SwayNotificationCenter
-      - path: src/hummingbird/pangomm
-        distgit: pangomm
-
-  - name: niri-07
-    packages:
-      - path: src/hummingbird/blueman
-        distgit: blueman
-      - path: src/hummingbird/gtkmm3.0
-        distgit: gtkmm3.0
-      - path: src/hummingbird/niri
-      - path: src/hummingbird/quickshell
-        distgit: quickshell
-
-  - name: niri-08
-    packages:
       - path: src/hummingbird/pavucontrol
         distgit: pavucontrol
-      - path: src/hummingbird/qt6ct
-        distgit: qt6ct
+      - path: src/hummingbird/python-pytest-httpbin
+        distgit: python-pytest-httpbin
+      - path: src/hummingbird/qt6-qtgraphs
+        distgit: qt6-qtgraphs
+      - path: src/hummingbird/vdirsyncer
+        distgit: vdirsyncer
       - path: src/hummingbird/waybar
         distgit: waybar
 
-  - name: xfce-00
+  - name: niri-21
     packages:
-      - path: src/hummingbird/dejavu-fonts
-        distgit: dejavu-fonts
-      - path: src/hummingbird/libXres
-        distgit: libXres
+      - path: src/hummingbird/python-pyside6
+        distgit: python-pyside6
+
+  - name: niri-26
+    packages:
+      - path: src/hummingbird/qt6ct
+        distgit: qt6ct
 
   - name: xfce-01
     packages:

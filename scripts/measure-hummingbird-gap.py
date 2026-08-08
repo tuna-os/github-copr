@@ -182,11 +182,40 @@ def choose_provider(capability: str, candidates: set[str]) -> str:
     return sorted(candidates, key=lambda name: (len(name), name))[0]
 
 
-def closure(roots, reference, have):
-    """Transitive Requires: closure of roots, stopping at anything Hummingbird has."""
+def closure(roots, reference, have, source_index=None):
+    """Transitive Requires: + BuildRequires: closure, stopping at what the target has.
+
+    Runtime Requires: alone is not the closure a BUILD needs.  A build tool
+    appears only in BuildRequires:, never in any runtime dependency, so a
+    closure over Requires: cannot see it -- and the target is a base OS image,
+    which by definition ships no build-only packages.
+
+    What that cost, measured against Hummingbird's own index (22335
+    capabilities) and Fedora's source index (23166 SRPMs): 413 capabilities the
+    build order needs and nothing provides, blocking 462 of its 680 packages.
+    The worst are not exotic --
+
+        extra-cmake-modules  112 packages      vala        44
+        kf6-rpm-macros       106               intltool    30
+        gtk-doc               62               bison/flex  17 each
+
+    -- and bison/flex are the tell: ordinary buildroot tools, absent from a
+    base OS precisely because nothing at runtime needs them.  The first
+    instance found in CI was Python's PEP-517 backends (#268, #269); it was one
+    case of this class, not a special case.
+
+    So the walk alternates until it reaches a fixpoint:
+
+        runtime closure  ->  the source packages behind it  ->  their
+        BuildRequires  ->  the binaries providing those  ->  runtime closure...
+
+    Without `source_index` this is exactly the old runtime-only behaviour, so
+    a caller with no source reference is unaffected.
+    """
     packages = reference["packages"]
     provides = reference["provides"]
     seen: set[str] = set()
+    folded_sources: set[str] = set()
     absent_roots: list[str] = []
     unresolved: dict[str, list[str]] = {}
     # A root may be a capability rather than a package name.  tunaOS's xfce
@@ -221,6 +250,35 @@ def closure(roots, reference, have):
             provider = choose_provider(requirement, candidates)
             if provider not in seen:
                 queue.append(provider)
+
+        if not queue and source_index is not None:
+            # Runtime frontier is exhausted. Fold in the BuildRequires of every
+            # source package behind what we have reached; anything new restarts
+            # the runtime walk above, which is why this sits inside the loop.
+            #
+            # folded_sources keeps this from rescanning the whole of `seen`
+            # every time the queue drains -- with 23k SRPMs that turns a linear
+            # walk quadratic.
+            for binary in sorted(seen):
+                info = packages.get(binary)
+                if info is None:
+                    continue
+                source = srpm_name(info.get("srpm"))
+                if source is None or source in folded_sources:
+                    continue
+                folded_sources.add(source)
+                for requirement in source_index.get(source, ()):
+                    if requirement in have or requirement in seen:
+                        continue
+                    if requirement.startswith(RICH_DEP_PREFIX):
+                        continue
+                    candidates = provides.get(requirement)
+                    if not candidates:
+                        unresolved.setdefault(requirement, []).append(source)
+                        continue
+                    provider = choose_provider(requirement, candidates)
+                    if provider not in seen:
+                        queue.append(provider)
     return seen, absent_roots, unresolved
 
 
@@ -434,7 +492,9 @@ def main() -> None:
         )
         already = sorted(name for name in roots if name in target_index["packages"])
         need_roots = [name for name in roots if name not in target_index["packages"]]
-        reachable, absent, unresolved = closure(need_roots, reference_index, have)
+        reachable, absent, unresolved = closure(
+            need_roots, reference_index, have, source_index
+        )
         # A root the reference does not carry (quickshell, dms — packaged
         # upstream, not in Fedora) is reported separately under
         # roots_absent_from_reference and cannot enter the build order, which
