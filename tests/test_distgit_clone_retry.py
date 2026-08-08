@@ -44,11 +44,21 @@ def load_script():
 
 importer = load_script()
 
-# `git clone --depth 1 --branch <branch> <url> <dest>`: $7 is the destination.
+# `git [-c k=v]... clone --depth 1 --branch <branch> <url> <dest>`. The
+# destination is matched as the last argument rather than by position, so that
+# adding another `-c` (the http.lowSpeed* pair that turns a stalled clone into
+# a failure, say) does not quietly turn this stub into an unconditional exit 1
+# and the tests below into assertions about nothing.
 STUB_GIT = """#!/usr/bin/env bash
 set -u
-if [ "$1" = "clone" ]; then
-    pkg="$(basename "$7")"
+if [ "$1" = "-C" ]; then
+    echo 0123456789abcdef0123456789abcdef01234567
+    exit 0
+fi
+for arg in "$@"; do
+    [ "$arg" = "clone" ] || continue
+    dest="${@: -1}"
+    pkg="$(basename "$dest")"
     attempts="$STUB_STATE/$pkg.attempts"
     printf 'x' >> "$attempts"
     n=$(wc -c < "$attempts")
@@ -60,14 +70,10 @@ if [ "$1" = "clone" ]; then
         echo "fatal: the remote end hung up unexpectedly" >&2
         exit 128
     fi
-    mkdir -p "$7"
-    echo "Name: $pkg" > "$7/$pkg.spec"
+    mkdir -p "$dest"
+    echo "Name: $pkg" > "$dest/$pkg.spec"
     exit 0
-fi
-if [ "$1" = "-C" ]; then
-    echo 0123456789abcdef0123456789abcdef01234567
-    exit 0
-fi
+done
 exit 1
 """
 
@@ -102,6 +108,7 @@ def run_import(tmp_path: Path, package: str, *, fail_times: int = 0, fatal: str 
             # The stub server is not throttling anyone; waiting on it would
             # only make the suite slow.
             "--clone-cooldown", "0",
+            "--retry-pass-delay", "0",
         ],
         capture_output=True, text=True, cwd=tmp_path, env=env,
     )
@@ -125,7 +132,10 @@ def test_transient_failure_that_never_clears_still_fails_the_import(tmp_path):
     proc, attempts = run_import(tmp_path, "cliphist", fail_times=99)
 
     assert proc.returncode == 1
-    assert attempts == 5, "retries are bounded, not endless"
+    # Five in the parallel pass, then five more in the serial pass over what
+    # the parallel one could not clone. Bounded either way: the point is that
+    # a package the server never serves ends the import instead of looping.
+    assert attempts == 10, "retries are bounded, not endless"
     assert "FAILED cliphist:" in proc.stdout
     assert "failed=1" in proc.stdout
 
