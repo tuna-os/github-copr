@@ -47,8 +47,6 @@ tiers:
         distgit: python-wheel
   - name: bootstrap-02
     packages:
-      - path: src/hummingbird/python-build
-        distgit: python-build
       - path: src/hummingbird/python-hatchling
         distgit: python-hatchling
   - name: bootstrap-03
