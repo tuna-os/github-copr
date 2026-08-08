@@ -86,21 +86,57 @@ def test_backends_are_built_before_the_desktops() -> None:
         )
 
 
-def test_hatchling_precedes_the_packages_that_build_with_it() -> None:
-    """Ordering inside the bootstrap block.
+# Each package's declared PEP-517 backend, read out of its own sdist
+# pyproject.toml rather than guessed:
+#
+#   flit-core, poetry-core, hatchling   self-hosting
+#   trove-classifiers                   setuptools.build_meta  (in Hummingbird)
+#   editables, installer, build, wheel  flit_core.buildapi
+#   hatch-vcs, hatch-fancy-pypi-readme  hatchling.build
+#
+# A backend must be BUILT before anything that builds with it, and packages
+# inside one tier run concurrently -- so "earlier tier", not "earlier in the
+# list". The first cut of this file had editables and installer sharing a tier
+# with flit-core, and hatchling sharing one with the trove-classifiers and
+# editables it needs; both would have failed on the first dispatch.
+BACKEND_OF = {
+    "python-editables": "python-flit-core",
+    "python-installer": "python-flit-core",
+    "python-build": "python-flit-core",
+    "python-wheel": "python-flit-core",
+    "python-hatch-vcs": "python-hatchling",
+    "python-hatch-fancy-pypi-readme": "python-hatchling",
+}
 
-    hatch-vcs and hatch-fancy-pypi-readme build with hatchling, so they cannot
-    share its tier -- packages inside one tier run concurrently.
-    """
+
+def test_each_backend_is_built_before_its_dependents() -> None:
     order = [t["name"] for t in tiers()]
     by_name = {t["name"]: names_in(t) for t in tiers()}
-    where = lambda pkg: next(  # noqa: E731
-        i for i, n in enumerate(order) if pkg in by_name[n]
-    )
-    hatchling = where("python-hatchling")
-    for dependent in ("python-hatch-vcs", "python-hatch-fancy-pypi-readme"):
-        assert where(dependent) > hatchling, (
-            f"{dependent} builds with hatchling but is not in a later tier"
+
+    def tier_of(pkg: str) -> int:
+        return next(i for i, n in enumerate(order) if pkg in by_name[n])
+
+    for pkg, backend in BACKEND_OF.items():
+        assert tier_of(pkg) > tier_of(backend), (
+            f"{pkg} declares build-backend {backend!r} but is in tier "
+            f"'{order[tier_of(pkg)]}', not after '{order[tier_of(backend)]}'. "
+            "Packages inside a tier run concurrently, so sharing one is the "
+            "same as building it first."
+        )
+
+
+def test_hatchling_follows_its_own_runtime_deps() -> None:
+    """%pyproject_buildrequires emits runtime deps too, not just the backend."""
+    order = [t["name"] for t in tiers()]
+    by_name = {t["name"]: names_in(t) for t in tiers()}
+
+    def tier_of(pkg: str) -> int:
+        return next(i for i, n in enumerate(order) if pkg in by_name[n])
+
+    for dep in ("python-editables", "python-trove-classifiers"):
+        assert tier_of("python-hatchling") > tier_of(dep), (
+            f"hatchling requires {dep} at runtime, so it must build in a later "
+            "tier than it"
         )
 
 
