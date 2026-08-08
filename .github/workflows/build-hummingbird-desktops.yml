@@ -18,14 +18,22 @@ on:
   workflow_dispatch:
     inputs:
       desktop:
-        description: Desktop whose tiers to build (prefix of the tier name)
+        description: Desktop to build (resolved to tiers via the gap report)
         type: choice
         options: [gnome, kde, cosmic, niri, xfce, all]
         default: gnome
       tiers:
         description: >
           Comma-separated tier names to build, e.g. "gnome-00,gnome-01".
-          Empty means every tier matching `desktop`.
+          Taken verbatim -- no bootstrap tiers are prepended, so a single
+          tier can be re-run on its own. Empty means resolve `desktop`.
+        type: string
+        default: ""
+      exclude_tiers:
+        description: >
+          Comma-separated tiers to drop from the selection. Lets a shared
+          trunk be built once and the per-desktop remainders run in parallel
+          against it.
         type: string
         default: ""
       publish:
@@ -83,56 +91,34 @@ jobs:
 
       - name: Select tiers
         id: tiers
+        env:
+          # Through the environment, not `${{ }}` inside the script: these are
+          # dispatch inputs and they are not shell.
+          IN_DESKTOP: ${{ inputs.desktop }}
+          IN_TIERS: ${{ inputs.tiers }}
+          IN_EXCLUDE: ${{ inputs.exclude_tiers }}
         run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import os, yaml
-          manifest = yaml.safe_load(open(os.environ["MANIFEST"]))
-          requested = [t.strip() for t in "${{ inputs.tiers }}".split(",") if t.strip()]
-          desktop = "${{ inputs.desktop }}"
-          names = [t["name"] for t in manifest["tiers"]]
-          if requested:
-              missing = [t for t in requested if t not in names]
-              if missing:
-                  raise SystemExit(f"no such tier(s): {missing}")
-              selected = requested
-          elif desktop == "all":
-              selected = names
-          else:
-              selected = [n for n in names if n.startswith(desktop + "-")]
-          if not selected:
-              raise SystemExit(f"no tiers match desktop={desktop}")
-          # The Python build backends come first, always, whatever was asked
-          # for. Hummingbird ships pyproject-rpm-macros, python3-devel,
-          # setuptools, packaging, pytest, pathspec and pluggy -- but NOT ONE
-          # PEP-517 backend: no hatchling, flit-core, poetry-core, wheel,
-          # installer, build, editables or trove-classifiers (measured against
-          # the target's own primary.xml, 3384 distinct names).
-          #
-          # So %pyproject_buildrequires emits e.g. python3-hatchling, dnf finds
-          # it only in Rawhide, and Rawhide's build is for Python 3.15 while
-          # Hummingbird is on 3.14 (docs/hummingbird-desktop-gap.md, Finding 3:
-          # "different libpython3.x.so.1.0"). The 3.15 backend then demands
-          # python3.15dist(packaging), the installed packaging provides
-          # python3.14dist(...), and the transaction is unresolvable:
-          #
-          #   cannot install both python3-packaging-26.2-4.fc45.noarch from
-          #   fedora and python3-packaging-26.2-4.1.hum1.noarch from @System
-          #
-          # That is what failed all 8 python-* packages of niri-00 in runs
-          # 31231968581, 31242725235 and 31248093019 -- identically each time,
-          # and it is not specific to those 8. Every Python package in the
-          # 670-package gap builds through a PEP-517 backend.
-          #
-          # Skipped when explicitly requested, so a bootstrap tier can still be
-          # re-run on its own.
-          boot = [n for n in names if n.startswith("bootstrap-")]
-          if not requested:
-              selected = boot + [n for n in selected if n not in boot]
-          print("list=" + ",".join(selected))
-          PY
+          # Not a name-prefix match. The manifest deduplicates packages across
+          # desktops, so a tier named gnome-* holds packages XFCE needs too and
+          # `xfce-*` covers a fraction of XFCE. select-desktop-tiers.py resolves
+          # the desktop through the gap report's own package list, and fails if
+          # anything it needs is in no tier -- see the module docstring.
+          list=$(python3 scripts/select-desktop-tiers.py \
+            --manifest "${MANIFEST}" \
+            --gap-report docs/hummingbird-desktop-gap.json \
+            --desktop "${IN_DESKTOP}" \
+            --tiers "${IN_TIERS}" \
+            --exclude-tiers "${IN_EXCLUDE}")
+          echo "selected $(tr ',' '\n' <<< "$list" | wc -l) tiers: $list"
+          echo "list=$list" >> "$GITHUB_OUTPUT"
 
       - name: Import Fedora Rawhide packaging for the selected tiers
         run: |
+          # --jobs 4, not 8: every clone goes to the same host, and
+          # src.fedoraproject.org answers 503 when pushed. Run 31268302766
+          # needed retries on 8 of 11 clones and still lost 2. Concurrency
+          # here buys seconds and costs whole dispatches.
+          #
           # Most of the graph is unmodified Fedora Rawhide packaging and is
           # imported here rather than vendored, the same way Hummingbird's own
           # RPM project (gitlab.com/redhat/hummingbird, ci/dist_git.py) sources
@@ -147,7 +133,7 @@ jobs:
             --branch rawhide \
             --state hummingbird-imports.json \
             --release-bump \
-            --jobs 8
+            --jobs 4
 
       - uses: actions/upload-artifact@v7
         if: always()

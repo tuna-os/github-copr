@@ -25,7 +25,82 @@
 #   --with-checks        Run the RPM %check section (release-gate mode)
 #   --dry-run            Print what would be built without building
 
-set -euo pipefail
+# -E so the ERR trap below is inherited by functions, subshells and command
+# substitutions. Without it a trap set here never fires for a failure inside
+# build_package_podman -- which is where essentially every real failure is --
+# and the script dies silently. Verified: with plain `set -e` the trap did not
+# print for a `command not found` inside ensure_local_repo.
+set -eEuo pipefail
+
+# Say why we died, as the LAST thing in the log.
+#
+# set -e means any unhandled non-zero command kills this script on the spot,
+# before the end-of-run summary that lists failed packages. When that happens
+# inside a long tier the reason ends up buried in the middle of a log that can
+# be hundreds of MB, and every practical way of reading a CI log -- the GitHub
+# API, `gh run view --log-failed`, the web viewer -- gives you the TAIL.
+#
+# Measured cost: six independent retrieval paths were tried against one failed
+# Hummingbird run (job logs three ways, check-run annotations twice, the web
+# UI) and not one returned the failing line. The run was reduced to "Process
+# completed with exit code 1" with no package named, which is unactionable.
+#
+# An ERR trap costs nothing on the happy path and makes the failure the last
+# thing printed, so the tail always carries it. Everything here is guarded
+# with || true: a diagnostic that dies while reporting a death tells you even
+# less than no diagnostic.
+#
+# Two things this got wrong on first contact with a real failure (run
+# 31264779379), both visible in its own output:
+#
+#   command     : main
+#
+# A DEBUG trap used to record the last command. DEBUG is NOT inherited by
+# functions or subshells without `set -T`, so it only ever saw the top-level
+# `main "$@"` -- which is every in-function death, i.e. all of them. $BASH_COMMAND
+# read as the first thing in the handler is the command that actually tripped
+# the trap, with no DEBUG trap and no per-command overhead. `set -T` is not the
+# alternative here: functrace also makes RETURN traps inherited, and this script
+# hangs `rm -rf "$builddir"` off RETURN, so every nested call would delete the
+# build directory out from under the build.
+#
+# The second was the headline. Packages build in background subshells, and -E
+# gives each of them this trap, so an ordinary package failure printed
+# "build-chain.sh FAILED" from a worker while the script carried on to the next
+# tier. That run printed it three times and never died of any of them. A banner
+# that cries abort during normal operation is worse than none, because it
+# retrains the reader to ignore it. $BASHPID differs from $$ in a subshell and
+# nowhere else, which separates "the script died" from "a package failed".
+_on_error() {
+    local rc=$? cmd=$BASH_COMMAND
+    set +e
+    trap - ERR
+    echo "" >&2
+    if [[ "$BASHPID" == "$$" ]]; then
+        echo "=================== build-chain.sh FAILED ===================" >&2
+    else
+        # A worker subshell. The script is still running; the tier loop records
+        # this package as failed and the end-of-run summary names it.
+        echo "=============== package build FAILED (worker) ===============" >&2
+    fi
+    echo "exit status : ${rc}" >&2
+    echo "at line     : ${BASH_LINENO[0]:-?}" >&2
+    echo "command     : ${cmd}" >&2
+    echo "tier filter : ${FILTER_TIER:-<all>}" >&2
+    echo "package     : ${pkg_name:-<none in scope>}" >&2
+    # The build logs mock leaves behind, if this died during a package build.
+    local log
+    for log in "${builddir:-/nonexistent}/results/build.log" \
+               "${builddir:-/nonexistent}/results/root.log"; do
+        if [[ -r "$log" ]]; then
+            echo "--- tail of ${log} ---" >&2
+            tail -n 40 "$log" >&2 || true
+        fi
+    done
+    echo "=============================================================" >&2
+    exit "$rc"
+}
+trap _on_error ERR
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -805,6 +880,12 @@ build_package() {
     esac
 }
 
+# How many RPMs the local repo holds. Used to decide whether a tier's failures
+# are worth retrying: a retry can only help if something new landed.
+_repo_rpm_count() {
+    find "$LOCAL_REPO" -maxdepth 1 -name '*.rpm' 2>/dev/null | wc -l
+}
+
 # Run all packages in a tier with up to $JOBS parallel workers.
 build_tier() {
     local tier_name="$1"
@@ -819,6 +900,8 @@ build_tier() {
     local pids=()
     local pkg_paths=()
     local active=0
+    local _tier_start_rpms
+    _tier_start_rpms="$(_repo_rpm_count)"
 
     wait_one() {
         for i in "${!pids[@]}"; do
@@ -872,6 +955,41 @@ build_tier() {
     while [[ $active -gt 0 ]]; do
         wait_one
     done
+
+    # Retry this tier's failures once, if the tier produced anything.
+    #
+    # Tiers are a topological order over BuildRequires, but the ordering is not
+    # perfect: measured on the regenerated manifest, 43 one-way BuildRequires
+    # edges fall INSIDE a tier -- 27 in cosmic-10, 9 in cosmic-00, 5 in
+    # gnome-04, 2 in niri-15. Packages within a tier build concurrently, so
+    # those start before the thing they need exists. They are real edges, not
+    # artifacts: libepoxy BuildRequires mutter, libdecor BuildRequires gtk3 and
+    # libsoup3 BuildRequires glib-networking, and each pair shares gnome-04.
+    #
+    # A second pass fixes exactly that class by construction -- mutter is in
+    # the local repo by the time libepoxy is retried -- without needing to know
+    # why tier_sources mis-assigned them. Two hypotheses for that have already
+    # been proposed and disproved; this does not depend on the answer.
+    #
+    # Gated on the repo having GROWN during the tier. If nothing built, nothing
+    # a retry could need has appeared, so retrying is just a second identical
+    # failure at twice the cost. That gate is what keeps this from being a
+    # blanket "try everything twice".
+    if ((${#_tier_failed[@]})) && [[ "$(_repo_rpm_count)" -gt "$_tier_start_rpms" ]]; then
+        local retry=("${_tier_failed[@]}")
+        _tier_failed=()
+        log "  ${#retry[@]} package(s) failed but the repo grew during this tier;"
+        log "  retrying them once in case they lost an intra-tier race"
+        local path
+        for path in "${retry[@]}"; do
+            if build_package "$path" ""; then
+                log "  [retry] ${path} built on the second pass"
+            else
+                err "Failed: ${path}"
+                _tier_failed+=("${path}")
+            fi
+        done
+    fi
 }
 
 # --- Main ---

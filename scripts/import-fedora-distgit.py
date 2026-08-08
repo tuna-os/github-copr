@@ -28,55 +28,78 @@ import argparse
 import concurrent.futures
 import json
 import pathlib
-import random
 import re
 import shutil
 import subprocess
-import tempfile
 import time
+import tempfile
 
 import yaml
 
 RELEASE = re.compile(r"^(Release:\s*)(\d+)(%\{\?dist\}.*)$", re.MULTILINE)
 
-# Retry ceiling for a failed clone, in seconds: 2, 4, 8 ... capped.
-BACKOFF_BASE = 2.0
-BACKOFF_CAP = 30.0
 
 
-def backoff_delay(attempt: int) -> float:
-    """Full-jitter exponential backoff: a uniform draw from [0, ceiling].
+# A dist-git clone that fails is usually src.fedoraproject.org refusing or
+# dropping the connection, not a package that does not exist:
+#
+#   FAILED python-hatchling: fatal: the remote end hung up unexpectedly
+#   FAILED python-hatch-fancy-pypi-readme: fatal: the remote end hung up unexpectedly
+#   imported=9 skipped=0 failed=2
+#
+# (run 31266605500). The step exits 1 on any failure and `Build tiers` is
+# skipped, so two dropped connections cost the whole run. Three consecutive
+# dispatches were lost this way before anything was built.
+#
+# The host also returns 503 under load, and we are part of that load -- the
+# workflow clones with --jobs 8, all against one server. Run 31268302766 with
+# retries on:
+#
+#   Retrying python-wheel (1/2): ... The requested URL returned error: 503
+#   Retrying python-editables (2/2): ... The requested URL returned error: 503
+#   imported=8 skipped=0 failed=2
+#
+# Eight of eleven clones needed a retry and six of them recovered, so retrying
+# is right; three attempts over six seconds is just too impatient for a server
+# that is asking us to slow down. Hence five attempts, backing off to 16s.
+PERMANENT_CLONE_ERRORS = ("not found", "does not exist", "could not read username")
 
-    The jitter is the point, not a refinement.  --jobs clones run as one burst,
-    so when src.fedoraproject.org sheds load they fail *together*; a fixed
-    delay would re-issue all of them in the same instant and reproduce the
-    burst that caused the failure.  Drawing each retry independently spreads
-    them across the window instead.
+
+def clone_is_permanent_failure(stderr: str) -> bool:
+    """True when retrying cannot help -- the package is not there.
+
+    Everything else is treated as transient. Getting this wrong in the
+    permanent direction is much worse than in the transient direction: a
+    retried 404 wastes seconds, while a non-retried flake wastes the run.
     """
-    ceiling = min(BACKOFF_CAP, BACKOFF_BASE * (2 ** (attempt - 1)))
-    return random.uniform(0, ceiling)
+    lowered = stderr.lower()
+    return any(marker in lowered for marker in PERMANENT_CLONE_ERRORS)
 
 
-# A clone that failed because the package or the branch does not exist will
-# fail the same way forever.  Retrying it only delays the report by the whole
-# backoff budget, and the thing being reported is a manifest bug that should
-# surface fast -- so these are answered on the first attempt.
-DEFINITIVE = re.compile(
-    r"repository .* not found"
-    r"|remote branch .* not found"
-    r"|could not read username"
-    r"|authentication failed",
-    re.IGNORECASE,
-)
-
-
-def is_definitive_failure(stderr: str) -> bool:
-    return bool(DEFINITIVE.search(stderr))
-
-
-def last_error_line(stderr: str) -> str:
-    lines = stderr.strip().splitlines()[-1:]
-    return lines[0] if lines else "clone failed"
+def clone_with_retry(package, branch, checkout, attempts=3, runner=None, sleeper=None):
+    runner = runner or subprocess.run
+    sleeper = sleeper or time.sleep
+    url = f"https://src.fedoraproject.org/rpms/{package}.git"
+    result = None
+    for attempt in range(1, max(1, attempts) + 1):
+        # git refuses to clone into an existing non-empty directory, so a
+        # partial checkout left by a failed attempt would turn one transient
+        # error into a permanent one.
+        if checkout.exists():
+            shutil.rmtree(checkout, ignore_errors=True)
+        result = runner(
+            ["git", "clone", "--depth", "1", "--branch", branch, url, str(checkout)],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            return result
+        if clone_is_permanent_failure(result.stderr or ""):
+            return result
+        if attempt < max(1, attempts):
+            tail = (result.stderr or "").strip().splitlines()[-1:] or ["clone failed"]
+            print(f"Retrying {package} ({attempt}/{attempts - 1}): {tail[0]}")
+            sleeper(2 ** attempt)
+    return result
 
 
 def catalog_packages(catalog: pathlib.Path) -> list[tuple[str, pathlib.Path]]:
@@ -158,14 +181,14 @@ def main() -> None:
         "--jobs", type=int, default=4,
         help="Parallel dist-git clones. The clones are network-bound and "
              "independent; the copy and the state file stay serial so the "
-             "result does not depend on completion order.",
+             "result does not depend on completion order. They all hit one "
+             "host, though, so this is also how hard src.fedoraproject.org "
+             "is being pushed -- see --clone-attempts.",
     )
     parser.add_argument(
-        "--clone-attempts", type=int, default=4,
-        help="Tries per package before it counts as failed. src.fedoraproject.org "
-             "sheds load under a parallel clone burst (HTTP 503, or 'the remote "
-             "end hung up unexpectedly'), and one unlucky package used to fail "
-             "the entire import.",
+        "--clone-attempts", type=int, default=5,
+        help="Attempts per dist-git clone before giving up. A clone that fails "
+             "because the package does not exist is not retried.",
     )
     args = parser.parse_args()
 
@@ -194,36 +217,11 @@ def main() -> None:
                 continue
             pending.append((package, relative, target))
 
-        attempts = max(1, args.clone_attempts)
-
         def clone_one(item):
             package, _, _ = item
-            checkout = tempdir / package
-            url = f"https://src.fedoraproject.org/rpms/{package}.git"
-            result = None
-            for attempt in range(1, attempts + 1):
-                # git refuses to clone into a non-empty directory, so a partial
-                # checkout left by the previous attempt has to go first.
-                if checkout.exists():
-                    shutil.rmtree(checkout)
-                result = subprocess.run(
-                    ["git", "clone", "--depth", "1", "--branch", args.branch, url, str(checkout)],
-                    capture_output=True, text=True,
-                )
-                if result.returncode == 0:
-                    return item, result
-                if is_definitive_failure(result.stderr):
-                    return item, result
-                if attempt < attempts:
-                    delay = backoff_delay(attempt)
-                    print(
-                        f"Retrying {package} in {delay:.1f}s "
-                        f"(attempt {attempt}/{attempts}): "
-                        f"{last_error_line(result.stderr)}",
-                        flush=True,
-                    )
-                    time.sleep(delay)
-            return item, result
+            return item, clone_with_retry(
+                package, args.branch, tempdir / package, args.clone_attempts
+            )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
             outcomes = list(pool.map(clone_one, pending))
@@ -231,7 +229,8 @@ def main() -> None:
         for (package, relative, target), clone in outcomes:
             checkout = tempdir / package
             if clone.returncode != 0:
-                print(f"FAILED {package}: {last_error_line(clone.stderr)}")
+                tail = clone.stderr.strip().splitlines()[-1:] or ["clone failed"]
+                print(f"FAILED {package}: {tail[0]}")
                 failed += 1
                 continue
             commit = subprocess.run(
