@@ -57,3 +57,6 @@ hummingbird-imports.json
 
 # Cloudflare Wrangler local cache (never commit account auth)
 .wrangler/
+
+# Cloudflare Worker local build output
+/dist/
