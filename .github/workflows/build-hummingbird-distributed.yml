@@ -134,6 +134,7 @@ jobs:
           retention-days: 1
   consolidate-bootstrap-00:
     needs: build-bootstrap-00
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -171,6 +172,7 @@ jobs:
           '
   build-bootstrap-01:
     needs: consolidate-bootstrap-00
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -254,6 +256,7 @@ jobs:
           retention-days: 1
   consolidate-bootstrap-01:
     needs: build-bootstrap-01
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -291,6 +294,7 @@ jobs:
           '
   build-bootstrap-02:
     needs: consolidate-bootstrap-01
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -371,6 +375,7 @@ jobs:
           retention-days: 1
   consolidate-bootstrap-02:
     needs: build-bootstrap-02
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -408,6 +413,7 @@ jobs:
           '
   build-bootstrap-03:
     needs: consolidate-bootstrap-02
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -489,6 +495,7 @@ jobs:
           retention-days: 1
   consolidate-bootstrap-03:
     needs: build-bootstrap-03
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -526,6 +533,7 @@ jobs:
           '
   build-layer-00:
     needs: consolidate-bootstrap-03
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -812,6 +820,7 @@ jobs:
           retention-days: 1
   consolidate-layer-00:
     needs: build-layer-00
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -849,6 +858,7 @@ jobs:
           '
   build-layer-01:
     needs: consolidate-layer-00
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -1007,6 +1017,7 @@ jobs:
           retention-days: 1
   consolidate-layer-01:
     needs: build-layer-01
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -1044,6 +1055,7 @@ jobs:
           '
   build-layer-02:
     needs: consolidate-layer-01
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -1146,6 +1158,7 @@ jobs:
           retention-days: 1
   consolidate-layer-02:
     needs: build-layer-02
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -1183,6 +1196,7 @@ jobs:
           '
   build-layer-03:
     needs: consolidate-layer-02
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -1270,6 +1284,7 @@ jobs:
           retention-days: 1
   consolidate-layer-03:
     needs: build-layer-03
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -1307,6 +1322,7 @@ jobs:
           '
   build-layer-04:
     needs: consolidate-layer-03
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -1403,6 +1419,7 @@ jobs:
           retention-days: 1
   consolidate-layer-04:
     needs: build-layer-04
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -1440,6 +1457,7 @@ jobs:
           '
   build-layer-05:
     needs: consolidate-layer-04
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -1601,6 +1619,7 @@ jobs:
           retention-days: 1
   consolidate-layer-05:
     needs: build-layer-05
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -1638,6 +1657,7 @@ jobs:
           '
   build-layer-06:
     needs: consolidate-layer-05
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -1755,6 +1775,7 @@ jobs:
           retention-days: 1
   consolidate-layer-06:
     needs: build-layer-06
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -1792,6 +1813,7 @@ jobs:
           '
   build-layer-07:
     needs: consolidate-layer-06
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -1900,6 +1922,7 @@ jobs:
           retention-days: 1
   consolidate-layer-07:
     needs: build-layer-07
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -1937,6 +1960,7 @@ jobs:
           '
   build-layer-08:
     needs: consolidate-layer-07
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -2036,6 +2060,7 @@ jobs:
           retention-days: 1
   consolidate-layer-08:
     needs: build-layer-08
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -2073,6 +2098,7 @@ jobs:
           '
   build-layer-09:
     needs: consolidate-layer-08
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -2176,6 +2202,7 @@ jobs:
           retention-days: 1
   consolidate-layer-09:
     needs: build-layer-09
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -2213,6 +2240,7 @@ jobs:
           '
   build-layer-10:
     needs: consolidate-layer-09
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -2305,6 +2333,7 @@ jobs:
           retention-days: 1
   consolidate-layer-10:
     needs: build-layer-10
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -2342,6 +2371,7 @@ jobs:
           '
   build-layer-11:
     needs: consolidate-layer-10
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -2459,6 +2489,7 @@ jobs:
           retention-days: 1
   consolidate-layer-11:
     needs: build-layer-11
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -2496,6 +2527,7 @@ jobs:
           '
   build-layer-12:
     needs: consolidate-layer-11
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -2605,6 +2637,7 @@ jobs:
           retention-days: 1
   consolidate-layer-12:
     needs: build-layer-12
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -2642,6 +2675,7 @@ jobs:
           '
   build-layer-13:
     needs: consolidate-layer-12
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -2725,6 +2759,7 @@ jobs:
           retention-days: 1
   consolidate-layer-13:
     needs: build-layer-13
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -2762,6 +2797,7 @@ jobs:
           '
   build-layer-14:
     needs: consolidate-layer-13
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -2856,6 +2892,7 @@ jobs:
           retention-days: 1
   consolidate-layer-14:
     needs: build-layer-14
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -2893,6 +2930,7 @@ jobs:
           '
   build-layer-15-00:
     needs: consolidate-layer-14
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -3222,6 +3260,7 @@ jobs:
           retention-days: 1
   build-layer-15-01:
     needs: consolidate-layer-14
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -3304,6 +3343,7 @@ jobs:
     needs:
       - build-layer-15-00
       - build-layer-15-01
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -3341,6 +3381,7 @@ jobs:
           '
   build-layer-16:
     needs: consolidate-layer-15
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -3562,6 +3603,7 @@ jobs:
           retention-days: 1
   consolidate-layer-16:
     needs: build-layer-16
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -3599,6 +3641,7 @@ jobs:
           '
   build-layer-17:
     needs: consolidate-layer-16
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -3752,6 +3795,7 @@ jobs:
           retention-days: 1
   consolidate-layer-17:
     needs: build-layer-17
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -3789,6 +3833,7 @@ jobs:
           '
   build-layer-18:
     needs: consolidate-layer-17
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -3897,6 +3942,7 @@ jobs:
           retention-days: 1
   consolidate-layer-18:
     needs: build-layer-18
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -3934,6 +3980,7 @@ jobs:
           '
   build-layer-19:
     needs: consolidate-layer-18
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -4039,6 +4086,7 @@ jobs:
           retention-days: 1
   consolidate-layer-19:
     needs: build-layer-19
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -4076,6 +4124,7 @@ jobs:
           '
   build-layer-20:
     needs: consolidate-layer-19
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -4161,6 +4210,7 @@ jobs:
           retention-days: 1
   consolidate-layer-20:
     needs: build-layer-20
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -4198,6 +4248,7 @@ jobs:
           '
   build-layer-21:
     needs: consolidate-layer-20
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -4279,6 +4330,7 @@ jobs:
           retention-days: 1
   consolidate-layer-21:
     needs: build-layer-21
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -4316,6 +4368,7 @@ jobs:
           '
   build-layer-22:
     needs: consolidate-layer-21
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -4402,6 +4455,7 @@ jobs:
           retention-days: 1
   consolidate-layer-22:
     needs: build-layer-22
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -4439,6 +4493,7 @@ jobs:
           '
   build-layer-23:
     needs: consolidate-layer-22
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -4531,6 +4586,7 @@ jobs:
           retention-days: 1
   consolidate-layer-23:
     needs: build-layer-23
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -4568,6 +4624,7 @@ jobs:
           '
   build-layer-24:
     needs: consolidate-layer-23
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -4653,6 +4710,7 @@ jobs:
           retention-days: 1
   consolidate-layer-24:
     needs: build-layer-24
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -4690,6 +4748,7 @@ jobs:
           '
   build-layer-25:
     needs: consolidate-layer-24
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -4774,6 +4833,7 @@ jobs:
           retention-days: 1
   consolidate-layer-25:
     needs: build-layer-25
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -4811,6 +4871,7 @@ jobs:
           '
   build-layer-26:
     needs: consolidate-layer-25
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -4896,6 +4957,7 @@ jobs:
           retention-days: 1
   consolidate-layer-26:
     needs: build-layer-26
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -4933,6 +4995,7 @@ jobs:
           '
   build-layer-27:
     needs: consolidate-layer-26
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -5013,6 +5076,7 @@ jobs:
           retention-days: 1
   consolidate-layer-27:
     needs: build-layer-27
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -5050,6 +5114,7 @@ jobs:
           '
   build-layer-28:
     needs: consolidate-layer-27
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -5130,6 +5195,7 @@ jobs:
           retention-days: 1
   consolidate-layer-28:
     needs: build-layer-28
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -5167,6 +5233,7 @@ jobs:
           '
   build-layer-29:
     needs: consolidate-layer-28
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -5258,6 +5325,7 @@ jobs:
           retention-days: 1
   consolidate-layer-29:
     needs: build-layer-29
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -5295,6 +5363,7 @@ jobs:
           '
   build-layer-30:
     needs: consolidate-layer-29
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -5384,6 +5453,7 @@ jobs:
           retention-days: 1
   consolidate-layer-30:
     needs: build-layer-30
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -5421,6 +5491,7 @@ jobs:
           '
   build-layer-31:
     needs: consolidate-layer-30
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -5510,6 +5581,7 @@ jobs:
           retention-days: 1
   consolidate-layer-31:
     needs: build-layer-31
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -5547,6 +5619,7 @@ jobs:
           '
   build-layer-32:
     needs: consolidate-layer-31
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -5630,6 +5703,7 @@ jobs:
           retention-days: 1
   consolidate-layer-32:
     needs: build-layer-32
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -5667,6 +5741,7 @@ jobs:
           '
   build-layer-33:
     needs: consolidate-layer-32
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -5747,6 +5822,7 @@ jobs:
           retention-days: 1
   consolidate-layer-33:
     needs: build-layer-33
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -5784,6 +5860,7 @@ jobs:
           '
   build-layer-34:
     needs: consolidate-layer-33
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -5864,6 +5941,7 @@ jobs:
           retention-days: 1
   consolidate-layer-34:
     needs: build-layer-34
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -5901,6 +5979,7 @@ jobs:
           '
   build-layer-35:
     needs: consolidate-layer-34
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -5984,6 +6063,7 @@ jobs:
           retention-days: 1
   consolidate-layer-35:
     needs: build-layer-35
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
@@ -6021,6 +6101,7 @@ jobs:
           '
   publish:
     needs: consolidate-layer-35
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

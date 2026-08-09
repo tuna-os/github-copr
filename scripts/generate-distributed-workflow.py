@@ -119,6 +119,11 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         for chunk_index, (build_job_name, chunk) in enumerate(zip(build_job_names, chunks)):
             jobs[build_job_name] = {
                 'needs': prev_consolidate_job,
+                # Same reasoning, one link further down: seed-repo is the only
+                # predecessor whose failure should stop everything, and it is
+                # the predecessor of the first tier only.
+                **({} if prev_consolidate_job == 'seed-repo'
+                   else {'if': '${{ !cancelled() }}'}),
                 'runs-on': 'ubuntu-latest',
                 'strategy': {
                     'fail-fast': False,
@@ -176,6 +181,23 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         # Consolidate Job
         jobs[consolidate_job_name] = {
             'needs': build_job_names[0] if len(build_job_names) == 1 else build_job_names,
+            # A tier's job fails if ANY of its packages failed, and `needs`
+            # treats that as a stop sign: the consolidate is skipped, so the
+            # next tier is skipped, so every remaining tier and the publish
+            # are skipped too. One bad package out of 1248 would throw away
+            # the whole run and publish nothing.
+            #
+            # Rebuilding 1248 Rawhide packages will always turn up some that
+            # do not build -- SwayNotificationCenter BuildRequires
+            # pkgconfig(granite-7) and Rawhide ships Granite 6. So the barrier
+            # publishes what did build and the chain carries on. Packages
+            # downstream of a failure fail on their own missing dependency,
+            # which is the report you want: every failure in one pass instead
+            # of one per re-dispatch.
+            #
+            # The run still ends red -- a run's conclusion is failure if any
+            # job failed, whatever the later jobs do.
+            'if': '${{ !cancelled() }}',
             'runs-on': 'ubuntu-latest',
             'steps': [
                 {'name': 'Install createrepo_c', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c'},
@@ -202,6 +224,8 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
     # Final Publish Job
     jobs['publish'] = {
         'needs': prev_consolidate_job,
+        # Sign and publish whatever the run did build.
+        'if': '${{ !cancelled() }}',
         'runs-on': 'ubuntu-latest',
         'steps': [
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
