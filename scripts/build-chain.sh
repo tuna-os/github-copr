@@ -1012,31 +1012,52 @@ build_tier() {
 
     local pids=()
     local pkg_paths=()
+    # Worker output stays in a per-package file until the package exits, so
+    # parallel builds do not interleave. That made a single long build look
+    # indistinguishable from a hung one in Actions: after "Queued", nothing at
+    # all reached the live log until mock and rpmbuild both finished. Keep the
+    # clean final log, but let the parent scheduler prove every live worker is
+    # still alive once a minute.
+    local started_at=()
+    local last_heartbeat=()
+    local heartbeat_interval=60
     local active=0
     local _tier_start_rpms
     _tier_start_rpms="$(_repo_rpm_count)"
 
     wait_one() {
-        for i in "${!pids[@]}"; do
-            local pid="${pids[$i]}"
-            local path="${pkg_paths[$i]}"
-            if ! kill -0 "$pid" 2>/dev/null; then
-                local logfile
-                logfile="${logdir}/$(basename "$path").log"
-                cat "$logfile"
-                if wait "$pid"; then
-                    : # success
-                else
-                    err "Failed: ${path}"
-                    _tier_failed+=("${path}")
+        # This used to recurse every 0.5 seconds while all workers were alive.
+        # A TeX package can run for hours, so use a loop: progress reporting
+        # must not grow the shell call stack just because a build is slow.
+        while true; do
+            local now
+            now=$(date +%s)
+            for i in "${!pids[@]}"; do
+                local pid="${pids[$i]}"
+                local path="${pkg_paths[$i]}"
+                if ! kill -0 "$pid" 2>/dev/null; then
+                    local logfile
+                    logfile="${logdir}/$(basename "$path").log"
+                    cat "$logfile"
+                    if wait "$pid"; then
+                        : # success
+                    else
+                        err "Failed: ${path}"
+                        _tier_failed+=("${path}")
+                    fi
+                    unset 'pids[$i]' 'pkg_paths[$i]' 'started_at[$i]' 'last_heartbeat[$i]'
+                    active=$(( active - 1 ))
+                    return
                 fi
-                unset 'pids[$i]' 'pkg_paths[$i]'
-                active=$(( active - 1 ))
-                return
-            fi
+
+                if (( now - last_heartbeat[$i] >= heartbeat_interval )); then
+                    local elapsed=$(( now - started_at[$i] ))
+                    log "  Still building ${path} (pid ${pid}, elapsed ${elapsed}s)"
+                    last_heartbeat[$i]=$now
+                fi
+            done
+            sleep 0.5
         done
-        sleep 0.5
-        wait_one
     }
 
     while IFS=$'\t' read -r pkg_path spec_override; do
@@ -1058,10 +1079,15 @@ build_tier() {
         local logfile
         logfile="${logdir}/$(basename "$pkg_path").log"
         build_package "$pkg_path" "$spec_override" > "$logfile" 2>&1 &
-        pids+=($!)
+        local pid=$!
+        local now
+        now=$(date +%s)
+        pids+=("$pid")
         pkg_paths+=("$pkg_path")
+        started_at+=("$now")
+        last_heartbeat+=("$now")
         active=$(( active + 1 ))
-        log "  Queued ${pkg_path} (pid $!)"
+        log "  Queued ${pkg_path} (pid ${pid})"
 
     done < <(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --tier "$tier_name")
 
