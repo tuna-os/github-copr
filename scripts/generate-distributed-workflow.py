@@ -14,6 +14,17 @@ import os
 MAX_MATRIX_JOBS = 250
 
 
+# Every rclone in this workflow moves the same shape of data: a few thousand
+# small RPMs between R2 and a runner. rclone's defaults (4 transfers, 8
+# checkers, paginated listing) are tuned for a handful of large files, so the
+# seed spends its time on per-object round trips rather than on bandwidth.
+#
+# --stats is here so the next person can see the split between the transfer and
+# the createrepo_c that follows it; the first fan-out logged 108 silent seconds
+# and no way to tell which half to attack.
+RCLONE_FLAGS = "--transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line"
+
+
 def _rclone_conf(r2_state):
     """One rclone endpoint for the whole workflow.
 
@@ -76,9 +87,9 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         'runs-on': 'ubuntu-latest',
         'steps': [
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
-            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c'},
-            {'name': 'Configure rclone', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\n' + _rclone_conf(r2_state)},
-            {'name': 'Seed local repo from R2', 'run': f'mkdir -p local-repo\necho "Downloading existing repo from R2..."\nrclone sync "r2:${{R2_BUCKET}}/{r2_path}/" "local-repo/" --exclude "repodata/**" || true\ncreaterepo_c local-repo\n'},
+            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone'},
+            {'name': 'Configure rclone', 'run': _rclone_conf(r2_state)},
+            {'name': 'Seed local repo from R2', 'run': f'mkdir -p local-repo\necho "Downloading existing repo from R2..."\nrclone sync "r2:${{R2_BUCKET}}/{r2_path}/" "local-repo/" --exclude "repodata/**" {RCLONE_FLAGS} || true\ncreaterepo_c local-repo\n'},
             # With R2 as the shared state this job exists to guarantee the
             # repository has valid metadata before any runner seeds from it;
             # there is nothing to hand on as an artifact.
@@ -133,7 +144,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                 },
                 'steps': [
                     {'name': 'Checkout', 'uses': 'actions/checkout@v7', **({'with': {'submodules': 'recursive'}} if submodules else {})},
-                    {'name': 'Install host dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm'},
+                    {'name': 'Install host dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone'},
                     {'name': 'Cache CentOS Stream 10 image', 'uses': 'actions/cache@v6', 'with': {'path': '/tmp/cs10-image.tar', 'key': f"cs10-image-${{{{ hashFiles('{mock_cfg_file}') }}}}"}},
                     {'name': 'Load or pull image', 'run': 'if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n'},
                     *([
@@ -151,7 +162,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                         # Correctness is unchanged because the barrier is unchanged:
                         # a tier's runners start only after the previous tier's
                         # consolidate job has published to R2.
-                        {'name': 'Seed local repo from R2', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\nmkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ || true\ncreaterepo_c local-repo\n' % r2_path},
+                        {'name': 'Seed local repo from R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + ' || true\ncreaterepo_c local-repo\n') % r2_path},
                     ] if r2_state else [
                         {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
                     ]),
@@ -200,7 +211,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
             'if': '${{ !cancelled() }}',
             'runs-on': 'ubuntu-latest',
             'steps': [
-                {'name': 'Install createrepo_c', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c'},
+                {'name': 'Install createrepo_c', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone'},
                 *([] if r2_state else [
                     {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
                 ]),
@@ -210,7 +221,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                 *([
                     # copy, not sync: this tier adds to what earlier tiers
                     # published and must never delete it.
-                    {'name': 'Publish this tier to R2', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\nmkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nrclone copy local-repo/ "r2:${R2_BUCKET}/%s/"\n' % r2_path},
+                    {'name': 'Publish this tier to R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nrclone copy local-repo/ "r2:${R2_BUCKET}/%s/" ' + RCLONE_FLAGS + '\n') % r2_path},
                 ] if r2_state else [
                     {'name': 'Update repo', 'run': 'createrepo_c --update local-repo'},
                     {'name': 'Upload updated repo', 'uses': 'actions/upload-artifact@v7', 'with': {'name': repo_artifact_name, 'path': 'local-repo', 'retention-days': 1}},
@@ -229,9 +240,9 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         'runs-on': 'ubuntu-latest',
         'steps': [
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
-            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf\ncurl -fsSL https://rclone.org/install.sh | sudo bash\n'},
+            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf rclone'},
             *([
-                {'name': 'Seed final repo from R2', 'run': 'mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/\n' % r2_path},
+                {'name': 'Seed final repo from R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + '\n') % r2_path},
             ] if r2_state else [
                 {'name': 'Download final repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
             ]),
@@ -256,11 +267,11 @@ def _build_upload_run(r2_path, secondary_r2_path, install_script, install_r2_des
     # Use just the last path component for the echo message
     label = r2_path.split('/')[-1]
     lines = [f'echo "Uploading to {label}..."',
-             f'rclone sync local-repo/ "r2:${{R2_BUCKET}}/{r2_path}/"']
+             f'rclone sync local-repo/ "r2:${{R2_BUCKET}}/{r2_path}/" ' + RCLONE_FLAGS]
     if secondary_r2_path:
         label2 = secondary_r2_path.split('/')[-1]
         lines += [f'echo "Uploading to {label2}..."',
-                  f'rclone sync local-repo/ "r2:${{R2_BUCKET}}/{secondary_r2_path}/"']
+                  f'rclone sync local-repo/ "r2:${{R2_BUCKET}}/{secondary_r2_path}/" ' + RCLONE_FLAGS]
     lines += [f'rclone copyto public.gpg "r2:${{R2_BUCKET}}/public.gpg"',
               f'rclone copyto {install_script} "r2:${{R2_BUCKET}}/{install_r2_dest}"']
     return '\n'.join(lines) + '\n'

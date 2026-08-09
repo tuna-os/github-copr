@@ -17,11 +17,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Configure rclone
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -45,7 +43,7 @@ jobs:
 
           echo "Downloading existing repo from R2..."
 
-          rclone sync "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" "local-repo/" --exclude "repodata/**" || true
+          rclone sync "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" "local-repo/" --exclude "repodata/**" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -64,7 +62,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -73,9 +71,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -95,7 +91,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -138,7 +134,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -147,9 +143,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -167,7 +161,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-bootstrap-01:
@@ -186,7 +180,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -195,9 +189,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -217,7 +209,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -260,7 +252,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -269,9 +261,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -289,7 +279,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-bootstrap-02:
@@ -305,7 +295,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -314,9 +304,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -336,7 +324,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -379,7 +367,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -388,9 +376,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -408,7 +394,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-bootstrap-03:
@@ -425,7 +411,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -434,9 +420,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -456,7 +440,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -499,7 +483,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -508,9 +492,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -528,7 +510,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-00:
@@ -750,7 +732,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -759,9 +741,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -781,7 +761,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -824,7 +804,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -833,9 +813,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -853,7 +831,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-01:
@@ -947,7 +925,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -956,9 +934,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -978,7 +954,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -1021,7 +997,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -1030,9 +1006,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1050,7 +1024,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-02:
@@ -1088,7 +1062,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -1097,9 +1071,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1119,7 +1091,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -1162,7 +1134,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -1171,9 +1143,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1191,7 +1161,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-03:
@@ -1214,7 +1184,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -1223,9 +1193,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1245,7 +1213,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -1288,7 +1256,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -1297,9 +1265,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1317,7 +1283,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-04:
@@ -1349,7 +1315,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -1358,9 +1324,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1380,7 +1344,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -1423,7 +1387,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -1432,9 +1396,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1452,7 +1414,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-05:
@@ -1549,7 +1511,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -1558,9 +1520,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1580,7 +1540,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -1623,7 +1583,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -1632,9 +1592,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1652,7 +1610,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-06:
@@ -1705,7 +1663,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -1714,9 +1672,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1736,7 +1692,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -1779,7 +1735,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -1788,9 +1744,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1808,7 +1762,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-07:
@@ -1852,7 +1806,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -1861,9 +1815,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1883,7 +1835,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -1926,7 +1878,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -1935,9 +1887,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1955,7 +1905,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-08:
@@ -1990,7 +1940,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -1999,9 +1949,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2021,7 +1969,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -2064,7 +2012,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -2073,9 +2021,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2093,7 +2039,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-09:
@@ -2132,7 +2078,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -2141,9 +2087,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2163,7 +2107,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -2206,7 +2150,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -2215,9 +2159,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2235,7 +2177,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-10:
@@ -2263,7 +2205,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -2272,9 +2214,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2294,7 +2234,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -2337,7 +2277,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -2346,9 +2286,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2366,7 +2304,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-11:
@@ -2419,7 +2357,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -2428,9 +2366,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2450,7 +2386,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -2493,7 +2429,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -2502,9 +2438,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2522,7 +2456,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-12:
@@ -2567,7 +2501,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -2576,9 +2510,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2598,7 +2530,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -2641,7 +2573,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -2650,9 +2582,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2670,7 +2600,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-13:
@@ -2689,7 +2619,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -2698,9 +2628,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2720,7 +2648,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -2763,7 +2691,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -2772,9 +2700,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2792,7 +2718,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-14:
@@ -2822,7 +2748,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -2831,9 +2757,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2853,7 +2777,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -2896,7 +2820,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -2905,9 +2829,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2925,7 +2847,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-15-00:
@@ -3190,7 +3112,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -3199,9 +3121,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3221,7 +3141,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -3271,7 +3191,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -3280,9 +3200,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3302,7 +3220,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -3347,7 +3265,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -3356,9 +3274,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3376,7 +3292,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-16:
@@ -3533,7 +3449,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -3542,9 +3458,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3564,7 +3478,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -3607,7 +3521,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -3616,9 +3530,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3636,7 +3548,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-17:
@@ -3725,7 +3637,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -3734,9 +3646,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3756,7 +3666,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -3799,7 +3709,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -3808,9 +3718,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3828,7 +3736,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-18:
@@ -3872,7 +3780,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -3881,9 +3789,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3903,7 +3809,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -3946,7 +3852,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -3955,9 +3861,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3975,7 +3879,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-19:
@@ -4016,7 +3920,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -4025,9 +3929,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4047,7 +3949,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -4090,7 +3992,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -4099,9 +4001,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4119,7 +4019,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-20:
@@ -4140,7 +4040,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -4149,9 +4049,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4171,7 +4069,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -4214,7 +4112,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -4223,9 +4121,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4243,7 +4139,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-21:
@@ -4260,7 +4156,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -4269,9 +4165,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4291,7 +4185,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -4334,7 +4228,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -4343,9 +4237,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4363,7 +4255,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-22:
@@ -4385,7 +4277,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -4394,9 +4286,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4416,7 +4306,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -4459,7 +4349,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -4468,9 +4358,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4488,7 +4376,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-23:
@@ -4516,7 +4404,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -4525,9 +4413,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4547,7 +4433,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -4590,7 +4476,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -4599,9 +4485,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4619,7 +4503,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-24:
@@ -4640,7 +4524,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -4649,9 +4533,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4671,7 +4553,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -4714,7 +4596,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -4723,9 +4605,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4743,7 +4623,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-25:
@@ -4763,7 +4643,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -4772,9 +4652,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4794,7 +4672,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -4837,7 +4715,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -4846,9 +4724,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4866,7 +4742,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-26:
@@ -4887,7 +4763,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -4896,9 +4772,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4918,7 +4792,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -4961,7 +4835,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -4970,9 +4844,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4990,7 +4862,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-27:
@@ -5006,7 +4878,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -5015,9 +4887,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5037,7 +4907,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -5080,7 +4950,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -5089,9 +4959,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5109,7 +4977,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-28:
@@ -5125,7 +4993,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -5134,9 +5002,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5156,7 +5022,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -5199,7 +5065,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -5208,9 +5074,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5228,7 +5092,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-29:
@@ -5255,7 +5119,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -5264,9 +5128,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5286,7 +5148,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -5329,7 +5191,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -5338,9 +5200,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5358,7 +5218,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-30:
@@ -5383,7 +5243,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -5392,9 +5252,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5414,7 +5272,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -5457,7 +5315,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -5466,9 +5324,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5486,7 +5342,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-31:
@@ -5511,7 +5367,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -5520,9 +5376,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5542,7 +5396,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -5585,7 +5439,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -5594,9 +5448,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5614,7 +5466,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-32:
@@ -5633,7 +5485,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -5642,9 +5494,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5664,7 +5514,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -5707,7 +5557,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -5716,9 +5566,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5736,7 +5584,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-33:
@@ -5752,7 +5600,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -5761,9 +5609,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5783,7 +5629,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -5826,7 +5672,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -5835,9 +5681,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5855,7 +5699,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-34:
@@ -5871,7 +5715,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -5880,9 +5724,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5902,7 +5744,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -5945,7 +5787,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -5954,9 +5796,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5974,7 +5814,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   build-layer-35:
@@ -5993,7 +5833,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install host dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6
         with:
@@ -6002,9 +5842,7 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -6024,7 +5862,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ || true
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
 
           createrepo_c local-repo
 
@@ -6067,7 +5905,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install createrepo_c
-        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+        run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone
       - name: Download new RPMs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -6076,9 +5914,7 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          mkdir -p ~/.config/rclone
+        run: 'mkdir -p ~/.config/rclone
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -6096,7 +5932,7 @@ jobs:
 
           EOF
 
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
   publish:
@@ -6107,11 +5943,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install dependencies
-        run: 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf
-
-          curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          '
+        run: sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf rclone
       - name: Seed final repo from R2
         run: 'mkdir -p ~/.config/rclone
 
@@ -6133,7 +5965,7 @@ jobs:
 
           mkdir -p local-repo
 
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/
+          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
       - name: Import GPG key
@@ -6181,7 +6013,7 @@ jobs:
       - name: Upload to R2
         run: 'echo "Uploading to 20251124-x86_64..."
 
-          rclone sync local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/"
+          rclone sync local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           rclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"
 
