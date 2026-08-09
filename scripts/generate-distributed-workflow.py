@@ -133,6 +133,22 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                     {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
                 ]),
                 {'name': 'Cache mock chroot (dnf downloads)', 'uses': 'actions/cache@v6', 'with': {'path': '.mock-cache', 'key': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-${{{{ github.run_id }}}}", 'restore-keys': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-\nmock-cache-${{{{ matrix.package }}}}-"}},
+                # Import this package's dist-git packaging before building it.
+                #
+                # The sequential workflow imports a whole tier in one step; a
+                # fan-out job needs exactly one package, which is also far
+                # gentler on src.fedoraproject.org than bulk parallel clones --
+                # one clone per runner rather than four at a time over hundreds.
+                #
+                # Without this the runner has no spec at all and build-chain
+                # dies in find_spec with "package: <none in scope>", which is
+                # what happened on the first dispatch (run 31287886482): all
+                # three bootstrap-00 jobs failed in under three seconds.
+                #
+                # Packages under src/deps are maintained in this repository and
+                # carry no distgit key, so their spec is already checked out.
+                # The existence test is what tells the two apart.
+                {'name': "Import this package's dist-git packaging", 'run': 'set -euo pipefail\npkg_path="${{ matrix.package }}"\nif [ -d "$pkg_path" ]; then\n  echo "$pkg_path is maintained in-tree; nothing to import"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package "$(basename "$pkg_path")" \\\n    --dest "$(dirname "$pkg_path")" \\\n    --branch rawhide --release-bump\nfi\n'},
                 {'name': 'Build package', 'env': {'MOCK_CACHE_DIR': '${{ github.workspace }}/.mock-cache'}, 'run': f'touch .build-marker\nARGS=(--backend podman --tier {tier_name} --package ${{{{ matrix.package }}}}{manifest_flag}{mock_flag})\nif [[ "${{{{ github.event.inputs.force }}}}" == "true" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh "${{ARGS[@]}}"\n'},
                 {'name': 'Find new RPMs', 'id': 'find-rpms', 'run': 'mkdir -p new-rpms\nfind local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \\;\ncount=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)\necho "count=$count" >> $GITHUB_OUTPUT\n'},
                 {'name': 'Upload RPMs', 'if': "steps.find-rpms.outputs.count > '0'", 'uses': 'actions/upload-artifact@v7', 'with': {'name': f'rpms-{tier_name}-${{{{ strategy.job-index }}}}', 'path': 'new-rpms/*.rpm', 'retention-days': 1}}
