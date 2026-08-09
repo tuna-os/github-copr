@@ -100,10 +100,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -218,10 +216,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -333,10 +329,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -449,10 +443,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -770,10 +762,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -963,10 +953,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -1100,10 +1088,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -1222,10 +1208,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -1353,10 +1337,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -1549,10 +1531,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -1701,10 +1681,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -1844,10 +1822,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -1978,10 +1954,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -2116,10 +2090,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -2243,10 +2215,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -2395,10 +2365,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -2539,10 +2507,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -2657,10 +2623,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -2786,10 +2750,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -3150,10 +3112,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -3229,10 +3189,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -3487,10 +3445,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -3675,10 +3631,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -3818,10 +3772,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -3958,10 +3910,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -4078,10 +4028,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -4194,10 +4142,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -4315,10 +4261,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -4442,10 +4386,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -4562,10 +4504,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -4681,10 +4621,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -4801,10 +4739,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -4916,10 +4852,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -5031,10 +4965,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -5157,10 +5089,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -5281,10 +5211,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -5405,10 +5333,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -5523,10 +5449,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -5638,10 +5562,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -5753,10 +5675,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
@@ -5871,10 +5791,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .mock-cache
-          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/hummingbird-ci.cfg'') }}-
-
-            mock-cache-${{ matrix.package }}-'
+          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
+          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
       - name: Import this package's dist-git packaging
         run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
       - name: Build package
