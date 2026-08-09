@@ -65,3 +65,43 @@ desktops:
     sources: [{local: src/xfce-wayland}]
     required_packages: [xfconf, libxfce4ui, xfwl4]
     install_packages: [gdm, xfwl4, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, thunar, mousepad, ristretto, xfce4-terminal, xfce4-session, xfce4-panel, xfce4-settings, xfdesktop, xfwm4, xfconf, libxfce4ui]
+
+# The PEP-517 build backends Hummingbird does not ship (#268).
+#
+# These are not discovered by the gap measurement: a desktop's closure
+# reaches them through BuildRequires that %pyproject_buildrequires only
+# generates once the backend is already installed, so the measurement
+# cannot see them and the build cannot start without them.
+#
+# They were hand-added to the generated build order, which is marked DO
+# NOT HAND-EDIT -- regenerating it deleted them. Declaring them here
+# makes them an input to the generator instead of an edit it destroys.
+bootstrap:
+  - name: bootstrap-00
+    packages:
+      - path: src/hummingbird/python-flit-core
+        distgit: python-flit-core
+      - path: src/hummingbird/python-poetry-core
+        distgit: python-poetry-core
+      - path: src/hummingbird/python-trove-classifiers
+        distgit: python-trove-classifiers
+  - name: bootstrap-01
+    packages:
+      - path: src/hummingbird/python-editables
+        distgit: python-editables
+      - path: src/hummingbird/python-installer
+        distgit: python-installer
+      - path: src/hummingbird/python-pyproject-hooks
+        distgit: python-pyproject-hooks
+      - path: src/hummingbird/python-wheel
+        distgit: python-wheel
+  - name: bootstrap-02
+    packages:
+      - path: src/hummingbird/python-hatchling
+        distgit: python-hatchling
+  - name: bootstrap-03
+    packages:
+      - path: src/hummingbird/python-hatch-vcs
+        distgit: python-hatch-vcs
+      - path: src/hummingbird/python-hatch-fancy-pypi-readme
+        distgit: python-hatch-fancy-pypi-readme
