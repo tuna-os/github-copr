@@ -140,3 +140,68 @@ def test_the_pin_records_why_it_exists_and_when_to_drop_it() -> None:
         "— it must go when Hummingbird's own python3 reaches 3.15, or it will "
         "silently build 3.14 modules for a 3.15 target"
     )
+
+
+# --- the glob was too narrow; layer-02 found the hole -------------------------
+
+PYTHON_BUILD_TOOLCHAIN = (
+    "tomcli",
+    "pyproject-rpm-macros",
+    "pyproject-srpm-macros",
+    "python-rpm-macros",
+    "python-srpm-macros",
+)
+
+
+def test_the_pin_covers_its_own_build_toolchain(conf) -> None:
+    """`python3-*` does not match the macros that drive a pyproject build.
+
+    python-expandvars died in layer-02 on
+
+        cannot install both python3-3.15.0~rc1-1.fc45.x86_64 from fedora
+                       and python3-3.14.6-2.2.hum1.x86_64 from hummingbird
+         - tomcli-0.10.1-6.fc45.noarch from fedora requires
+           python3.15dist(click), but none of the providers can be installed
+
+    tomcli is what pyproject-rpm-macros uses to read pyproject.toml, so every
+    %pyproject_buildrequires package pulls it in.  None of these names starts
+    with `python3-`, so all of them came from Rawhide at 3.15 and conflicted
+    with Hummingbird's 3.14 interpreter.  93 of the 1248 packages in the build
+    order are python-*.
+    """
+    for repo in PINNED:
+        globs = {g.strip() for g in conf.get(repo, "includepkgs").split(",")}
+        missing = [n for n in PYTHON_BUILD_TOOLCHAIN if n not in globs]
+        assert not missing, (
+            f"{repo} does not carry {missing}; `python3-*` does not match them, "
+            "so they resolve from Rawhide against python 3.15 and conflict with "
+            "Hummingbird's 3.14"
+        )
+
+
+def test_the_interpreter_still_comes_from_hummingbird(conf) -> None:
+    """Widening the glob must not start shipping Fedora 44's python3.
+
+    `python3` is not `python3-*`, so it was never matched; adding names by hand
+    is exactly how it would get matched by accident.
+    """
+    for repo in PINNED:
+        globs = {g.strip() for g in conf.get(repo, "includepkgs").split(",")}
+        assert "python3" not in globs, (
+            f"{repo} includes python3 by name; the interpreter must come from "
+            "Hummingbird, not Fedora 44"
+        )
+
+
+def test_the_toolchain_widening_records_what_forced_it() -> None:
+    """Five names added by hand read as arbitrary without the failure behind them.
+
+    The next person to tidy this glob needs to see that tomcli is not
+    decoration: it is what pyproject-rpm-macros shells out to, and Rawhide's
+    build of it is bound to python3.15dist(click).
+    """
+    text = CONFIG.read_text()
+    assert "tomcli" in text and "python3.15dist(click)" in text, (
+        "the config no longer records the layer-02 chain that forced the "
+        "toolchain names into includepkgs"
+    )
