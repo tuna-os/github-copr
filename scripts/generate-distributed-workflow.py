@@ -3,6 +3,28 @@ import yaml
 import sys
 import os
 
+# GitHub caps a matrix at 256 jobs per workflow run. Tiering once over every
+# desktop makes tiers much wider than the per-desktop orders ever were --
+# layer-15 alone is 251 packages, five under the cap -- so a tier that outgrows
+# it is split across several matrix jobs instead of failing to schedule.
+#
+# Splitting costs nothing: a tier's packages have no edges between them (that
+# is what being in one tier means), so the chunks are siblings sharing one
+# `needs` and one consolidate barrier, not extra rounds.
+MAX_MATRIX_JOBS = 250
+
+
+# Every rclone in this workflow moves the same shape of data: a few thousand
+# small RPMs between R2 and a runner. rclone's defaults (4 transfers, 8
+# checkers, paginated listing) are tuned for a handful of large files, so the
+# seed spends its time on per-object round trips rather than on bandwidth.
+#
+# --stats is here so the next person can see the split between the transfer and
+# the createrepo_c that follows it; the first fan-out logged 108 silent seconds
+# and no way to tell which half to attack.
+RCLONE_FLAGS = "--transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line"
+
+
 def _rclone_conf(r2_state):
     """One rclone endpoint for the whole workflow.
 
@@ -65,9 +87,9 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         'runs-on': 'ubuntu-latest',
         'steps': [
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
-            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c'},
-            {'name': 'Configure rclone', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\n' + _rclone_conf(r2_state)},
-            {'name': 'Seed local repo from R2', 'run': f'mkdir -p local-repo\necho "Downloading existing repo from R2..."\nrclone sync "r2:${{R2_BUCKET}}/{r2_path}/" "local-repo/" --exclude "repodata/**" || true\ncreaterepo_c local-repo\n'},
+            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone'},
+            {'name': 'Configure rclone', 'run': _rclone_conf(r2_state)},
+            {'name': 'Seed local repo from R2', 'run': f'mkdir -p local-repo\necho "Downloading existing repo from R2..."\nrclone sync "r2:${{R2_BUCKET}}/{r2_path}/" "local-repo/" --exclude "repodata/**" {RCLONE_FLAGS} || true\ncreaterepo_c local-repo\n'},
             # With R2 as the shared state this job exists to guarantee the
             # repository has valid metadata before any runner seeds from it;
             # there is nothing to hand on as an artifact.
@@ -94,73 +116,102 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         tier_name = tier['name']
         packages = [pkg['path'] for pkg in tier['packages'] if 'path' in pkg]
         
-        build_job_name = f'build-{tier_name}'
         consolidate_job_name = f'consolidate-{tier_name}'
         repo_artifact_name = f'repo-{i+1}'
-        
-        # Build Job
-        jobs[build_job_name] = {
-            'needs': prev_consolidate_job,
-            'runs-on': 'ubuntu-latest',
-            'strategy': {
-                'fail-fast': False,
-                'matrix': {
-                    'package': packages
-                }
-            },
-            'steps': [
-                {'name': 'Checkout', 'uses': 'actions/checkout@v7', **({'with': {'submodules': 'recursive'}} if submodules else {})},
-                {'name': 'Install host dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm'},
-                {'name': 'Cache CentOS Stream 10 image', 'uses': 'actions/cache@v6', 'with': {'path': '/tmp/cs10-image.tar', 'key': f"cs10-image-${{{{ hashFiles('{mock_cfg_file}') }}}}"}},
-                {'name': 'Load or pull image', 'run': 'if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n'},
-                *([
-                    # Seed each runner straight from R2 rather than passing the
-                    # whole repository between tiers as an artifact.
+
+        chunks = [packages[k:k + MAX_MATRIX_JOBS]
+                  for k in range(0, len(packages), MAX_MATRIX_JOBS)] or [[]]
+        build_job_names = [
+            f'build-{tier_name}' if len(chunks) == 1 else f'build-{tier_name}-{k:02d}'
+            for k in range(len(chunks))
+        ]
+
+        # Build Jobs: one per chunk, all siblings of the same barrier.
+        for chunk_index, (build_job_name, chunk) in enumerate(zip(build_job_names, chunks)):
+            jobs[build_job_name] = {
+                'needs': prev_consolidate_job,
+                # Same reasoning, one link further down: seed-repo is the only
+                # predecessor whose failure should stop everything, and it is
+                # the predecessor of the first tier only.
+                **({} if prev_consolidate_job == 'seed-repo'
+                   else {'if': '${{ !cancelled() }}'}),
+                'runs-on': 'ubuntu-latest',
+                'strategy': {
+                    'fail-fast': False,
+                    'matrix': {
+                        'package': chunk
+                    }
+                },
+                'steps': [
+                    {'name': 'Checkout', 'uses': 'actions/checkout@v7', **({'with': {'submodules': 'recursive'}} if submodules else {})},
+                    {'name': 'Install host dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone'},
+                    {'name': 'Cache CentOS Stream 10 image', 'uses': 'actions/cache@v6', 'with': {'path': '/tmp/cs10-image.tar', 'key': f"cs10-image-${{{{ hashFiles('{mock_cfg_file}') }}}}"}},
+                    {'name': 'Load or pull image', 'run': 'if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n'},
+                    *([
+                        # Seed each runner straight from R2 rather than passing the
+                        # whole repository between tiers as an artifact.
+                        #
+                        # The artifact route is O(repo x packages-in-tier): every
+                        # runner downloads the entire repo. Hummingbird's repo is
+                        # over a gigabyte and gnome-00 alone is 116 packages, so a
+                        # single tier would move on the order of a hundred gigabytes
+                        # of artifact traffic to distribute a few hundred megabytes
+                        # of RPMs. Seeding is O(1) per runner and takes about two
+                        # minutes, which the sequential workflow already pays once.
+                        #
+                        # Correctness is unchanged because the barrier is unchanged:
+                        # a tier's runners start only after the previous tier's
+                        # consolidate job has published to R2.
+                        {'name': 'Seed local repo from R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + ' || true\ncreaterepo_c local-repo\n') % r2_path},
+                    ] if r2_state else [
+                        {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
+                    ]),
+                    {'name': 'Cache mock chroot (dnf downloads)', 'uses': 'actions/cache@v6', 'with': {'path': '.mock-cache', 'key': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-${{{{ github.run_id }}}}", 'restore-keys': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-\nmock-cache-${{{{ matrix.package }}}}-"}},
+                    # Import this package's dist-git packaging before building it.
                     #
-                    # The artifact route is O(repo x packages-in-tier): every
-                    # runner downloads the entire repo. Hummingbird's repo is
-                    # over a gigabyte and gnome-00 alone is 116 packages, so a
-                    # single tier would move on the order of a hundred gigabytes
-                    # of artifact traffic to distribute a few hundred megabytes
-                    # of RPMs. Seeding is O(1) per runner and takes about two
-                    # minutes, which the sequential workflow already pays once.
+                    # The sequential workflow imports a whole tier in one step; a
+                    # fan-out job needs exactly one package, which is also far
+                    # gentler on src.fedoraproject.org than bulk parallel clones --
+                    # one clone per runner rather than four at a time over hundreds.
                     #
-                    # Correctness is unchanged because the barrier is unchanged:
-                    # a tier's runners start only after the previous tier's
-                    # consolidate job has published to R2.
-                    {'name': 'Seed local repo from R2', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\nmkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ || true\ncreaterepo_c local-repo\n' % r2_path},
-                ] if r2_state else [
-                    {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
-                ]),
-                {'name': 'Cache mock chroot (dnf downloads)', 'uses': 'actions/cache@v6', 'with': {'path': '.mock-cache', 'key': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-${{{{ github.run_id }}}}", 'restore-keys': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-\nmock-cache-${{{{ matrix.package }}}}-"}},
-                # Import this package's dist-git packaging before building it.
-                #
-                # The sequential workflow imports a whole tier in one step; a
-                # fan-out job needs exactly one package, which is also far
-                # gentler on src.fedoraproject.org than bulk parallel clones --
-                # one clone per runner rather than four at a time over hundreds.
-                #
-                # Without this the runner has no spec at all and build-chain
-                # dies in find_spec with "package: <none in scope>", which is
-                # what happened on the first dispatch (run 31287886482): all
-                # three bootstrap-00 jobs failed in under three seconds.
-                #
-                # Packages under src/deps are maintained in this repository and
-                # carry no distgit key, so their spec is already checked out.
-                # The existence test is what tells the two apart.
-                {'name': "Import this package's dist-git packaging", 'run': 'set -euo pipefail\npkg_path="${{ matrix.package }}"\nif [ -d "$pkg_path" ]; then\n  echo "$pkg_path is maintained in-tree; nothing to import"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package "$(basename "$pkg_path")" \\\n    --dest "$(dirname "$pkg_path")" \\\n    --branch rawhide --release-bump\nfi\n'},
-                {'name': 'Build package', 'env': {'MOCK_CACHE_DIR': '${{ github.workspace }}/.mock-cache'}, 'run': f'touch .build-marker\nARGS=(--backend podman --tier {tier_name} --package ${{{{ matrix.package }}}}{manifest_flag}{mock_flag})\nif [[ "${{{{ github.event.inputs.force }}}}" == "true" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh "${{ARGS[@]}}"\n'},
-                {'name': 'Find new RPMs', 'id': 'find-rpms', 'run': 'mkdir -p new-rpms\nfind local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \\;\ncount=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)\necho "count=$count" >> $GITHUB_OUTPUT\n'},
-                {'name': 'Upload RPMs', 'if': "steps.find-rpms.outputs.count > '0'", 'uses': 'actions/upload-artifact@v7', 'with': {'name': f'rpms-{tier_name}-${{{{ strategy.job-index }}}}', 'path': 'new-rpms/*.rpm', 'retention-days': 1}}
-            ]
-        }
+                    # Without this the runner has no spec at all and build-chain
+                    # dies in find_spec with "package: <none in scope>", which is
+                    # what happened on the first dispatch (run 31287886482): all
+                    # three bootstrap-00 jobs failed in under three seconds.
+                    #
+                    # Packages under src/deps are maintained in this repository and
+                    # carry no distgit key, so their spec is already checked out.
+                    # The existence test is what tells the two apart.
+                    {'name': "Import this package's dist-git packaging", 'run': 'set -euo pipefail\npkg_path="${{ matrix.package }}"\nif [ -d "$pkg_path" ]; then\n  echo "$pkg_path is maintained in-tree; nothing to import"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package "$(basename "$pkg_path")" \\\n    --dest "$(dirname "$pkg_path")" \\\n    --branch rawhide --release-bump\nfi\n'},
+                    {'name': 'Build package', 'env': {'MOCK_CACHE_DIR': '${{ github.workspace }}/.mock-cache'}, 'run': f'touch .build-marker\nARGS=(--backend podman --tier {tier_name} --package ${{{{ matrix.package }}}}{manifest_flag}{mock_flag})\nif [[ "${{{{ github.event.inputs.force }}}}" == "true" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh "${{ARGS[@]}}"\n'},
+                    {'name': 'Find new RPMs', 'id': 'find-rpms', 'run': 'mkdir -p new-rpms\nfind local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \\;\ncount=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)\necho "count=$count" >> $GITHUB_OUTPUT\n'},
+                    {'name': 'Upload RPMs', 'if': "steps.find-rpms.outputs.count > '0'", 'uses': 'actions/upload-artifact@v7', 'with': {'name': f'rpms-{tier_name}-{chunk_index}-${{{{ strategy.job-index }}}}', 'path': 'new-rpms/*.rpm', 'retention-days': 1}}
+                ]
+            }
         
         # Consolidate Job
         jobs[consolidate_job_name] = {
-            'needs': build_job_name,
+            'needs': build_job_names[0] if len(build_job_names) == 1 else build_job_names,
+            # A tier's job fails if ANY of its packages failed, and `needs`
+            # treats that as a stop sign: the consolidate is skipped, so the
+            # next tier is skipped, so every remaining tier and the publish
+            # are skipped too. One bad package out of 1248 would throw away
+            # the whole run and publish nothing.
+            #
+            # Rebuilding 1248 Rawhide packages will always turn up some that
+            # do not build -- SwayNotificationCenter BuildRequires
+            # pkgconfig(granite-7) and Rawhide ships Granite 6. So the barrier
+            # publishes what did build and the chain carries on. Packages
+            # downstream of a failure fail on their own missing dependency,
+            # which is the report you want: every failure in one pass instead
+            # of one per re-dispatch.
+            #
+            # The run still ends red -- a run's conclusion is failure if any
+            # job failed, whatever the later jobs do.
+            'if': '${{ !cancelled() }}',
             'runs-on': 'ubuntu-latest',
             'steps': [
-                {'name': 'Install createrepo_c', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c'},
+                {'name': 'Install createrepo_c', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone'},
                 *([] if r2_state else [
                     {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
                 ]),
@@ -170,7 +221,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                 *([
                     # copy, not sync: this tier adds to what earlier tiers
                     # published and must never delete it.
-                    {'name': 'Publish this tier to R2', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\nmkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nrclone copy local-repo/ "r2:${R2_BUCKET}/%s/"\n' % r2_path},
+                    {'name': 'Publish this tier to R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nrclone copy local-repo/ "r2:${R2_BUCKET}/%s/" ' + RCLONE_FLAGS + '\n') % r2_path},
                 ] if r2_state else [
                     {'name': 'Update repo', 'run': 'createrepo_c --update local-repo'},
                     {'name': 'Upload updated repo', 'uses': 'actions/upload-artifact@v7', 'with': {'name': repo_artifact_name, 'path': 'local-repo', 'retention-days': 1}},
@@ -184,12 +235,14 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
     # Final Publish Job
     jobs['publish'] = {
         'needs': prev_consolidate_job,
+        # Sign and publish whatever the run did build.
+        'if': '${{ !cancelled() }}',
         'runs-on': 'ubuntu-latest',
         'steps': [
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
-            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf\ncurl -fsSL https://rclone.org/install.sh | sudo bash\n'},
+            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf rclone'},
             *([
-                {'name': 'Seed final repo from R2', 'run': 'mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/\n' % r2_path},
+                {'name': 'Seed final repo from R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + '\n') % r2_path},
             ] if r2_state else [
                 {'name': 'Download final repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
             ]),
@@ -214,11 +267,11 @@ def _build_upload_run(r2_path, secondary_r2_path, install_script, install_r2_des
     # Use just the last path component for the echo message
     label = r2_path.split('/')[-1]
     lines = [f'echo "Uploading to {label}..."',
-             f'rclone sync local-repo/ "r2:${{R2_BUCKET}}/{r2_path}/"']
+             f'rclone sync local-repo/ "r2:${{R2_BUCKET}}/{r2_path}/" ' + RCLONE_FLAGS]
     if secondary_r2_path:
         label2 = secondary_r2_path.split('/')[-1]
         lines += [f'echo "Uploading to {label2}..."',
-                  f'rclone sync local-repo/ "r2:${{R2_BUCKET}}/{secondary_r2_path}/"']
+                  f'rclone sync local-repo/ "r2:${{R2_BUCKET}}/{secondary_r2_path}/" ' + RCLONE_FLAGS]
     lines += [f'rclone copyto public.gpg "r2:${{R2_BUCKET}}/public.gpg"',
               f'rclone copyto {install_script} "r2:${{R2_BUCKET}}/{install_r2_dest}"']
     return '\n'.join(lines) + '\n'

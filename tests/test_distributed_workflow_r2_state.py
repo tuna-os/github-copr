@@ -4,7 +4,7 @@ The generator's original model hands the whole repository from tier to tier as
 an artifact: every build runner downloads it. That is O(repo x packages-in-tier)
 and it was fine at the scale it was written for.
 
-Hummingbird's repository is over a gigabyte and gnome-00 is 108 packages, so a
+Hummingbird's repository is over a gigabyte and layer-15 is 251 packages, so a
 single tier would move on the order of a hundred gigabytes of artifact traffic
 in order to distribute a few hundred megabytes of RPMs.
 
@@ -28,7 +28,7 @@ MANIFEST = REPO / "build-order-hummingbird-desktops.yml"
 
 def generate(tmp_path, *extra):
     order = yaml.safe_load(MANIFEST.read_text())
-    slice_ = [t for t in order["tiers"] if t["name"].startswith(("bootstrap", "gnome"))]
+    slice_ = [t for t in order["tiers"] if t["name"].startswith(("bootstrap", "layer-0"))]
     src = tmp_path / "order.yml"
     src.write_text(yaml.safe_dump({"r2_path": order["r2_path"], "tiers": slice_}, sort_keys=False))
     out = tmp_path / "wf.yml"
@@ -62,7 +62,7 @@ def test_r2_state_never_moves_the_repository_as_an_artifact(tmp_path):
 def test_without_the_flag_the_original_artifact_model_is_untouched(tmp_path):
     """The generator has another caller; this must be opt-in."""
     wf = generate(tmp_path)
-    assert "Download previous repo" in step_names(wf["jobs"]["build-gnome-00"])
+    assert "Download previous repo" in step_names(wf["jobs"]["build-layer-00"])
 
 
 def test_every_build_runner_seeds_itself(tmp_path):
@@ -76,7 +76,7 @@ def test_the_barrier_between_tiers_survives(tmp_path):
     """Correctness rests on this: tier N must wait for tier N-1 to publish."""
     wf = generate(tmp_path, "--r2-state")
     tiers = [t["name"] for t in yaml.safe_load(MANIFEST.read_text())["tiers"]
-             if t["name"].startswith(("bootstrap", "gnome"))]
+             if t["name"].startswith(("bootstrap", "layer-0"))]
     for previous, current in zip(tiers, tiers[1:]):
         assert wf["jobs"][f"build-{current}"]["needs"] == f"consolidate-{previous}", (
             f"build-{current} does not wait for consolidate-{previous}; its packages "
@@ -111,7 +111,7 @@ def test_a_failing_package_does_not_cancel_its_tier(tmp_path):
 def test_tiers_publish_with_copy_not_sync(tmp_path):
     """sync would delete what earlier tiers published."""
     wf = generate(tmp_path, "--r2-state")
-    publish = next(s for s in wf["jobs"]["consolidate-gnome-00"]["steps"]
+    publish = next(s for s in wf["jobs"]["consolidate-layer-00"]["steps"]
                    if s.get("name") == "Publish this tier to R2")
     assert "rclone copy" in publish["run"]
     assert "rclone sync" not in publish["run"]
@@ -172,7 +172,7 @@ def test_every_build_job_imports_its_package_before_building(tmp_path):
 def test_the_import_takes_one_package_not_the_whole_tier(tmp_path):
     """One clone per runner. --tier here would be 108 clones x 108 runners."""
     wf = generate(tmp_path, "--r2-state")
-    step = next(s for s in wf["jobs"]["build-gnome-00"]["steps"]
+    step = next(s for s in wf["jobs"]["build-layer-00"]["steps"]
                 if s.get("name") == "Import this package's dist-git packaging")
     assert "--package" in step["run"]
     assert "--tier" not in step["run"], (
@@ -183,7 +183,7 @@ def test_the_import_takes_one_package_not_the_whole_tier(tmp_path):
 
 def test_in_tree_packages_are_not_imported(tmp_path):
     """src/deps/* are maintained here and have no distgit to import."""
-    step = next(s for s in generate(tmp_path, "--r2-state")["jobs"]["build-gnome-00"]["steps"]
+    step = next(s for s in generate(tmp_path, "--r2-state")["jobs"]["build-layer-00"]["steps"]
                 if s.get("name") == "Import this package's dist-git packaging")
     assert 'if [ -d "$pkg_path" ]' in step["run"], (
         "no check for an in-tree package; the import would try to clone a "
