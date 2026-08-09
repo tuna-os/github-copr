@@ -166,7 +166,28 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                     ] if r2_state else [
                         {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
                     ]),
-                    {'name': 'Cache mock chroot (dnf downloads)', 'uses': 'actions/cache@v6', 'with': {'path': '.mock-cache', 'key': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-${{{{ github.run_id }}}}", 'restore-keys': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-\nmock-cache-${{{{ matrix.package }}}}-"}},
+                    # /var/cache/mock is dnf's download cache plus the chroot
+                    # root cache. Both are keyed by the mock config, not by the
+                    # package being built -- that is what makes them shareable.
+                    #
+                    # Keying per package came from Tideforge, where ~46 leaf
+                    # packages are rebuilt over and over and a package's own
+                    # cache is exactly what you want. A fan-out inverts that:
+                    # each of 1248 packages builds ONCE, so a per-package key
+                    # cannot hit inside a run, and every job still writes an
+                    # entry. Measured on run 31294475023, one job wrote
+                    #
+                    #     Sent 372724132 of 372724132 (100.0%), 220.6 MBs/sec
+                    #
+                    # 372 MB x 1248 jobs is about 465 GB of writes against a
+                    # 10 GB per-repository cache limit. It evicts continuously,
+                    # so the restore-keys almost never hit, and it takes the
+                    # cs10-image entry -- which does hit -- down with it.
+                    #
+                    # Dropping the package from the key means one entry per run
+                    # instead of 1248. Concurrent jobs racing to save the same
+                    # key is fine: the first wins and the rest warn.
+                    {'name': 'Cache mock chroot (dnf downloads)', 'uses': 'actions/cache@v6', 'with': {'path': '.mock-cache', 'key': (f"mock-cache-${{{{ hashFiles('{mock_cfg_file}') }}}}-${{{{ github.run_id }}}}" if r2_state else f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-${{{{ github.run_id }}}}"), 'restore-keys': (f"mock-cache-${{{{ hashFiles('{mock_cfg_file}') }}}}-" if r2_state else f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-\nmock-cache-${{{{ matrix.package }}}}-")}},
                     # Import this package's dist-git packaging before building it.
                     #
                     # The sequential workflow imports a whole tier in one step; a
