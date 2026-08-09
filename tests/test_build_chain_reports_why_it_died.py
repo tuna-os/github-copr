@@ -130,3 +130,173 @@ def test_a_failed_package_does_not_claim_the_script_died(tmp_path: Path) -> None
         f"worker failure went unreported: {proc.stderr!r}"
     )
     assert "package     : somepkg" in proc.stderr
+
+
+def test_the_dispatcher_records_the_package_in_a_global(tmp_path: Path) -> None:
+    """The trap runs after the failing function has already returned.
+
+    Its locals are popped by then, so pkg_dir is unset inside _on_error and
+    dynamic scoping does not save you -- verified directly, a `local pkg_dir`
+    in the caller reads as UNSET in the handler. That is why the worker banner
+    printed "package: <none in scope>" for every failure in run 31294475023,
+    which made an unbuildable qt6 module and #301's missing-spec bug produce
+    identical output.
+
+    A global set before dispatch survives the return.
+    """
+    text = SCRIPT.read_text()
+    assert "CURRENT_PACKAGE=" in text, "build_package no longer records the package"
+    dispatcher = text.split("build_package() {", 1)[1].split("\n}", 1)[0]
+    assert "CURRENT_PACKAGE=" in dispatcher, (
+        "CURRENT_PACKAGE is set somewhere other than the dispatcher, so a "
+        "failure in the dispatcher itself would not be attributed"
+    )
+    assert "local CURRENT_PACKAGE" not in dispatcher, (
+        "CURRENT_PACKAGE is local, which is exactly the bug being fixed"
+    )
+
+
+def test_the_trap_names_the_package_that_was_being_built(tmp_path: Path) -> None:
+    handler = SCRIPT.read_text().split("_on_error() {", 1)[1].split("\n}", 1)[0]
+    script = tmp_path / "t.sh"
+    script.write_text(textwrap.dedent(f"""\
+        set -Eeuo pipefail
+        _on_error() {{{handler}
+        }}
+        trap _on_error ERR
+        build_package() {{
+            local pkg_dir="$1"
+            CURRENT_PACKAGE="$(basename "$pkg_dir")"
+            return 1
+        }}
+        build_package /src/hummingbird/qt6-qtserialport
+    """))
+    out = subprocess.run(["bash", str(script)], capture_output=True, text=True)
+    assert out.returncode != 0
+    assert "qt6-qtserialport" in out.stderr, (
+        f"the trap did not name the package it died on:\n{out.stderr}"
+    )
+    assert "<none in scope>" not in out.stderr
+
+
+def test_it_still_says_none_when_there_is_genuinely_no_package(tmp_path: Path) -> None:
+    """A failure outside any package must not invent one."""
+    handler = SCRIPT.read_text().split("_on_error() {", 1)[1].split("\n}", 1)[0]
+    script = tmp_path / "t.sh"
+    script.write_text(textwrap.dedent(f"""\
+        set -Eeuo pipefail
+        _on_error() {{{handler}
+        }}
+        trap _on_error ERR
+        false
+    """))
+    out = subprocess.run(["bash", str(script)], capture_output=True, text=True)
+    assert "<none in scope>" in out.stderr, out.stderr
+
+
+def _mock_teardown_noise(chroot: str, lines: int = 100) -> str:
+    """What mock writes to root.log AFTER the build, verbatim in shape.
+
+    Copied from run 31294475023's python-setproctitle job: every root.log tail
+    in that run was exclusively this.
+    """
+    out = []
+    for i in range(lines):
+        out.append(
+            f"DEBUG util.py:558:  Executing command: ['/bin/umount', '-n', "
+            f"'/var/lib/mock/{chroot}/root/dev/node{i}'] with env "
+            "{'TERM': 'vt100'} and shell False"
+        )
+        out.append("DEBUG util.py:610:  Child return code was: 0")
+    return "\n".join(out)
+
+
+def _drive_with_logs(
+    tmp_path: Path, build_log: str = "", root_log: str = ""
+) -> subprocess.CompletedProcess:
+    """Fail inside the real handler with real result logs on disk."""
+    results = tmp_path / "results"
+    results.mkdir(parents=True, exist_ok=True)
+    (results / "build.log").write_text(build_log)
+    (results / "root.log").write_text(root_log)
+    return _drive_handler(tmp_path, f"""
+        FILTER_TIER=layer-00
+        builddir={tmp_path}
+        pkg_name=demo
+        false
+    """)
+
+
+def test_the_dnf_error_survives_mocks_teardown(tmp_path: Path) -> None:
+    """The one line that explains the failure is ~90 lines above the tail.
+
+    Run 31294475023 failed qt6-qtserialport, qt6-qtlanguageserver and
+    python-setproctitle on the buildroot install. All three printed a root.log
+    tail of nothing but umount DEBUG, because mock unmounts ~45 paths after the
+    build and each costs two lines. Asking for more tail does not reach it: a
+    failing job in that run is ~11,800 lines, since a mock failure cats
+    build.log and root.log in full, and every log retrieval path returns the
+    tail. So the reason has to be re-emitted last or it is unreadable.
+    """
+    proc = _drive_with_logs(
+        tmp_path,
+        root_log=(
+            "DEBUG util.py:558:  Executing command: ['dnf5', 'builddep']\n"
+            "DEBUG util.py:598:  Problem: conflicting requests\n"
+            "DEBUG util.py:598:   - package python3-flit-core-3.12.0-1.fc45.noarch"
+            " requires python(abi) = 3.15, but none of the providers can be"
+            " installed\n"
+            + _mock_teardown_noise("hummingbird-ci-python-setproctitle")
+        ),
+    )
+    assert proc.returncode != 0
+    assert "but none of the providers can be installed" in proc.stderr, (
+        "the dnf error is still buried above mock's teardown:\n" + proc.stderr
+    )
+    assert "conflicting requests" in proc.stderr
+
+
+def test_a_stale_patch_is_named_from_build_log(tmp_path: Path) -> None:
+    """zimg died in %prep; its build.log tail carried the reason, most do not."""
+    proc = _drive_with_logs(
+        tmp_path,
+        build_log=(
+            "+ /usr/bin/patch -p1 -s --fuzz=0 --no-backup-if-mismatch -f\n"
+            "1 out of 1 hunk FAILED -- saving rejects to file"
+            " src/zimg/colorspace/x86/operation_impl_x86.cpp.rej\n"
+            "error: Bad exit status from /var/tmp/rpm-tmp.E03Dqj (%prep)\n"
+            + "\n".join(f"filler line {i}" for i in range(200))
+        ),
+    )
+    assert "hunk FAILED" in proc.stderr, proc.stderr
+    assert "Bad exit status from" in proc.stderr
+
+
+def test_it_does_not_invent_a_reason_when_the_log_has_none(tmp_path: Path) -> None:
+    """A 'why' section that fires on every failure is another blind tail.
+
+    If the log carries no recognisable error shape, say nothing rather than
+    print the last 20 arbitrary lines under a heading that claims they are the
+    cause.
+    """
+    proc = _drive_with_logs(
+        tmp_path, root_log=_mock_teardown_noise("hummingbird-ci-demo")
+    )
+    assert "why" not in proc.stderr.split("--- tail of")[0].lower().replace(
+        "package build failed", ""
+    ), proc.stderr
+    assert "--- tail of" in proc.stderr
+
+
+def test_the_handler_still_survives_an_unreadable_log(tmp_path: Path) -> None:
+    """grep on a missing file must not kill the handler mid-report."""
+    proc = _drive_handler(tmp_path, f"""
+        FILTER_TIER=layer-00
+        builddir={tmp_path}/nowhere
+        false
+    """)
+    assert proc.returncode != 0
+    assert "build-chain.sh FAILED" in proc.stderr
+    assert proc.stderr.rstrip().endswith("="), (
+        "the handler did not reach its closing rule:\n" + proc.stderr
+    )

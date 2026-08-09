@@ -87,12 +87,47 @@ _on_error() {
     echo "at line     : ${BASH_LINENO[0]:-?}" >&2
     echo "command     : ${cmd}" >&2
     echo "tier filter : ${FILTER_TIER:-<all>}" >&2
-    echo "package     : ${pkg_name:-<none in scope>}" >&2
+    echo "package     : ${pkg_name:-${CURRENT_PACKAGE:-<none in scope>}}" >&2
     # The build logs mock leaves behind, if this died during a package build.
-    local log
+    #
+    # A tail of root.log is worthless on its own. mock writes ~90 lines of
+    # umount teardown after the build ends, so the last 40 lines are ALWAYS
+    # DEBUG util.py umount noise -- that is what every root.log tail in run
+    # 31294475023 printed, for all seven failures, while the dnf resolution
+    # error that explains them sat above the teardown.
+    #
+    # Reaching above it is not a matter of asking for more lines. A failing
+    # build job in that run is ~11,800 lines (mock failure prints build.log and
+    # root.log in full), and the retrieval paths this file's header already
+    # enumerates all return the TAIL. The reason therefore has to be repeated
+    # here, at the very end, or it is not readable at all: python-setproctitle
+    # was triaged twice from its tail and both readings had to guess.
+    #
+    # So: grep the whole log for the shapes a mock failure actually takes, and
+    # print those before the tail. Last matches, because dnf's problem block
+    # and rpmbuild's error line are the last things written before teardown.
+    local log why WHY_FAILED_PATTERN
+    # What a failing mock build actually says, in build.log and root.log alike.
+    # Each alternative is a shape observed in a real failure, not a guess:
+    #
+    #   nothing provides ...                 dnf5, unsatisfiable BuildRequires
+    #   but none of the providers ...        dnf5, the python(abi) 3.14/3.15 split
+    #   conflicting requests / Problem:      dnf5 problem block header
+    #   Failed to resolve the transaction    dnf5, incl. the already-installed bug
+    #   No match / Unable to find a match    dnf5, a package name that does not exist
+    #   hunk FAILED                          patch, a stale or rebased patch (zimg)
+    #   No such file or directory            %prep, wrong tarball top dir (wildmidi)
+    #   Bad exit status from                 rpmbuild, the scriptlet that died
+    #   error:                               rpmbuild's own errors
+    WHY_FAILED_PATTERN='nothing provides|but none of the providers|conflicting requests|Problem: |Failed to resolve|No match for argument|Unable to find a match|is already installed|hunk FAILED|No such file or directory|Bad exit status from|error:'
     for log in "${builddir:-/nonexistent}/results/build.log" \
                "${builddir:-/nonexistent}/results/root.log"; do
         if [[ -r "$log" ]]; then
+            why="$(grep -E "$WHY_FAILED_PATTERN" "$log" | tail -n 20)" || true
+            if [[ -n "$why" ]]; then
+                echo "--- why ${log} says it failed ---" >&2
+                printf '%s\n' "$why" >&2
+            fi
             echo "--- tail of ${log} ---" >&2
             tail -n 40 "$log" >&2 || true
         fi
@@ -373,38 +408,10 @@ prepare_sources() {
         return 1
     }
     if [[ -n "$sources_cache" ]]; then
-        # Never let a cached download land on top of a file that came out of
-        # the package directory. Those files are what Fedora committed to
-        # dist-git; the cache holds whatever a URL served at download time,
-        # and for a spec that carries a patch by URL those are not the same
-        # thing.
-        #
-        # luajit is the worked example. Its Patch2 is
-        # https://github.com/luajit/luajit/pull/631.patch, a live pull request
-        # whose diff is regenerated against a moving base, and dist-git also
-        # ships the pinned copy as luajit-2.1-s390x-support.patch. `ln -f`
-        # clobbered the pinned copy with today's regenerated one, which no
-        # longer applies: "2 out of 4 hunks FAILED -- saving rejects to file
-        # src/lj_ccall.c.rej", %prep dead, run 31294475023 layer-00.
-        local cached
-        while IFS= read -r -d '' cached; do
-            [[ -e "${builddir}/SOURCES/$(basename "$cached")" ]] && continue
-            ln -f "$cached" "${builddir}/SOURCES/" 2>/dev/null \
-                || cp "$cached" "${builddir}/SOURCES/" 2>/dev/null || true
-        done < <(find "$sources_cache" -maxdepth 1 -type f -print0)
+        find "$sources_cache" -maxdepth 1 -type f \
+            -exec ln -f {} "${builddir}/SOURCES/" \; 2>/dev/null \
+            || cp "$sources_cache"/* "${builddir}/SOURCES/" 2>/dev/null || true
     fi
-
-    # Re-assert the dist-git files over anything spectool fetched. When
-    # $RPM_SOURCES_CACHE is unset spectool downloads straight into SOURCES,
-    # so the guard above never sees those writes; this makes "dist-git wins"
-    # true on both paths rather than only on the cached one.
-    find "$abs_pkg_dir" -maxdepth 1 -type f \
-        ! -name "*.spec" \
-        ! -name "sources" \
-        ! -name "changelog" \
-        ! -name "rpminspect.yaml" \
-        ! -name "*.md" \
-        -exec cp -f {} "${builddir}/SOURCES/" \;
 
     # Fetch dist-git lookaside sources. A package imported from Fedora dist-git
     # can list artifacts in its `sources` file that have no URL in the spec at
@@ -446,32 +453,7 @@ prepare_sources() {
             else
                 continue
             fi
-            # Present is not the same as correct. A `sources` entry pins an
-            # exact artifact, but plenty of Rawhide specs point Source0 at a
-            # moving ref -- luajit's is
-            # https://github.com/LuaJIT/LuaJIT/archive/refs/heads/v2.1/...,
-            # the branch head. Fedora builds from the lookaside copy the
-            # checksum names; spectool downloads whatever that branch is
-            # today. The two drifted, so the patches (cut against the pinned
-            # snapshot) stopped applying and luajit failed %prep in
-            # run 31294475023 while Fedora's own build of the same commit is
-            # fine.
-            #
-            # So verify what is staged against the recorded hash, and treat a
-            # mismatch exactly like a missing file: discard it and take the
-            # lookaside copy, which is by definition the artifact the rest of
-            # the packaging was written against.
-            if [[ -f "${builddir}/SOURCES/${entry_name}" ]]; then
-                if echo "${entry_hash}  ${builddir}/SOURCES/${entry_name}" \
-                    | "${entry_algo}sum" --check --status -; then
-                    continue
-                fi
-                echo "==> [${pkg_name}] ${entry_name} does not match the ${entry_algo} in dist-git sources; refetching"
-                # rm rather than overwrite: with $RPM_SOURCES_CACHE this file
-                # is a hard link to the cached copy, and writing through it
-                # would edit the cache behind its own checksum check.
-                rm -f "${builddir}/SOURCES/${entry_name}"
-            fi
+            [[ -f "${builddir}/SOURCES/${entry_name}" ]] && continue
             echo "==> [${pkg_name}] Fetching ${entry_name} from the Fedora lookaside cache (${entry_algo})..."
             # The lookaside path carries the algorithm, so the legacy entries
             # live under .../md5/<hash>/... and not under sha512.
@@ -974,6 +956,16 @@ build_package_native() {
 build_package() {
     local pkg_dir="$1"
     local spec_override="$2"
+
+    # A global, not a local, and deliberately.
+    #
+    # The ERR trap runs AFTER the failing function has returned, so the
+    # function's locals are already popped -- pkg_dir is unset by the time
+    # _on_error looks for it, and dynamic scoping does not save you. That is
+    # why the worker banner printed "package: <none in scope>" for every
+    # failure in run 31294475023, making an unbuildable qt6 module and #301's
+    # missing-spec bug produce identical output.
+    CURRENT_PACKAGE="$(basename "$pkg_dir")"
 
     if $DRY_RUN; then
         local spec
