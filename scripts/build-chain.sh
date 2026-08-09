@@ -373,10 +373,38 @@ prepare_sources() {
         return 1
     }
     if [[ -n "$sources_cache" ]]; then
-        find "$sources_cache" -maxdepth 1 -type f \
-            -exec ln -f {} "${builddir}/SOURCES/" \; 2>/dev/null \
-            || cp "$sources_cache"/* "${builddir}/SOURCES/" 2>/dev/null || true
+        # Never let a cached download land on top of a file that came out of
+        # the package directory. Those files are what Fedora committed to
+        # dist-git; the cache holds whatever a URL served at download time,
+        # and for a spec that carries a patch by URL those are not the same
+        # thing.
+        #
+        # luajit is the worked example. Its Patch2 is
+        # https://github.com/luajit/luajit/pull/631.patch, a live pull request
+        # whose diff is regenerated against a moving base, and dist-git also
+        # ships the pinned copy as luajit-2.1-s390x-support.patch. `ln -f`
+        # clobbered the pinned copy with today's regenerated one, which no
+        # longer applies: "2 out of 4 hunks FAILED -- saving rejects to file
+        # src/lj_ccall.c.rej", %prep dead, run 31294475023 layer-00.
+        local cached
+        while IFS= read -r -d '' cached; do
+            [[ -e "${builddir}/SOURCES/$(basename "$cached")" ]] && continue
+            ln -f "$cached" "${builddir}/SOURCES/" 2>/dev/null \
+                || cp "$cached" "${builddir}/SOURCES/" 2>/dev/null || true
+        done < <(find "$sources_cache" -maxdepth 1 -type f -print0)
     fi
+
+    # Re-assert the dist-git files over anything spectool fetched. When
+    # $RPM_SOURCES_CACHE is unset spectool downloads straight into SOURCES,
+    # so the guard above never sees those writes; this makes "dist-git wins"
+    # true on both paths rather than only on the cached one.
+    find "$abs_pkg_dir" -maxdepth 1 -type f \
+        ! -name "*.spec" \
+        ! -name "sources" \
+        ! -name "changelog" \
+        ! -name "rpminspect.yaml" \
+        ! -name "*.md" \
+        -exec cp -f {} "${builddir}/SOURCES/" \;
 
     # Fetch dist-git lookaside sources. A package imported from Fedora dist-git
     # can list artifacts in its `sources` file that have no URL in the spec at
@@ -418,7 +446,32 @@ prepare_sources() {
             else
                 continue
             fi
-            [[ -f "${builddir}/SOURCES/${entry_name}" ]] && continue
+            # Present is not the same as correct. A `sources` entry pins an
+            # exact artifact, but plenty of Rawhide specs point Source0 at a
+            # moving ref -- luajit's is
+            # https://github.com/LuaJIT/LuaJIT/archive/refs/heads/v2.1/...,
+            # the branch head. Fedora builds from the lookaside copy the
+            # checksum names; spectool downloads whatever that branch is
+            # today. The two drifted, so the patches (cut against the pinned
+            # snapshot) stopped applying and luajit failed %prep in
+            # run 31294475023 while Fedora's own build of the same commit is
+            # fine.
+            #
+            # So verify what is staged against the recorded hash, and treat a
+            # mismatch exactly like a missing file: discard it and take the
+            # lookaside copy, which is by definition the artifact the rest of
+            # the packaging was written against.
+            if [[ -f "${builddir}/SOURCES/${entry_name}" ]]; then
+                if echo "${entry_hash}  ${builddir}/SOURCES/${entry_name}" \
+                    | "${entry_algo}sum" --check --status -; then
+                    continue
+                fi
+                echo "==> [${pkg_name}] ${entry_name} does not match the ${entry_algo} in dist-git sources; refetching"
+                # rm rather than overwrite: with $RPM_SOURCES_CACHE this file
+                # is a hard link to the cached copy, and writing through it
+                # would edit the cache behind its own checksum check.
+                rm -f "${builddir}/SOURCES/${entry_name}"
+            fi
             echo "==> [${pkg_name}] Fetching ${entry_name} from the Fedora lookaside cache (${entry_algo})..."
             # The lookaside path carries the algorithm, so the legacy entries
             # live under .../md5/<hash>/... and not under sha512.
