@@ -316,6 +316,74 @@ find_spec() {
     return 1
 }
 
+# Move a %find_lang out of %check and onto the end of %install.
+#
+# rpmbuild --nocheck does not skip the %check *command*, it skips the whole
+# %check *section* -- and a spec is free to put anything after %check that is
+# not a section header of its own. Fedora's iso-codes does exactly that:
+#
+#   %check
+#   %meson_test
+#
+#   %find_lang %{name} --all-name
+#
+#   %files -f %{name}.lang
+#
+# so with --nocheck the .lang file is never generated and the build dies in
+# %files, on a spec that is perfectly correct in Koji:
+#
+#   error: Could not open %files file .../iso-codes.lang: No such file or directory
+#
+# %find_lang only reads $RPM_BUILD_ROOT, so the end of %install is both where
+# it belongs and where it behaves identically. Rewrite the staged copy, never
+# the tree: an imported spec is a verbatim record of dist-git.
+#
+# Confined to specs that actually have the shape (checks off, a %find_lang
+# inside %check, and an %install to move it to); every other spec is passed
+# through byte for byte.
+hoist_find_lang_out_of_check() {
+    local staged_spec="$1"
+    local pkg_name="$2"
+
+    $WITH_CHECKS && return 0
+    grep -q '^[[:space:]]*%find_lang' "$staged_spec" || return 0
+
+    local rewritten="${staged_spec}.hoisted"
+    awk '
+        function is_section_header(l) {
+            return (l ~ /^%(package|description|prep|generate_buildrequires|conf|build|install|check|files|changelog|pre|post|preun|postun|pretrans|posttrans|verifyscript|trigger|filetrigger|transfiletrigger|sepolicy|patchlist|sourcelist)([[:space:]]|$)/)
+        }
+        {
+            line[NR] = $0
+            if (is_section_header($0)) {
+                if ($0 ~ /^%install([[:space:]]|$)/)     section = "install"
+                else if ($0 ~ /^%check([[:space:]]|$)/)  section = "check"
+                else                                     section = "other"
+            }
+            if (section == "install") install_end = NR
+            if (section == "check" && $0 ~ /^[[:space:]]*%find_lang/) hoist[NR] = 1
+        }
+        END {
+            hoisted = 0
+            for (i = 1; i <= NR; i++) if (i in hoist) hoisted++
+            if (hoisted == 0 || install_end == 0) { for (i = 1; i <= NR; i++) print line[i]; exit 0 }
+            for (i = 1; i <= NR; i++) {
+                if (i in hoist) continue
+                print line[i]
+                if (i == install_end)
+                    for (j = 1; j <= NR; j++) if (j in hoist) print line[j]
+            }
+        }
+    ' "$staged_spec" > "$rewritten" || { err "spec rewrite failed for ${pkg_name}"; return 1; }
+
+    if ! cmp -s "$staged_spec" "$rewritten"; then
+        echo "==> [${pkg_name}] %find_lang sits in %check, which --nocheck skips; hoisting it to %install"
+        mv "$rewritten" "$staged_spec"
+    else
+        rm -f "$rewritten"
+    fi
+}
+
 # Prepare a build tree (spec + patches + downloaded sources) in $builddir.
 # Does NOT build — just stages everything so a backend can pick it up.
 prepare_sources() {
@@ -328,6 +396,7 @@ prepare_sources() {
     mkdir -p "${builddir}"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS,SPECS}
 
     cp "$spec" "${builddir}/SPECS/"
+    hoist_find_lang_out_of_check "${builddir}/SPECS/$(basename "$spec")" "$pkg_name" || return 1
 
     # Copy patches and other sources (don't exclude tarballs/zips if they exist locally)
     find "$abs_pkg_dir" -maxdepth 1 -type f \
