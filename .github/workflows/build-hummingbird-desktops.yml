@@ -47,7 +47,6 @@ on:
 
 env:
   R2_BUCKET: bluefin
-  R2_REPO_PATH: hummingbird/20251124-x86_64
   MANIFEST: build-order-hummingbird-desktops.yml
   # Fedora + mock toolchain (mock/Containerfile). The tag names the chroot the
   # image was first built for, not the chroot it can build; mock pulls the
@@ -77,16 +76,45 @@ jobs:
 
   build:
     needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    # ONE strategy block. Both sides of the #297 merge grew their own, and a
+    # duplicate YAML key does not error -- the second silently wins, which
+    # would have thrown away both the desktop fan-out and fail-fast.
     strategy:
       # One desktop failing must not cancel the other four: they share nothing
       # but R2, and a partial publish is the design (see the publish step).
       fail-fast: false
       matrix:
         desktop: ${{ fromJson(needs.plan.outputs.desktops) }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
+        # The target this builds for, named rather than implied. It selects the
+        # mock config below and the R2 path is read from the target's own entry
+        # in manifests/package-factory.yaml, so this is the value the run turns
+        # on and not a label. One value, so it multiplies the desktop axis by
+        # one rather than fanning anything out.
+        #
+        # It is also what makes hummingbird a covered target:
+        # validate-package-factory.py refuses a target no gate job exercises,
+        # which is how openSUSE sat declared-but-unbuilt for months (#139).
+        target: [hummingbird]
     steps:
       - uses: actions/checkout@v7
+
+      - name: Resolve the target's R2 path from the package factory manifest
+        id: target
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          # Single source of truth. This path was duplicated here and in
+          # manifests/hummingbird-desktops.yaml, which is the sort of pair that
+          # silently disagrees.
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, yaml
+          factory = yaml.safe_load(open("manifests/package-factory.yaml"))
+          target = factory["targets"][os.environ["TARGET"]]
+          print("r2_path=" + target["r2_path"])
+          PY
+          echo "resolved r2_path for ${TARGET}"
 
       - name: Install build tools
         run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm gpg gpgconf python3-yaml
@@ -113,7 +141,7 @@ jobs:
           mkdir -p local-repo-hummingbird
           # Seed from R2 so a resumed run does not rebuild what an earlier tier
           # already published. Non-fatal: the first run has nothing to seed.
-          rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo-hummingbird/ || true
+          rclone copy "r2:${R2_BUCKET}/${{ steps.target.outputs.r2_path }}/" local-repo-hummingbird/ || true
 
       - name: Select tiers
         id: tiers
@@ -177,6 +205,42 @@ jobs:
           path: hummingbird-imports.json
           if-no-files-found: warn
 
+      # Caching, matching what the rest of Tideforge does. None of this
+      # existed for the desktop builds, which is why every dispatch paid for
+      # the same downloads again: the buildroot each package resolves, and
+      # every upstream tarball in the tier.
+      #
+      # build-chain.sh has honoured both variables for a while; the workflow
+      # simply never set them.
+      - name: Cache the mock chroot and its dnf downloads
+        uses: actions/cache@v6
+        with:
+          # Absolute, and outside the checkout: MOCK_CACHE_DIR is
+          # ${{ runner.temp }}/mock-cache (see the Build tiers step for why),
+          # and caching a workspace-relative .mock-cache would archive an
+          # empty directory while the real chroot cache went unsaved.
+          path: ${{ runner.temp }}/mock-cache
+          # Keyed on the chroot definition and the tier set, not the run: a
+          # re-dispatch of the same tiers should hit. github.run_id makes each
+          # run's save unique so concurrent runs do not race, and the
+          # restore-keys walk back to the most recent compatible entry.
+          key: hummingbird-mock-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ steps.tiers.outputs.list }}-${{ github.run_id }}
+          restore-keys: |
+            hummingbird-mock-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ steps.tiers.outputs.list }}-
+            hummingbird-mock-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
+
+      - name: Cache upstream source tarballs
+        uses: actions/cache@v6
+        with:
+          path: .sources-cache
+          # Content of the sources is pinned by the specs, which come from the
+          # import; key on the manifest so a regenerated build order gets a
+          # fresh store rather than an ever-growing one.
+          key: hummingbird-sources-${{ hashFiles('build-order-hummingbird-desktops.yml') }}-${{ github.run_id }}
+          restore-keys: |
+            hummingbird-sources-${{ hashFiles('build-order-hummingbird-desktops.yml') }}-
+            hummingbird-sources-
+
       - name: Build tiers
         env:
           # Give mock ONE buildroot for the whole job instead of one per
@@ -209,8 +273,15 @@ jobs:
           # every RPM it downloads (keepcache=1, from the same template), so
           # this directory fills with unsigned third-party RPMs.  Keeping it
           # out of the checkout means no future glob over the workspace can
-          # sweep one of them into the signed repository by accident.
+          # sweep one of them into the signed repository by accident.  The
+          # actions/cache step above names the same absolute path, so #297's
+          # cross-run reuse of the chroot still happens; the two are the same
+          # directory, one sharing it within the job and one across runs.
           MOCK_CACHE_DIR: ${{ runner.temp }}/mock-cache
+          # Tarballs are inputs, not outputs, and spectool verifies them
+          # against the spec's checksums, so this one can stay in the
+          # checkout where the rest of Tideforge keeps it.
+          RPM_SOURCES_CACHE: ${{ github.workspace }}/.sources-cache
         run: |
           IFS=',' read -ra TIERS <<< "${{ steps.tiers.outputs.list }}"
           # One worker per core. This was hardcoded to 2, which was the right
@@ -219,14 +290,40 @@ jobs:
           # bought nothing and just burned memory. That lock is now shared, so
           # workers genuinely build at the same time and the core count is the
           # real ceiling.
-          ARGS=(--manifest "${MANIFEST}" --mock-config hummingbird-ci
+          ARGS=(--manifest "${MANIFEST}" --mock-config "${{ matrix.target }}-ci"
                 --local-repo "$PWD/local-repo-hummingbird" --jobs "$(nproc)")
           if [[ "${{ inputs.force }}" == "true" ]]; then ARGS+=(--force); fi
+          # Keep going after a tier that had failures, and fail the step at
+          # the end instead.
+          #
+          # The step runs under `set -e`, so a tier exiting non-zero used to
+          # abort the loop and every later tier was simply never attempted.
+          # A dispatch therefore yielded exactly one tier no matter how many
+          # were asked for: gnome-01 stopped at 30 of 33 with gnome-02..09
+          # untouched (run 31277092125), then gnome-02 stopped at 11 of 14
+          # with gnome-03..09 untouched (run 31279618402).
+          #
+          # A tier's failures rarely block the whole tail. gnome-02's three
+          # were libglvnd, libheif and samba; most of what follows does not
+          # BuildRequire any of them. Anything that genuinely does will fail
+          # on its own and say so, which is information rather than harm --
+          # and publishing is copy-not-sync, so nothing already built is lost.
+          #
+          # The step still fails if any tier did, so a red run stays red.
+          rc=0
+          failed_tiers=()
           for tier in "${TIERS[@]}"; do
             echo "::group::tier ${tier}"
-            ./scripts/build-chain.sh "${ARGS[@]}" --tier "${tier}"
+            ./scripts/build-chain.sh "${ARGS[@]}" --tier "${tier}" || {
+              rc=1
+              failed_tiers+=("${tier}")
+            }
             echo "::endgroup::"
           done
+          if (( rc )); then
+            echo "::error::tiers with failures: ${failed_tiers[*]}"
+          fi
+          exit "${rc}"
 
       # !cancelled(): publish what BUILT even when some packages in the tier
       # failed. Tier gnome-00's first real run built 108 of 124 packages and
@@ -255,8 +352,8 @@ jobs:
           createrepo_c --update local-repo-hummingbird
           # copy, not sync: a partial tier run must never delete packages an
           # earlier tier published. Removal is a deliberate, separate action.
-          rclone copy local-repo-hummingbird/ "r2:${R2_BUCKET}/${R2_REPO_PATH}/"
-          rclone copy public.gpg "r2:${R2_BUCKET}/${R2_REPO_PATH}/"
+          rclone copy local-repo-hummingbird/ "r2:${R2_BUCKET}/${{ steps.target.outputs.r2_path }}/"
+          rclone copy public.gpg "r2:${R2_BUCKET}/${{ steps.target.outputs.r2_path }}/"
 
       - uses: actions/upload-artifact@v7
         if: always()

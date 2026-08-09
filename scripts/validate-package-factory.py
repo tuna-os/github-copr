@@ -36,6 +36,16 @@ def gate_targets(workflows: list[Path]) -> set[str]:
             exercised.add(match.group(1))
         for match in re.finditer(r"^\s*target:\s*([a-z0-9-]+)\s*$", text, re.MULTILINE):
             exercised.add(match.group(1))
+        # A matrix axis exercises its targets just as much as an include list
+        # does -- `target: [hummingbird]` or a block list under `target:`. Only
+        # recognising the include form meant a job matrixed over targets read
+        # as covering none of them, which is the same false negative this
+        # function exists to prevent, wearing a different hat.
+        for match in re.finditer(r"^\s*target:\s*\[([^\]]+)\]\s*$", text, re.MULTILINE):
+            for name in match.group(1).split(","):
+                name = name.strip().strip("\"'")
+                if re.fullmatch(r"[a-z0-9-]+", name):
+                    exercised.add(name)
     return exercised
 
 
@@ -85,7 +95,7 @@ def main() -> None:
         seen_upstreams.add(upstream_id)
 
     targets = data.get("targets", {})
-    required = {"el10", "ubuntu", "debian", "opensuse-tumbleweed", "arch"}
+    required = {"el10", "ubuntu", "debian", "hummingbird", "opensuse-tumbleweed", "arch"}
     if set(targets) != required:
         fail(f"targets must be exactly {sorted(required)}")
     for target_id, target in targets.items():
@@ -96,7 +106,11 @@ def main() -> None:
                 fail(f"{target_id}: {field} is required")
         if "/" not in target["probe_image"]:
             fail(f"{target_id}: probe_image must be a fully-qualified container image")
-        if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/")):
+        # hummingbird/ is rpm-md like rpm/, but it is an overlay on somebody
+        # else's distribution rather than a TunaOS repository, and its path is
+        # already published with the desktop packages in it. Moving it under
+        # rpm/ to satisfy this check would orphan them.
+        if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/", "hummingbird/")):
             fail(f"{target_id}: r2_path has an unsupported namespace")
         if not all(arch in {"x86_64", "aarch64", "amd64", "arm64"} for arch in target["architectures"]):
             fail(f"{target_id}: unsupported architecture")
@@ -113,6 +127,12 @@ def main() -> None:
         workflows = [
             workflow_directory / "build-tideforge-supported.yml",
             workflow_directory / "build-tideforge-arch.yml",
+            # Hummingbird's desktop packages are dist-git imports rather than
+            # recipes, so they are built by their own workflow -- but a target
+            # exercised somewhere else is still exercised, and leaving this out
+            # would make hummingbird look uncovered when it is the busiest
+            # target in the repository.
+            workflow_directory / "build-hummingbird-desktops.yml",
         ]
     check_gate_coverage(set(targets), workflows)
 

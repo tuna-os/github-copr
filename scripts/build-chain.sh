@@ -340,19 +340,43 @@ prepare_sources() {
 
     # Download tarballs. Run spectool inside BUILD_IMAGE (has rpmdevtools)
     # so the host doesn't need rpmdevtools — it's Fedora-only.
+    #
+    # $RPM_SOURCES_CACHE, when set, is a host directory that outlives the run.
+    # The mock backend has honoured it for a long time; this path did not, so
+    # every dispatch re-downloaded every upstream tarball -- and this is the
+    # path the Hummingbird desktop builds take, where a tier is a hundred-odd
+    # packages and a full desktop is over a thousand.
+    #
+    # Downloads land in the cache and are hard-linked into the builddir, so a
+    # second package needing the same archive costs an inode rather than a
+    # transfer. Falls back to copying across filesystems.
     echo "==> [${pkg_name}] Downloading sources via spectool..."
+    local sources_cache="${RPM_SOURCES_CACHE:-}"
+    local spectool_dest_host="${builddir}/SOURCES"
+    local spectool_dest_container="/builddir/SOURCES"
+    if [[ -n "$sources_cache" ]]; then
+        mkdir -p "$sources_cache"
+        spectool_dest_host="$sources_cache"
+        spectool_dest_container="/sources-cache"
+    fi
     if command -v spectool &>/dev/null; then
-        spectool -g -C "${builddir}/SOURCES/" "$spec"
+        spectool -g -C "${spectool_dest_host}" "$spec"
     else
         podman run --rm \
             --pull=always \
             -v "${builddir}:/builddir:Z" \
+            ${sources_cache:+-v "${sources_cache}:/sources-cache:Z"} \
             "${BUILD_IMAGE}" \
-            spectool -g -C /builddir/SOURCES/ "/builddir/SPECS/$(basename "$spec")"
+            spectool -g -C "${spectool_dest_container}" "/builddir/SPECS/$(basename "$spec")"
     fi || {
         echo "ERROR: spectool failed for ${pkg_name}" >&2
         return 1
     }
+    if [[ -n "$sources_cache" ]]; then
+        find "$sources_cache" -maxdepth 1 -type f \
+            -exec ln -f {} "${builddir}/SOURCES/" \; 2>/dev/null \
+            || cp "$sources_cache"/* "${builddir}/SOURCES/" 2>/dev/null || true
+    fi
 
     # Fetch dist-git lookaside sources. A package imported from Fedora dist-git
     # can list artifacts in its `sources` file that have no URL in the spec at
@@ -409,6 +433,16 @@ prepare_sources() {
                 err "lookaside checksum mismatch for ${entry_name} (${pkg_name})"
                 return 1
             }
+            # Persist it, so the next run and the next package needing the same
+            # archive get it for free. Only after the checksum has passed --
+            # a cache is a much worse place to put a corrupt file than a
+            # builddir that is about to be deleted.
+            if [[ -n "${RPM_SOURCES_CACHE:-}" ]]; then
+                ln -f "${builddir}/SOURCES/${entry_name}" \
+                    "${RPM_SOURCES_CACHE}/${entry_name}" 2>/dev/null \
+                    || cp "${builddir}/SOURCES/${entry_name}" \
+                        "${RPM_SOURCES_CACHE}/${entry_name}" 2>/dev/null || true
+            fi
         done < "$sources_file"
     fi
 }
