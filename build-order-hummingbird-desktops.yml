@@ -470,7 +470,6 @@ tiers:
       - path: src/hummingbird/yajl
         distgit: yajl
       - path: src/hummingbird/zimg
-        distgit: zimg
 
   - name: layer-01
     packages:

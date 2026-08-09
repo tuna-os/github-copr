@@ -13,8 +13,28 @@ Rawhide packages want granite-7 (SwayNotificationCenter, minder, warble).
 
 Packaging Granite 7 is the better long-term answer -- 0.12.6 is the GTK4 and
 libadwaita version, and the rest of niri's stack is GTK4. It is not the answer
-available right now: it needs an upstream tarball and its checksum, and the
-elementary/granite archive is not reachable from the build environment.
+available right now: it needs an upstream tarball and its checksum.
+
+The 378-byte JSON body behind that failure is not a network error -- it is
+
+    GitHub access to this repository is not enabled for this session.
+    Use add_repo to request access.
+
+i.e. per-session repository scoping. But scoping lifts for the GIT lane only.
+Measured against elementary/granite in the same second:
+
+    git ls-remote --tags   ->  44 tags
+    /archive/7.8.1.tar.gz  ->  HTTP 403
+
+So the tree is readable and the release tarball is not, which is the half that
+matters here: a vendored spec needs a `sources` line, and that is a SHA512 of
+the archive GitHub serves. It cannot be computed from a clone -- GitHub's
+archive is not byte-reproducible from `git archive`. Packaging Granite 7 from
+this environment would mean shipping a spec whose checksum nobody had verified.
+
+Upstream is at 7.8.1 and SwayNotificationCenter 0.12.6 wants >= 7.5.0, so the
+version exists; only the verifiable tarball is missing. The reason to keep this
+pin is therefore unchanged, and 0.10.1 is still what Fedora ships and builds.
 
 So this pins the version Fedora actually ships. 0.10.1 needs granite 6,
 gtk+-3.0, libhandy-1 and gtk-layer-shell-0, all of which Rawhide provides --
