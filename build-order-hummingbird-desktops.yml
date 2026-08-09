@@ -11,7 +11,7 @@
 #     --report-json docs/hummingbird-desktop-gap.json \
 #     --build-order build-order-hummingbird-desktops.yml
 #
-# Measured 2026-08-09T03:40:05.213369+00:00
+# Measured 2026-08-09T04:22:32.904128+00:00
 # target primary.xml   sha256 b92541eaf43fd4a8976710fa0035ae0c69b38aae7a0f241d61d87cd9bdd2a512
 # reference primary.xml sha256 dc3c7ec50508105e880c74f0178bf4723e770c73766654d833d1b2ad541e3774
 #
@@ -2384,7 +2384,6 @@ tiers:
       - path: src/hummingbird/NetworkManager-vpnc
         distgit: NetworkManager-vpnc
       - path: src/hummingbird/SwayNotificationCenter
-        distgit: SwayNotificationCenter
       - path: src/hummingbird/assimp
         distgit: assimp
       - path: src/hummingbird/blueman
