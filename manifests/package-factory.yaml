@@ -46,6 +46,40 @@ targets:
     r2_path: apt/debian/{suite}/{arch}
     repository: apt
     probe_image: docker.io/library/debian:sid
+  hummingbird:
+    # Hummingbird is a target of a different shape from the rest, and the
+    # differences are load-bearing rather than cosmetic.
+    #
+    # It is not a distribution we can pull: there is no hummingbird container
+    # image. It is an external RPM repository (Red Hat's public-hummingbird),
+    # and mock/hummingbird-ci.cfg reaches it by including Fedora Rawhide's
+    # chroot config and layering that repository over it at priority 10.
+    #
+    # `scaffold`, deliberately, and not because the builds do not work -- they
+    # do; the desktop gate has published over a thousand packages. It is
+    # scaffold because probe_image cannot yet tell the truth for this target.
+    # The probe answers "is this dependency available", and the only image
+    # that boots a Hummingbird-shaped root is the Fedora Rawhide base beneath
+    # it, which answers yes for packages Hummingbird does not ship. A probe
+    # that lies is worse than a probe that is absent, so no recipe should opt
+    # into targets: [hummingbird] until this points at something Hummingbird-
+    # shaped -- an image built from the target's own repository.
+    status: scaffold
+    format: rpm
+    # The chroot is Fedora Rawhide with the target's repository on top, so
+    # this is what a probe would boot. It is recorded for provenance; see the
+    # note above for why it is not yet trustworthy to probe against.
+    probe_image: registry.fedoraproject.org/fedora:rawhide
+    architectures: [x86_64]
+    # Not under rpm/: this path is already published and holds the packages
+    # the desktop builds have produced. Moving it would orphan them.
+    r2_path: hummingbird/20251124-x86_64
+    repository: rpm-md
+    # Buildroot inputs only, never repositories on a produced image. Fedora
+    # Rawhide supplies -devel headers and build backends Hummingbird has no
+    # build of yet; Fedora 44 supplies the Python namespace at the target's
+    # own ABI (3.14, where Rawhide is 3.15).
+    build_repositories: [fedora-rawhide, fedora-44]
   opensuse-tumbleweed:
     status: scaffold
     format: rpm
