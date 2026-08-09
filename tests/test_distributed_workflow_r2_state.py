@@ -140,3 +140,52 @@ def test_the_default_still_uses_the_account_id_form(tmp_path):
     """The other caller's secrets are not ours to change."""
     wf = generate(tmp_path)
     assert "CLOUDFLARE_ACCOUNT_ID" in yaml.safe_dump(wf)
+
+
+def test_every_build_job_imports_its_package_before_building(tmp_path):
+    """A fan-out runner has no spec until it imports one.
+
+    The sequential workflow imports a whole tier in one step. The generator
+    predates the dist-git model -- it was written for a manifest whose packages
+    are vendored in-tree -- so its build jobs went straight to build-chain with
+    nothing on disk.
+
+    On the first dispatch (run 31287886482) all three bootstrap-00 jobs failed
+    in under three seconds, and #273's ERR trap named it exactly:
+
+        command     : spec="$(find_spec "$pkg_dir" "$spec_override")"
+        package     : <none in scope>
+    """
+    wf = generate(tmp_path, "--r2-state")
+    for name, job in wf["jobs"].items():
+        if not name.startswith("build-"):
+            continue
+        names = step_names(job)
+        assert "Import this package's dist-git packaging" in names, (
+            f"{name} builds without importing a spec"
+        )
+        assert names.index("Import this package's dist-git packaging") < names.index("Build package"), (
+            f"{name} imports after building, which is no import at all"
+        )
+
+
+def test_the_import_takes_one_package_not_the_whole_tier(tmp_path):
+    """One clone per runner. --tier here would be 108 clones x 108 runners."""
+    wf = generate(tmp_path, "--r2-state")
+    step = next(s for s in wf["jobs"]["build-gnome-00"]["steps"]
+                if s.get("name") == "Import this package's dist-git packaging")
+    assert "--package" in step["run"]
+    assert "--tier" not in step["run"], (
+        "the import is tier-scoped, so every runner in a 108-package tier would "
+        "clone all 108 -- 11664 clones against src.fedoraproject.org for one tier"
+    )
+
+
+def test_in_tree_packages_are_not_imported(tmp_path):
+    """src/deps/* are maintained here and have no distgit to import."""
+    step = next(s for s in generate(tmp_path, "--r2-state")["jobs"]["build-gnome-00"]["steps"]
+                if s.get("name") == "Import this package's dist-git packaging")
+    assert 'if [ -d "$pkg_path" ]' in step["run"], (
+        "no check for an in-tree package; the import would try to clone a "
+        "dist-git repo that does not exist for it"
+    )
