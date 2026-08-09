@@ -1050,10 +1050,10 @@ build_tier() {
                     return
                 fi
 
-                if (( now - last_heartbeat[$i] >= heartbeat_interval )); then
-                    local elapsed=$(( now - started_at[$i] ))
+                if (( now - last_heartbeat[i] >= heartbeat_interval )); then
+                    local elapsed=$(( now - started_at[i] ))
                     log "  Still building ${path} (pid ${pid}, elapsed ${elapsed}s)"
-                    last_heartbeat[$i]=$now
+                    last_heartbeat[i]=$now
                 fi
             done
             sleep 0.5
