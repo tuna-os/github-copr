@@ -184,3 +184,19 @@ jobs:
           echo "| Workflow Syntax | completed |" >> "$GITHUB_STEP_SUMMARY"
           echo "| BATS Tests | completed |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Python Tests | completed |" >> "$GITHUB_STEP_SUMMARY"
+
+  # Branch protection should require one stable check rather than individual
+  # implementation jobs.  Keep this list in sync whenever a mandatory fast
+  # validation job is added above.
+  required-checks:
+    name: required-checks
+    if: always()
+    needs: [yamllint, shellcheck, workspace-validate, build-order-validate, bats-tests, pytest]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all required jobs succeeded
+        env:
+          NEEDS: ${{ toJson(needs) }}
+        run: |
+          failed=$(echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result | IN("success", "skipped") | not) | .key')
+          test -z "$failed" || { echo "Required jobs failed: $failed"; exit 1; }
