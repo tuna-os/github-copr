@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 # useradd wrapper: handle existing home directory gracefully
 #
-# EL10 shadow-utils 4.15.0 treats mkdir()→EEXIST as fatal (exit 12,
-# E_HOMEDIR) when the target home directory already exists. This causes
+# EL10 shadow-utils 4.15.0 exits with code 12 (E_HOMEDIR) when useradd
+# -m encounters a pre-existing home directory (e.g. /var/home/<user>
+# already present from a previous install on the same disk). This causes
 # gnome-initial-setup to fail on reinstall/upgrade scenarios where /var
-# is preserved (e.g. same disk, previous OS install).
+# is preserved.
 #
-# Upstream shadow-utils >= 4.17 fixed this; until EL10 backports the fix,
-# this wrapper intercepts useradd -m and handles the existing-directory
-# case by passing -M to the real useradd, then fixing ownership.
+# Upstream shadow-utils 4.14.0 added an access(F_OK) early-return in
+# create_home() that should skip mkdir when the target already exists.
+# However, the EL10 4.15.0 package still exhibits the E_HOMEDIR failure
+# (empirically confirmed; the precise trigger is not yet isolated —
+# possible TOCTOU race, SELinux interaction, or an EL10-specific patch
+# side-effect). Until the EL10 package resolves this at source, this
+# wrapper intercepts useradd -m: when the target home directory already
+# exists, it strips -m/--create-home, adds -M, invokes the real useradd,
+# then chowns and restorecons the existing directory.
 #
 # See: https://github.com/tuna-os/github-copr/issues/17
 
