@@ -3,10 +3,29 @@ import yaml
 import sys
 import os
 
+def _rclone_conf(r2_state):
+    """One rclone endpoint for the whole workflow.
+
+    The seed and publish jobs built theirs from CLOUDFLARE_ACCOUNT_ID while
+    the per-tier jobs use R2_ENDPOINT. Two secrets for one endpoint means
+    whichever is unset fails at runtime, two minutes in, in a job that looks
+    unrelated to the change that introduced it. --r2-state makes every job
+    use R2_ENDPOINT, which is the secret the existing Hummingbird workflow
+    has been publishing with.
+    """
+    endpoint = ('${{ secrets.R2_ENDPOINT }}' if r2_state
+                else 'https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com')
+    return ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n'
+            '[r2]\ntype = s3\nprovider = Cloudflare\n'
+            'access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\n'
+            'secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\n'
+            f'endpoint = {endpoint}\nEOF\n')
+
+
 def generate_workflow(manifest_path, output_path, workflow_name='Distributed Build and Publish RPMs',
                       r2_path='repo/10-stream-x86_64', secondary_r2_path='repo/10-x86_64',
                       install_script='contrib/install.sh', install_r2_dest='install.sh',
-                      submodules=True, mock_config=None):
+                      submodules=True, mock_config=None, r2_state=False):
     with open(manifest_path, 'r') as f:
         manifest = yaml.safe_load(f)
 
@@ -47,9 +66,14 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         'steps': [
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
             {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c'},
-            {'name': 'Configure rclone', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\nmkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com\nEOF\n'},
+            {'name': 'Configure rclone', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\n' + _rclone_conf(r2_state)},
             {'name': 'Seed local repo from R2', 'run': f'mkdir -p local-repo\necho "Downloading existing repo from R2..."\nrclone sync "r2:${{R2_BUCKET}}/{r2_path}/" "local-repo/" --exclude "repodata/**" || true\ncreaterepo_c local-repo\n'},
-            {'name': 'Upload initial repo', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'repo-0', 'path': 'local-repo', 'retention-days': 1}}
+            # With R2 as the shared state this job exists to guarantee the
+            # repository has valid metadata before any runner seeds from it;
+            # there is nothing to hand on as an artifact.
+            *([] if r2_state else [
+                {'name': 'Upload initial repo', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'repo-0', 'path': 'local-repo', 'retention-days': 1}},
+            ])
         ]
     }
     
@@ -89,7 +113,25 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                 {'name': 'Install host dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm'},
                 {'name': 'Cache CentOS Stream 10 image', 'uses': 'actions/cache@v6', 'with': {'path': '/tmp/cs10-image.tar', 'key': f"cs10-image-${{{{ hashFiles('{mock_cfg_file}') }}}}"}},
                 {'name': 'Load or pull image', 'run': 'if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n'},
-                {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
+                *([
+                    # Seed each runner straight from R2 rather than passing the
+                    # whole repository between tiers as an artifact.
+                    #
+                    # The artifact route is O(repo x packages-in-tier): every
+                    # runner downloads the entire repo. Hummingbird's repo is
+                    # over a gigabyte and gnome-00 alone is 116 packages, so a
+                    # single tier would move on the order of a hundred gigabytes
+                    # of artifact traffic to distribute a few hundred megabytes
+                    # of RPMs. Seeding is O(1) per runner and takes about two
+                    # minutes, which the sequential workflow already pays once.
+                    #
+                    # Correctness is unchanged because the barrier is unchanged:
+                    # a tier's runners start only after the previous tier's
+                    # consolidate job has published to R2.
+                    {'name': 'Seed local repo from R2', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\nmkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ || true\ncreaterepo_c local-repo\n' % r2_path},
+                ] if r2_state else [
+                    {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
+                ]),
                 {'name': 'Cache mock chroot (dnf downloads)', 'uses': 'actions/cache@v6', 'with': {'path': '.mock-cache', 'key': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-${{{{ github.run_id }}}}", 'restore-keys': f"mock-cache-${{{{ matrix.package }}}}-${{{{ hashFiles('{mock_cfg_file}') }}}}-\nmock-cache-${{{{ matrix.package }}}}-"}},
                 {'name': 'Build package', 'env': {'MOCK_CACHE_DIR': '${{ github.workspace }}/.mock-cache'}, 'run': f'touch .build-marker\nARGS=(--backend podman --tier {tier_name} --package ${{{{ matrix.package }}}}{manifest_flag}{mock_flag})\nif [[ "${{{{ github.event.inputs.force }}}}" == "true" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh "${{ARGS[@]}}"\n'},
                 {'name': 'Find new RPMs', 'id': 'find-rpms', 'run': 'mkdir -p new-rpms\nfind local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \\;\ncount=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)\necho "count=$count" >> $GITHUB_OUTPUT\n'},
@@ -103,10 +145,20 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
             'runs-on': 'ubuntu-latest',
             'steps': [
                 {'name': 'Install createrepo_c', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c'},
-                {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
+                *([] if r2_state else [
+                    {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
+                ]),
+                # Only this tier's NEW rpms travel as artifacts -- megabytes,
+                # not the whole repository.
                 {'name': 'Download new RPMs', 'uses': 'actions/download-artifact@v8', 'continue-on-error': True, 'with': {'pattern': f'rpms-{tier_name}-*', 'path': 'local-repo', 'merge-multiple': True}},
-                {'name': 'Update repo', 'run': 'createrepo_c --update local-repo'},
-                {'name': 'Upload updated repo', 'uses': 'actions/upload-artifact@v7', 'with': {'name': repo_artifact_name, 'path': 'local-repo', 'retention-days': 1}}
+                *([
+                    # copy, not sync: this tier adds to what earlier tiers
+                    # published and must never delete it.
+                    {'name': 'Publish this tier to R2', 'run': 'curl -fsSL https://rclone.org/install.sh | sudo bash\nmkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nrclone copy local-repo/ "r2:${R2_BUCKET}/%s/"\n' % r2_path},
+                ] if r2_state else [
+                    {'name': 'Update repo', 'run': 'createrepo_c --update local-repo'},
+                    {'name': 'Upload updated repo', 'uses': 'actions/upload-artifact@v7', 'with': {'name': repo_artifact_name, 'path': 'local-repo', 'retention-days': 1}},
+                ])
             ]
         }
         
@@ -120,11 +172,15 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         'steps': [
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
             {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf\ncurl -fsSL https://rclone.org/install.sh | sudo bash\n'},
-            {'name': 'Download final repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
+            *([
+                {'name': 'Seed final repo from R2', 'run': 'mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/\n' % r2_path},
+            ] if r2_state else [
+                {'name': 'Download final repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
+            ]),
             {'name': 'Import GPG key', 'id': 'import-gpg', 'uses': 'crazy-max/ghaction-import-gpg@v7', 'with': {'gpg_private_key': '${{ secrets.GPG_PRIVATE_KEY }}', 'passphrase': '${{ secrets.GPG_PASSPHRASE }}', 'git_committer_name': 'RPM Builder', 'git_committer_email': 'rpm-signing@tunaos.org'}},
             {'name': 'Configure RPM macros', 'run': 'echo "%_signature gpg" > ~/.rpmmacros\necho "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros\necho "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \\"%{_gpg_name}\\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros\n'},
             {'name': 'Sign RPMs', 'run': 'find local-repo -name "*.rpm" -exec rpmsign --addsign {} \\;\ncreaterepo_c --update local-repo\n'},
-            {'name': 'Configure rclone', 'run': 'mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com\nEOF\n'},
+            {'name': 'Configure rclone', 'run': _rclone_conf(r2_state)},
             {'name': 'Upload to R2', 'run': _build_upload_run(r2_path, secondary_r2_path, install_script, install_r2_dest)}
         ]
     }
@@ -175,6 +231,13 @@ if __name__ == '__main__':
                         help='Skip submodules: recursive in checkout steps')
     parser.add_argument('--mock-config', default=None,
                         help='Mock config name passed to build-chain.sh (e.g. centos-stream-10-ci-gnome50); also keys the image/chroot caches on that config file')
+    parser.add_argument('--r2-state', action='store_true',
+                        help='Carry the repository between tiers in R2 rather than as a GitHub '
+                             'artifact. Each build runner seeds itself and each tier publishes '
+                             'its own rpms. Required at Hummingbird scale: the artifact route '
+                             'makes every runner download the whole repository, which is over a '
+                             'gigabyte, so one 116-package tier would move ~116 GB to distribute '
+                             'a few hundred megabytes.')
     args = parser.parse_args()
     secondary = args.secondary_r2_path if args.secondary_r2_path else None
     generate_workflow(args.manifest, args.output,
@@ -184,5 +247,6 @@ if __name__ == '__main__':
                       install_script=args.install_script,
                       install_r2_dest=args.install_r2_dest,
                       submodules=not args.no_submodules,
-                      mock_config=args.mock_config)
+                      mock_config=args.mock_config,
+                      r2_state=args.r2_state)
     print(f"Generated {args.output}")
