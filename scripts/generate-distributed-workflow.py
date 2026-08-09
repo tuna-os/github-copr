@@ -87,7 +87,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         'runs-on': 'ubuntu-latest',
         'steps': [
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
-            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone'},
+            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q || sudo apt-get update -q || true\nsudo apt-get install -y -q createrepo-c rclone'},
             {'name': 'Configure rclone', 'run': _rclone_conf(r2_state)},
             {'name': 'Seed local repo from R2', 'run': f'mkdir -p local-repo\necho "Downloading existing repo from R2..."\nrclone sync "r2:${{R2_BUCKET}}/{r2_path}/" "local-repo/" --exclude "repodata/**" {RCLONE_FLAGS} || true\ncreaterepo_c local-repo\n'},
             # With R2 as the shared state this job exists to guarantee the
@@ -144,7 +144,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                 },
                 'steps': [
                     {'name': 'Checkout', 'uses': 'actions/checkout@v7', **({'with': {'submodules': 'recursive'}} if submodules else {})},
-                    {'name': 'Install host dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm rclone'},
+                    {'name': 'Install host dependencies', 'run': 'sudo apt-get update -q || sudo apt-get update -q || true\nsudo apt-get install -y -q podman createrepo-c rpm rclone'},
                     {'name': 'Cache CentOS Stream 10 image', 'uses': 'actions/cache@v6', 'with': {'path': '/tmp/cs10-image.tar', 'key': f"cs10-image-${{{{ hashFiles('{mock_cfg_file}') }}}}"}},
                     {'name': 'Load or pull image', 'run': 'if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n'},
                     *([
@@ -232,7 +232,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
             'if': '${{ !cancelled() }}',
             'runs-on': 'ubuntu-latest',
             'steps': [
-                {'name': 'Install createrepo_c', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q createrepo-c rclone'},
+                {'name': 'Install createrepo_c', 'run': 'sudo apt-get update -q || sudo apt-get update -q || true\nsudo apt-get install -y -q createrepo-c rclone'},
                 *([] if r2_state else [
                     {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
                 ]),
@@ -261,7 +261,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         'runs-on': 'ubuntu-latest',
         'steps': [
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
-            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q && sudo apt-get install -y -q rpm createrepo-c gpg gpgconf rclone'},
+            {'name': 'Install dependencies', 'run': 'sudo apt-get update -q || sudo apt-get update -q || true\nsudo apt-get install -y -q rpm createrepo-c gpg gpgconf rclone'},
             *([
                 {'name': 'Seed final repo from R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + '\n') % r2_path},
             ] if r2_state else [
