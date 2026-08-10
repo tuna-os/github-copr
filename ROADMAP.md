@@ -47,7 +47,7 @@ Mock to Cloudflare R2 (COPR is bootstrap/compatibility only, being retired).
 | Goal | Owner | Tracking | Status |
 |------|-------|----------|--------|
 | Publish GNOME + XFWL4 EL10 via GitHub/R2 (retire COPR) | packaging | ARCHITECTURE.md, COPR-AUDIT.md | 🟡 In progress |
-| Desktop-completeness parity floor for every published edition | packaging | #133, tunaos#1294 | ⬜ Not started |
+| Desktop-completeness parity floor for every published edition | packaging | #133, tunaos#1294, [docs/desktop-parity-audit.md](./docs/desktop-parity-audit.md) | 🟡 In progress |
 | XFWL4 package coverage on Debian/Ubuntu bases | packaging | #136 | 🟡 In progress |
 | Tideforge: first-class python build system + correct deps | packaging | #137, #117, #118 | 🟡 In progress |
 
