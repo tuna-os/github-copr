@@ -56,21 +56,21 @@ env:
 
 jobs:
   # `desktop: all` used to mean "one runner builds all 60 tiers", which cannot
-  # finish: tier gnome-00 alone took 288 minutes of build step in run
+  # finish: the first tier alone took 288 minutes of build step in run
   # 31137480986, against a 360-minute job cap.  Fan out instead, one job per
-  # desktop.  The desktops come out of the manifest, not a list kept in step
-  # with the `options:` above by hand.
+  # desktop.  The desktops come out of the gap report -- the same file the
+  # per-job `Select tiers` step resolves a desktop against -- not a list kept
+  # in step with the `options:` above by hand.
   plan:
     runs-on: ubuntu-latest
     outputs:
       desktops: ${{ steps.plan.outputs.desktops }}
     steps:
       - uses: actions/checkout@v7
-      - run: sudo apt-get update -q && sudo apt-get install -y -q python3-yaml
       - id: plan
         run: |
           python3 scripts/plan_hummingbird_matrix.py \
-            --manifest "${MANIFEST}" \
+            --gap-report docs/hummingbird-desktop-gap.json \
             --desktop "${{ inputs.desktop }}" \
             --tiers "${{ inputs.tiers }}" >> "$GITHUB_OUTPUT"
 

@@ -26,6 +26,7 @@ from plan_hummingbird_matrix import desktops_in, main, plan  # noqa: E402
 
 WORKFLOW = ROOT / ".github/workflows/build-hummingbird-desktops.yml"
 MANIFEST = ROOT / "build-order-hummingbird-desktops.yml"
+GAP_REPORT = ROOT / "docs/hummingbird-desktop-gap.json"
 
 
 def workflow() -> dict:
@@ -34,6 +35,10 @@ def workflow() -> dict:
 
 def manifest() -> dict:
     return yaml.safe_load(MANIFEST.read_text())
+
+
+def report() -> dict:
+    return json.loads(GAP_REPORT.read_text())
 
 
 def step(name: str) -> dict:
@@ -146,36 +151,56 @@ def test_every_artifact_name_is_unique_per_matrix_job() -> None:
 # --- the planner ------------------------------------------------------------
 
 
-def test_desktops_come_out_of_the_manifest() -> None:
-    assert desktops_in(manifest()) == ["gnome", "kde", "cosmic", "niri", "xfce"]
+def test_desktops_come_out_of_the_gap_report() -> None:
+    """Not out of the tier names.
+
+    #303 retiered the manifest into one topological order over every desktop
+    at once (`layer-NN`), so a tier no longer belongs to a named desktop and
+    the old `<desktop>-NN` prefix read yields the single desktop "layer".  The
+    gap report is where a desktop is defined, and it is what the per-job
+    `Select tiers` step resolves against, so both ends agree by construction.
+    """
+    assert sorted(desktops_in(report())) == ["cosmic", "gnome", "kde", "niri", "xfce"]
+
+
+def test_the_planner_and_the_tier_selector_share_one_list_of_desktops() -> None:
+    """A desktop the matrix fans out to must be one select can resolve."""
+    import importlib.util
+
+    path = ROOT / "scripts" / "select-desktop-tiers.py"
+    spec = importlib.util.spec_from_file_location("sdt", path)
+    select = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(select)
+    for desktop in desktops_in(report()):
+        assert select.select(manifest(), report(), desktop)
 
 
 def test_bootstrap_is_not_a_desktop() -> None:
     """bootstrap-* tiers are #268's PEP-517 backends, prepended to every job."""
-    assert not any(d.startswith("bootstrap") for d in desktops_in(manifest()))
+    assert not any(d.startswith("bootstrap") for d in desktops_in(report()))
 
 
 def test_all_fans_out_to_every_desktop() -> None:
-    assert plan(manifest(), "all", "") == desktops_in(manifest())
+    assert plan(report(), "all", "") == desktops_in(report())
 
 
 def test_a_single_desktop_is_a_single_job() -> None:
-    assert plan(manifest(), "niri", "") == ["niri"]
+    assert plan(report(), "niri", "") == ["niri"]
 
 
 def test_an_explicit_tier_list_stays_one_job() -> None:
-    """A tier list names tiers absolutely, across whatever desktops own them.
+    """A tier list names tiers absolutely, across whatever desktops need them.
 
     Splitting it per desktop would change which tiers run, not just where, and
     `tiers:` exists to resume a run exactly.
     """
-    assert plan(manifest(), "gnome", "gnome-00,kde-00") == ["gnome"]
-    assert plan(manifest(), "all", "niri-00") == ["all"]
+    assert plan(report(), "gnome", "layer-00,layer-01") == ["gnome"]
+    assert plan(report(), "all", "layer-00") == ["all"]
 
 
 def test_an_unknown_desktop_fails_the_plan_not_the_build() -> None:
     with pytest.raises(SystemExit):
-        plan(manifest(), "budgie", "")
+        plan(report(), "budgie", "")
 
 
 def test_the_plan_output_is_a_github_output_line() -> None:
@@ -184,10 +209,10 @@ def test_the_plan_output_is_a_github_output_line() -> None:
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
-        main(["--manifest", str(MANIFEST), "--desktop", "all"])
+        main(["--gap-report", str(GAP_REPORT), "--desktop", "all"])
     key, _, value = buf.getvalue().strip().partition("=")
     assert key == "desktops"
-    assert json.loads(value) == desktops_in(manifest())
+    assert json.loads(value) == desktops_in(report())
 
 
 # --- the flag that made the cache worthless -------------------------------
