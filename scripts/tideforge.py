@@ -634,13 +634,16 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     rpm_preamble = ""
     if recipe["build_system"] in {"go", "data", "custom"} or not debug_package_enabled(recipe):
         rpm_preamble = "%global debug_package %{nil}\n"
+    rel = recipe.get('release', 1)
+    aux_lines = [f"Source{index}:        {rpm_source_field(source, index)}\n" for index, source in enumerate(auxiliary_sources, start=1)]
+    aux_sources = "".join(aux_lines)
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
-Release:        {recipe.get('release', 1)}%{{?dist}}
+Release:        {rel}%{{?dist}}
 Summary:        {recipe['summary']}
 License:        {recipe['license']}
 Source0:        {rpm_source_field(recipe['source'], 0)}
-{''.join(f"Source{index}:        {rpm_source_field(source, index)}\n" for index, source in enumerate(auxiliary_sources, start=1))}{requires}
+{aux_sources}{requires}
 {runtime_requires}
 
 %description
@@ -664,7 +667,7 @@ Source0:        {rpm_source_field(recipe['source'], 0)}
 {subpackage_files}
 
 %changelog
-* Sat Jul 25 2026 TunaOS Package Factory <packages@tunaos.org> - {recipe['version']}-{recipe.get('release', 1)}
+* Sat Jul 25 2026 TunaOS Package Factory <packages@tunaos.org> - {recipe['version']}-{rel}
 - Generated from package.yaml
 """
     return {f"{recipe['name']}.spec": spec}
