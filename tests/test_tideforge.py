@@ -257,6 +257,25 @@ def test_rpm_and_deb_preserve_runtime_dependencies(recipe: dict) -> None:
     assert "Depends: ${shlibs:Depends}, ${misc:Depends}, dbus, bluez" in deb
 
 
+@pytest.mark.parametrize(
+    ("recipe_name", "target", "expected"),
+    [
+        ("kairpods", "el10", ["Requires:       dbus", "Requires:       bluez"]),
+        ("dms-cli", "ubuntu", ["dms", "quickshell"]),
+    ],
+)
+def test_real_recipes_keep_declared_runtime_metadata(
+    recipe_name: str, target: str, expected: list[str]
+) -> None:
+    """Guard the concrete recipes that exposed the renderer regression (#117)."""
+    recipe = tideforge.load_yaml(ROOT / "packages" / recipe_name / "package.yaml")
+    tideforge.validate(recipe, target)
+    rendered = tideforge.render(recipe, target)
+    metadata = "\n".join(rendered.values())
+    for dependency in expected:
+        assert dependency in metadata
+
+
 def test_rpm_changelog_uses_a_valid_rpm_date(recipe: dict) -> None:
     spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
     assert "* Sat Jul 25 2026 TunaOS Package Factory" in spec
