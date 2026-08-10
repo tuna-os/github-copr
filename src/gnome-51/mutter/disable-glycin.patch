@@ -1,0 +1,10 @@
+--- mutter-50.rc/meson.build.orig
++++ mutter-50.rc/meson.build
+@@ -117,7 +117,7 @@
+ libm_dep = cc.find_library('m', required: true)
+ graphene_dep = dependency('graphene-gobject-1.0', version: graphene_req)
+-glycin_req = '>= 2.0.beta.2'
+-glycin_dep = dependency('glycin-2', version: glycin_req)
++glycin_dep = dependency('glycin-2', required: false)
+ 
+ fribidi_dep = dependency('fribidi', version: fribidi_req)

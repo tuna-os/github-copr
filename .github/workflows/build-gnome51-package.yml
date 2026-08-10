@@ -1,0 +1,387 @@
+name: GNOME 51 Package Build (Incremental)
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/gnome-51/**'
+  workflow_dispatch:
+    inputs:
+      package_path:
+        description: 'Package path (e.g. src/gnome-51/gdm)'
+        required: true
+
+env:
+  R2_BUCKET: bluefin
+  R2_REPO_PATH: gnome51/10-stream-x86_64
+  MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.detect.outputs.packages }}
+      has_session_package: ${{ steps.detect.outputs.has_session_package }}
+      published: ${{ steps.published.outputs.published }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # This workflow is incremental: it seeds local-repo from the published
+      # GNOME 51 repo and rebuilds only the package that changed. Before the
+      # tier has ever been published that premise does not hold — every
+      # package after the first tier fails on BuildRequires its predecessors
+      # were supposed to supply (gjs on mozjs140, libadwaita on gtk4, mutter
+      # on glib2/glycin in run 31369939129). Bootstrapping the tier is
+      # build-gnome51-distributed.yml's job, which builds build-order-gnome51.yml
+      # tier by tier. Probe over plain HTTPS, not R2: this must give the same
+      # answer on a fork pull request, which gets no secrets.
+      - name: Check whether the GNOME 51 repo has been published yet
+        id: published
+        run: |
+          for _ in 1 2 3; do
+            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 \
+              "https://repo.tunaos.org/${R2_REPO_PATH}/repodata/repomd.xml" || echo "000")
+            [[ "${STATUS}" == "200" || "${STATUS}" == "404" ]] && break
+          done
+          echo "repomd.xml -> HTTP ${STATUS}"
+          case "${STATUS}" in
+            200) echo "published=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "published=false" >> "$GITHUB_OUTPUT" ;;
+            # Never guess: an unreachable repo read as "unpublished" would
+            # quietly disarm the release gate below.
+            *) echo "::error::Cannot tell whether the GNOME 51 repo is published (HTTP ${STATUS})."; exit 1 ;;
+          esac
+
+      - name: Detect changed packages
+        id: detect
+        env:
+          PACKAGE_PATH: ${{ github.event.inputs.package_path || '' }}
+        run: |
+          SESSION_PKGS='mutter|gnome-shell|gdm'
+          if [[ -n "${PACKAGE_PATH}" ]]; then
+            PACKAGES=$(python3 -c "import json; print(json.dumps(['${PACKAGE_PATH}']))")
+          else
+            BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
+            HEAD="${{ github.sha }}"
+            CHANGED=$(git diff --name-only "${BASE}" "${HEAD}" | \
+              grep '^src/gnome-51/' | \
+              sed 's|/[^/]*$||' | sort -u | \
+              while read -r d; do
+                compgen -G "${d}/*.spec" >/dev/null 2>&1 && echo "$d"
+              done | \
+              python3 -c "import sys,json; dirs=sys.stdin.read().splitlines(); print(json.dumps(dirs))")
+            PACKAGES="${CHANGED}"
+          fi
+          echo "packages=${PACKAGES}" >> $GITHUB_OUTPUT
+          echo "Will build: ${PACKAGES}"
+
+          HAS_SESSION=false
+          for PKG in $(echo "${PACKAGES}" | python3 -c "import sys,json; print('\n'.join(json.load(sys.stdin)))" 2>/dev/null); do
+            PKG_BASENAME=$(basename "${PKG}")
+            if echo "${PKG_BASENAME}" | grep -qE "${SESSION_PKGS}"; then
+              HAS_SESSION=true
+              break
+            fi
+          done
+          echo "has_session_package=${HAS_SESSION}" >> $GITHUB_OUTPUT
+
+  build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.packages != '[]' && needs.detect-changes.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q podman createrepo-c rpm gpg gpgconf
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
+
+      - name: Load or pull container image
+        run: |
+          if [[ -f /tmp/cs10-image.tar ]]; then
+            podman load -i /tmp/cs10-image.tar
+          else
+            podman pull quay.io/centos/centos:stream10
+            podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10
+          fi
+          podman pull ${{ env.MOCK_RUNNER_IMAGE }}
+
+      # A pull_request from a fork gets no secrets, so every expansion below is
+      # empty and rclone ends up dialling "https://.r2.cloudflarestorage.com".
+      # That is a credential-availability fact about the run, not a repo state
+      # worth failing on, so record it and let the seed step decide.
+      - name: Configure rclone
+        id: rclone
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [[ -z "${CLOUDFLARE_ACCOUNT_ID}" || -z "${R2_ACCESS_KEY_ID}" || -z "${R2_SECRET_ACCESS_KEY}" ]]; then
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              echo "::notice::R2 credentials unavailable (fork pull request); this run will build against an empty local repo and cannot publish."
+              echo "available=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::R2 credentials missing on a publishing run — refusing to continue."
+            exit 1
+          fi
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
+          EOF
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      # copy, not sync: this direction must never delete local files, and when
+      # credentials exist the failure must not be swallowed — a silently empty
+      # local-repo is what the upload step would later sync over production.
+      # Skipping the seed outright is only safe because every step that writes
+      # to R2 is gated on a push to main, which always has credentials.
+      - name: Seed local repo from R2 (current published state)
+        run: |
+          mkdir -p local-repo
+          if [[ "${{ steps.rclone.outputs.available }}" == "true" ]]; then
+            rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo/ \
+              --exclude "repodata/**" --progress --transfers 8
+          else
+            echo "No R2 credentials on this run; skipping seed."
+          fi
+          createrepo_c local-repo
+
+      - name: Mark build start
+        run: touch build-start-marker
+
+      - name: Build package
+        run: |
+          ./scripts/build-chain.sh \
+            --backend podman \
+            --local-repo local-repo \
+            --manifest build-order-gnome51.yml \
+            --mock-config centos-stream-10-ci-gnome51 \
+            --package "${{ matrix.package }}" \
+            --with-checks \
+            --force
+
+      - name: Import GPG key and sign
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: crazy-max/ghaction-import-gpg@v7
+        id: import-gpg
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Sign new RPMs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "%_signature gpg" > ~/.rpmmacros
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          find local-repo -name "*.rpm" -newer build-start-marker -exec rpmsign --addsign {} \;
+          createrepo_c --update local-repo
+
+      - name: Refuse to publish an empty result
+        if: github.event_name != 'pull_request'
+        run: |
+          RPM_COUNT=$(find local-repo -name '*.rpm' ! -name '*.src.rpm' -newer build-start-marker | wc -l)
+          echo "RPMs built this run: ${RPM_COUNT}"
+          if [[ "${RPM_COUNT}" -eq 0 ]]; then
+            echo "::error::0 RPMs produced — refusing to run rclone sync. A sync here would DELETE the published repo, not merely fail to update it."
+            exit 1
+          fi
+
+      - name: Upload updated package to R2
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          rclone sync local-repo/ "r2:${R2_BUCKET}/${R2_REPO_PATH}/"
+
+      - name: Smoke test — install RPM in CentOS Stream 10
+        run: |
+          RPM=$(find "$PWD/local-repo" -name '*.rpm' ! -name '*-debuginfo-*' ! -name '*-debugsource-*' 2>/dev/null | head -1)
+          if [[ -z "${RPM}" ]]; then
+            echo "No non-debug RPM found to test"
+            exit 0
+          fi
+          echo "Smoke-testing: ${RPM}"
+          podman run --rm -v "${RPM}:${RPM}:ro" \
+            quay.io/centos/centos:stream10 \
+            bash -c "
+              dnf install -y --nogpgcheck ${RPM} 2>&1 &&
+              rpm -q --qf '%{NAME}-%{VERSION}-%{RELEASE}' \$(rpm -qp --qf '%{NAME}' ${RPM})
+            "
+          echo "Smoke test passed: RPM installs cleanly on CentOS Stream 10"
+
+      - name: Upload RPMs as artifact (PR builds)
+        if: github.event_name != 'push' || github.ref != 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-${{ strategy.job-index }}
+          path: local-repo/*.rpm
+          retention-days: 3
+
+  verify-login:
+    needs: [detect-changes, build]
+    if: ${{ needs.detect-changes.outputs.published == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - name: Install Lima
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-system-x86 qemu-utils ovmf
+          curl -fsSL "https://github.com/lima-vm/lima/releases/download/v2.1.3/lima-2.1.3-Linux-x86_64.tar.gz" | sudo tar xz -C /usr/local
+          limactl --version
+
+      - name: Download PR-built RPMs
+        uses: actions/download-artifact@v8
+        with:
+          pattern: rpms-*
+          merge-multiple: true
+          path: /tmp/pr-rpms
+
+      - name: Create Lima VM config
+        run: |
+          cat > /tmp/gnome51-pr-test.yaml << 'EOF'
+          vmType: qemu
+          arch: x86_64
+          cpus: 2
+          memory: 4GiB
+          disk: 20GiB
+
+          video:
+            display: "vnc"
+
+          images:
+            - location: "https://cloud.centos.org/centos/10-stream/x86_64/images/CentOS-Stream-GenericCloud-x86_64-10-latest.x86_64.qcow2"
+              arch: x86_64
+
+          mounts:
+            - location: "/tmp/pr-rpms"
+              writable: false
+
+          ssh:
+            localPort: 0
+            loadDotSSHPubKeys: false
+
+          provision:
+            - mode: system
+              script: |
+                #!/bin/bash
+                set -euxo pipefail
+                dnf -y install /tmp/lima/pr-rpms/*.rpm
+                systemctl enable gdm
+                systemctl set-default graphical.target
+          EOF
+
+      - name: Start Lima VM
+        run: |
+          limactl start --name=gnome51-pr-test /tmp/gnome51-pr-test.yaml --timeout=20m
+          echo "VM started"
+
+      - name: Reboot and wait for GDM
+        run: |
+          echo "Rebooting VM to start GDM..."
+          limactl shell gnome51-pr-test -- sudo reboot || true
+          sleep 30
+          for i in $(seq 1 18); do
+            if limactl shell gnome51-pr-test -- true 2>/dev/null; then
+              echo "VM back after reboot"
+              break
+            fi
+            sleep 10
+          done
+          echo "Waiting for GDM (up to 5 min)..."
+          for i in $(seq 1 30); do
+            STATUS=$(limactl shell gnome51-pr-test -- systemctl is-active gdm 2>/dev/null || echo "inactive")
+            echo "Attempt $i/30: gdm is ${STATUS}"
+            [[ "${STATUS}" == "active" ]] && break
+            sleep 10
+          done
+          if [[ "${STATUS}" != "active" ]]; then
+            echo "ERROR: GDM failed to become active"
+            limactl shell gnome51-pr-test -- sudo journalctl -u gdm --no-pager -n 50 || true
+            exit 1
+          fi
+
+      - name: Check gnome-shell greeter stability
+        run: |
+          echo "Checking gnome-shell greeter stability..."
+          for i in $(seq 1 30); do
+            SHELL_PID=$(limactl shell gnome51-pr-test -- pgrep -f 'gnome-shell.*gdm' 2>/dev/null | head -1 || true)
+            if [[ -z "${SHELL_PID}" ]]; then
+              echo "Attempt $i/30: gnome-shell not running yet"
+              sleep 10
+              continue
+            fi
+            echo "Attempt $i/30: gnome-shell PID=${SHELL_PID}, waiting 10s..."
+            sleep 10
+            SHELL_PID2=$(limactl shell gnome51-pr-test -- pgrep -f 'gnome-shell.*gdm' 2>/dev/null | head -1 || true)
+            if [[ "${SHELL_PID}" == "${SHELL_PID2}" ]]; then
+              echo "gnome-shell PID stable at ${SHELL_PID} (survived 10s)"
+              echo "LOGIN TEST PASSED"
+              exit 0
+            fi
+            echo "PID changed: ${SHELL_PID} -> ${SHELL_PID2} (crash-restart detected)"
+          done
+          echo "ERROR: gnome-shell did not stabilize (crash-loop)"
+          limactl shell gnome51-pr-test -- sudo journalctl -u gdm --no-pager -n 30 || true
+          exit 1
+
+      - name: Stop Lima VM
+        if: always()
+        run: limactl stop gnome51-pr-test --force || true
+
+  el10-release-gate:
+    needs: [detect-changes, build, verify-login]
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require build and runtime verification
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          LOGIN_RESULT: ${{ needs.verify-login.result }}
+          PACKAGES: ${{ needs.detect-changes.outputs.packages }}
+          PUBLISHED: ${{ needs.detect-changes.outputs.published }}
+        run: |
+          if [[ "${PACKAGES}" = '[]' ]]; then
+            echo "No GNOME 51 source changed; EL10 GNOME release gate not applicable."
+            exit 0
+          fi
+          if [[ "${PUBLISHED}" != 'true' ]]; then
+            echo "GNOME 51 has never been published to https://repo.tunaos.org/${R2_REPO_PATH}/."
+            echo "There is no published state to build incrementally against, so this gate"
+            echo "cannot verify anything yet. Bootstrap the tier by dispatching"
+            echo "'GNOME 51 Distributed Build', which builds build-order-gnome51.yml in tier"
+            echo "order; this gate re-arms by itself once repomd.xml is served."
+            exit 0
+          fi
+          test "${PACKAGES}" != '[]'
+          test "${BUILD_RESULT}" = 'success'
+          test "${LOGIN_RESULT}" = 'success'
+          echo "EL10 build, RPM %check, install, GDM boot, and greeter-stability gates passed."
