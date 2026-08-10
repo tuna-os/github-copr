@@ -15,6 +15,24 @@ name: Build Hummingbird desktops
 # packages earlier runs published.
 
 on:
+  # A green PR check is not enough for this workflow: the full desktop build
+  # is deliberately too large to run on every pull request. Exercise it after
+  # relevant changes reach main so the published repository converges and a
+  # regression produces an authoritative package log.
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/build-hummingbird-desktops.yml
+      - build-order-hummingbird-desktops.yml
+      - docs/hummingbird-desktop-gap.json
+      - manifests/package-factory.yaml
+      - mock/hummingbird-ci.cfg
+      - scripts/build-chain.sh
+      - scripts/import-fedora-distgit.py
+      - scripts/plan_hummingbird_matrix.py
+      - scripts/select-desktop-tiers.py
+      - src/hummingbird/**
+
   workflow_dispatch:
     inputs:
       desktop:
@@ -45,8 +63,20 @@ on:
         type: boolean
         default: false
 
+concurrency:
+  # Publishing is copy-not-sync, but two full matrices still waste runners and
+  # can race while signing the same RPM set. Queue a later main push instead.
+  group: hummingbird-desktops-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   R2_BUCKET: bluefin
+  # workflow_dispatch inputs are absent on push. These resolved values preserve
+  # manual behavior while making a main-branch run mean a full published matrix.
+  TRIGGER_DESKTOP: ${{ inputs.desktop || 'all' }}
+  TRIGGER_TIERS: ${{ inputs.tiers || '' }}
+  TRIGGER_EXCLUDE_TIERS: ${{ inputs.exclude_tiers || '' }}
+  TRIGGER_FORCE: ${{ inputs.force || false }}
   MANIFEST: build-order-hummingbird-desktops.yml
   # Fedora + mock toolchain (mock/Containerfile). The tag names the chroot the
   # image was first built for, not the chroot it can build; mock pulls the
@@ -71,8 +101,8 @@ jobs:
         run: |
           python3 scripts/plan_hummingbird_matrix.py \
             --gap-report docs/hummingbird-desktop-gap.json \
-            --desktop "${{ inputs.desktop }}" \
-            --tiers "${{ inputs.tiers }}" >> "$GITHUB_OUTPUT"
+            --desktop "${TRIGGER_DESKTOP}" \
+            --tiers "${TRIGGER_TIERS}" >> "$GITHUB_OUTPUT"
 
   build:
     needs: plan
@@ -153,8 +183,8 @@ jobs:
           # own share. Reading the input here would make all five jobs select
           # the same tiers and build the identical work five times.
           IN_DESKTOP: ${{ matrix.desktop }}
-          IN_TIERS: ${{ inputs.tiers }}
-          IN_EXCLUDE: ${{ inputs.exclude_tiers }}
+          IN_TIERS: ${{ env.TRIGGER_TIERS }}
+          IN_EXCLUDE: ${{ env.TRIGGER_EXCLUDE_TIERS }}
         run: |
           # Not a name-prefix match. The manifest deduplicates packages across
           # desktops, so a tier named gnome-* holds packages XFCE needs too and
@@ -292,7 +322,7 @@ jobs:
           # real ceiling.
           ARGS=(--manifest "${MANIFEST}" --mock-config "${{ matrix.target }}-ci"
                 --local-repo "$PWD/local-repo-hummingbird" --jobs "$(nproc)")
-          if [[ "${{ inputs.force }}" == "true" ]]; then ARGS+=(--force); fi
+          if [[ "${TRIGGER_FORCE}" == "true" ]]; then ARGS+=(--force); fi
           # Keep going after a tier that had failures, and fail the step at
           # the end instead.
           #
@@ -336,7 +366,7 @@ jobs:
       # run rebuild only what is missing. The job still fails on failed
       # packages — publishing is not success, it is not losing the work.
       - name: Sign RPMs and publish
-        if: ${{ !cancelled() && inputs.publish }}
+        if: ${{ !cancelled() && (github.event_name == 'push' || inputs.publish) }}
         uses: crazy-max/ghaction-import-gpg@v7
         id: import-gpg
         with:
@@ -344,7 +374,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Publish signed rpm-md repository
-        if: ${{ !cancelled() && inputs.publish }}
+        if: ${{ !cancelled() && (github.event_name == 'push' || inputs.publish) }}
         run: |
           echo "%_signature gpg" > ~/.rpmmacros
           echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
