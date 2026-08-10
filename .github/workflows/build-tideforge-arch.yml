@@ -63,6 +63,10 @@ jobs:
         # under-declared `depends`.
         include:
           - package: niri
+          # DMS's greeter payload is the user-visible Arch gap: keep it in the
+          # clean-install gate so a recipe can be green without ever being
+          # exercised by the Arch package pipeline (#131).
+          - package: dms-greeter
           # uupd and greetd are green on every other declared target with the
           # byte-identical contract; arch was the last declared-but-never-
           # exercised pair for both (#139 defect class).
