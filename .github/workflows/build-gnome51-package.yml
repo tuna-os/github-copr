@@ -95,23 +95,51 @@ jobs:
           fi
           podman pull ${{ env.MOCK_RUNNER_IMAGE }}
 
+      # A pull_request from a fork gets no secrets, so every expansion below is
+      # empty and rclone ends up dialling "https://.r2.cloudflarestorage.com".
+      # That is a credential-availability fact about the run, not a repo state
+      # worth failing on, so record it and let the seed step decide.
       - name: Configure rclone
+        id: rclone
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          if [[ -z "${CLOUDFLARE_ACCOUNT_ID}" || -z "${R2_ACCESS_KEY_ID}" || -z "${R2_SECRET_ACCESS_KEY}" ]]; then
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              echo "::notice::R2 credentials unavailable (fork pull request); this run will build against an empty local repo and cannot publish."
+              echo "available=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::R2 credentials missing on a publishing run — refusing to continue."
+            exit 1
+          fi
           mkdir -p ~/.config/rclone
           cat > ~/.config/rclone/rclone.conf << EOF
           [r2]
           type = s3
           provider = Cloudflare
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
           EOF
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
+      # copy, not sync: this direction must never delete local files, and when
+      # credentials exist the failure must not be swallowed — a silently empty
+      # local-repo is what the upload step would later sync over production.
+      # Skipping the seed outright is only safe because every step that writes
+      # to R2 is gated on a push to main, which always has credentials.
       - name: Seed local repo from R2 (current published state)
         run: |
           mkdir -p local-repo
-          rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo/ \
-            --exclude "repodata/**" --progress --transfers 8
+          if [[ "${{ steps.rclone.outputs.available }}" == "true" ]]; then
+            rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo/ \
+              --exclude "repodata/**" --progress --transfers 8
+          else
+            echo "No R2 credentials on this run; skipping seed."
+          fi
           createrepo_c local-repo
 
       - name: Mark build start
