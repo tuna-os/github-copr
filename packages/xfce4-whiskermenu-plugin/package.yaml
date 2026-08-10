@@ -1,0 +1,33 @@
+# xfce4-whiskermenu-plugin recipe for EL10 (#121).
+schema: 1
+name: xfce4-whiskermenu-plugin
+version: "2.9.2"
+release: 1
+summary: Alternate application launcher for the Xfce desktop environment
+description: >-
+  Whisker Menu is an alternate application launcher for Xfce. It provides a menu
+  with favorites, categories, search, and recent applications.
+license: GPL-2.0-or-later
+source:
+  url: https://archive.xfce.org/src/panel-plugins/xfce4-whiskermenu-plugin/2.9/xfce4-whiskermenu-plugin-2.9.2.tar.bz2
+  sha256: ba0ce5d94726210fdfd2b2fe65421c97a8c66e27a6e138a081541bf77bbab71a
+  directory: xfce4-whiskermenu-plugin-2.9.2
+build_system: cmake
+build:
+  cmake_generator: Ninja
+dependencies:
+  build:
+    common: [cmake, ninja-build, pkg-config, gettext]
+    capabilities: [cpp-compiler]
+    targets:
+      el10: [gtk3-devel, libxfce4ui-devel, xfce4-panel-devel, garcon-devel, xfconf-devel, exo-devel]
+files:
+  common:
+    - usr/lib64/xfce4/panel/plugins/libwhiskermenu.so
+    - usr/share/icons/hicolor/*/apps/org.xfce.panel.whiskermenu.*
+    - usr/share/locale/*/LC_MESSAGES/xfce4-whiskermenu-plugin.mo
+    - usr/share/man/man1/xfce4-whiskermenu-plugin.1*
+    - usr/share/xfce4/panel/plugins/whiskermenu.desktop
+verify:
+  smoke: test -f /usr/lib64/xfce4/panel/plugins/libwhiskermenu.so && test -f /usr/share/xfce4/panel/plugins/whiskermenu.desktop
+targets: [el10]

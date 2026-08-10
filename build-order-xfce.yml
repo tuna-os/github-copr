@@ -90,10 +90,14 @@ tiers:
       - path: src/xfce-wayland/xfce4-appfinder
       - path: src/xfce-wayland/xfce4-screenshooter
       - path: src/xfce-wayland/xfce4-taskmanager
+      - path: packages/mousepad
+      - path: packages/ristretto
+      - path: packages/xfwm4-themes
 
   # Tier 6: Panel plugins — all depend on xfce4-panel from tier 3.
   - name: xfce-panel-plugins
     packages:
+      - path: packages/xfce4-whiskermenu-plugin
       - path: src/xfce-wayland/xfce4-pulseaudio-plugin
       - path: src/xfce-wayland/xfce4-clipman-plugin
       - path: src/xfce-wayland/xfce4-sensors-plugin

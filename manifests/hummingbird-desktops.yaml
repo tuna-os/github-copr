@@ -64,7 +64,7 @@ desktops:
     release: "4.21"
     sources: [{local: src/xfce-wayland}]
     required_packages: [xfconf, libxfce4ui, xfwl4]
-    install_packages: [gdm, xfwl4, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, thunar, mousepad, ristretto, xfce4-terminal, xfce4-session, xfce4-panel, xfce4-settings, xfdesktop, xfwm4, xfconf, libxfce4ui]
+    install_packages: [gdm, xfwl4, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, thunar, mousepad, ristretto, xfce4-whiskermenu-plugin, xfce4-terminal, xfce4-session, xfce4-panel, xfce4-settings, xfdesktop, xfwm4, xfwm4-themes, xfconf, libxfce4ui]
 
 # The PEP-517 build backends Hummingbird does not ship (#268).
 #
