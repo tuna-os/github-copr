@@ -24,10 +24,37 @@ jobs:
     outputs:
       packages: ${{ steps.detect.outputs.packages }}
       has_session_package: ${{ steps.detect.outputs.has_session_package }}
+      published: ${{ steps.published.outputs.published }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # This workflow is incremental: it seeds local-repo from the published
+      # GNOME 51 repo and rebuilds only the package that changed. Before the
+      # tier has ever been published that premise does not hold — every
+      # package after the first tier fails on BuildRequires its predecessors
+      # were supposed to supply (gjs on mozjs140, libadwaita on gtk4, mutter
+      # on glib2/glycin in run 31369939129). Bootstrapping the tier is
+      # build-gnome51-distributed.yml's job, which builds build-order-gnome51.yml
+      # tier by tier. Probe over plain HTTPS, not R2: this must give the same
+      # answer on a fork pull request, which gets no secrets.
+      - name: Check whether the GNOME 51 repo has been published yet
+        id: published
+        run: |
+          for _ in 1 2 3; do
+            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 \
+              "https://repo.tunaos.org/${R2_REPO_PATH}/repodata/repomd.xml" || echo "000")
+            [[ "${STATUS}" == "200" || "${STATUS}" == "404" ]] && break
+          done
+          echo "repomd.xml -> HTTP ${STATUS}"
+          case "${STATUS}" in
+            200) echo "published=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "published=false" >> "$GITHUB_OUTPUT" ;;
+            # Never guess: an unreachable repo read as "unpublished" would
+            # quietly disarm the release gate below.
+            *) echo "::error::Cannot tell whether the GNOME 51 repo is published (HTTP ${STATUS})."; exit 1 ;;
+          esac
 
       - name: Detect changed packages
         id: detect
@@ -64,7 +91,7 @@ jobs:
 
   build:
     needs: detect-changes
-    if: needs.detect-changes.outputs.packages != '[]'
+    if: needs.detect-changes.outputs.packages != '[]' && needs.detect-changes.outputs.published == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -213,7 +240,7 @@ jobs:
 
   verify-login:
     needs: [detect-changes, build]
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.detect-changes.outputs.published == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -340,9 +367,18 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           LOGIN_RESULT: ${{ needs.verify-login.result }}
           PACKAGES: ${{ needs.detect-changes.outputs.packages }}
+          PUBLISHED: ${{ needs.detect-changes.outputs.published }}
         run: |
           if [[ "${PACKAGES}" = '[]' ]]; then
             echo "No GNOME 51 source changed; EL10 GNOME release gate not applicable."
+            exit 0
+          fi
+          if [[ "${PUBLISHED}" != 'true' ]]; then
+            echo "GNOME 51 has never been published to https://repo.tunaos.org/${R2_REPO_PATH}/."
+            echo "There is no published state to build incrementally against, so this gate"
+            echo "cannot verify anything yet. Bootstrap the tier by dispatching"
+            echo "'GNOME 51 Distributed Build', which builds build-order-gnome51.yml in tier"
+            echo "order; this gate re-arms by itself once repomd.xml is served."
             exit 0
           fi
           test "${PACKAGES}" != '[]'
