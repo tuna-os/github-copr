@@ -1,0 +1,16 @@
+diff --git a/glib/tests/meson.build b/glib/tests/meson.build
+index 0757da4..0ffe59f 100644
+--- a/glib/tests/meson.build
++++ b/glib/tests/meson.build
+@@ -326,11 +326,6 @@ if installed_tests_enabled
+     install_dir : installed_tests_execdir,
+     install_tag : 'tests',
+   )
+-  install_subdir('localtime',
+-    install_dir : installed_tests_execdir,
+-    install_tag : 'tests',
+-    follow_symlinks : false,
+-  )
+ endif
+ 
+ test_extra_programs = {

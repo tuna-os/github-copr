@@ -1,0 +1,17 @@
+---
+annocheck:
+    ignore:
+        - /usr/libexec/installed-tests/glib/mem-overflow
+        - /usr/libexec/installed-tests/glib/resources
+elf:
+    ignore:
+        - /usr/libexec/installed-tests/glib/resources
+inspections:
+    # https://gitlab.gnome.org/GNOME/glib/-/merge_requests/2097
+    badfuncs: off
+runpath:
+    allowed_paths:
+        - /usr/libexec/installed-tests/glib
+xml:
+    ignore:
+        - /usr/libexec/installed-tests/glib/bookmarks/fail-*.xbel

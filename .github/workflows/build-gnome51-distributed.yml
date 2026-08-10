@@ -1,0 +1,1708 @@
+name: GNOME 51 Distributed Build
+'on':
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Force rebuild even if package exists in repo
+        type: boolean
+        default: false
+env:
+  R2_BUCKET: bluefin
+  LOCAL_REPO: ${{ github.workspace }}/local-repo
+  MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
+jobs:
+  seed-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Install dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Configure rclone
+        run: 'mkdir -p ~/.config/rclone
+
+          cat > ~/.config/rclone/rclone.conf << EOF
+
+          [r2]
+
+          type = s3
+
+          provider = Cloudflare
+
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+
+          EOF
+
+          '
+      - name: Seed local repo from R2
+        run: 'mkdir -p local-repo
+
+          echo "Downloading existing repo from R2..."
+
+          rclone sync "r2:${R2_BUCKET}/gnome51/10-stream-x86_64/" "local-repo/" --exclude "repodata/**" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
+
+          createrepo_c local-repo
+
+          '
+      - name: Upload initial repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-0
+          path: local-repo
+          retention-days: 1
+  build-base-tools:
+    needs: seed-repo
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/deps/meson
+          - src/deps/autoconf
+          - src/deps/libldac
+          - src/deps/python-smartypants
+          - src/deps/python-typogrify
+          - src/deps/gnome50-el10-compat
+          - src/deps/selinux-policy
+          - src/deps/sqlcipher
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-0
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier base-tools --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-base-tools-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-base-tools:
+    needs: build-base-tools
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-0
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-base-tools-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-1
+          path: local-repo
+          retention-days: 1
+  build-build-tools:
+    needs: consolidate-base-tools
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/deps/wayland-protocols
+          - src/deps/harfbuzz
+          - src/deps/libxcvt
+          - src/deps/shaderc
+          - src/deps/gi-docgen
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-1
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier build-tools --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-build-tools-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-build-tools:
+    needs: build-build-tools
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-1
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-build-tools-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-2
+          path: local-repo
+          retention-days: 1
+  build-glib2-bootstrap:
+    needs: consolidate-build-tools
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-51/glib2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-2
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier glib2-bootstrap --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-glib2-bootstrap-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-glib2-bootstrap:
+    needs: build-glib2-bootstrap
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-2
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-glib2-bootstrap-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-3
+          path: local-repo
+          retention-days: 1
+  build-bootstrap-libs:
+    needs: consolidate-glib2-bootstrap
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/deps/libei
+          - src/deps/mozjs140
+          - src/deps/libzip
+          - src/deps/fontconfig
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-3
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier bootstrap-libs --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-bootstrap-libs-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-bootstrap-libs:
+    needs: build-bootstrap-libs
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-3
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-bootstrap-libs-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-4
+          path: local-repo
+          retention-days: 1
+  build-cairo-layer:
+    needs: consolidate-bootstrap-libs
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/deps/cairo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-4
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier cairo-layer --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-cairo-layer-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-cairo-layer:
+    needs: build-cairo-layer
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-4
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-cairo-layer-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-5
+          path: local-repo
+          retention-days: 1
+  build-gi-bootstrap:
+    needs: consolidate-cairo-layer
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-51/gobject-introspection
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-5
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier gi-bootstrap --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-gi-bootstrap-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-gi-bootstrap:
+    needs: build-gi-bootstrap
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-5
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-gi-bootstrap-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-6
+          path: local-repo
+          retention-days: 1
+  build-glib2-full:
+    needs: consolidate-gi-bootstrap
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-51/glib2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-6
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier glib2-full --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-glib2-full-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-glib2-full:
+    needs: build-glib2-full
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-6
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-glib2-full-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-7
+          path: local-repo
+          retention-days: 1
+  build-gi-full:
+    needs: consolidate-glib2-full
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-51/gobject-introspection
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-7
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier gi-full --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-gi-full-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-gi-full:
+    needs: build-gi-full
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-7
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-gi-full-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-8
+          path: local-repo
+          retention-days: 1
+  build-core-libraries:
+    needs: consolidate-gi-full
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/deps/pango
+          - src/deps/tinysparql
+          - src/deps/pipewire
+          - src/deps/libglib-testing
+          - src/deps/simdutf
+          - src/deps/libgexiv2
+          - src/deps/libsoup
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-8
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier core-libraries --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-core-libraries-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-core-libraries:
+    needs: build-core-libraries
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-8
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-core-libraries-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-9
+          path: local-repo
+          retention-days: 1
+  build-system-tools:
+    needs: consolidate-core-libraries
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/deps/umockdev
+          - src/deps/python-dbusmock
+          - src/deps/avahi
+          - src/gnome-51/gjs
+          - src/deps/gdk-pixbuf2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-9
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier system-tools --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-system-tools-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-system-tools:
+    needs: build-system-tools
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-9
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-system-tools-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-10
+          path: local-repo
+          retention-days: 1
+  build-gtk-core:
+    needs: consolidate-system-tools
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-51/gsettings-desktop-schemas
+          - src/gnome-51/gnome-desktop3
+          - src/deps/gtk4
+          - src/deps/glycin
+          - src/deps/libgda
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-10
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier gtk-core --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-gtk-core-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-gtk-core:
+    needs: build-gtk-core
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-10
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-gtk-core-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-11
+          path: local-repo
+          retention-days: 1
+  build-desktop-foundations:
+    needs: consolidate-gtk-core
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-51/libadwaita
+          - src/gnome-51/xdg-desktop-portal
+          - src/deps/localsearch
+          - src/deps/vte291
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-11
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier desktop-foundations --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-desktop-foundations-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-desktop-foundations:
+    needs: build-desktop-foundations
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-11
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-desktop-foundations-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-12
+          path: local-repo
+          retention-days: 1
+  build-parental-controls:
+    needs: consolidate-desktop-foundations
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/deps/malcontent
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-12
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier parental-controls --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-parental-controls-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-parental-controls:
+    needs: build-parental-controls
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-12
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-parental-controls-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-13
+          path: local-repo
+          retention-days: 1
+  build-shell-foundations:
+    needs: consolidate-parental-controls
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-51/gnome-settings-daemon
+          - src/gnome-51/mutter
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-13
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier shell-foundations --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-shell-foundations-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-shell-foundations:
+    needs: build-shell-foundations
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-13
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-shell-foundations-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-14
+          path: local-repo
+          retention-days: 1
+  build-gnome-shell:
+    needs: consolidate-shell-foundations
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-51/gnome-shell
+          - src/gnome-51/xdg-desktop-portal-gnome
+          - src/gnome-51/nautilus
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-14
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier gnome-shell --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-gnome-shell-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-gnome-shell:
+    needs: build-gnome-shell
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-14
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-gnome-shell-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-15
+          path: local-repo
+          retention-days: 1
+  build-session-layer:
+    needs: consolidate-gnome-shell
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-51/gnome-session
+          - src/gnome-51/gnome-control-center
+          - src/gnome-51/gdm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-15
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier session-layer --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-session-layer-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-session-layer:
+    needs: build-session-layer
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-15
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-session-layer-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-16
+          path: local-repo
+          retention-days: 1
+  build-post-session:
+    needs: consolidate-session-layer
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - src/gnome-51/gnome-initial-setup
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q podman createrepo-c rpm rclone'
+      - name: Cache CentOS Stream 10 image
+        uses: actions/cache@v6
+        with:
+          path: /tmp/cs10-image.tar
+          key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}
+      - name: Load or pull image
+        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-16
+          path: local-repo
+      - name: Cache mock chroot (dnf downloads)
+        uses: actions/cache@v6
+        with:
+          path: .mock-cache
+          key: mock-cache-${{ matrix.package }}-${{ hashFiles('mock/centos-stream-10-ci-gnome51.cfg') }}-${{ github.run_id }}
+          restore-keys: 'mock-cache-${{ matrix.package }}-${{ hashFiles(''mock/centos-stream-10-ci-gnome51.cfg'') }}-
+
+            mock-cache-${{ matrix.package }}-'
+      - name: Import this package's dist-git packaging
+        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
+      - name: Build package
+        env:
+          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
+        run: "touch .build-marker\nARGS=(--backend podman --tier post-session --package ${{ matrix.package }} --manifest build-order-gnome51.yml --mock-config centos-stream-10-ci-gnome51)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
+      - name: Find new RPMs
+        id: find-rpms
+        run: 'mkdir -p new-rpms
+
+          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
+
+          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
+
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          '
+      - name: Upload RPMs
+        if: steps.find-rpms.outputs.count > '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-post-session-0-${{ strategy.job-index }}
+          path: new-rpms/*.rpm
+          retention-days: 1
+  consolidate-post-session:
+    needs: build-post-session
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install createrepo_c
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q createrepo-c rclone'
+      - name: Download previous repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-16
+          path: local-repo
+      - name: Download new RPMs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: rpms-post-session-*
+          path: local-repo
+          merge-multiple: true
+      - name: Update repo
+        run: createrepo_c --update local-repo
+      - name: Upload updated repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-17
+          path: local-repo
+          retention-days: 1
+  publish:
+    needs: consolidate-post-session
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Install dependencies
+        run: 'sudo apt-get update -q || sudo apt-get update -q || true
+
+          sudo apt-get install -y -q rpm createrepo-c gpg gpgconf rclone'
+      - name: Download final repo
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-17
+          path: local-repo
+      - name: Import GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_committer_name: RPM Builder
+          git_committer_email: rpm-signing@tunaos.org
+      - name: Configure RPM macros
+        run: 'echo "%_signature gpg" > ~/.rpmmacros
+
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+
+          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
+
+          '
+      - name: Sign RPMs
+        run: 'find local-repo -name "*.rpm" -exec rpmsign --addsign {} \;
+
+          createrepo_c --update local-repo
+
+          '
+      - name: Configure rclone
+        run: 'mkdir -p ~/.config/rclone
+
+          cat > ~/.config/rclone/rclone.conf << EOF
+
+          [r2]
+
+          type = s3
+
+          provider = Cloudflare
+
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+
+          EOF
+
+          '
+      - name: Upload to R2
+        run: 'echo "Uploading to 10-stream-x86_64..."
+
+          rclone sync local-repo/ "r2:${R2_BUCKET}/gnome51/10-stream-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
+
+          rclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"
+
+          rclone copyto contrib/install.sh "r2:${R2_BUCKET}/install.sh"
+
+          '
