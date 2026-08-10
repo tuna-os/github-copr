@@ -35,20 +35,33 @@ def test_the_build_step_sets_both_cache_variables():
     assert "RPM_SOURCES_CACHE" in env, "upstream tarballs are not cached"
 
 
+def resolved(path: str) -> str:
+    """What an actions/cache `path:` actually names.
+
+    A relative path is taken from the workspace; an absolute one is itself.
+    The chroot cache is deliberately absolute and outside the checkout --
+    keepcache=1 fills it with unsigned third-party RPMs -- so this has to
+    compare the directory the two sides mean, not the string they spell.
+    """
+    if path.startswith("/") or path.startswith("${{"):
+        return path
+    return "${{ github.workspace }}/" + path
+
+
 def test_both_cache_paths_are_actually_cached_across_runs():
     """Setting the variable without an actions/cache only moves the directory."""
     steps = workflow()["jobs"]["build"]["steps"]
     cached = {
-        s["with"]["path"]
+        resolved(s["with"]["path"])
         for s in steps
         if str(s.get("uses", "")).startswith("actions/cache") and s.get("with", {}).get("path")
     }
     env = build_step()["env"]
     for var in ("MOCK_CACHE_DIR", "RPM_SOURCES_CACHE"):
-        directory = env[var].rsplit("/", 1)[-1]
+        directory = env[var]
         assert directory in cached, (
-            f"{var} points at {directory}, which no actions/cache step persists; "
-            "the cache would be empty on every run"
+            f"{var} points at {directory}, which no actions/cache step persists "
+            f"(cached: {sorted(cached)}); the cache would be empty on every run"
         )
 
 
