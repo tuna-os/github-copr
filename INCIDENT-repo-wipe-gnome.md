@@ -27,6 +27,32 @@ The read-only `R2 Inventory` workflow settles what HTTP probing could not:
 | `tunaosdev/gnome50/10-stream-x86_64` | 0 | 0 | 0 |
 | `tunaosdev/gnome49/10-stream-x86_64` | 0 | 0 | 0 |
 
+## Impact and restore urgency
+
+The empty GNOME prefixes are a broken published artifact, but they are not a
+current tunaOS image-build outage. A search of the tunaOS desktop manifests,
+build scripts, and system files found no image installation path consuming
+either `bluefin/gnome49` or `bluefin/gnome50`. The EL10 GNOME image path gets
+its packages from the configured COPR projects instead.
+
+This distinction matters for restore planning: rebuilding the GNOME R2 chains
+is cleanup and restores the documented repository/install experience; it is
+not a prerequisite for the current GNOME image builds. The empty paths can
+still make the repository verification workflows fail and break anyone who
+uses the standalone GNOME install helper, so “not an image-build blocker” does
+not mean “healthy.”
+
+The active image-build consumers found in the same audit are:
+
+* `bluefin/xfce/10-stream-x86_64`, consumed by the XFCE EL10 manifest; and
+* the `bluefin/fprintd` path, consumed by the Cosmic EL10/aarch64 flow.
+
+Those prefixes should remain higher priority for restore and publish-integrity
+monitoring because an image build reads them directly. The GNOME prefixes
+should be restored on their own schedule, with the no-consumer finding kept in
+the incident record so an empty cleanup target is not presented as an active
+production outage.
+
 Conclusions, now evidenced rather than inferred:
 
 * **Both GNOME repos need a full chain rebuild.** A `createrepo_c` re-index was the
