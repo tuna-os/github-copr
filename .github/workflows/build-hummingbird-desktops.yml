@@ -73,10 +73,10 @@ env:
   R2_BUCKET: bluefin
   # workflow_dispatch inputs are absent on push. These resolved values preserve
   # manual behavior while making a main-branch run mean a full published matrix.
-  IN_DESKTOP: ${{ inputs.desktop || 'all' }}
-  IN_TIERS: ${{ inputs.tiers || '' }}
-  IN_EXCLUDE_TIERS: ${{ inputs.exclude_tiers || '' }}
-  IN_FORCE: ${{ inputs.force || false }}
+  TRIGGER_DESKTOP: ${{ inputs.desktop || 'all' }}
+  TRIGGER_TIERS: ${{ inputs.tiers || '' }}
+  TRIGGER_EXCLUDE_TIERS: ${{ inputs.exclude_tiers || '' }}
+  TRIGGER_FORCE: ${{ inputs.force || false }}
   MANIFEST: build-order-hummingbird-desktops.yml
   # Fedora + mock toolchain (mock/Containerfile). The tag names the chroot the
   # image was first built for, not the chroot it can build; mock pulls the
@@ -101,8 +101,8 @@ jobs:
         run: |
           python3 scripts/plan_hummingbird_matrix.py \
             --gap-report docs/hummingbird-desktop-gap.json \
-            --desktop "${IN_DESKTOP}" \
-            --tiers "${IN_TIERS}" >> "$GITHUB_OUTPUT"
+            --desktop "${TRIGGER_DESKTOP}" \
+            --tiers "${TRIGGER_TIERS}" >> "$GITHUB_OUTPUT"
 
   build:
     needs: plan
@@ -182,9 +182,9 @@ jobs:
           # job per desktop (see the plan job), and each job resolves only its
           # own share. Reading the input here would make all five jobs select
           # the same tiers and build the identical work five times.
-          SELECT_DESKTOP: ${{ matrix.desktop }}
-          SELECT_TIERS: ${{ env.IN_TIERS }}
-          SELECT_EXCLUDE: ${{ env.IN_EXCLUDE_TIERS }}
+          IN_DESKTOP: ${{ matrix.desktop }}
+          IN_TIERS: ${{ env.TRIGGER_TIERS }}
+          IN_EXCLUDE: ${{ env.TRIGGER_EXCLUDE_TIERS }}
         run: |
           # Not a name-prefix match. The manifest deduplicates packages across
           # desktops, so a tier named gnome-* holds packages XFCE needs too and
@@ -196,9 +196,9 @@ jobs:
           list=$(python3 scripts/select-desktop-tiers.py \
             --manifest "${MANIFEST}" \
             --gap-report docs/hummingbird-desktop-gap.json \
-            --desktop "${SELECT_DESKTOP}" \
-            --tiers "${SELECT_TIERS}" \
-            --exclude-tiers "${SELECT_EXCLUDE}")
+            --desktop "${IN_DESKTOP}" \
+            --tiers "${IN_TIERS}" \
+            --exclude-tiers "${IN_EXCLUDE}")
           echo "selected $(tr ',' '\n' <<< "$list" | wc -l) tiers: $list"
           echo "list=$list" >> "$GITHUB_OUTPUT"
 
@@ -322,7 +322,7 @@ jobs:
           # real ceiling.
           ARGS=(--manifest "${MANIFEST}" --mock-config "${{ matrix.target }}-ci"
                 --local-repo "$PWD/local-repo-hummingbird" --jobs "$(nproc)")
-          if [[ "${IN_FORCE}" == "true" ]]; then ARGS+=(--force); fi
+          if [[ "${TRIGGER_FORCE}" == "true" ]]; then ARGS+=(--force); fi
           # Keep going after a tier that had failures, and fail the step at
           # the end instead.
           #
