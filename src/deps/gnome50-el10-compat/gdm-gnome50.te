@@ -1,4 +1,4 @@
-module gdm-gnome50 1.1;
+module gdm-gnome50 1.2;
 
 require {
 	type etc_t;
@@ -10,6 +10,7 @@ require {
 	class sock_file { create unlink };
 	class file { create write };
 	class service { status };
+	class unix_stream_socket { bind listen };
 }
 
 # GDM 50 dynamically allocates greeter users and registers their userdb
@@ -27,3 +28,9 @@ allow xdm_t etc_t:file create;
 # Allow gnome-session-init-worker (running as xdm_t) to query systemd unit
 # status — needed for GDM 50 greeter session registration (issue #15)
 allow xdm_t systemd_unit_file_t:service { status };
+
+# GDM 50 registers as a systemd-userdb Varlink provider and must bind+listen
+# on its own socket in /run/systemd/userdb/org.gnome.DisplayManager.
+# sock_file:create above only covers the filesystem node; the socket-level
+# operations require unix_stream_socket:bind and unix_stream_socket:listen.
+allow xdm_t self:unix_stream_socket { bind listen };

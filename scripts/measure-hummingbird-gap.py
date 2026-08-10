@@ -229,56 +229,95 @@ def closure(roots, reference, have, source_index=None):
         else:
             absent_roots.append(root)
     queue = list(resolved_roots)
-    while queue:
-        name = queue.pop()
-        if name in seen:
-            continue
-        seen.add(name)
-        info = packages.get(name)
-        if info is None:
-            absent_roots.append(name)
-            continue
-        for requirement in info["requires"]:
-            if requirement in have:
-                continue
-            if requirement.startswith(RICH_DEP_PREFIX):
-                continue
-            candidates = provides.get(requirement)
-            if not candidates:
-                unresolved.setdefault(requirement, []).append(name)
-                continue
-            provider = choose_provider(requirement, candidates)
-            if provider not in seen:
-                queue.append(provider)
 
-        if not queue and source_index is not None:
-            # Runtime frontier is exhausted. Fold in the BuildRequires of every
-            # source package behind what we have reached; anything new restarts
-            # the runtime walk above, which is why this sits inside the loop.
-            #
-            # folded_sources keeps this from rescanning the whole of `seen`
-            # every time the queue drains -- with 23k SRPMs that turns a linear
-            # walk quadratic.
-            for binary in sorted(seen):
-                info = packages.get(binary)
-                if info is None:
+    def walk_runtime() -> None:
+        while queue:
+            name = queue.pop()
+            if name in seen:
+                continue
+            seen.add(name)
+            info = packages.get(name)
+            if info is None:
+                absent_roots.append(name)
+                continue
+            for requirement in info["requires"]:
+                if requirement in have:
                     continue
-                source = srpm_name(info.get("srpm"))
-                if source is None or source in folded_sources:
+                if requirement.startswith(RICH_DEP_PREFIX):
                     continue
-                folded_sources.add(source)
-                for requirement in source_index.get(source, ()):
-                    if requirement in have or requirement in seen:
-                        continue
-                    if requirement.startswith(RICH_DEP_PREFIX):
-                        continue
-                    candidates = provides.get(requirement)
-                    if not candidates:
-                        unresolved.setdefault(requirement, []).append(source)
-                        continue
-                    provider = choose_provider(requirement, candidates)
-                    if provider not in seen:
-                        queue.append(provider)
+                candidates = provides.get(requirement)
+                if not candidates:
+                    unresolved.setdefault(requirement, []).append(name)
+                    continue
+                provider = choose_provider(requirement, candidates)
+                if provider not in seen:
+                    queue.append(provider)
+
+    def fold_buildrequires() -> None:
+        """Queue the providers of every BuildRequires: not yet reached.
+
+        folded_sources keeps this from rescanning the whole of `seen` each
+        time the runtime frontier drains -- with 23k SRPMs that turns a linear
+        walk quadratic.
+        """
+        for binary in sorted(seen):
+            info = packages.get(binary)
+            if info is None:
+                continue
+            source = srpm_name(info.get("srpm"))
+            if source is None or source in folded_sources:
+                continue
+            folded_sources.add(source)
+            for requirement in source_index.get(source, ()):
+                if requirement in have or requirement in seen:
+                    continue
+                if requirement.startswith(RICH_DEP_PREFIX):
+                    continue
+                candidates = provides.get(requirement)
+                if not candidates:
+                    unresolved.setdefault(requirement, []).append(source)
+                    continue
+                provider = choose_provider(requirement, candidates)
+                if provider not in seen:
+                    queue.append(provider)
+
+    # Alternate to a fixpoint. The two halves are separate passes rather than
+    # one loop with the fold hanging off the end of the body, because that is
+    # what the previous shape was and it dropped the last fold every time:
+    #
+    #     while queue:
+    #         name = queue.pop()
+    #         if name in seen:
+    #             continue          # <-- jumps past the fold below
+    #         ...
+    #         if not queue and source_index is not None:
+    #             ...fold...
+    #
+    # When the queue drained on an already-seen name -- a duplicate, which is
+    # common -- control went back to `while queue:`, found it empty and left,
+    # with the newest sources never folded. Whether a desktop got its build
+    # dependencies came down to whether the last pop happened to be a
+    # duplicate, and that is why it looked like a per-desktop problem: cosmic
+    # reached `vala` and ordered dconf after it at tier 11, gnome did not
+    # reach it at all and sorted dconf into tier 0 with no build dependencies,
+    # where it failed against Rawhide's Python 3.15 (see #287).
+    while True:
+        walk_runtime()
+        if source_index is None:
+            break
+        fold_buildrequires()
+        if not queue:
+            break
+        walk_runtime()
+        if not queue:
+            # The fold produced nothing new on the last pass; another fold
+            # cannot either, since folded_sources only grows.
+            if all(
+                srpm_name(packages[b].get("srpm")) in folded_sources
+                for b in seen
+                if b in packages and packages[b].get("srpm")
+            ):
+                break
     return seen, absent_roots, unresolved
 
 
@@ -481,6 +520,7 @@ def main() -> None:
         "desktops": {},
     }
     build_tiers: dict[str, list[list[str]]] = {}
+    union_need: set[str] = set()
 
     for desktop in wanted:
         definition = catalog["desktops"][desktop]
@@ -507,6 +547,7 @@ def main() -> None:
         tiers, cycles = tier_sources(need, reference_index, have, source_index)
         sources = sorted({name for tier in tiers for name in tier})
         build_tiers[desktop] = tiers
+        union_need |= set(need)
         report["desktops"][desktop] = {
             "roots": roots,
             "roots_already_in_target": already,
@@ -533,19 +574,51 @@ def main() -> None:
             file=sys.stderr,
         )
 
+    # Tier once, over every desktop's packages at the same time.
+    #
+    # Tiering per desktop and concatenating the results is not merely longer,
+    # it is wrong. tier_sources only draws an edge when the dependency is in
+    # the set being tiered, so each desktop saw a different subgraph: an edge
+    # to a package that another desktop happened to claim simply was not there.
+    # The old emitter then deduplicated across desktops, which put a shared
+    # build tool in whichever desktop's tiering reached it first and left every
+    # earlier package that needed it building without it.
+    #
+    # Measured on the 78-tier manifest this produced: 993 BuildRequires edges,
+    # touching 405 of 1248 source packages, whose dependency was built in a
+    # LATER tier. nautilus in gnome-09 BuildRequires desktop-file-utils, which
+    # the manifest built in kde-00, nine tiers later. Those builds did not
+    # fail -- the buildroot also has fedora-rawhide, so they quietly linked
+    # against Fedora's copy instead of the one this manifest exists to build.
+    #
+    # Over the union every edge is present, so the layering is a topological
+    # order over the whole graph. It is also 36 layers rather than 78.
+    global_tiers, global_cycles = tier_sources(
+        sorted(union_need), reference_index, have, source_index
+    )
+    report["build_order"] = {
+        "tiers": [{"index": i, "sources": t} for i, t in enumerate(global_tiers)],
+        "buildrequires_cycles": global_cycles,
+    }
+    print(
+        f"build order: {len(global_tiers)} layers over {len(union_need)} binary "
+        f"packages from {len(wanted)} desktops",
+        file=sys.stderr,
+    )
+
     if args.report_json:
         args.report_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
         print(f"wrote {args.report_json}", file=sys.stderr)
 
     if args.build_order:
         emit_build_order(
-            args.build_order, catalog, build_tiers, report,
+            args.build_order, catalog, global_tiers, global_cycles, report,
             args.catalog.resolve().parents[1],
         )
         print(f"wrote {args.build_order}", file=sys.stderr)
 
 
-def emit_build_order(path, catalog, build_tiers, report, root) -> None:
+def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -> None:
     """Write a build-chain.sh manifest whose tiers came out of the measurement.
 
     A package that already has a reviewed spec directory in this repository
@@ -556,12 +629,7 @@ def emit_build_order(path, catalog, build_tiers, report, root) -> None:
     """
     target = catalog["target"]
     search = ["src/gnome-50", "src/deps", "src/hummingbird", "src/xfce-wayland"]
-    cycles = {
-        name: desktop
-        for desktop, definition in report["desktops"].items()
-        for cycle in definition["buildrequires_cycles"]
-        for name in cycle
-    }
+    cycles = {name for cycle in global_cycles for name in cycle}
 
     def locate(name):
         for prefix in search:
@@ -572,8 +640,10 @@ def emit_build_order(path, catalog, build_tiers, report, root) -> None:
     lines = [
         "# GENERATED BY scripts/measure-hummingbird-gap.py — DO NOT HAND-EDIT.",
         "#",
-        "# Tiers are a topological order over the condensed BuildRequires: graph",
-        "# of Fedora Rawhide's source repository, minus everything",
+        "# Tiers are ONE topological order over the condensed BuildRequires:",
+        "# graph of every desktop at once -- not one order per desktop glued",
+        "# end to end, which is what this file used to be and which built 405",
+        "# packages before something they BuildRequire.  Minus everything",
         f"# {target['id']} already ships.  Each tier builds in",
         "# parallel; tiers are sequential.  Regenerate with:",
         "#",
@@ -600,23 +670,41 @@ def emit_build_order(path, catalog, build_tiers, report, root) -> None:
         "",
         "tiers:",
     ]
+    # The declared bootstrap tiers come first and verbatim.  They are the
+    # PEP-517 backends the measurement cannot discover (catalog `bootstrap:`),
+    # and they used to be hand-written into this generated file, where the next
+    # regeneration deleted them.
     seen: set[str] = set()
-    for desktop, tiers in build_tiers.items():
-        for index, tier in enumerate(tiers):
-            fresh = [name for name in tier if name not in seen]
-            if not fresh:
-                continue
-            seen.update(fresh)
-            lines.append(f"  - name: {desktop}-{index:02d}")
-            lines.append("    packages:")
-            for name in fresh:
-                location, imported = locate(name)
-                lines.append(f"      - path: {location}")
-                if imported:
-                    lines.append(f"        distgit: {name}")
-                if name in cycles:
-                    lines.append("        bootstrap: true")
-            lines.append("")
+    for tier in catalog.get("bootstrap", []):
+        lines.append(f"  - name: {tier['name']}")
+        lines.append("    packages:")
+        for pkg in tier["packages"]:
+            lines.append(f"      - path: {pkg['path']}")
+            if "distgit" in pkg:
+                lines.append(f"        distgit: {pkg['distgit']}")
+            seen.add(pkg.get("distgit") or pkg["path"].rsplit("/", 1)[-1])
+        lines.append("")
+
+    # Then the layers, which are a single topological order over every
+    # desktop's packages rather than five per-desktop orders concatenated.
+    # `seen` only skips what the bootstrap tiers already built; there is no
+    # cross-desktop deduplication left to do, because there are no longer
+    # five separate orders to deduplicate between.
+    for index, tier in enumerate(global_tiers):
+        fresh = [name for name in tier if name not in seen]
+        if not fresh:
+            continue
+        seen.update(fresh)
+        lines.append(f"  - name: layer-{index:02d}")
+        lines.append("    packages:")
+        for name in fresh:
+            location, imported = locate(name)
+            lines.append(f"      - path: {location}")
+            if imported:
+                lines.append(f"        distgit: {name}")
+            if name in cycles:
+                lines.append("        bootstrap: true")
+        lines.append("")
     path.write_text("\n".join(lines).rstrip() + "\n")
 
 

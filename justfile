@@ -5,6 +5,13 @@ export R2_BUCKET := "bluefin"
 default:
     @just --list
 
+# Fast, deterministic validation that mirrors the non-build portions of CI.
+# Keep the distributed Hummingbird/package builds in their dedicated workflows:
+# they are intentionally not a developer-machine prerequisite.
+check:
+    python3 -m pytest tests/ -v --tb=short
+    python3 scripts/parse-build-order.py build-order.yml --validate
+
 # Build RPM for a single target
 build target:
     #!/usr/bin/env bash

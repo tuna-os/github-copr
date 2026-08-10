@@ -96,8 +96,13 @@ def test_lookaside_downloads_are_persisted_only_after_verification():
     text = BUILD_CHAIN.read_text()
     start = text.index("Fetch dist-git lookaside sources")
     block = text[start:text.index('done < "$sources_file"', start)]
-    check = block.index("--check --quiet")
-    persist = block.index("RPM_SOURCES_CACHE")
+    # Comments in this block discuss the cache by name, and prose is not an
+    # order of operations -- index the code only.
+    code = "\n".join(
+        line for line in block.splitlines() if not line.lstrip().startswith("#")
+    )
+    check = code.index("--check --quiet")
+    persist = code.index("RPM_SOURCES_CACHE")
     assert check < persist, (
         "a lookaside archive is copied into the shared cache before its "
         "checksum is verified; a corrupt download would be served to every "

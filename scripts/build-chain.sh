@@ -316,6 +316,74 @@ find_spec() {
     return 1
 }
 
+# Move a %find_lang out of %check and onto the end of %install.
+#
+# rpmbuild --nocheck does not skip the %check *command*, it skips the whole
+# %check *section* -- and a spec is free to put anything after %check that is
+# not a section header of its own. Fedora's iso-codes does exactly that:
+#
+#   %check
+#   %meson_test
+#
+#   %find_lang %{name} --all-name
+#
+#   %files -f %{name}.lang
+#
+# so with --nocheck the .lang file is never generated and the build dies in
+# %files, on a spec that is perfectly correct in Koji:
+#
+#   error: Could not open %files file .../iso-codes.lang: No such file or directory
+#
+# %find_lang only reads $RPM_BUILD_ROOT, so the end of %install is both where
+# it belongs and where it behaves identically. Rewrite the staged copy, never
+# the tree: an imported spec is a verbatim record of dist-git.
+#
+# Confined to specs that actually have the shape (checks off, a %find_lang
+# inside %check, and an %install to move it to); every other spec is passed
+# through byte for byte.
+hoist_find_lang_out_of_check() {
+    local staged_spec="$1"
+    local pkg_name="$2"
+
+    $WITH_CHECKS && return 0
+    grep -q '^[[:space:]]*%find_lang' "$staged_spec" || return 0
+
+    local rewritten="${staged_spec}.hoisted"
+    awk '
+        function is_section_header(l) {
+            return (l ~ /^%(package|description|prep|generate_buildrequires|conf|build|install|check|files|changelog|pre|post|preun|postun|pretrans|posttrans|verifyscript|trigger|filetrigger|transfiletrigger|sepolicy|patchlist|sourcelist)([[:space:]]|$)/)
+        }
+        {
+            line[NR] = $0
+            if (is_section_header($0)) {
+                if ($0 ~ /^%install([[:space:]]|$)/)     section = "install"
+                else if ($0 ~ /^%check([[:space:]]|$)/)  section = "check"
+                else                                     section = "other"
+            }
+            if (section == "install") install_end = NR
+            if (section == "check" && $0 ~ /^[[:space:]]*%find_lang/) hoist[NR] = 1
+        }
+        END {
+            hoisted = 0
+            for (i = 1; i <= NR; i++) if (i in hoist) hoisted++
+            if (hoisted == 0 || install_end == 0) { for (i = 1; i <= NR; i++) print line[i]; exit 0 }
+            for (i = 1; i <= NR; i++) {
+                if (i in hoist) continue
+                print line[i]
+                if (i == install_end)
+                    for (j = 1; j <= NR; j++) if (j in hoist) print line[j]
+            }
+        }
+    ' "$staged_spec" > "$rewritten" || { err "spec rewrite failed for ${pkg_name}"; return 1; }
+
+    if ! cmp -s "$staged_spec" "$rewritten"; then
+        echo "==> [${pkg_name}] %find_lang sits in %check, which --nocheck skips; hoisting it to %install"
+        mv "$rewritten" "$staged_spec"
+    else
+        rm -f "$rewritten"
+    fi
+}
+
 # Prepare a build tree (spec + patches + downloaded sources) in $builddir.
 # Does NOT build — just stages everything so a backend can pick it up.
 prepare_sources() {
@@ -328,6 +396,7 @@ prepare_sources() {
     mkdir -p "${builddir}"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS,SPECS}
 
     cp "$spec" "${builddir}/SPECS/"
+    hoist_find_lang_out_of_check "${builddir}/SPECS/$(basename "$spec")" "$pkg_name" || return 1
 
     # Copy patches and other sources (don't exclude tarballs/zips if they exist locally)
     find "$abs_pkg_dir" -maxdepth 1 -type f \
@@ -373,10 +442,38 @@ prepare_sources() {
         return 1
     }
     if [[ -n "$sources_cache" ]]; then
-        find "$sources_cache" -maxdepth 1 -type f \
-            -exec ln -f {} "${builddir}/SOURCES/" \; 2>/dev/null \
-            || cp "$sources_cache"/* "${builddir}/SOURCES/" 2>/dev/null || true
+        # Never let a cached download land on top of a file that came out of
+        # the package directory. Those files are what Fedora committed to
+        # dist-git; the cache holds whatever a URL served at download time,
+        # and for a spec that carries a patch by URL those are not the same
+        # thing.
+        #
+        # luajit is the worked example. Its Patch2 is
+        # https://github.com/luajit/luajit/pull/631.patch, a live pull request
+        # whose diff is regenerated against a moving base, and dist-git also
+        # ships the pinned copy as luajit-2.1-s390x-support.patch. `ln -f`
+        # clobbered the pinned copy with today's regenerated one, which no
+        # longer applies: "2 out of 4 hunks FAILED -- saving rejects to file
+        # src/lj_ccall.c.rej", %prep dead, run 31294475023 layer-00.
+        local cached
+        while IFS= read -r -d '' cached; do
+            [[ -e "${builddir}/SOURCES/$(basename "$cached")" ]] && continue
+            ln -f "$cached" "${builddir}/SOURCES/" 2>/dev/null \
+                || cp "$cached" "${builddir}/SOURCES/" 2>/dev/null || true
+        done < <(find "$sources_cache" -maxdepth 1 -type f -print0)
     fi
+
+    # Re-assert the dist-git files over anything spectool fetched. When
+    # $RPM_SOURCES_CACHE is unset spectool downloads straight into SOURCES,
+    # so the guard above never sees those writes; this makes "dist-git wins"
+    # true on both paths rather than only on the cached one.
+    find "$abs_pkg_dir" -maxdepth 1 -type f \
+        ! -name "*.spec" \
+        ! -name "sources" \
+        ! -name "changelog" \
+        ! -name "rpminspect.yaml" \
+        ! -name "*.md" \
+        -exec cp -f {} "${builddir}/SOURCES/" \;
 
     # Fetch dist-git lookaside sources. A package imported from Fedora dist-git
     # can list artifacts in its `sources` file that have no URL in the spec at
@@ -418,7 +515,32 @@ prepare_sources() {
             else
                 continue
             fi
-            [[ -f "${builddir}/SOURCES/${entry_name}" ]] && continue
+            # Present is not the same as correct. A `sources` entry pins an
+            # exact artifact, but plenty of Rawhide specs point Source0 at a
+            # moving ref -- luajit's is
+            # https://github.com/LuaJIT/LuaJIT/archive/refs/heads/v2.1/...,
+            # the branch head. Fedora builds from the lookaside copy the
+            # checksum names; spectool downloads whatever that branch is
+            # today. The two drifted, so the patches (cut against the pinned
+            # snapshot) stopped applying and luajit failed %prep in
+            # run 31294475023 while Fedora's own build of the same commit is
+            # fine.
+            #
+            # So verify what is staged against the recorded hash, and treat a
+            # mismatch exactly like a missing file: discard it and take the
+            # lookaside copy, which is by definition the artifact the rest of
+            # the packaging was written against.
+            if [[ -f "${builddir}/SOURCES/${entry_name}" ]]; then
+                if echo "${entry_hash}  ${builddir}/SOURCES/${entry_name}" \
+                    | "${entry_algo}sum" --check --status -; then
+                    continue
+                fi
+                echo "==> [${pkg_name}] ${entry_name} does not match the ${entry_algo} in dist-git sources; refetching"
+                # rm rather than overwrite: with $RPM_SOURCES_CACHE this file
+                # is a hard link to the cached copy, and writing through it
+                # would edit the cache behind its own checksum check.
+                rm -f "${builddir}/SOURCES/${entry_name}"
+            fi
             echo "==> [${pkg_name}] Fetching ${entry_name} from the Fedora lookaside cache (${entry_algo})..."
             # The lookaside path carries the algorithm, so the legacy entries
             # live under .../md5/<hash>/... and not under sha512.
@@ -972,31 +1094,52 @@ build_tier() {
 
     local pids=()
     local pkg_paths=()
+    # Worker output stays in a per-package file until the package exits, so
+    # parallel builds do not interleave. That made a single long build look
+    # indistinguishable from a hung one in Actions: after "Queued", nothing at
+    # all reached the live log until mock and rpmbuild both finished. Keep the
+    # clean final log, but let the parent scheduler prove every live worker is
+    # still alive once a minute.
+    local started_at=()
+    local last_heartbeat=()
+    local heartbeat_interval=60
     local active=0
     local _tier_start_rpms
     _tier_start_rpms="$(_repo_rpm_count)"
 
     wait_one() {
-        for i in "${!pids[@]}"; do
-            local pid="${pids[$i]}"
-            local path="${pkg_paths[$i]}"
-            if ! kill -0 "$pid" 2>/dev/null; then
-                local logfile
-                logfile="${logdir}/$(basename "$path").log"
-                cat "$logfile"
-                if wait "$pid"; then
-                    : # success
-                else
-                    err "Failed: ${path}"
-                    _tier_failed+=("${path}")
+        # This used to recurse every 0.5 seconds while all workers were alive.
+        # A TeX package can run for hours, so use a loop: progress reporting
+        # must not grow the shell call stack just because a build is slow.
+        while true; do
+            local now
+            now=$(date +%s)
+            for i in "${!pids[@]}"; do
+                local pid="${pids[$i]}"
+                local path="${pkg_paths[$i]}"
+                if ! kill -0 "$pid" 2>/dev/null; then
+                    local logfile
+                    logfile="${logdir}/$(basename "$path").log"
+                    cat "$logfile"
+                    if wait "$pid"; then
+                        : # success
+                    else
+                        err "Failed: ${path}"
+                        _tier_failed+=("${path}")
+                    fi
+                    unset 'pids[$i]' 'pkg_paths[$i]' 'started_at[$i]' 'last_heartbeat[$i]'
+                    active=$(( active - 1 ))
+                    return
                 fi
-                unset 'pids[$i]' 'pkg_paths[$i]'
-                active=$(( active - 1 ))
-                return
-            fi
+
+                if (( now - last_heartbeat[i] >= heartbeat_interval )); then
+                    local elapsed=$(( now - started_at[i] ))
+                    log "  Still building ${path} (pid ${pid}, elapsed ${elapsed}s)"
+                    last_heartbeat[i]=$now
+                fi
+            done
+            sleep 0.5
         done
-        sleep 0.5
-        wait_one
     }
 
     while IFS=$'\t' read -r pkg_path spec_override; do
@@ -1018,10 +1161,15 @@ build_tier() {
         local logfile
         logfile="${logdir}/$(basename "$pkg_path").log"
         build_package "$pkg_path" "$spec_override" > "$logfile" 2>&1 &
-        pids+=($!)
+        local pid=$!
+        local now
+        now=$(date +%s)
+        pids+=("$pid")
         pkg_paths+=("$pkg_path")
+        started_at+=("$now")
+        last_heartbeat+=("$now")
         active=$(( active + 1 ))
-        log "  Queued ${pkg_path} (pid $!)"
+        log "  Queued ${pkg_path} (pid ${pid})"
 
     done < <(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --tier "$tier_name")
 
