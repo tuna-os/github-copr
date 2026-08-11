@@ -14,13 +14,14 @@ build:
   cmake_options: [-DCPPTRACE_BUILD_SHARED=ON, -DCPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE=ON, -DCPPTRACE_UNWIND_WITH_LIBUNWIND=ON]
 dependencies:
   build:
-    common: [cmake, gcc-c++]
+    # Toolchain deps are per-target: a common list with gcc-c++ would leak
+    # into Arch where the C++ compiler is part of gcc, not a separate package.
     targets:
-      el10: [libunwind-devel]
-      ubuntu: [libunwind-dev]
-      debian: [libunwind-dev]
-      opensuse-tumbleweed: [libunwind-devel]
-      arch: [libunwind]
+      el10: [cmake, gcc-c++, libunwind-devel]
+      ubuntu: [cmake, g++, libunwind-dev]
+      debian: [cmake, g++, libunwind-dev]
+      opensuse-tumbleweed: [cmake, gcc-c++, libunwind-devel]
+      arch: [cmake, gcc, libunwind]
 files:
   common: [usr/include/cpptrace, usr/include/ctrace]
 outputs:
