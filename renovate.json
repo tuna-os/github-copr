@@ -15,7 +15,7 @@
       "platformAutomerge": true
     },
     {
-      "description": "Upstream package source pins (commits/versions this repo packages) still automerge, but only once the real mock/podman build for that package passes as a required status check \u2014 a bare version bump alone has repeatedly hidden real breakage (new MSRV, new/dropped files) that only a build catches. See build-xfce-fedora.yml / build-xfce-package.yml / build-fprintd-validation.yml / build-xfce-arch-validation.yml path triggers.",
+      "description": "Upstream package source pins (commits/versions this repo packages) still automerge, but only once the real mock/podman build for that package passes as a required status check \u2014 a bare version bump alone has repeatedly hidden real breakage (new MSRV, new/dropped files) that only a build catches. See build-tideforge-supported.yml / build-xfce-package.yml / build-fprintd-validation.yml / build-xfce-arch-validation.yml path triggers.",
       "matchDepTypes": [
         "upstream-source"
       ],
@@ -94,11 +94,12 @@
       "customType": "regex",
       "description": "xfconf: tracks gitlab.xfce.org/xfce/xfconf's master branch (no stable release yet \u2014 xfwl4's crates require post-4.20 development commits).",
       "fileMatch": [
+        "^packages/xfconf/package\\.yaml$",
         "^src/xfce-wayland/xfconf/xfconf\\.spec$",
         "^src/xfce-wayland/xfconf/packaging/arch/PKGBUILD$"
       ],
       "matchStrings": [
-        "(?:%global commit\\s+|_commit=)(?<currentDigest>[a-f0-9]{40})"
+        "(?:%global commit\\s+|_commit=|archive/)(?<currentDigest>[a-f0-9]{40})"
       ],
       "currentValueTemplate": "master",
       "datasourceTemplate": "git-refs",
@@ -126,11 +127,12 @@
       "customType": "regex",
       "description": "xfwl4: tracks gitlab.xfce.org/xfce/xfwl4's main branch \u2014 pre-1.0 compositor, no tagged releases to pin to instead.",
       "fileMatch": [
+        "^packages/xfwl4/package\\.yaml$",
         "^src/xfce-wayland/xfwl4/xfwl4\\.spec$",
         "^src/xfce-wayland/xfwl4/packaging/arch/PKGBUILD$"
       ],
       "matchStrings": [
-        "(?:%global commit\\s+|\\n_commit=)(?<currentDigest>[a-f0-9]{40})"
+        "(?:%global commit\\s+|\\n_commit=|archive/)(?<currentDigest>[a-f0-9]{40})"
       ],
       "currentValueTemplate": "main",
       "datasourceTemplate": "git-refs",

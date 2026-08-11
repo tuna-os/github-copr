@@ -173,3 +173,11 @@ Concurrency, for the record, is now 74.2 m of mock over 39.02 m of wall =
 time roughly doubled (median 77.5 s at jobs=2-but-serialised, 138.5 s at
 jobs=4) because four builds share four cores with `%{_smp_mflags}`.  That is
 the ceiling more machines address and in-job concurrency does not.
+
+## Summary Status (#267)
+
+* **One runner per dispatch**: Matrixed plan/build jobs implemented in PR #277.
+* **Mock chroot root cache**: Shared cache directory with `-p` flag implemented in PR #277.
+* **Runner size**: GitHub-hosted 4-vCPU standard runners in use across org.
+* **DAG wavefront**: Documented; evaluated for higher worker concurrency tiers.
+
