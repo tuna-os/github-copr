@@ -276,6 +276,14 @@ def test_real_recipes_keep_declared_runtime_metadata(
         assert dependency in metadata
 
 
+def test_dms_greeter_is_an_arch_recipe_with_runtime_closure() -> None:
+    recipe = tideforge.load_yaml(ROOT / "packages" / "dms-greeter" / "package.yaml")
+    tideforge.validate(recipe, "arch")
+    pkgbuild = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "depends=('greetd' 'quickshell')" in pkgbuild
+    assert "usr/bin/dms-greeter" in pkgbuild
+
+
 def test_rpm_changelog_uses_a_valid_rpm_date(recipe: dict) -> None:
     spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
     assert "* Sat Jul 25 2026 TunaOS Package Factory" in spec
