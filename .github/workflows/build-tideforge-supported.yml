@@ -217,18 +217,15 @@ jobs:
           # tideforge-built runtime deps, so the plain matrix cell suffices.
           # cosmic-icon-theme and cosmic-comp need staged prerequisites and
           # get dedicated jobs below.
+          # The install contract is not repeated here: the gate derives
+          # install_name and smoke from each recipe's verify: block, so a
+          # matrix copy is redundant today and stale tomorrow.
           - package: pop-icon-theme
             target: el10
-            install_name: pop-icon-theme
-            smoke: test -d /usr/share/icons/Pop
           - package: cosmic-randr
             target: el10
-            install_name: cosmic-randr
-            smoke: cosmic-randr --help
           - package: cosmic-panel
             target: el10
-            install_name: cosmic-panel
-            smoke: test -x /usr/bin/cosmic-panel
           - package: cosmic-settings-daemon
             target: el10
           - package: evtest
@@ -998,10 +995,6 @@ jobs:
       - name: Render and fetch the exact source archive
         run: |
           set -euo pipefail
-          # This job owns the staged COSMIC icon closure consumed by the
-          # service gates below. Keep these recipe paths visible to the planner
-          # so a service-only change also reruns this prerequisite job.
-          echo packages/cosmic-idle/package.yaml packages/cosmic-notifications/package.yaml packages/cosmic-osd/package.yaml packages/xdg-desktop-portal-cosmic/package.yaml
           recipe=packages/cosmic-icon-theme/package.yaml
           root="$PWD/.tideforge/cosmic-icon-theme"
           python3 scripts/tideforge.py validate "$recipe"
@@ -1050,14 +1043,26 @@ jobs:
   # runs the recipe-owned smoke assertion instead of returning a payload-only
   # green check (#169).
   cosmic_services_rpm:
-    name: ${{ matrix.package }} (el10 RPM)
+    name: ${{ matrix.package }} (${{ matrix.target }} RPM)
     needs: [detect-changes, plan, rpm, cosmic-icon-theme-rpm]
     if: ${{ needs.plan.outputs.cosmic_services_rpm_run == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        package: [cosmic-idle, cosmic-notifications, cosmic-osd, xdg-desktop-portal-cosmic]
+        # Declared as include cells, not a bare package list: that is the shape
+        # plan_gate_matrix.py and the coverage/verify cross-checks read, so a
+        # change to one of these recipes reaches this job (and its staged
+        # prerequisites) without the workflow restating anything.
+        include:
+          - package: cosmic-idle
+            target: el10
+          - package: cosmic-notifications
+            target: el10
+          - package: cosmic-osd
+            target: el10
+          - package: xdg-desktop-portal-cosmic
+            target: el10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -1078,10 +1083,6 @@ jobs:
       - name: Render and fetch the exact source archive
         run: |
           set -euo pipefail
-          # Keep the matrix-owned recipes visible to plan_gate_matrix.py; a
-          # computed matrix has no literal include entries for the planner to
-          # inspect.
-          echo packages/cosmic-idle/package.yaml packages/cosmic-notifications/package.yaml packages/cosmic-osd/package.yaml packages/xdg-desktop-portal-cosmic/package.yaml
           recipe="packages/${{ matrix.package }}/package.yaml"
           root="$PWD/.tideforge/cosmic-services/${{ matrix.package }}"
           python3 scripts/tideforge.py validate "$recipe"
