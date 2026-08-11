@@ -7,7 +7,7 @@ description: >-
   Xfce Wayland compositor built on Smithay/wlroots for the TunaOS XFCE desktop.
 license: GPL-3.0-or-later AND Apache-2.0 AND MIT
 source:
-  url: https://gitlab.xfce.org/xfce/xfwl4/-/archive/4c7cc591ee029225a08687699c8d445c7248b079/xfwl4-465880f67b5705136895bf69c60e2178ad351856.tar.gz
+  url: https://gitlab.xfce.org/xfce/xfwl4/-/archive/465880f67b5705136895bf69c60e2178ad351856/xfwl4-465880f67b5705136895bf69c60e2178ad351856.tar.gz
   sha256: 4507f6ea9da24dc756df4ac02441a3b7452187ba64bce8893eaf1cbe62a0850b
   directory: xfwl4-465880f67b5705136895bf69c60e2178ad351856
 # Cargo's vendor tree and XFCE protocol submodule are part of the source
@@ -18,7 +18,7 @@ sources:
     filename: xfwl4-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/4c7cc591ee029225a08687699c8d445c7248b079/xfce-wayland-protocols-6082cfa492154aec266527193bf8f6142ab14977.tar.gz
+  - url: https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/6082cfa492154aec266527193bf8f6142ab14977/xfce-wayland-protocols-6082cfa492154aec266527193bf8f6142ab14977.tar.gz
     sha256: bb6f9d5ad772c9114b6f15fd2c288fd344e07e1ccfd61e23890ae5c501c953cc
     filename: xfce-wayland-protocols.tar.gz
     destination: resources/xfce-wayland-protocols
@@ -53,6 +53,9 @@ dependencies:
       el10: [libdrm-devel, libinput-devel, mesa-libgbm-devel, libseat-devel, libxkbcommon-devel, pixman-devel, wayland-devel, wayland-protocols-devel, gtk3-devel, gdk-pixbuf2-devel, libdisplay-info-devel, libSM-devel, systemd-devel, startup-notification-devel, xfconf-devel, libxfce4ui-devel, gettext-devel]
       ubuntu: [libdrm-dev, libinput-dev, libgbm-dev, libseat-dev, libxkbcommon-dev, libpixman-1-dev, libwayland-dev, wayland-protocols, libgtk-3-dev, libgdk-pixbuf-2.0-dev, libdisplay-info-dev, libsm-dev, libsystemd-dev, libstartup-notification0-dev, libxfconf-0-dev, libxfce4ui-2-dev, gettext]
       debian: [libdrm-dev, libinput-dev, libgbm-dev, libseat-dev, libxkbcommon-dev, libpixman-1-dev, libwayland-dev, wayland-protocols, libgtk-3-dev, libgdk-pixbuf-2.0-dev, libdisplay-info-dev, libsm-dev, libsystemd-dev, libstartup-notification0-dev, libxfconf-0-dev, libxfce4ui-2-dev, gettext]
+  runtime:
+    targets:
+      el10: [xfwm4-themes]
 files:
   common: [usr/bin/xfwl4, usr/share/xfce4/xfwl4/defaults]
 install:
