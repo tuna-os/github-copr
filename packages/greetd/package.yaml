@@ -23,7 +23,7 @@ dependencies:
     # from the ELF headers; makepkg does not, so every linked library must
     # be hand-declared here (#118).
     targets:
-      arch: [pam, systemd-libs]
+      arch: [pam, systemd-libs, libgcc, audit, libcap-ng]
 files:
   common:
     - usr/bin/greetd

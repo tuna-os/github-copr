@@ -31,7 +31,7 @@ dependencies:
       # a silent mask: makepkg --syncdeps installs both, so a build passes even
       # when the recipe under-declares, but the rendered package metadata is
       # wrong (#118).
-      arch: [clang, git, pkgconf, libdrm, pipewire, wayland-protocols, libseat, glib2, cairo, pango, libxkbcommon, libinput, mesa, libdisplay-info]
+      arch: [clang, git, pkgconf, libdrm, pipewire, wayland-protocols, seatd, glib2, cairo, pango, libxkbcommon, libinput, mesa, libdisplay-info]
   runtime:
     targets:
       el10: [libseat]

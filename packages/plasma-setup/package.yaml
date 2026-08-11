@@ -29,7 +29,84 @@ dependencies:
       arch: [base-devel, cmake, extra-cmake-modules, qt6-base, qt6-declarative, qt6-svg, kauth, kcoreaddons, ki18n, kpackage, kconfig, kscreen, plasma-workspace, plasma-desktop]
   runtime:
     targets:
-      arch: [plasma-workspace, plasma-desktop, kscreen, kpackage, kauth]
+      arch:
+        - breeze-icons
+        - brotli
+        - bzip2
+        - curl
+        - dbus
+        - double-conversion
+        - duktape
+        - e2fsprogs
+        - expat
+        - fontconfig
+        - freetype2
+        - glib2
+        - graphite
+        - harfbuzz
+        - icu
+        - karchive
+        - kauth
+        - kcolorscheme
+        - kconfig
+        - kcoreaddons
+        - keyutils
+        - kglobalaccel
+        - kguiaddons
+        - ki18n
+        - kiconthemes
+        - knotifications
+        - kpackage
+        - krb5
+        - kscreen
+        - kservice
+        - ksvg
+        - kwindowsystem
+        - libb2
+        - libcanberra
+        - libffi
+        - libgcc
+        - libglvnd
+        - libgomp
+        - libidn2
+        - libkscreen
+        - libnghttp2
+        - libnghttp3
+        - libngtcp2
+        - libogg
+        - libplasma
+        - libpng
+        - libproxy
+        - libpsl
+        - libssh2
+        - libstdc++
+        - libtool
+        - libunistring
+        - liburing
+        - libvorbis
+        - libx11
+        - libxau
+        - libxcb
+        - libxdmcp
+        - libxfixes
+        - libxkbcommon
+        - md4c
+        - openssl
+        - pcre2
+        - plasma-activities
+        - plasma-desktop
+        - plasma-workspace
+        - qt6-base
+        - qt6-declarative
+        - qt6-svg
+        - systemd-libs
+        - tdb
+        - util-linux-libs
+        - wayland
+        - xcb-util-keysyms
+        - xz
+        - zlib
+        - zstd
 files:
   common:
     - usr/lib/plasma-setup
