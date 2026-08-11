@@ -92,14 +92,13 @@
     },
     {
       "customType": "regex",
-      "description": "xfconf: tracks gitlab.xfce.org/xfce/xfconf's master branch (no stable release yet \u2014 xfwl4's crates require post-4.20 development commits).",
+      "description": "xfconf: tracks gitlab.xfce.org/xfce/xfconf's master branch (no stable release yet \u2014 xfwl4's crates require post-4.20 development commits). Deliberately NOT packages/xfconf/package.yaml: a Tideforge recipe pins source.sha256 and source.directory alongside the URL, and a regex manager can only rewrite the digest, so #339 bumped the URL to eab1533 while leaving the a6f0a7aa checksum and directory behind and broke Validate Package Factory for every branch (#170).",
       "fileMatch": [
-        "^packages/xfconf/package\\.yaml$",
         "^src/xfce-wayland/xfconf/xfconf\\.spec$",
         "^src/xfce-wayland/xfconf/packaging/arch/PKGBUILD$"
       ],
       "matchStrings": [
-        "(?:%global commit\\s+|_commit=|archive/)(?<currentDigest>[a-f0-9]{40})"
+        "(?:%global commit\\s+|_commit=)(?<currentDigest>[a-f0-9]{40})"
       ],
       "currentValueTemplate": "master",
       "datasourceTemplate": "git-refs",
@@ -125,14 +124,13 @@
     },
     {
       "customType": "regex",
-      "description": "xfwl4: tracks gitlab.xfce.org/xfce/xfwl4's main branch \u2014 pre-1.0 compositor, no tagged releases to pin to instead.",
+      "description": "xfwl4: tracks gitlab.xfce.org/xfce/xfwl4's main branch \u2014 pre-1.0 compositor, no tagged releases to pin to instead. Deliberately NOT packages/xfwl4/package.yaml, for the checksum reason on the xfconf manager plus a worse one: an `archive/` digest match is not repository-scoped, so #340 also rewrote the recipe's xfce-wayland-protocols source to xfwl4's own commit, a ref that does not exist there (that URL now 404s). The recipe's vendor.tar.gz release asset is keyed to the pinned commit as well, so bumping it is never a one-line edit (#170).",
       "fileMatch": [
-        "^packages/xfwl4/package\\.yaml$",
         "^src/xfce-wayland/xfwl4/xfwl4\\.spec$",
         "^src/xfce-wayland/xfwl4/packaging/arch/PKGBUILD$"
       ],
       "matchStrings": [
-        "(?:%global commit\\s+|\\n_commit=|archive/)(?<currentDigest>[a-f0-9]{40})"
+        "(?:%global commit\\s+|\\n_commit=)(?<currentDigest>[a-f0-9]{40})"
       ],
       "currentValueTemplate": "main",
       "datasourceTemplate": "git-refs",
