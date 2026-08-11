@@ -63,8 +63,28 @@ desktops:
   xfce:
     release: "4.21"
     sources: [{local: src/xfce-wayland}]
-    required_packages: [xfconf, libxfce4ui, xfwl4]
-    install_packages: [gdm, xfwl4, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, thunar, mousepad, ristretto, xfce4-whiskermenu-plugin, xfce4-terminal, xfce4-session, xfce4-panel, xfce4-settings, xfdesktop, xfwm4, xfwm4-themes, xfconf, libxfce4ui]
+    # greetd + gtkgreet + cage are the XFCE Wayland greetd login path from the
+    # upstream parity register (docs/UPSTREAM_PARITY.md): gtkgreet is a project
+    # recipe (packages/gtkgreet), cage is a Fedora distro package, greetd is
+    # rebuilt from src/hummingbird/greetd.  They were named in the base-image
+    # audit (#228) and are part of the desktop's contract surface.
+    required_packages: [xfconf, libxfce4ui, xfwl4, greetd, gtkgreet, cage]
+    install_packages: [gdm, greetd, gtkgreet, cage, xfwl4, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, thunar, mousepad, ristretto, xfce4-whiskermenu-plugin, xfce4-terminal, xfce4-session, xfce4-panel, xfce4-settings, xfdesktop, xfwm4, xfwm4-themes, xfconf, libxfce4ui]
+
+# Base-image component audit (tuna-os/tunaos-packages#228).
+#
+# quay.io/hummingbird-community/bootc-os:latest ships 262 packages total (a
+# minimal bootc container OS with the CKI ARK kernel) and NONE of the
+# submodules/applets below -- it does ship NetworkManager itself.  Each
+# component is attributed to the desktop edition that must install it, and
+# scripts/validate-hummingbird-catalog.py fails any commit that drops a
+# component from its desktop's install_packages, so the availability audit
+# is an invariant of the manifest rather than a one-off measurement.
+components:
+  gnome: [NetworkManager-openvpn-gnome, NetworkManager-openconnect-gnome, NetworkManager-wwan, gnome-keyring, nautilus, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk]
+  kde: [xdg-desktop-portal-kde]
+  niri: [NetworkManager-tui, blueman, brightnessctl, playerctl, pavucontrol, gnome-keyring, nautilus, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk, SwayNotificationCenter, waybar, fuzzel]
+  xfce: [greetd, gtkgreet, cage, xdg-desktop-portal-gtk]
 
 # The PEP-517 build backends Hummingbird does not ship (#268).
 #

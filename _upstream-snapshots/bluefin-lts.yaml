@@ -1,0 +1,38 @@
+# Bluefin (LTS) snapshot package declarations.
+#
+# Bluefin is the GNOME workstation experience from the uBlue project.  This
+# snapshot records only the packages the parity register (docs/UPSTREAM_PARITY.md)
+# tracks as parity-relevant -- the curated additions a GNOME user expects that
+# Fedora itself does not provide.  The ordinary long Fedora package lists
+# Bluefin enables are deliberately NOT factory inputs: the register consumes
+# them as distribution packages ("The ordinary long Fedora package lists from
+# Bluefin and Aurora are not factory inputs...").
+#
+# `disposition` is the audit's expectation, verified against this repository
+# by scripts/audit-upstream-parity.py:
+#   recipe        a TunaOS source recipe (packages/<name>/package.yaml) or a
+#                 reviewed spec tree (src/<tree>/<name>) must exist
+#   manifest      must appear in a TunaOS desktop manifest install/required list
+#   distro        consumed from the base distribution; no rebuild (declared)
+#   out-of-scope  explicitly tracked as not carried; must carry a reason
+schema: 1
+upstream: ublue-os/bluefin
+flavor: bluefin-lts
+revision: 742b3b77b924aeff47610b6c985dd1805dd5e927
+snapshotted_at: 2026-08-11
+scope: GNOME workstation utilities and update experience
+packages:
+  - name: uupd
+    source: ublue-os/packages (Bluefin COPR)
+    disposition: recipe
+    note: >-
+      Bluefin update/store experience.  Factory recipe in packages/uupd;
+      the register gates promotion on the update command contract and
+      Flatpak-store launch test.
+  - name: bazaar
+    source: version-dependent upstream/Fedora
+    disposition: recipe
+    note: >-
+      Flatpak store frontend.  Pinned Tideforge source recipe in
+      packages/bazaar; EL10 enablement waits for the staged GNOME 50
+      library set (GTK 4.22 / libadwaita 1.8).

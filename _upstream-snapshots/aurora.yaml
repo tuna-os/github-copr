@@ -1,0 +1,57 @@
+# Aurora snapshot package declarations.
+#
+# Aurora is the KDE workstation experience from the uBlue project.  As with
+# the Bluefin snapshot, only the curated additions the parity register
+# (docs/UPSTREAM_PARITY.md) tracks are declared; the ordinary long Fedora
+# package lists are consumed as distribution packages, not factory inputs.
+#
+# `disposition` is verified against this repository by
+# scripts/audit-upstream-parity.py (see _upstream-snapshots/bluefin-lts.yaml
+# for the disposition vocabulary).
+schema: 1
+upstream: ublue-os/aurora
+flavor: aurora
+revision: 6dd632ebefd04bacc4eba0319f3106e739417cc0
+snapshotted_at: 2026-08-11
+scope: KDE workstation utilities and update experience
+packages:
+  - name: krunner-bazaar
+    source: Aurora COPR
+    disposition: recipe
+    note: >-
+      KRunner frontend for the Bazaar store.  Source recipe in
+      packages/krunner-bazaar; EL10/KDE install and feature runtime tests
+      gate promotion.
+  - name: oversteer-udev
+    source: Aurora COPR
+    disposition: recipe
+    note: >-
+      Gamepad udev rules.  Source recipe in packages/oversteer-udev.
+  - name: kairpods
+    source: Aurora COPR
+    disposition: recipe
+    note: >-
+      AirPods battery/connection KDE applet.  Source recipe in
+      packages/kairpods.
+  - name: plasma-setup
+    source: Aurora's patched plasma-setup
+    disposition: recipe
+    note: >-
+      Aurora's Plasma first-run setup.  TunaOS carries a pinned upstream KDE
+      source recipe in packages/plasma-setup rather than Aurora's COPR
+      binaries; EL10 enablement waits for the latest-KDE staging repository.
+  - name: sunshine
+    source: Aurora COPR (LizardByte)
+    disposition: out-of-scope
+    reason: >-
+      Sunshine needs a separate toolchain/bootstrap review before recipe
+      intake; the EL10 probe confirms it is absent from stock repositories
+      (docs/UPSTREAM_PARITY.md).
+  - name: ublue-os-selinux-workarounds
+    source: Aurora COPR
+    disposition: out-of-scope
+    reason: >-
+      The source policy explicitly targets the Linux 7.0 composefs/overlay
+      execmem regression and grants kernel_t execmem; it is not applicable
+      to TunaOS kernels and must not be shipped unless an EL10 reproducer
+      exists (docs/UPSTREAM_PARITY.md).
