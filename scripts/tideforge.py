@@ -19,7 +19,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ROOT / "manifests" / "package-factory.yaml"
-VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data", "custom"}
+VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data", "custom", "python"}
 DIST_GIT_RAW_REF = re.compile(r"https://src\.fedoraproject\.org/rpms/[^/]+/raw/([^/]+)/f/")
 
 
@@ -545,6 +545,8 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
         return go_build_command(recipe or {}, "%{name}", "."), "install -Dm0755 %{name} %{buildroot}%{_bindir}/%{name}"
     if build_system == "data":
         return ":", ":"
+    if build_system == "python":
+        return "%pyproject_wheel", "%pyproject_install"
     if build_system == "custom":
         return custom_commands(recipe or {}, "build"), custom_commands(recipe or {}, "install", "%{buildroot}")
     options = " ".join(filter(None, [cmake_generator(recipe or {}), cmake_options(recipe or {})]))
@@ -632,7 +634,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     # rpmbuild with "Empty %files file debugsourcefiles.list". Cargo builds
     # retain debuginfo so native RPM debug packages can be generated normally.
     rpm_preamble = ""
-    if recipe["build_system"] in {"go", "data", "custom"} or not debug_package_enabled(recipe):
+    if recipe["build_system"] in {"go", "data", "custom", "python"} or not debug_package_enabled(recipe):
         rpm_preamble = "%global debug_package %{nil}\n"
     auxiliary_sources_str = "".join(f"Source{index}:        {rpm_source_field(source, index)}\n" for index, source in enumerate(auxiliary_sources, start=1))
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
@@ -707,7 +709,7 @@ Rules-Requires-Root: no
 
 {package_stanzas}
 """
-    buildsystem = {"meson": "meson", "autotools": "autoconf", "cmake": "cmake"}.get(recipe["build_system"])
+    buildsystem = {"meson": "meson", "autotools": "autoconf", "cmake": "cmake", "python": "pybuild"}.get(recipe["build_system"])
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
@@ -762,7 +764,7 @@ Rules-Requires-Root: no
     # (tideforge emits no %check), so skip them here too for RPM/DEB parity. The
     # cargo/go/data/custom branches already replace dh_auto_build/install and do
     # not auto-detect a testable build system, so they need no override.
-    if recipe["build_system"] in {"meson", "cmake", "autotools"}:
+    if recipe["build_system"] in {"meson", "cmake", "autotools", "python"}:
         rules = rules.rstrip() + "\n\noverride_dh_auto_test:\n\t:\n"
     # Delete libtool archives after staging, mirroring the rpm renderer's
     # cleanup after %make_install. A libtool build ships .la files whose
@@ -813,7 +815,7 @@ License: {recipe['license']}
     # xfconf and libseat do stage through debian/tmp, so they keep their
     # .install lists to carve it up between the binary packages.
     direct_install = (
-        recipe["build_system"] in {"cargo", "go", "data", "custom"}
+        recipe["build_system"] in {"cargo", "go", "data", "custom", "python"}
         or bool(recipe.get("install"))
         or len(binary_packages) == 1
     )
@@ -859,6 +861,9 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     elif recipe["build_system"] == "data":
         build = ":"
         install = ":"
+    elif recipe["build_system"] == "python":
+        build = "python -m build --wheel --no-isolation"
+        install = 'python -m installer --destdir="$pkgdir" dist/*.whl'
     elif recipe["build_system"] == "custom":
         build = "\n  ".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
         install = custom_commands(recipe, "install", "$pkgdir")

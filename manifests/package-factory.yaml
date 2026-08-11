@@ -134,3 +134,11 @@ dependency_catalog:
   kf6-i18n-dev: {el10: [kf6-ki18n-devel], ubuntu: [libkf6i18n-dev], debian: [libkf6i18n-dev], opensuse-tumbleweed: [kf6-ki18n-devel], arch: [ki18n]}
   kf6-coreaddons-dev: {el10: [kf6-kcoreaddons-devel], ubuntu: [libkf6coreaddons-dev], debian: [libkf6coreaddons-dev], opensuse-tumbleweed: [kf6-kcoreaddons-devel], arch: [kcoreaddons]}
   qt6-base-dev: {el10: [qt6-qtbase-devel], ubuntu: [qt6-base-dev], debian: [qt6-base-dev], opensuse-tumbleweed: [qt6-base-devel], arch: [qt6-base]}
+  # PEP 517 Python build system.  EL10 needs python3-devel for the
+  # pyproject macros (which also supply python3), plus setuptools for
+  # setup.py projects.  DEB targets separate the interpreter (python3),
+  # the build plugin (pybuild-plugin-pyproject) and dh-python itself.
+  # Arch splits python-build (PEP 517 frontend) from python-installer
+  # (wheel installer) and python-setuptools (setup.py build backend).
+  python-build: {el10: [python3-devel, python3-setuptools], ubuntu: [python3, python3-setuptools, dh-python, pybuild-plugin-pyproject], debian: [python3, python3-setuptools, dh-python, pybuild-plugin-pyproject], opensuse-tumbleweed: [python3-devel, python3-setuptools], arch: [python, python-build, python-installer, python-setuptools]}
+  python: {el10: [python3], ubuntu: [python3], debian: [python3], opensuse-tumbleweed: [python3], arch: [python]}
