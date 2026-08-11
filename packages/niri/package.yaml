@@ -38,7 +38,7 @@ dependencies:
       ubuntu: [libseat1]
       debian: [libseat1]
       opensuse-tumbleweed: [libseat1]
-      arch: [cairo, glib2, glibc, libdisplay-info, libgcc, libinput, libpipewire, libxkbcommon, mesa, pango, pixman, seatd, systemd-libs, xdg-desktop-portal-impl]
+      arch: [brotli, bzip2, cairo, expat, fontconfig, freetype2, fribidi, glib2, glibc, graphite, harfbuzz, libdatrie, libdisplay-info, libdrm, libevdev, libffi, libgcc, libgudev, libinput, libpipewire, libpng, libthai, libwacom, libx11, libxau, libxcb, libxdmcp, libxext, libxkbcommon, libxrender, lua54, mesa, mtdev, pango, pcre2, pixman, seatd, systemd-libs, util-linux-libs, xdg-desktop-portal-impl, zlib]
 install:
   # These are the upstream session integration assets.  Installing only the
   # compositor binary leaves display managers and xdg-desktop-portal unable to
