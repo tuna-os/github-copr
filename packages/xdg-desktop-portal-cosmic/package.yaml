@@ -53,4 +53,6 @@ files:
     - usr/share/icons/hicolor/scalable/actions/screenshot-window-symbolic.svg
 install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
+verify:
+  smoke: test -x /usr/libexec/xdg-desktop-portal-cosmic && test -f /usr/share/dbus-1/services/org.freedesktop.impl.portal.desktop.cosmic.service && test -f /usr/share/xdg-desktop-portal/cosmic-portals.conf
 targets: [el10]

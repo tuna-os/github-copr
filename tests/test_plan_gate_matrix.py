@@ -147,6 +147,13 @@ def test_transitive_closure_reaches_two_hops(workflow):
     assert {"quickshell-rpm", "dms-stack-rpm"} <= downstream
 
 
+def test_staged_service_change_runs_its_prerequisites(workflow):
+    """A service gate must bring along the icon and pop-icon artifacts."""
+    result = plan(workflow, ["packages/cosmic-idle/package.yaml"], root=ROOT)
+    live = running(result)
+    assert {"cosmic_services_rpm", "cosmic-icon-theme-rpm", "rpm"} <= live
+
+
 # ── phase 2: fingerprints ──────────────────────────────────────────────────
 
 def test_fingerprint_is_stable_and_target_scoped(workflow):
@@ -210,7 +217,7 @@ def test_every_skip_carries_a_reason(workflow):
 
 WIRED_JOBS = {
     "gtkgreet-rpm", "cpptrace-rpm", "quickshell-rpm", "niri-rpm", "iio-niri-rpm",
-    "dms-stack-rpm", "cosmic-icon-theme-rpm", "cosmic-comp-rpm", "cosmic-bg-rpm",
+    "dms-stack-rpm", "cosmic-icon-theme-rpm", "cosmic_services_rpm", "cosmic-comp-rpm", "cosmic-bg-rpm",
 }
 
 

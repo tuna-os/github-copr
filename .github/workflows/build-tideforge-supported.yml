@@ -80,6 +80,7 @@ jobs:
       cosmic_icon_theme_rpm_run: ${{ steps.plan.outputs.cosmic_icon_theme_rpm_run }}
       cosmic_comp_rpm_run: ${{ steps.plan.outputs.cosmic_comp_rpm_run }}
       cosmic_bg_rpm_run: ${{ steps.plan.outputs.cosmic_bg_rpm_run }}
+      cosmic_services_rpm_run: ${{ steps.plan.outputs.cosmic_services_rpm_run }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -228,6 +229,8 @@ jobs:
             target: el10
             install_name: cosmic-panel
             smoke: test -x /usr/bin/cosmic-panel
+          - package: cosmic-settings-daemon
+            target: el10
           - package: evtest
             target: el10
           - package: python3-evdev
@@ -995,6 +998,10 @@ jobs:
       - name: Render and fetch the exact source archive
         run: |
           set -euo pipefail
+          # This job owns the staged COSMIC icon closure consumed by the
+          # service gates below. Keep these recipe paths visible to the planner
+          # so a service-only change also reruns this prerequisite job.
+          echo packages/cosmic-idle/package.yaml packages/cosmic-notifications/package.yaml packages/cosmic-osd/package.yaml packages/xdg-desktop-portal-cosmic/package.yaml
           recipe=packages/cosmic-icon-theme/package.yaml
           root="$PWD/.tideforge/cosmic-icon-theme"
           python3 scripts/tideforge.py validate "$recipe"
@@ -1035,6 +1042,89 @@ jobs:
         with:
           name: cosmic-icon-theme-el10-rpm
           path: .tideforge/cosmic-icon-theme/rpmbuild/RPMS/
+          if-no-files-found: warn
+
+  # These services have the same small staged runtime closure: the EL10
+  # recipe itself plus cosmic-icon-theme, which in turn needs pop-icon-theme.
+  # Keep them in one matrix so every cell performs a real clean install and
+  # runs the recipe-owned smoke assertion instead of returning a payload-only
+  # green check (#169).
+  cosmic_services_rpm:
+    name: ${{ matrix.package }} (el10 RPM)
+    needs: [detect-changes, plan, rpm, cosmic-icon-theme-rpm]
+    if: ${{ needs.plan.outputs.cosmic_services_rpm_run == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [cosmic-idle, cosmic-notifications, cosmic-osd, xdg-desktop-portal-cosmic]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml
+      - uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: packages/${{ matrix.package }}/package.yaml
+      - uses: actions/download-artifact@v8
+        with:
+          name: pop-icon-theme-el10-rpm
+          path: .tideforge/cosmic-services/${{ matrix.package }}/prerequisite
+      - uses: actions/download-artifact@v8
+        with:
+          name: cosmic-icon-theme-el10-rpm
+          path: .tideforge/cosmic-services/${{ matrix.package }}/prerequisite
+      - name: Render and fetch the exact source archive
+        run: |
+          set -euo pipefail
+          # Keep the matrix-owned recipes visible to plan_gate_matrix.py; a
+          # computed matrix has no literal include entries for the planner to
+          # inspect.
+          echo packages/cosmic-idle/package.yaml packages/cosmic-notifications/package.yaml packages/cosmic-osd/package.yaml packages/xdg-desktop-portal-cosmic/package.yaml
+          recipe="packages/${{ matrix.package }}/package.yaml"
+          root="$PWD/.tideforge/cosmic-services/${{ matrix.package }}"
+          python3 scripts/tideforge.py validate "$recipe"
+          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
+          python3 scripts/tideforge.py render "$recipe" --target el10 --output "$root/rpmbuild/SPECS"
+          mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
+          python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
+      - name: Pull the build image
+        run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
+      - name: Build generated RPM
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/cosmic-services/${{ matrix.package }}"
+          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install dnf-plugins-core epel-release rpm-build
+            dnf config-manager --set-enabled crb
+            dnf -y builddep /work/rpmbuild/SPECS/*.spec
+            rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
+          '
+      - name: Clean-install RPM and run its assertion
+        run: |
+          set -euo pipefail
+          recipe="packages/${{ matrix.package }}/package.yaml"
+          root="$PWD/.tideforge/cosmic-services/${{ matrix.package }}"
+          install_name=$(python3 scripts/tideforge.py verify "$recipe" --target el10 --field install_name)
+          python3 scripts/tideforge.py verify "$recipe" --target el10 --field smoke > "$root/verify-smoke.sh"
+          docker run --rm --env INSTALL_NAME="$install_name" --volume "$root:/work:ro" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install epel-release createrepo_c
+            mkdir -p /tmp/tideforge-rpms
+            cp -a /work/prerequisite/. /tmp/tideforge-rpms/
+            cp -a /work/rpmbuild/RPMS/. /tmp/tideforge-rpms/
+            createrepo_c /tmp/tideforge-rpms
+            dnf -y install --nogpgcheck --repofrompath tideforge,file:///tmp/tideforge-rpms --setopt=tideforge.priority=1 --enablerepo=tideforge "$INSTALL_NAME"
+            rpm -q "$INSTALL_NAME"
+            bash /work/verify-smoke.sh
+          '
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ${{ matrix.package }}-el10-rpm
+          path: .tideforge/cosmic-services/${{ matrix.package }}/rpmbuild/RPMS/
           if-no-files-found: warn
 
   cosmic-comp-rpm:
@@ -1718,7 +1808,7 @@ jobs:
 
   tideforge-gate:
     name: Tideforge gate
-    needs: [detect-changes, plan, rpm-payload, rpm, opensuse-rpm, xfconf-split, gtkgreet-rpm, cpptrace-rpm, input-remapper-rpm, quickshell-rpm, niri-rpm, iio-niri-rpm, dms-stack-rpm, cosmic-icon-theme-rpm, cosmic-comp-rpm, cosmic-bg-rpm, deb, cosmic-icon-theme-deb, cosmic-comp-deb]
+    needs: [detect-changes, plan, rpm-payload, rpm, opensuse-rpm, xfconf-split, gtkgreet-rpm, cpptrace-rpm, input-remapper-rpm, quickshell-rpm, niri-rpm, iio-niri-rpm, dms-stack-rpm, cosmic-icon-theme-rpm, cosmic_services_rpm, cosmic-comp-rpm, cosmic-bg-rpm, deb, cosmic-icon-theme-deb, cosmic-comp-deb]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

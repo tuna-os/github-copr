@@ -38,4 +38,6 @@ files:
   common: [usr/bin/cosmic-idle]
 install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
+verify:
+  smoke: test -x /usr/bin/cosmic-idle
 targets: [el10]

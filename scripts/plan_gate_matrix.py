@@ -135,6 +135,19 @@ def running_jobs(workflow: dict, seeds: set[str]) -> tuple[set[str], set[str]]:
             if set(job_needs(job)) & running:
                 running.add(name)
                 changed = True
+    # Staged jobs also need their prerequisites. For example, a change to
+    # cosmic-idle reaches cosmic_services_rpm, which needs
+    # cosmic-icon-theme-rpm, which needs the plain rpm job for pop-icon-theme.
+    # Without this reverse closure, GitHub skips a prerequisite job and the
+    # consumer cannot download the artifact it is supposed to install.
+    changed = True
+    while changed:
+        changed = False
+        for name in tuple(running):
+            for prerequisite in job_needs(jobs[name]):
+                if prerequisite in jobs and prerequisite not in running:
+                    running.add(prerequisite)
+                    changed = True
     return seeded, running - seeded
 
 
