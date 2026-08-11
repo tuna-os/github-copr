@@ -82,6 +82,17 @@ tiers:
       - path: src/xfce-wayland/gtkgreet
 
   # Tier 5: Applications that depend on xfce4-panel / desktop-core.
+  #
+  # mousepad, ristretto and xfce4-whiskermenu-plugin (#121) are NOT here yet,
+  # and a `packages/<name>` entry is not the way to add them: every path in
+  # this manifest is resolved by find_spec() in scripts/build-chain.sh, which
+  # requires <dir>/<dir>.spec and errors out otherwise. A Tideforge recipe
+  # (packages/<name>/package.yaml) has no spec, so the tier dies on it.
+  # They need src/xfce-wayland/<name>/<name>.spec like every other app here —
+  # that is also the only build environment that has their dependencies, since
+  # libxfce4ui-devel, xfconf-devel, xfce4-panel-devel, garcon-devel and
+  # exo-devel exist in no CentOS Stream 10, CRB or EPEL 10 repository and are
+  # built by the earlier tiers of this very chain.
   - name: xfce-apps
     packages:
       - path: src/xfce-wayland/xfce4-terminal
