@@ -23,9 +23,11 @@ def main() -> None:
     sources = tideforge_cache.recipe_sources(recipe)
     for index, source in enumerate(sources):
         if args.cache_dir is not None:
-            if tideforge_cache.lookup(args.cache_dir, source["sha256"]) is not None:
+            payload = tideforge_cache.oras_lookup(args.cache_dir, source["sha256"])
+            if payload is not None:
                 print(f"source {index} verified from cache ({source['sha256'][:12]})")
                 continue
+            print(f"source {index} cache miss, downloading ({source['sha256'][:12]})")
         request = Request(source["url"], headers={"User-Agent": "tunaos-package-factory"})
         with urlopen(request) as response:  # nosec B310 - recipe validation requires HTTPS
             if args.cache_dir is None:
@@ -37,6 +39,7 @@ def main() -> None:
             raise SystemExit(f"source {index} checksum mismatch: expected {source['sha256']}, got {digest}")
         if args.cache_dir is not None:
             tideforge_cache.store(args.cache_dir, payload)
+            tideforge_cache.oras_push(args.cache_dir, source["sha256"])
     print(f"{recipe['name']}: {len(sources)} source checksum(s) verified")
 
 

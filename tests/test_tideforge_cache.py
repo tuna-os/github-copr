@@ -1,5 +1,6 @@
 import hashlib
 import importlib.util
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -149,3 +150,74 @@ def test_verify_miss_downloads_and_populates_cache(tmp_path, monkeypatch):
     monkeypatch.setattr("sys.argv", ["verify", str(recipe_path), "--cache-dir", str(cache)])
     verify_source.main()
     assert tideforge_cache.lookup(cache, DIGEST) == PAYLOAD
+
+
+def test_oras_push_noop_when_disabled(tmp_path, monkeypatch):
+    tideforge_cache.store(tmp_path, PAYLOAD)
+    monkeypatch.setattr(tideforge_cache, "ORAS_PUSH_ENABLED", False)
+    assert tideforge_cache.oras_push(tmp_path, DIGEST) is False
+
+
+def test_oras_push_skips_missing_blob(tmp_path):
+    assert tideforge_cache.oras_push(tmp_path, DIGEST) is False
+
+
+def test_oras_pull_calls_subprocess(tmp_path, monkeypatch):
+    """oras_pull calls the ORAS CLI and validates the pulled blob."""
+    cache = tmp_path / "cache"
+    cache.mkdir()
+
+    def fake_run(cmd, **kwargs):
+        # Simulate oras pull writing the blob into cache_dir
+        (cache / DIGEST).write_bytes(PAYLOAD)
+        return subprocess.CompletedProcess(cmd, 0)
+
+    import subprocess as sp
+    monkeypatch.setattr(tideforge_cache, "ORAS_REPO", "ghcr.io/test/repo")
+    monkeypatch.setattr(sp, "run", fake_run)
+    assert tideforge_cache.oras_pull(cache, DIGEST) is True
+    assert tideforge_cache.lookup(cache, DIGEST) == PAYLOAD
+
+
+def test_oras_pull_bad_blob_reads_as_miss(tmp_path, monkeypatch):
+    """When ORAS pull writes a corrupted blob, oras_pull returns False."""
+    cache = tmp_path / "cache"
+    cache.mkdir()
+
+    def fake_run(cmd, **kwargs):
+        (cache / DIGEST).write_bytes(b"tampered")
+        return subprocess.CompletedProcess(cmd, 0)
+
+    import subprocess as sp
+    monkeypatch.setattr(tideforge_cache, "ORAS_REPO", "ghcr.io/test/repo")
+    monkeypatch.setattr(sp, "run", fake_run)
+    assert tideforge_cache.oras_pull(cache, DIGEST) is False
+    assert not (cache / DIGEST).exists()
+
+
+def test_oras_lookup_falls_back_to_oras_on_local_miss(tmp_path, monkeypatch):
+    """When the local cache misses, oras_lookup tries the ORAS registry."""
+    cache = tmp_path / "cache"
+    cache.mkdir()
+
+    def fake_run(cmd, **kwargs):
+        (cache / DIGEST).write_bytes(PAYLOAD)
+        return subprocess.CompletedProcess(cmd, 0)
+
+    import subprocess as sp
+    monkeypatch.setattr(tideforge_cache, "ORAS_REPO", "ghcr.io/test/repo")
+    monkeypatch.setattr(sp, "run", fake_run)
+    assert tideforge_cache.oras_lookup(cache, DIGEST) == PAYLOAD
+
+
+def test_oras_lookup_returns_none_when_both_miss(tmp_path, monkeypatch):
+    """When both local and ORAS miss, oras_lookup returns None."""
+    cache = tmp_path / "cache"
+    cache.mkdir()
+
+    def fake_run(cmd, **kwargs):
+        raise FileNotFoundError("no oras binary")
+
+    import subprocess as sp
+    monkeypatch.setattr(sp, "run", fake_run)
+    assert tideforge_cache.oras_lookup(cache, DIGEST) is None
