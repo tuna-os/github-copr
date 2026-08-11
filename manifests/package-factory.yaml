@@ -79,7 +79,7 @@ targets:
     # Rawhide supplies -devel headers and build backends Hummingbird has no
     # build of yet; Fedora 44 supplies the Python namespace at the target's
     # own ABI (3.14, where Rawhide is 3.15).
-    build_repositories: [fedora-rawhide, fedora-44]
+    build_repositories: [fedora-rawhide, fedora-44-python]
   opensuse-tumbleweed:
     status: scaffold
     format: rpm
