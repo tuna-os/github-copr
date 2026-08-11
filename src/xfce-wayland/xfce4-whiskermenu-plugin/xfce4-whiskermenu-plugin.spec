@@ -42,8 +42,8 @@ Whisker menu launcher plugin for the Xfce panel with Wayland support.
 %{_bindir}/xfce4-popup-whiskermenu
 %{_libdir}/xfce4/panel/plugins/libwhiskermenu.so
 %{_datadir}/xfce4/panel/plugins/*.desktop
-%{_datadir}/icons/hicolor/*/apps/org.xfce.whiskermenu*
+%{_datadir}/icons/hicolor/*/apps/hi*-app-whiskermenu*
 
 %changelog
-* Sat Jul 26 2026 TunaOS Bot <bot@tunaos.org> - 2.10.1-1
+* Sun Jul 26 2026 TunaOS Bot <bot@tunaos.org> - 2.10.1-1
 - Initial XFCE Wayland package for TunaOS EL10
