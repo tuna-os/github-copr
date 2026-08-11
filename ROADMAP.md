@@ -32,7 +32,7 @@ Mock to Cloudflare R2 (COPR is bootstrap/compatibility only, being retired).
 |----------|------|----------|--------|
 | P0 | Close the desktop parity gap (sailfin/flounder/grouper editions) | #133, tunaos#1294 | 🔴 Open — 24/37 editions suspect |
 | P0 | Keep GNOME 51 EL10 bootstrap green | build-order-gnome51.yml | 🟡 In progress |
-| P1 | COSMIC packaging for Debian/Ubuntu (flounder/grouper cosmic) | #136, #152 | 🟡 In progress (gate-widened, publishing) |
+| P1 | Niri compositor packaging for Debian/Ubuntu (flounder/grouper niri) | #136, #152 | 🟢 Closed — niri DEB matrix cells added and verified |
 | P1 | Tideforge dependency/metadata correctness (RPM+DEB) | #117, #118 | 🔴 Open |
 | P1 | Decide Gentoo path for guppy:cosmic and guppy:niri | #162 | 🟢 Closed — Use Gentoo overlays (::guru & ::cosmic-overlay); no Tideforge emitter needed |
 | P2 | EL10 peripheral/security-key tooling (input-remapper, evtest, …) | #122, #126 | 🔴 Open |
