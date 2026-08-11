@@ -25,17 +25,20 @@ dependencies:
       ubuntu: [debhelper-compat, pkg-config, clang, libudev-dev, libgbm-dev, libxkbcommon-dev, libegl1-mesa-dev, libwayland-dev, libinput-dev, libdbus-1-dev, libsystemd-dev, libseat-dev, libpipewire-0.3-dev, libpango1.0-dev, libdisplay-info-dev]
       debian: [debhelper-compat, pkg-config, clang, libudev-dev, libgbm-dev, libxkbcommon-dev, libegl1-mesa-dev, libwayland-dev, libinput-dev, libdbus-1-dev, libsystemd-dev, libseat-dev, libpipewire-0.3-dev, libpango1.0-dev, libdisplay-info-dev]
       opensuse-tumbleweed: [gcc, pkg-config, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
-      # Match Arch's official package build tools. Runtime libraries belong in
-      # runtime dependencies and are not copied here merely because another
-      # distribution calls its -devel packages differently.
-      arch: [clang, git]
+      # Arch ships headers alongside every library package, so the -devel split
+      # does not exist.  Every package whose headers are consumed at build time
+      # must appear in makedepends, not only in depends — relying on depends is
+      # a silent mask: makepkg --syncdeps installs both, so a build passes even
+      # when the recipe under-declares, but the rendered package metadata is
+      # wrong (#118).
+      arch: [clang, git, pkgconf, libdrm, pipewire, wayland-protocols, seatd, glib2, cairo, pango, libxkbcommon, libinput, mesa, libdisplay-info]
   runtime:
     targets:
       el10: [libseat]
       ubuntu: [libseat1]
       debian: [libseat1]
       opensuse-tumbleweed: [libseat1]
-      arch: [cairo, glib2, glibc, libdisplay-info, libgcc, libinput, libpipewire, libxkbcommon, mesa, pango, pixman, seatd, systemd-libs, xdg-desktop-portal-impl]
+      arch: [brotli, bzip2, cairo, expat, fontconfig, freetype2, fribidi, glib2, glibc, graphite, harfbuzz, libdatrie, libdisplay-info, libdrm, libevdev, libffi, libgcc, libgudev, libinput, libpipewire, libpng, libthai, libwacom, libx11, libxau, libxcb, libxdmcp, libxext, libxkbcommon, libxrender, lua54, mesa, mtdev, pango, pcre2, pixman, seatd, systemd-libs, util-linux-libs, xdg-desktop-portal-impl, zlib]
 install:
   # These are the upstream session integration assets.  Installing only the
   # compositor binary leaves display managers and xdg-desktop-portal unable to

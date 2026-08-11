@@ -24,6 +24,9 @@ dependencies:
       debian: [build-essential, autoconf, automake, libtool]
       opensuse-tumbleweed: [gcc-c++, autoconf, automake, libtool]
       arch: [base-devel, autoconf, automake, libtool]
+  runtime:
+    targets:
+      arch: [xz]
 files:
   common: [usr/include/libunwind.h, usr/include/unwind.h]
 outputs:

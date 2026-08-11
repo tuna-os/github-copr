@@ -24,6 +24,9 @@ dependencies:
       debian: [cmake, g++]
       opensuse-tumbleweed: [cmake, gcc-c++]
       arch: [cmake, gcc]
+  runtime:
+    targets:
+      arch: [libgcc, libstdc++]
 files:
   common: [usr/bin/ninja]
 verify:

@@ -22,7 +22,7 @@ dependencies:
       # own link closure has to be declared. Every entry below owns a DT_NEEDED
       # soname of usr/bin/bazaar-dbus-tool or bazaarrunner.so; rpmbuild and
       # dpkg-shlibdeps generate the equivalent requirements themselves.
-      arch: [glibc, kcoreaddons, ki18n, krunner, libstdc++, qt6-base]
+      arch: [glibc, kcoreaddons, ki18n, krunner, libstdc++, qt6-base, brotli, bzip2, dbus, double-conversion, expat, fontconfig, freetype2, glib2, graphite, harfbuzz, icu, kconfig, kitemmodels, kwindowsystem, libb2, libgcc, libglvnd, libgomp, libpng, liburing, libx11, libxau, libxcb, libxdmcp, libxfixes, libxkbcommon, md4c, pcre2, systemd-libs, util-linux-libs, xcb-util-keysyms, zlib, zstd]
 files:
   common:
     - usr/bin/bazaar-dbus-tool
