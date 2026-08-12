@@ -254,6 +254,33 @@ The pin is temporary by construction: it must be removed when Hummingbird's own
 `tests/test_hummingbird_python_abi_pin.py` asserts the priority ordering, the
 `includepkgs` confinement and the presence of that expiry note.
 
+## Finding 7 — the base-image component audit (#228)
+
+Audited against `quay.io/hummingbird-community/bootc-os:latest`: the base
+image carries **262 packages** (a minimal bootc container OS with the CKI ARK
+kernel) and ships `NetworkManager` (1.54.3-3.fc43) — and none of the desktop
+submodules the editions need.  The manifest now declares that audit as data:
+`components:` in `manifests/hummingbird-desktops.yaml` names each base-image
+gap and the desktop edition that must install it, and
+`scripts/validate-hummingbird-catalog.py` fails any commit that drops a
+component from its desktop's `install_packages`:
+
+| desktop | audited components | coverage |
+|---|---|---|
+| gnome | `NetworkManager-openvpn-gnome`, `NetworkManager-openconnect-gnome`, `NetworkManager-wwan`, `gnome-keyring`, `nautilus`, `xdg-desktop-portal-gnome`, `xdg-desktop-portal-gtk` | all in `install_packages` |
+| kde | `xdg-desktop-portal-kde` | in `install_packages` |
+| niri | `NetworkManager-tui`, `blueman`, `brightnessctl`, `playerctl`, `pavucontrol`, `gnome-keyring`, `nautilus`, `xdg-desktop-portal-gnome`, `xdg-desktop-portal-gtk`, `SwayNotificationCenter`, `waybar`, `fuzzel` | all in `install_packages` |
+| xfce | `greetd`, `gtkgreet`, `cage`, `xdg-desktop-portal-gtk` | `greetd`/`gtkgreet`/`cage` added with this fix |
+
+`greetd` + `gtkgreet` + `cage` are the XFCE Wayland greetd login path from the
+upstream parity register (`docs/UPSTREAM_PARITY.md`); they were missing from
+the xfce edition and are added here.  `gtkgreet` is a project recipe
+(`packages/gtkgreet`), `greetd` is rebuilt from `src/hummingbird/greetd`, and
+`cage` is a Fedora distro package.  The COSMIC/Niri/DMS COPR suites stay out
+of the produced image (parity rule 1) and are rebuilt as project recipes; the
+Tideforge test-cell request for Hummingbird stage 1+ desktop layers is a build-
+pipeline item, not a manifest change.
+
 ## What was NOT verified
 
 Honesty about the boundary of the measurement:

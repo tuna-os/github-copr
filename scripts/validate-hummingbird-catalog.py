@@ -43,6 +43,19 @@ def main() -> None:
                 fail(f"{desktop}: invalid Fedora dist-git name")
             if "upstream_rpm" in source and not source["upstream_rpm"].startswith("https://"):
                 fail(f"{desktop}: upstream source must use HTTPS")
+    # Base-image component audit (#228): every component the Hummingbird base
+    # image does not ship is attributed to the desktop edition that must
+    # install it, and this is the enforcement.  A component missing from its
+    # desktop's install_packages would never be installed, which is the exact
+    # shape of the GNOME failure in LUKS run 31100096864.
+    desktops = data.get("desktops", {})
+    for desktop, components in data.get("components", {}).items():
+        if desktop not in desktops:
+            fail(f"components references unknown desktop {desktop}")
+        install = set(desktops[desktop].get("install_packages") or [])
+        missing = sorted(set(components) - install)
+        if missing:
+            fail(f"{desktop}: base-image audit components not in install_packages: {missing}")
     print("Hummingbird desktop catalog: valid")
 
 if __name__ == "__main__":
