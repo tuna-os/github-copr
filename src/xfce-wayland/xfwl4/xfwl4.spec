@@ -1,4 +1,4 @@
-%global commit c6c0e1cae9d6e01915c31932bc3dcf94430ff59b
+%global commit 718c7c192628a555007ffa8c692a810e68a6b319
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 # resources/xfce-wayland-protocols submodule gitlink at %{commit}. It must be
 # bumped in lockstep with it: the XML defines the interfaces, requests and
