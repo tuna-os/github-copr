@@ -119,9 +119,11 @@ JOBS=$(( $(nproc) / 2 ))
 [[ $JOBS -lt 1 ]] && JOBS=1
 FILTER_TIER=""
 FILTER_PACKAGE=""
+FILTER_TIERS=""
 DRY_RUN=false
 FORCE=false
 WITH_CHECKS=false
+STREAM=false
 
 usage() {
     echo "Usage: $0 [options]"
@@ -136,7 +138,9 @@ usage() {
     echo "  --local-repo <path>  Path to local repo directory (default: ./local-repo)"
     echo "  --jobs <N>           Parallel jobs within a tier (default: nproc/2)"
     echo "  --tier <name>        Only build a specific tier"
+    echo "  --tiers <list>       Comma-separated tiers to build (used with --stream)"
     echo "  --package <path>     Only build a specific package path"
+    echo "  --stream             Stream all tiers as one wavefront (no tier barriers)"
     echo "  --with-checks        Run the RPM %check section"
     echo "  --dry-run            Print what would be built without building"
     echo "  --force              Force rebuild even if package exists in repo"
@@ -158,10 +162,12 @@ while [[ $# -gt 0 ]]; do
         --local-repo)  LOCAL_REPO="$2";  shift 2 ;;
         --jobs)        JOBS="$2";        shift 2 ;;
         --tier)        FILTER_TIER="$2"; shift 2 ;;
+        --tiers)       FILTER_TIERS="$2"; shift 2 ;;
         --package)     FILTER_PACKAGE="$2"; shift 2 ;;
         --with-checks)  WITH_CHECKS=true; shift ;;
         --dry-run)     DRY_RUN=true;     shift ;;
         --force)       FORCE=true;       shift ;;
+        --stream)      STREAM=true;      shift ;;
         *)
             echo "Unknown option: $1" >&2
             exit 1
@@ -1213,6 +1219,124 @@ build_tier() {
     fi
 }
 
+# --- Stream (wavefront) scheduler ---
+#
+# Builds every package from every tier as one continuous wavefront.
+# Packages are dispatched in manifest order, which is a topological order
+# over BuildRequires, so most dependencies are already in the local repo
+# by the time a consumer starts.  The retry path below catches the few
+# that race — the same logic that already handles intra-tier edges.
+build_stream() {
+    local -n _pkg_total="$1"
+    local -n _failed="$2"
+
+    local logdir
+    logdir="$(mktemp -d)"
+    # shellcheck disable=SC2064
+    trap "rm -rf '${logdir}'" RETURN
+
+    local pids=()
+    local pkg_paths=()
+    local started_at=()
+    local last_heartbeat=()
+    local heartbeat_interval=60
+    local active=0
+    local _stream_start_rpms
+    _stream_start_rpms="$(_repo_rpm_count)"
+
+    wait_one() {
+        while true; do
+            local now
+            now=$(date +%s)
+            for i in "${!pids[@]}"; do
+                local pid="${pids[$i]}"
+                local path="${pkg_paths[$i]}"
+                if ! kill -0 "$pid" 2>/dev/null; then
+                    local logfile
+                    logfile="${logdir}/$(basename "$path").log"
+                    cat "$logfile"
+                    if wait "$pid"; then
+                        : # success
+                    else
+                        err "Failed: ${path}"
+                        _failed+=("${path}")
+                    fi
+                    unset 'pids[$i]' 'pkg_paths[$i]' 'started_at[$i]' 'last_heartbeat[$i]'
+                    active=$(( active - 1 ))
+                    # The repo grew; anything still waiting may now have its
+                    # dependencies satisfied.  Updating metadata here lets the
+                    # next dispatch see freshly built RPMs immediately.
+                    if ! $DRY_RUN; then
+                        update_local_repo
+                    fi
+                    return
+                fi
+
+                if (( now - last_heartbeat[i] >= heartbeat_interval )); then
+                    local elapsed=$(( now - started_at[i] ))
+                    log "  Still building ${path} (pid ${pid}, elapsed ${elapsed}s)"
+                    last_heartbeat[i]=$now
+                fi
+            done
+            sleep 0.5
+        done
+    }
+
+    while IFS=$'\t' read -r pkg_path spec_override; do
+        if [[ -n "$FILTER_PACKAGE" && "$pkg_path" != "$FILTER_PACKAGE" ]]; then
+            continue
+        fi
+
+        _pkg_total=$(( _pkg_total + 1 ))
+
+        if $DRY_RUN; then
+            build_package "$pkg_path" "$spec_override"
+            continue
+        fi
+
+        while [[ $active -ge $JOBS ]]; do
+            wait_one
+        done
+
+        local logfile
+        logfile="${logdir}/$(basename "$pkg_path").log"
+        build_package "$pkg_path" "$spec_override" > "$logfile" 2>&1 &
+        local pid=$!
+        local now
+        now=$(date +%s)
+        pids+=("$pid")
+        pkg_paths+=("$pkg_path")
+        started_at+=("$now")
+        last_heartbeat+=("$now")
+        active=$(( active + 1 ))
+        log "  Queued ${pkg_path} (pid ${pid})"
+
+    done < <(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --all ${FILTER_TIERS:+--tiers-filter "${FILTER_TIERS}"})
+
+    while [[ $active -gt 0 ]]; do
+        wait_one
+    done
+
+    # Retry failures once, if anything was built during this stream.
+    # Same gate as build_tier: if the repo grew, a failed package may
+    # have been missing a dependency that has since landed.
+    if ((${#_failed[@]})) && [[ "$(_repo_rpm_count)" -gt "$_stream_start_rpms" ]]; then
+        local retry=("${_failed[@]}")
+        _failed=()
+        log "  ${#retry[@]} package(s) failed but the repo grew during the stream;"
+        log "  retrying them once in case they lost a dependency race"
+        local path
+        for path in "${retry[@]}"; do
+            if build_package "$path" ""; then
+                log "  [retry] ${path} built on the second pass"
+            else
+                err "Failed: ${path}"
+                _failed+=("${path}")
+            fi
+        done
+    fi
+}
+
 # --- Main ---
 main() {
     log "Build chain starting"
@@ -1225,8 +1349,10 @@ main() {
     log "  Local repo: ${LOCAL_REPO}"
     log "  Jobs:       ${JOBS}"
     [[ -n "$FILTER_TIER" ]]    && log "  Tier filter: ${FILTER_TIER}"
+    [[ -n "$FILTER_TIERS" ]]   && log "  Tiers:       ${FILTER_TIERS}"
     [[ -n "$FILTER_PACKAGE" ]] && log "  Pkg filter:  ${FILTER_PACKAGE}"
     $WITH_CHECKS && log "  RPM %check: enabled"
+    $STREAM && log "  Stream mode: no tier barriers"
 
     if ! $DRY_RUN; then
         case "$BACKEND" in
@@ -1238,29 +1364,41 @@ main() {
 
     ensure_local_repo
 
-    local tiers
-    tiers="$(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --tiers)"
-
     local tier_count=0
     local pkg_total=0
     local failed=()
 
-    while IFS= read -r tier_name; do
-        if [[ -n "$FILTER_TIER" && "$tier_name" != "$FILTER_TIER" ]]; then
-            continue
-        fi
-
-        tier_count=$(( tier_count + 1 ))
+    if $STREAM && [[ -z "$FILTER_TIER" ]]; then
+        # Stream mode: dispatch all packages across all tiers as one wavefront.
+        # The manifest is topologically ordered, so most dependencies are
+        # satisfied by the time a package starts.  The retry logic below
+        # catches the few that race (same intra-tier retry that already
+        # handles BuildRequires edges that fall inside a single tier).
         log ""
-        log "===== Tier: ${tier_name} (backend=${BACKEND}, jobs=${JOBS}) ====="
+        log "===== Stream (all tiers, backend=${BACKEND}, jobs=${JOBS}) ====="
+        build_stream pkg_total failed
+        tier_count=1
+    else
+        local tiers
+        tiers="$(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --tiers)"
 
-        build_tier "$tier_name" pkg_total failed
+        while IFS= read -r tier_name; do
+            if [[ -n "$FILTER_TIER" && "$tier_name" != "$FILTER_TIER" ]]; then
+                continue
+            fi
 
-        if ! $DRY_RUN; then
-            update_local_repo
-        fi
+            tier_count=$(( tier_count + 1 ))
+            log ""
+            log "===== Tier: ${tier_name} (backend=${BACKEND}, jobs=${JOBS}) ====="
 
-    done <<< "$tiers"
+            build_tier "$tier_name" pkg_total failed
+
+            if ! $DRY_RUN; then
+                update_local_repo
+            fi
+
+        done <<< "$tiers"
+    fi
 
     log ""
     log "===== Summary ====="
