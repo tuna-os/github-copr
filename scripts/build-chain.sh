@@ -89,10 +89,28 @@ _on_error() {
     echo "tier filter : ${FILTER_TIER:-<all>}" >&2
     echo "package     : ${pkg_name:-<none in scope>}" >&2
     # The build logs mock leaves behind, if this died during a package build.
-    local log
+    #
+    # A bare tail is not enough. root.log ends with dnf's transaction summary,
+    # and the line that explains a buildroot failure -- the "Problem:" chain,
+    # or "nothing provides X needed by Y" -- sits hundreds of lines above it.
+    # Retrieving those hundreds of lines from CI meant downloading the whole
+    # run's log archive, which for one Hummingbird run was a multi-megabyte
+    # zip that failed to transfer twice. So grep the reasons out first and
+    # print them before the tail, where the tail is all anyone gets.
+    #
+    # WHY_FAILED_PATTERN is a local, not a file-scope global: the tests for
+    # this handler run its body under the script's own `set -u`, and a global
+    # declared further down the file reads as unbound there.
+    local log why WHY_FAILED_PATTERN
+    WHY_FAILED_PATTERN='nothing provides|but none of the providers|conflicting requests|Problem: |Failed to resolve|No match for argument|Unable to find a match|is already installed|hunk FAILED|No such file or directory|Bad exit status from|error:'
     for log in "${builddir:-/nonexistent}/results/build.log" \
                "${builddir:-/nonexistent}/results/root.log"; do
         if [[ -r "$log" ]]; then
+            why="$(grep -E "$WHY_FAILED_PATTERN" "$log" | tail -n 20)" || true
+            if [[ -n "$why" ]]; then
+                echo "--- why ${log} says it failed ---" >&2
+                printf '%s\n' "$why" >&2
+            fi
             echo "--- tail of ${log} ---" >&2
             tail -n 40 "$log" >&2 || true
         fi
