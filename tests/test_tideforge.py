@@ -695,3 +695,68 @@ def test_autotools_deb_rules_delete_libtool_archives(recipe: dict) -> None:
 def test_non_autotools_deb_rules_carry_no_libtool_cleanup(recipe: dict) -> None:
     rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
     assert "*.la" not in rules
+
+
+def test_python_rpm_renders_pyproject_macros(recipe: dict) -> None:
+    recipe["build_system"] = "python"
+    recipe["dependencies"]["build"]["common"] = ["python3-devel", "python3-setuptools"]
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "%pyproject_wheel" in spec
+    assert "%pyproject_install" in spec
+    assert "BuildRequires: python3-devel" in spec
+
+
+def test_python_rpm_disables_empty_debug_packages(recipe: dict) -> None:
+    """Pure-Python packages produce no debuginfo; the build must not abort.
+
+    C-extensions linked into a Python wheel can produce native debuginfo, but
+    %pyproject_install does not generate the RPM debugsource payload the
+    automatic debug package relies on.  Disable it the same way go/data/custom
+    do so rpmbuild does not abort with "Empty %files file debugsourcefiles.list".
+    """
+    recipe["build_system"] = "python"
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert spec.startswith("%global debug_package %{nil}\nName:")
+
+
+def test_python_deb_renders_pybuild(recipe: dict) -> None:
+    recipe["build_system"] = "python"
+    recipe["dependencies"]["build"]["targets"]["ubuntu"] = ["python3", "python3-setuptools", "dh-python"]
+    rendered = tideforge.render(recipe, "ubuntu")
+    rules = rendered["debian/rules"]
+    control = rendered["debian/control"]
+    assert "dh $@ --buildsystem=pybuild" in rules
+    assert "Build-Depends: debhelper-compat (= 13), meson, python3, python3-setuptools, dh-python" in control
+    # Native build system, so auto-test is skipped.
+    assert "override_dh_auto_test:" in rules
+    # Single binary package stages directly; no .install file.
+    assert "debian/hello-tuna.install" not in rendered
+
+
+def test_python_arch_renders_build_and_installer(recipe: dict) -> None:
+    recipe["build_system"] = "python"
+    recipe["targets"] = ["arch"]
+    recipe["dependencies"]["build"]["targets"]["arch"] = ["python", "python-build", "python-installer", "python-setuptools"]
+    pkgbuild = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "python -m build --wheel --no-isolation" in pkgbuild
+    assert 'python -m installer --destdir="$pkgdir" dist/*.whl' in pkgbuild
+    assert "python-build" in pkgbuild
+
+
+def test_python_recipe_respects_prepare_commands(recipe: dict) -> None:
+    recipe["build_system"] = "python"
+    recipe["build"] = {"prepare": ["make generate-protos"]}
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "make generate-protos" in spec
+    assert "make generate-protos\n%pyproject_wheel" in spec
+
+
+def test_python_recipe_with_install_files_appends_to_staged_wheel(recipe: dict) -> None:
+    recipe["build_system"] = "python"
+    recipe["install"] = {"files": [{"source": "demo.service", "destination": "usr/lib/systemd/system/demo.service"}]}
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "install -Dm0644 demo.service %{buildroot}/usr/lib/systemd/system/demo.service" in spec
+    rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    assert "install -Dm0644 demo.service debian/hello-tuna/usr/lib/systemd/system/demo.service" in rules
+    pkgbuild = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "install -Dm0644 demo.service $pkgdir/usr/lib/systemd/system/demo.service" in pkgbuild

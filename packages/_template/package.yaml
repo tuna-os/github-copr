@@ -20,6 +20,13 @@ source:
 #     destination: third-party/vendor
 #     strip_components: 1
 build_system: meson
+# python is also a first-class build system for PEP 517 projects (pyproject.toml
+# and setup.py).  It renders %pyproject_wheel/%pyproject_install for RPM,
+# --buildsystem=pybuild for DEB, and python -m build + python -m installer for
+# Arch.  Like meson/cmake/autotools, it needs target-native build tools:
+#   el10: [python3-devel, python3-setuptools]
+#   ubuntu/debian: [python3, python3-setuptools, dh-python, pybuild-plugin-pyproject]
+#   arch: [python, python-build, python-installer, python-setuptools]
 dependencies:
   build:
     common: [gcc, pkgconf-pkg-config, meson, ninja-build]
