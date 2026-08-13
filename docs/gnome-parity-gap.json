@@ -1,0 +1,1867 @@
+{
+  "audit": {
+    "provenance": {
+      "gnome-debian.yaml": {
+        "date": "2026-08-07T14:47:20Z",
+        "message": "feat(flatpak): Flathub everywhere, curated preinstall set, and a contract that keeps both (#1062)",
+        "sha": "28ac5e8ea9feb1bc9f494d7ea44be738ee78e2b3"
+      },
+      "gnome.yaml": {
+        "date": "2026-08-11T16:48:39Z",
+        "message": "docs: add references to package sourcing policy (#1319)",
+        "sha": "b354498ae88870a257d129cec4b3b58d59b0b364"
+      }
+    },
+    "variants": {
+      "albacore": {
+        "components": {
+          "fwupd": {
+            "names": [
+              "fwupd"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gdm": {
+            "names": [
+              "gdm"
+            ],
+            "requested_names": [
+              "gdm"
+            ],
+            "status": "explicit"
+          },
+          "gnome-bluetooth": {
+            "names": [
+              "gnome-bluetooth"
+            ],
+            "requested_names": [
+              "gnome-bluetooth"
+            ],
+            "status": "explicit"
+          },
+          "gnome-color-manager": {
+            "names": [
+              "gnome-color-manager"
+            ],
+            "requested_names": [
+              "gnome-color-manager"
+            ],
+            "status": "explicit"
+          },
+          "gnome-control-center": {
+            "names": [
+              "gnome-control-center"
+            ],
+            "requested_names": [
+              "gnome-control-center"
+            ],
+            "status": "explicit"
+          },
+          "gnome-disk-utility": {
+            "names": [
+              "gnome-disk-utility"
+            ],
+            "requested_names": [
+              "gnome-disk-utility"
+            ],
+            "status": "explicit"
+          },
+          "gnome-initial-setup": {
+            "names": [
+              "gnome-initial-setup"
+            ],
+            "requested_names": [
+              "gnome-initial-setup"
+            ],
+            "status": "explicit"
+          },
+          "gnome-keyring": {
+            "names": [
+              "gnome-keyring"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-online-accounts": {
+            "names": [
+              "gnome-online-accounts"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-remote-desktop": {
+            "names": [
+              "gnome-remote-desktop"
+            ],
+            "requested_names": [
+              "gnome-remote-desktop"
+            ],
+            "status": "explicit"
+          },
+          "gnome-session": {
+            "names": [
+              "gnome-session"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-settings-daemon": {
+            "names": [
+              "gnome-settings-daemon"
+            ],
+            "requested_names": [
+              "gnome-settings-daemon"
+            ],
+            "status": "explicit"
+          },
+          "gnome-shell": {
+            "names": [
+              "gnome-shell"
+            ],
+            "requested_names": [
+              "gnome-shell"
+            ],
+            "status": "explicit"
+          },
+          "gnome-user-docs": {
+            "names": [
+              "gnome-user-docs"
+            ],
+            "requested_names": [
+              "gnome-user-docs"
+            ],
+            "status": "explicit"
+          },
+          "gvfs": {
+            "names": [
+              "gvfs",
+              "gvfs-afc",
+              "gvfs-fuse",
+              "gvfs-goa",
+              "gvfs-gphoto2",
+              "gvfs-mtp",
+              "gvfs-smb"
+            ],
+            "requested_names": [
+              "gvfs-fuse",
+              "gvfs-goa",
+              "gvfs-gphoto2",
+              "gvfs-mtp",
+              "gvfs-smb"
+            ],
+            "status": "explicit"
+          },
+          "mutter": {
+            "names": [
+              "mutter"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "nautilus": {
+            "names": [
+              "nautilus"
+            ],
+            "requested_names": [
+              "nautilus"
+            ],
+            "status": "explicit"
+          },
+          "orca": {
+            "names": [
+              "orca"
+            ],
+            "requested_names": [
+              "orca"
+            ],
+            "status": "explicit"
+          },
+          "search-index": {
+            "names": [
+              "tracker",
+              "tracker-miners"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "xdg-desktop-portal-gnome": {
+            "names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "requested_names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "status": "explicit"
+          },
+          "xdg-desktop-portal-gtk": {
+            "names": [
+              "xdg-desktop-portal-gtk"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "yelp": {
+            "names": [
+              "yelp"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          }
+        },
+        "core_components_missing": [],
+        "distro": "AlmaLinux 10",
+        "manifest": "gnome.yaml",
+        "metapackages": [],
+        "missing_components": [],
+        "package_manager": "dnf",
+        "requested_count": 27,
+        "requested_packages": [
+          "NetworkManager-adsl",
+          "dbus-daemon",
+          "gdm",
+          "glib2",
+          "gnome-bluetooth",
+          "gnome-color-manager",
+          "gnome-control-center",
+          "gnome-disk-utility",
+          "gnome-initial-setup",
+          "gnome-remote-desktop",
+          "gnome-session-wayland-session",
+          "gnome-settings-daemon",
+          "gnome-shell",
+          "gnome-user-docs",
+          "gvfs-fuse",
+          "gvfs-goa",
+          "gvfs-gphoto2",
+          "gvfs-mtp",
+          "gvfs-smb",
+          "libsane-hpaio",
+          "nautilus",
+          "orca",
+          "ptyxis",
+          "sane-backends-drivers-scanners",
+          "xdg-desktop-portal-gnome",
+          "xdg-user-dirs-gtk",
+          "yelp-tools"
+        ],
+        "section": "el10"
+      },
+      "bonito": {
+        "components": {
+          "fwupd": {
+            "names": [
+              "fwupd"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gdm": {
+            "names": [
+              "gdm"
+            ],
+            "requested_names": [
+              "gdm"
+            ],
+            "status": "explicit"
+          },
+          "gnome-bluetooth": {
+            "names": [
+              "gnome-bluetooth"
+            ],
+            "requested_names": [
+              "gnome-bluetooth"
+            ],
+            "status": "explicit"
+          },
+          "gnome-color-manager": {
+            "names": [
+              "gnome-color-manager"
+            ],
+            "requested_names": [
+              "gnome-color-manager"
+            ],
+            "status": "explicit"
+          },
+          "gnome-control-center": {
+            "names": [
+              "gnome-control-center"
+            ],
+            "requested_names": [
+              "gnome-control-center"
+            ],
+            "status": "explicit"
+          },
+          "gnome-disk-utility": {
+            "names": [
+              "gnome-disk-utility"
+            ],
+            "requested_names": [
+              "gnome-disk-utility"
+            ],
+            "status": "explicit"
+          },
+          "gnome-initial-setup": {
+            "names": [
+              "gnome-initial-setup"
+            ],
+            "requested_names": [
+              "gnome-initial-setup"
+            ],
+            "status": "explicit"
+          },
+          "gnome-keyring": {
+            "names": [
+              "gnome-keyring"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-online-accounts": {
+            "names": [
+              "gnome-online-accounts"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-remote-desktop": {
+            "names": [
+              "gnome-remote-desktop"
+            ],
+            "requested_names": [
+              "gnome-remote-desktop"
+            ],
+            "status": "explicit"
+          },
+          "gnome-session": {
+            "names": [
+              "gnome-session"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-settings-daemon": {
+            "names": [
+              "gnome-settings-daemon"
+            ],
+            "requested_names": [
+              "gnome-settings-daemon"
+            ],
+            "status": "explicit"
+          },
+          "gnome-shell": {
+            "names": [
+              "gnome-shell"
+            ],
+            "requested_names": [
+              "gnome-shell"
+            ],
+            "status": "explicit"
+          },
+          "gnome-user-docs": {
+            "names": [
+              "gnome-user-docs"
+            ],
+            "requested_names": [
+              "gnome-user-docs"
+            ],
+            "status": "explicit"
+          },
+          "gvfs": {
+            "names": [
+              "gvfs",
+              "gvfs-afc",
+              "gvfs-fuse",
+              "gvfs-goa",
+              "gvfs-gphoto2",
+              "gvfs-mtp",
+              "gvfs-smb"
+            ],
+            "requested_names": [
+              "gvfs-afc",
+              "gvfs-fuse",
+              "gvfs-goa",
+              "gvfs-gphoto2",
+              "gvfs-mtp",
+              "gvfs-smb"
+            ],
+            "status": "explicit"
+          },
+          "mutter": {
+            "names": [
+              "mutter"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "nautilus": {
+            "names": [
+              "nautilus"
+            ],
+            "requested_names": [
+              "nautilus"
+            ],
+            "status": "explicit"
+          },
+          "orca": {
+            "names": [
+              "orca"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "search-index": {
+            "names": [
+              "tracker",
+              "tracker-miners"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "xdg-desktop-portal-gnome": {
+            "names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "requested_names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "status": "explicit"
+          },
+          "xdg-desktop-portal-gtk": {
+            "names": [
+              "xdg-desktop-portal-gtk"
+            ],
+            "requested_names": [
+              "xdg-desktop-portal-gtk"
+            ],
+            "status": "explicit"
+          },
+          "yelp": {
+            "names": [
+              "yelp"
+            ],
+            "requested_names": [
+              "yelp"
+            ],
+            "status": "explicit"
+          }
+        },
+        "core_components_missing": [],
+        "distro": "Fedora 44",
+        "manifest": "gnome.yaml",
+        "metapackages": [],
+        "missing_components": [],
+        "package_manager": "dnf",
+        "requested_count": 54,
+        "requested_packages": [
+          "ModemManager",
+          "NetworkManager-adsl",
+          "NetworkManager-openconnect-gnome",
+          "NetworkManager-openvpn-gnome",
+          "NetworkManager-ppp",
+          "NetworkManager-ssh-gnome",
+          "NetworkManager-vpnc-gnome",
+          "NetworkManager-wwan",
+          "avahi",
+          "dconf",
+          "desktop-backgrounds-gnome",
+          "evince-previewer",
+          "evince-thumbnailer",
+          "fprintd-pam",
+          "gdm",
+          "glib-networking",
+          "gnome-backgrounds",
+          "gnome-bluetooth",
+          "gnome-browser-connector",
+          "gnome-classic-session",
+          "gnome-color-manager",
+          "gnome-control-center",
+          "gnome-disk-utility",
+          "gnome-initial-setup",
+          "gnome-remote-desktop",
+          "gnome-session-wayland-session",
+          "gnome-settings-daemon",
+          "gnome-shell",
+          "gnome-system-monitor",
+          "gnome-user-docs",
+          "gnome-user-share",
+          "gvfs-afc",
+          "gvfs-afp",
+          "gvfs-archive",
+          "gvfs-fuse",
+          "gvfs-goa",
+          "gvfs-gphoto2",
+          "gvfs-mtp",
+          "gvfs-smb",
+          "librsvg2",
+          "libsane-hpaio",
+          "mesa-dri-drivers",
+          "mesa-libEGL",
+          "mesa-vulkan-drivers",
+          "nautilus",
+          "pinentry-gnome3",
+          "polkit",
+          "ptyxis",
+          "qadwaitadecorations-qt5",
+          "totem-video-thumbnailer",
+          "xdg-desktop-portal-gnome",
+          "xdg-desktop-portal-gtk",
+          "xdg-user-dirs-gtk",
+          "yelp"
+        ],
+        "section": "fedora"
+      },
+      "flounder": {
+        "components": {
+          "fwupd": {
+            "names": [
+              "fwupd"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gdm": {
+            "names": [
+              "gdm",
+              "gdm3"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-bluetooth": {
+            "names": [
+              "gnome-bluetooth"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-color-manager": {
+            "names": [
+              "gnome-color-manager"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-control-center": {
+            "names": [
+              "gnome-control-center"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-disk-utility": {
+            "names": [
+              "gnome-disk-utility"
+            ],
+            "requested_names": [
+              "gnome-disk-utility"
+            ],
+            "status": "explicit"
+          },
+          "gnome-initial-setup": {
+            "names": [
+              "gnome-initial-setup"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-keyring": {
+            "names": [
+              "gnome-keyring",
+              "libpam-gnome-keyring"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-online-accounts": {
+            "names": [
+              "gnome-online-accounts"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-remote-desktop": {
+            "names": [
+              "gnome-remote-desktop"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-session": {
+            "names": [
+              "gnome-session",
+              "ubuntu-session"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-settings-daemon": {
+            "names": [
+              "gnome-settings-daemon"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-shell": {
+            "names": [
+              "gnome-shell"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-user-docs": {
+            "names": [
+              "gnome-user-docs"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gvfs": {
+            "names": [
+              "gvfs",
+              "gvfs-backends"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "mutter": {
+            "names": [
+              "mutter"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "nautilus": {
+            "names": [
+              "nautilus"
+            ],
+            "requested_names": [
+              "nautilus"
+            ],
+            "status": "explicit"
+          },
+          "orca": {
+            "names": [
+              "orca"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "search-index": {
+            "names": [
+              "tracker",
+              "tracker-miners"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "xdg-desktop-portal-gnome": {
+            "names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "requested_names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "status": "explicit"
+          },
+          "xdg-desktop-portal-gtk": {
+            "names": [
+              "xdg-desktop-portal-gtk"
+            ],
+            "requested_names": [
+              "xdg-desktop-portal-gtk"
+            ],
+            "status": "explicit"
+          },
+          "yelp": {
+            "names": [
+              "yelp"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          }
+        },
+        "core_components_missing": [],
+        "distro": "Debian 13 (trixie)",
+        "manifest": "gnome-debian.yaml",
+        "metapackages": [
+          "gnome-core"
+        ],
+        "missing_components": [],
+        "package_manager": "apt",
+        "requested_count": 9,
+        "requested_packages": [
+          "gnome-core",
+          "gnome-disk-utility",
+          "gnome-shell-extension-manager",
+          "gnome-system-monitor",
+          "libglib2.0-dev-bin",
+          "nautilus",
+          "xdg-desktop-portal-gnome",
+          "xdg-desktop-portal-gtk",
+          "xdg-user-dirs-gtk"
+        ],
+        "section": "apt"
+      },
+      "grouper": {
+        "components": {
+          "fwupd": {
+            "names": [
+              "fwupd"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gdm": {
+            "names": [
+              "gdm",
+              "gdm3"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-bluetooth": {
+            "names": [
+              "gnome-bluetooth"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-color-manager": {
+            "names": [
+              "gnome-color-manager"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-control-center": {
+            "names": [
+              "gnome-control-center"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-disk-utility": {
+            "names": [
+              "gnome-disk-utility"
+            ],
+            "requested_names": [
+              "gnome-disk-utility"
+            ],
+            "status": "explicit"
+          },
+          "gnome-initial-setup": {
+            "names": [
+              "gnome-initial-setup"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-keyring": {
+            "names": [
+              "gnome-keyring",
+              "libpam-gnome-keyring"
+            ],
+            "requested_names": [
+              "gnome-keyring",
+              "libpam-gnome-keyring"
+            ],
+            "status": "explicit"
+          },
+          "gnome-online-accounts": {
+            "names": [
+              "gnome-online-accounts"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-remote-desktop": {
+            "names": [
+              "gnome-remote-desktop"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-session": {
+            "names": [
+              "gnome-session",
+              "ubuntu-session"
+            ],
+            "requested_names": [
+              "gnome-session",
+              "ubuntu-session"
+            ],
+            "status": "explicit"
+          },
+          "gnome-settings-daemon": {
+            "names": [
+              "gnome-settings-daemon"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-shell": {
+            "names": [
+              "gnome-shell"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-user-docs": {
+            "names": [
+              "gnome-user-docs"
+            ],
+            "requested_names": [
+              "gnome-user-docs"
+            ],
+            "status": "explicit"
+          },
+          "gvfs": {
+            "names": [
+              "gvfs",
+              "gvfs-backends"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "mutter": {
+            "names": [
+              "mutter"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "nautilus": {
+            "names": [
+              "nautilus"
+            ],
+            "requested_names": [
+              "nautilus"
+            ],
+            "status": "explicit"
+          },
+          "orca": {
+            "names": [
+              "orca"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "search-index": {
+            "names": [
+              "tracker",
+              "tracker-miners"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "xdg-desktop-portal-gnome": {
+            "names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "requested_names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "status": "explicit"
+          },
+          "xdg-desktop-portal-gtk": {
+            "names": [
+              "xdg-desktop-portal-gtk"
+            ],
+            "requested_names": [
+              "xdg-desktop-portal-gtk"
+            ],
+            "status": "explicit"
+          },
+          "yelp": {
+            "names": [
+              "yelp"
+            ],
+            "requested_names": [
+              "yelp"
+            ],
+            "status": "explicit"
+          }
+        },
+        "core_components_missing": [],
+        "distro": "Ubuntu 26.04 (resolute)",
+        "manifest": "gnome.yaml",
+        "metapackages": [
+          "ubuntu-desktop-minimal"
+        ],
+        "missing_components": [],
+        "package_manager": "apt",
+        "requested_count": 16,
+        "requested_packages": [
+          "gnome-browser-connector",
+          "gnome-disk-utility",
+          "gnome-keyring",
+          "gnome-session",
+          "gnome-shell-extension-manager",
+          "gnome-system-monitor",
+          "gnome-user-docs",
+          "libpam-gnome-keyring",
+          "nautilus",
+          "plymouth-theme-spinner",
+          "ubuntu-desktop-minimal",
+          "ubuntu-session",
+          "xdg-desktop-portal-gnome",
+          "xdg-desktop-portal-gtk",
+          "xdg-user-dirs-gtk",
+          "yelp"
+        ],
+        "section": "apt"
+      },
+      "guppy": {
+        "audited": false,
+        "distro": "Gentoo",
+        "package_manager": "emerge"
+      },
+      "marlin": {
+        "audited": false,
+        "distro": "Arch",
+        "package_manager": "pacman"
+      },
+      "sailfin": {
+        "components": {
+          "fwupd": {
+            "names": [
+              "fwupd"
+            ],
+            "requested_names": [
+              "fwupd"
+            ],
+            "status": "explicit"
+          },
+          "gdm": {
+            "names": [
+              "gdm"
+            ],
+            "requested_names": [
+              "gdm"
+            ],
+            "status": "explicit"
+          },
+          "gnome-bluetooth": {
+            "names": [
+              "gnome-bluetooth"
+            ],
+            "requested_names": [
+              "gnome-bluetooth"
+            ],
+            "status": "explicit"
+          },
+          "gnome-color-manager": {
+            "names": [
+              "gnome-color-manager"
+            ],
+            "requested_names": [
+              "gnome-color-manager"
+            ],
+            "status": "explicit"
+          },
+          "gnome-control-center": {
+            "names": [
+              "gnome-control-center"
+            ],
+            "requested_names": [
+              "gnome-control-center"
+            ],
+            "status": "explicit"
+          },
+          "gnome-disk-utility": {
+            "names": [
+              "gnome-disk-utility"
+            ],
+            "requested_names": [
+              "gnome-disk-utility"
+            ],
+            "status": "explicit"
+          },
+          "gnome-initial-setup": {
+            "names": [
+              "gnome-initial-setup"
+            ],
+            "requested_names": [
+              "gnome-initial-setup"
+            ],
+            "status": "explicit"
+          },
+          "gnome-keyring": {
+            "names": [
+              "gnome-keyring",
+              "gnome-keyring-pam"
+            ],
+            "requested_names": [
+              "gnome-keyring",
+              "gnome-keyring-pam"
+            ],
+            "status": "explicit"
+          },
+          "gnome-online-accounts": {
+            "names": [
+              "gnome-online-accounts"
+            ],
+            "requested_names": [
+              "gnome-online-accounts"
+            ],
+            "status": "explicit"
+          },
+          "gnome-remote-desktop": {
+            "names": [
+              "gnome-remote-desktop"
+            ],
+            "requested_names": [
+              "gnome-remote-desktop"
+            ],
+            "status": "explicit"
+          },
+          "gnome-session": {
+            "names": [
+              "gnome-session"
+            ],
+            "requested_names": [
+              "gnome-session"
+            ],
+            "status": "explicit"
+          },
+          "gnome-settings-daemon": {
+            "names": [
+              "gnome-settings-daemon"
+            ],
+            "requested_names": [
+              "gnome-settings-daemon"
+            ],
+            "status": "explicit"
+          },
+          "gnome-shell": {
+            "names": [
+              "gnome-shell"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "gnome-user-docs": {
+            "names": [
+              "gnome-user-docs"
+            ],
+            "requested_names": [
+              "gnome-user-docs"
+            ],
+            "status": "explicit"
+          },
+          "gvfs": {
+            "names": [
+              "gvfs",
+              "gvfs-backends",
+              "gvfs-fuse"
+            ],
+            "requested_names": [
+              "gvfs",
+              "gvfs-backends",
+              "gvfs-fuse"
+            ],
+            "status": "explicit"
+          },
+          "mutter": {
+            "names": [
+              "mutter"
+            ],
+            "requested_names": [],
+            "status": "metapackage"
+          },
+          "nautilus": {
+            "names": [
+              "nautilus"
+            ],
+            "requested_names": [
+              "nautilus"
+            ],
+            "status": "explicit"
+          },
+          "orca": {
+            "names": [
+              "orca"
+            ],
+            "requested_names": [
+              "orca"
+            ],
+            "status": "explicit"
+          },
+          "search-index": {
+            "names": [
+              "tinysparql",
+              "localsearch"
+            ],
+            "requested_names": [
+              "localsearch",
+              "tinysparql"
+            ],
+            "status": "explicit"
+          },
+          "xdg-desktop-portal-gnome": {
+            "names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "requested_names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "status": "explicit"
+          },
+          "xdg-desktop-portal-gtk": {
+            "names": [
+              "xdg-desktop-portal-gtk"
+            ],
+            "requested_names": [
+              "xdg-desktop-portal-gtk"
+            ],
+            "status": "explicit"
+          },
+          "yelp": {
+            "names": [
+              "yelp"
+            ],
+            "requested_names": [
+              "yelp"
+            ],
+            "status": "explicit"
+          }
+        },
+        "core_components_missing": [],
+        "distro": "openSUSE Tumbleweed",
+        "manifest": "gnome.yaml",
+        "metapackages": [
+          "patterns-gnome-gnome",
+          "patterns-gnome-gnome_basis"
+        ],
+        "missing_components": [],
+        "package_manager": "zypper",
+        "requested_count": 62,
+        "requested_packages": [
+          "Mesa-dri",
+          "Mesa-libEGL1",
+          "Mesa-vulkan-device-select",
+          "ModemManager",
+          "NetworkManager-openconnect",
+          "NetworkManager-openvpn",
+          "NetworkManager-vpnc",
+          "avahi",
+          "baobab",
+          "dconf",
+          "evince",
+          "file-roller",
+          "fprintd-pam",
+          "fwupd",
+          "gdm",
+          "glib-networking",
+          "gnome-backgrounds",
+          "gnome-bluetooth",
+          "gnome-browser-connector",
+          "gnome-calculator",
+          "gnome-characters",
+          "gnome-color-manager",
+          "gnome-console",
+          "gnome-control-center",
+          "gnome-disk-utility",
+          "gnome-font-viewer",
+          "gnome-initial-setup",
+          "gnome-keyring",
+          "gnome-keyring-pam",
+          "gnome-logs",
+          "gnome-menus",
+          "gnome-online-accounts",
+          "gnome-remote-desktop",
+          "gnome-session",
+          "gnome-settings-daemon",
+          "gnome-shell-extensions-common",
+          "gnome-software",
+          "gnome-system-monitor",
+          "gnome-text-editor",
+          "gnome-user-docs",
+          "gnome-user-share",
+          "gvfs",
+          "gvfs-backends",
+          "gvfs-fuse",
+          "librsvg-2-2",
+          "localsearch",
+          "loupe",
+          "nautilus",
+          "orca",
+          "patterns-gnome-gnome",
+          "patterns-gnome-gnome_basis",
+          "pinentry-gnome3",
+          "polkit",
+          "power-profiles-daemon",
+          "seahorse",
+          "simple-scan",
+          "switcheroo-control",
+          "tinysparql",
+          "xdg-desktop-portal-gnome",
+          "xdg-desktop-portal-gtk",
+          "xdg-user-dirs-gtk",
+          "yelp"
+        ],
+        "section": "zypper"
+      },
+      "skipjack": {
+        "components": {
+          "fwupd": {
+            "names": [
+              "fwupd"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gdm": {
+            "names": [
+              "gdm"
+            ],
+            "requested_names": [
+              "gdm"
+            ],
+            "status": "explicit"
+          },
+          "gnome-bluetooth": {
+            "names": [
+              "gnome-bluetooth"
+            ],
+            "requested_names": [
+              "gnome-bluetooth"
+            ],
+            "status": "explicit"
+          },
+          "gnome-color-manager": {
+            "names": [
+              "gnome-color-manager"
+            ],
+            "requested_names": [
+              "gnome-color-manager"
+            ],
+            "status": "explicit"
+          },
+          "gnome-control-center": {
+            "names": [
+              "gnome-control-center"
+            ],
+            "requested_names": [
+              "gnome-control-center"
+            ],
+            "status": "explicit"
+          },
+          "gnome-disk-utility": {
+            "names": [
+              "gnome-disk-utility"
+            ],
+            "requested_names": [
+              "gnome-disk-utility"
+            ],
+            "status": "explicit"
+          },
+          "gnome-initial-setup": {
+            "names": [
+              "gnome-initial-setup"
+            ],
+            "requested_names": [
+              "gnome-initial-setup"
+            ],
+            "status": "explicit"
+          },
+          "gnome-keyring": {
+            "names": [
+              "gnome-keyring"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-online-accounts": {
+            "names": [
+              "gnome-online-accounts"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-remote-desktop": {
+            "names": [
+              "gnome-remote-desktop"
+            ],
+            "requested_names": [
+              "gnome-remote-desktop"
+            ],
+            "status": "explicit"
+          },
+          "gnome-session": {
+            "names": [
+              "gnome-session"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-settings-daemon": {
+            "names": [
+              "gnome-settings-daemon"
+            ],
+            "requested_names": [
+              "gnome-settings-daemon"
+            ],
+            "status": "explicit"
+          },
+          "gnome-shell": {
+            "names": [
+              "gnome-shell"
+            ],
+            "requested_names": [
+              "gnome-shell"
+            ],
+            "status": "explicit"
+          },
+          "gnome-user-docs": {
+            "names": [
+              "gnome-user-docs"
+            ],
+            "requested_names": [
+              "gnome-user-docs"
+            ],
+            "status": "explicit"
+          },
+          "gvfs": {
+            "names": [
+              "gvfs",
+              "gvfs-afc",
+              "gvfs-fuse",
+              "gvfs-goa",
+              "gvfs-gphoto2",
+              "gvfs-mtp",
+              "gvfs-smb"
+            ],
+            "requested_names": [
+              "gvfs-fuse",
+              "gvfs-goa",
+              "gvfs-gphoto2",
+              "gvfs-mtp",
+              "gvfs-smb"
+            ],
+            "status": "explicit"
+          },
+          "mutter": {
+            "names": [
+              "mutter"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "nautilus": {
+            "names": [
+              "nautilus"
+            ],
+            "requested_names": [
+              "nautilus"
+            ],
+            "status": "explicit"
+          },
+          "orca": {
+            "names": [
+              "orca"
+            ],
+            "requested_names": [
+              "orca"
+            ],
+            "status": "explicit"
+          },
+          "search-index": {
+            "names": [
+              "tracker",
+              "tracker-miners"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "xdg-desktop-portal-gnome": {
+            "names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "requested_names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "status": "explicit"
+          },
+          "xdg-desktop-portal-gtk": {
+            "names": [
+              "xdg-desktop-portal-gtk"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "yelp": {
+            "names": [
+              "yelp"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          }
+        },
+        "core_components_missing": [],
+        "distro": "CentOS Stream 10",
+        "manifest": "gnome.yaml",
+        "metapackages": [],
+        "missing_components": [],
+        "package_manager": "dnf",
+        "requested_count": 27,
+        "requested_packages": [
+          "NetworkManager-adsl",
+          "dbus-daemon",
+          "gdm",
+          "glib2",
+          "gnome-bluetooth",
+          "gnome-color-manager",
+          "gnome-control-center",
+          "gnome-disk-utility",
+          "gnome-initial-setup",
+          "gnome-remote-desktop",
+          "gnome-session-wayland-session",
+          "gnome-settings-daemon",
+          "gnome-shell",
+          "gnome-user-docs",
+          "gvfs-fuse",
+          "gvfs-goa",
+          "gvfs-gphoto2",
+          "gvfs-mtp",
+          "gvfs-smb",
+          "libsane-hpaio",
+          "nautilus",
+          "orca",
+          "ptyxis",
+          "sane-backends-drivers-scanners",
+          "xdg-desktop-portal-gnome",
+          "xdg-user-dirs-gtk",
+          "yelp-tools"
+        ],
+        "section": "el10"
+      },
+      "yellowfin": {
+        "components": {
+          "fwupd": {
+            "names": [
+              "fwupd"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gdm": {
+            "names": [
+              "gdm"
+            ],
+            "requested_names": [
+              "gdm"
+            ],
+            "status": "explicit"
+          },
+          "gnome-bluetooth": {
+            "names": [
+              "gnome-bluetooth"
+            ],
+            "requested_names": [
+              "gnome-bluetooth"
+            ],
+            "status": "explicit"
+          },
+          "gnome-color-manager": {
+            "names": [
+              "gnome-color-manager"
+            ],
+            "requested_names": [
+              "gnome-color-manager"
+            ],
+            "status": "explicit"
+          },
+          "gnome-control-center": {
+            "names": [
+              "gnome-control-center"
+            ],
+            "requested_names": [
+              "gnome-control-center"
+            ],
+            "status": "explicit"
+          },
+          "gnome-disk-utility": {
+            "names": [
+              "gnome-disk-utility"
+            ],
+            "requested_names": [
+              "gnome-disk-utility"
+            ],
+            "status": "explicit"
+          },
+          "gnome-initial-setup": {
+            "names": [
+              "gnome-initial-setup"
+            ],
+            "requested_names": [
+              "gnome-initial-setup"
+            ],
+            "status": "explicit"
+          },
+          "gnome-keyring": {
+            "names": [
+              "gnome-keyring"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-online-accounts": {
+            "names": [
+              "gnome-online-accounts"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-remote-desktop": {
+            "names": [
+              "gnome-remote-desktop"
+            ],
+            "requested_names": [
+              "gnome-remote-desktop"
+            ],
+            "status": "explicit"
+          },
+          "gnome-session": {
+            "names": [
+              "gnome-session"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "gnome-settings-daemon": {
+            "names": [
+              "gnome-settings-daemon"
+            ],
+            "requested_names": [
+              "gnome-settings-daemon"
+            ],
+            "status": "explicit"
+          },
+          "gnome-shell": {
+            "names": [
+              "gnome-shell"
+            ],
+            "requested_names": [
+              "gnome-shell"
+            ],
+            "status": "explicit"
+          },
+          "gnome-user-docs": {
+            "names": [
+              "gnome-user-docs"
+            ],
+            "requested_names": [
+              "gnome-user-docs"
+            ],
+            "status": "explicit"
+          },
+          "gvfs": {
+            "names": [
+              "gvfs",
+              "gvfs-afc",
+              "gvfs-fuse",
+              "gvfs-goa",
+              "gvfs-gphoto2",
+              "gvfs-mtp",
+              "gvfs-smb"
+            ],
+            "requested_names": [
+              "gvfs-fuse",
+              "gvfs-goa",
+              "gvfs-gphoto2",
+              "gvfs-mtp",
+              "gvfs-smb"
+            ],
+            "status": "explicit"
+          },
+          "mutter": {
+            "names": [
+              "mutter"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "nautilus": {
+            "names": [
+              "nautilus"
+            ],
+            "requested_names": [
+              "nautilus"
+            ],
+            "status": "explicit"
+          },
+          "orca": {
+            "names": [
+              "orca"
+            ],
+            "requested_names": [
+              "orca"
+            ],
+            "status": "explicit"
+          },
+          "search-index": {
+            "names": [
+              "tracker",
+              "tracker-miners"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "xdg-desktop-portal-gnome": {
+            "names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "requested_names": [
+              "xdg-desktop-portal-gnome"
+            ],
+            "status": "explicit"
+          },
+          "xdg-desktop-portal-gtk": {
+            "names": [
+              "xdg-desktop-portal-gtk"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          },
+          "yelp": {
+            "names": [
+              "yelp"
+            ],
+            "requested_names": [],
+            "status": "indirect"
+          }
+        },
+        "core_components_missing": [],
+        "distro": "AlmaLinux Kitten 10",
+        "manifest": "gnome.yaml",
+        "metapackages": [],
+        "missing_components": [],
+        "package_manager": "dnf",
+        "requested_count": 27,
+        "requested_packages": [
+          "NetworkManager-adsl",
+          "dbus-daemon",
+          "gdm",
+          "glib2",
+          "gnome-bluetooth",
+          "gnome-color-manager",
+          "gnome-control-center",
+          "gnome-disk-utility",
+          "gnome-initial-setup",
+          "gnome-remote-desktop",
+          "gnome-session-wayland-session",
+          "gnome-settings-daemon",
+          "gnome-shell",
+          "gnome-user-docs",
+          "gvfs-fuse",
+          "gvfs-goa",
+          "gvfs-gphoto2",
+          "gvfs-mtp",
+          "gvfs-smb",
+          "libsane-hpaio",
+          "nautilus",
+          "orca",
+          "ptyxis",
+          "sane-backends-drivers-scanners",
+          "xdg-desktop-portal-gnome",
+          "xdg-user-dirs-gtk",
+          "yelp-tools"
+        ],
+        "section": "el10"
+      }
+    }
+  },
+  "findings": [
+    {
+      "body": "As of the tunaOS manifests fetched for this run, every audited variant (sailfin, flounder, grouper, skipjack, albacore, yellowfin, bonito) requests every core contract component and every app the 2026-07-30 audit measured missing.  sailfin resolves the apps explicitly (62 requested names); flounder through Debian's gnome-core metapackage plus explicit nautilus/portals; grouper through ubuntu-desktop-minimal plus the gnome-keyring and libpam-gnome-keyring the metapackage was measured to omit.",
+      "title": "The requested lists now cover the full GNOME contract"
+    },
+    {
+      "body": "The issue measured sailfin +0.16 / flounder +0.33 / grouper +0.32 GB against a ~+1 GB healthy delta.  The manifest fixes landed in tunaOS main on 2026-07-30/31 (ce11d21, d8ebdf6) and all nine editions were rebuilt 2026-08-10: sailfin is now +0.44 GB, flounder +0.61 GB, grouper +0.45 GB \u2014 inside the same bracket as the EL-family references (skipjack/albacore/yellowfin +0.34\u20130.36 GB, which dropped from ~+1.0 GB when they moved to the native GNOME 50 RPM chain).",
+      "title": "The 2026-07-30 images are stale; current images are in the reference bracket"
+    },
+    {
+      "body": "bootc does not commit /var, so dpkg-query is empty on flounder/grouper images and no installed-package inventory exists to diff.  The build-time contract (verify-desktop-experience.sh in tunaOS, verify-gnome-desktop-experience.py here) is the only guard for the apt bases; a build-time inventory written to /usr (issue ask 2) would make them diffable directly.",
+      "title": "Remaining gap 1 \u2014 published apt images cannot be inventoried"
+    },
+    {
+      "body": "rpm -qa works on sailfin:gnome, but no inventory has been published alongside the image, so ask 1 of the issue (diff effective installed sets against yellowfin:gnome) still has no committed answer.  Publishing the rpm -qa output with the image metadata closes it.",
+      "title": "Remaining gap 2 \u2014 sailfin's published image has no published inventory"
+    },
+    {
+      "body": "The same shape that produced this issue is unfixed for the other desktops: kde.yaml lists 3 zypper names, xfce.yaml 3, niri.yaml 2.  The pattern-family resolution these rely on should get the same explicit-component treatment sailfin's gnome.yaml got (tunaos-packages#133 tracks the broader audit).",
+      "title": "Next candidates \u2014 kde/xfce/niri zypper lists are still thin"
+    }
+  ],
+  "issue": "https://github.com/tuna-os/tunaos-packages/issues/132",
+  "issue_baseline_2026_07_30_gb": {
+    "albacore": {
+      "base": 2.58,
+      "delta": 1.0,
+      "gnome": 3.58
+    },
+    "bonito": {
+      "base": 3.21,
+      "delta": 0.7,
+      "gnome": 3.91
+    },
+    "flounder": {
+      "base": 1.11,
+      "delta": 0.33,
+      "gnome": 1.44
+    },
+    "grouper": {
+      "base": 1.84,
+      "delta": 0.32,
+      "gnome": 2.16
+    },
+    "guppy": {
+      "base": 3.14,
+      "delta": 1.76,
+      "gnome": 4.9
+    },
+    "marlin": {
+      "base": 1.49,
+      "delta": 0.68,
+      "gnome": 2.17
+    },
+    "sailfin": {
+      "base": 1.48,
+      "delta": 0.16,
+      "gnome": 1.64
+    },
+    "skipjack": {
+      "base": 2.58,
+      "delta": 0.99,
+      "gnome": 3.57
+    },
+    "yellowfin": {
+      "base": 2.78,
+      "delta": 0.99,
+      "gnome": 3.77
+    }
+  },
+  "measured_at": "2026-08-11T21:51:17.083506+00:00",
+  "registry_ok": true,
+  "sizes": {
+    "albacore": {
+      "base": {
+        "compressed_gb": 2.6,
+        "created": "2026-08-10T03:22:18.290498795Z",
+        "digest": "sha256:a6eb05b6b00de2fec40c182c52dcd1cd7287b797eac9e3ca1d8a222099f678ad"
+      },
+      "delta_gb": 0.35,
+      "gnome": {
+        "compressed_gb": 2.95,
+        "created": "2026-08-10T04:07:18.984036829Z",
+        "digest": "sha256:172c5846e067da763f6b48d4035d2b962930eb339533cdcff0d251b61875a320"
+      }
+    },
+    "bonito": {
+      "base": {
+        "compressed_gb": 3.27,
+        "created": "2026-08-10T03:22:28.815795857Z",
+        "digest": "sha256:33c98ced9a8b2adcab8e32e5ffdc59b9d604dfb03e506e9b6538533e398fbeb6"
+      },
+      "delta_gb": 0.69,
+      "gnome": {
+        "compressed_gb": 3.96,
+        "created": "2026-08-10T04:29:04.996302861Z",
+        "digest": "sha256:6fda141bb85dd4c49876a9d96e26a81885709b260592dd3625c9241fa05a6c85"
+      }
+    },
+    "flounder": {
+      "base": {
+        "compressed_gb": 1.14,
+        "created": "2026-08-10T03:21:15.963537321Z",
+        "digest": "sha256:7e81dc16ec1e28dada7b1b5d35b685245480d323a0d39ec4f6e286f8808ce2f2"
+      },
+      "delta_gb": 0.61,
+      "gnome": {
+        "compressed_gb": 1.75,
+        "created": "2026-08-10T03:52:33.705059455Z",
+        "digest": "sha256:5c4b4f984a303d86478986337fd4de656ac3472d8d1bb3de4fe4f484e928129d"
+      }
+    },
+    "grouper": {
+      "base": {
+        "compressed_gb": 1.87,
+        "created": "2026-08-10T03:21:21.3054571Z",
+        "digest": "sha256:1c674851e17678184b8b5f30525696f520b482b9028df22c39ce82aeadc9549d"
+      },
+      "delta_gb": 0.45,
+      "gnome": {
+        "compressed_gb": 2.32,
+        "created": "2026-08-10T04:39:50.925205678Z",
+        "digest": "sha256:f1adaf873bc02a9c769726379acc35fe1c02f400e9357477aedff50bc45345af"
+      }
+    },
+    "guppy": {
+      "base": {
+        "compressed_gb": 3.34,
+        "created": "2026-08-10T03:21:28.102940724Z",
+        "digest": "sha256:974077768e4103930b11ef28cc719d1178e726827af7432e41ca961e2687d1ad"
+      },
+      "delta_gb": 1.56,
+      "gnome": {
+        "compressed_gb": 4.9,
+        "created": "2026-07-15T05:36:27.32943828Z",
+        "digest": "sha256:9882613a9891c64fa36090100c3ea7c9a38bbe0e30874b33fc9bffb97cd4fe51"
+      }
+    },
+    "marlin": {
+      "base": {
+        "compressed_gb": 1.36,
+        "created": "2026-08-11T03:37:20.81277506Z",
+        "digest": "sha256:beff493b1159a4116b759926e710868a919bae61cf77cf343f3036c7b4504268"
+      },
+      "delta_gb": 0.74,
+      "gnome": {
+        "compressed_gb": 2.1,
+        "created": "2026-08-10T04:52:31.50644163Z",
+        "digest": "sha256:bc5e77ba0f9995fb2ecf47124df1b0fb6b2cafe35e3db1dc2a796087a7d8a9f2"
+      }
+    },
+    "sailfin": {
+      "base": {
+        "compressed_gb": 1.52,
+        "created": "2026-08-10T03:18:41.419030461Z",
+        "digest": "sha256:24a8d8dddc41ea03b6128b3fcdfb54319462b80ee763816fa8e204d637651bb8"
+      },
+      "delta_gb": 0.44,
+      "gnome": {
+        "compressed_gb": 1.96,
+        "created": "2026-08-10T03:36:56.285542811Z",
+        "digest": "sha256:1b947cdcb5e8d9e77bcedd09a5c2ea8b3aff5bc3f57e6d6794fed1877d9f8222"
+      }
+    },
+    "skipjack": {
+      "base": {
+        "compressed_gb": 2.6,
+        "created": "2026-08-10T03:16:58.420034974Z",
+        "digest": "sha256:0d7a9ec15c3f919842c564157e3c9f87dbad703d39d165797bdf9a1fae47a782"
+      },
+      "delta_gb": 0.35,
+      "gnome": {
+        "compressed_gb": 2.95,
+        "created": "2026-08-10T03:38:52.335804701Z",
+        "digest": "sha256:2803423a264d99cd42c8291ff71c0e4205a7e6a0829e0521ee231fe898fc558a"
+      }
+    },
+    "yellowfin": {
+      "base": {
+        "compressed_gb": 2.53,
+        "created": "2026-08-10T03:16:36.468514407Z",
+        "digest": "sha256:1c90c1c971c997dabfbed1e57e3c37143b1541d22382b471e5d87b31308518c8"
+      },
+      "delta_gb": 0.35,
+      "gnome": {
+        "compressed_gb": 2.88,
+        "created": "2026-08-10T03:43:53.924098291Z",
+        "digest": "sha256:312d5fb7c1427b87e2b7c7e88542b34f882208c9d9a94218a4712a4c2fd49a1d"
+      }
+    }
+  }
+}
