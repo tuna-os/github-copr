@@ -201,6 +201,12 @@ jobs:
             --exclude-tiers "${IN_EXCLUDE}")
           echo "selected $(tr ',' '\n' <<< "$list" | wc -l) tiers: $list"
           echo "list=$list" >> "$GITHUB_OUTPUT"
+          # A digest of the same selection, for use in cache keys. `list` is
+          # comma-separated and actions/cache rejects a key containing a comma
+          # outright -- see the cache step below for what that cost. A digest
+          # is also bounded, so a larger desktop can never push the key past
+          # the 512-character limit.
+          echo "slug=$(printf '%s' "$list" | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
 
       - name: Import Fedora Rawhide packaging for the selected tiers
         run: |
@@ -254,10 +260,25 @@ jobs:
           # re-dispatch of the same tiers should hit. github.run_id makes each
           # run's save unique so concurrent runs do not race, and the
           # restore-keys walk back to the most recent compatible entry.
-          key: hummingbird-mock-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ steps.tiers.outputs.list }}-${{ github.run_id }}
+          #
+          # steps.tiers.outputs.slug, NOT .list: the list is comma-separated,
+          # and actions/cache refuses any key containing a comma --
+          #
+          #   ##[error]Key Validation Error: hummingbird-mock-<hash>-\
+          #   bootstrap-00,bootstrap-01,...,layer-23-<run_id> cannot contain
+          #   commas.
+          #
+          # That fired on every desktop of every run, in the same second the
+          # step started. It is not a soft cache miss: the step fails, `Build
+          # tiers` is skipped as a result, and the job still went on to sign
+          # and publish whatever the R2 seed had already put in the local
+          # repo. So the run uploaded a 10 GB artifact and reported a package
+          # repository while building precisely zero packages -- the failure
+          # looked like a caching hiccup and was actually total.
+          key: hummingbird-mock-${{ matrix.desktop }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ steps.tiers.outputs.slug }}-${{ github.run_id }}
           restore-keys: |
-            hummingbird-mock-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ steps.tiers.outputs.list }}-
-            hummingbird-mock-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
+            hummingbird-mock-${{ matrix.desktop }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ steps.tiers.outputs.slug }}-
+            hummingbird-mock-${{ matrix.desktop }}-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
 
       - name: Cache upstream source tarballs
         uses: actions/cache@v6
