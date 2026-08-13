@@ -16,7 +16,7 @@ Furthermore, image compressed size alone cannot reliably distinguish between mis
 To guarantee desktop completeness and prevent regression before publishing images, package-level contracts and verification tools must be enforced for all target desktops across all base distributions (RPM, DEB, openSUSE).
 
 ### 1. GNOME Desktop Contract
-Defined in [`docs/gnome-desktop-contract.md`](./gnome-desktop-contract.md) and checked via [`scripts/verify-gnome-desktop-experience.py`](../scripts/verify-gnome-desktop-experience.py).
+Defined in [`docs/gnome-desktop-contract.md`](./gnome-desktop-contract.md) and checked via [`scripts/verify-gnome-desktop-experience.py`](https://github.com/tuna-os/tunaos-packages/blob/main/scripts/verify-gnome-desktop-experience.py).
 Required package components:
 - `gdm`
 - `gnome-keyring`
