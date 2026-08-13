@@ -104,7 +104,9 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q podman createrepo-c rpm gpg gpgconf
-          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Install rclone
+        uses: ./.github/actions/install-rclone
 
       - name: Cache CentOS Stream 10 image
         uses: actions/cache@v6

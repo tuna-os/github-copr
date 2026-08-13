@@ -73,7 +73,7 @@ jobs:
           git_committer_email: rpm-signing@tunaos.org
 
       - name: Install rclone
-        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+        uses: ./.github/actions/install-rclone
 
       - name: Configure rclone for R2
         env:

@@ -1,0 +1,58 @@
+name: "Install rclone (pinned)"
+description: >-
+  Installs a pinned, SHA-256-verified rclone .deb release instead of piping
+  the unauthenticated https://rclone.org/install.sh script into `sudo bash`
+  (tuna-os/tunaos#1327). Bump rclone-version + the matching hashes together
+  when updating; hashes are copied from the vendor's own published
+  SHA256SUMS for that release (https://downloads.rclone.org/vVERSION/SHA256SUMS).
+
+inputs:
+  rclone-version:
+    description: "rclone release to install, without the leading v"
+    required: false
+    default: "1.75.0"
+  amd64-sha256:
+    description: "Expected SHA-256 of the linux-amd64 .deb for rclone-version"
+    required: false
+    default: "266598b5c66a42b821571332013cc85a88ffcff8939cf0643861c8d033dd3a4a"
+  arm64-sha256:
+    description: "Expected SHA-256 of the linux-arm64 .deb for rclone-version"
+    required: false
+    default: "081c605cbf47ade3114e78db2130766a23281a12b79cdd5774b11dad6c6c0931"
+
+runs:
+  using: composite
+  steps:
+    - name: Install pinned, checksum-verified rclone
+      shell: bash
+      env:
+        RCLONE_VERSION: ${{ inputs.rclone-version }}
+        AMD64_SHA256: ${{ inputs.amd64-sha256 }}
+        ARM64_SHA256: ${{ inputs.arm64-sha256 }}
+      run: |
+        set -euo pipefail
+
+        case "$(uname -m)" in
+          x86_64)
+            RCLONE_ARCH="amd64"
+            RCLONE_SHA256="${AMD64_SHA256}"
+            ;;
+          aarch64)
+            RCLONE_ARCH="arm64"
+            RCLONE_SHA256="${ARM64_SHA256}"
+            ;;
+          *)
+            echo "::error::unsupported architecture $(uname -m) for pinned rclone install"
+            exit 1
+            ;;
+        esac
+
+        DEB="rclone-v${RCLONE_VERSION}-linux-${RCLONE_ARCH}.deb"
+        DEST="/tmp/${DEB}"
+
+        curl -fsSL -o "${DEST}" \
+          "https://downloads.rclone.org/v${RCLONE_VERSION}/${DEB}"
+        echo "${RCLONE_SHA256}  ${DEST}" | sha256sum -c -
+
+        sudo dpkg -i "${DEST}"
+        rclone version

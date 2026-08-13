@@ -127,7 +127,8 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q apt-utils gpg gpgconf
-          curl -fsSL https://rclone.org/install.sh | sudo bash
+      - name: Install rclone
+        uses: ./.github/actions/install-rclone
       - name: Import GPG key
         id: import-gpg
         uses: crazy-max/ghaction-import-gpg@v7
