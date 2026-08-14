@@ -708,8 +708,26 @@ build_package_podman() {
     # Wrapped in a function so the retry below re-runs the IDENTICAL
     # invocation with one extra mock argument, rather than a second copy
     # of it drifting out of sync with this one.
+    #
+    # timeout(1) around the whole container, because a wedged mock hangs
+    # the tier SILENTLY: runs 31732589290 and 31757583258 each sat 2+
+    # hours with zero further log output after netcdf's builddep retry
+    # entered chroot init, held the workflow's concurrency lock the whole
+    # time, and only died when a human cancelled them. GitHub's own
+    # step timeout cannot help here -- the runner agent stays healthy, it
+    # is the container that never returns. An external bound converts the
+    # hang into a visible per-package failure (exit 124) that the tier
+    # retry logic treats like any other failed package and moves past.
+    #
+    # 180 minutes default: generous enough for the largest single package
+    # a desktop tier carries on a 4-core runner, an order of magnitude
+    # above the tier median, and still a third of the 6-hour job budget a
+    # single hung package used to consume. MOCK_TIMEOUT_MINUTES overrides
+    # it for a known-slow rebuild. --kill-after covers a container that
+    # ignores SIGTERM.
     _run_mock_container() {
         local mock_extra_args="${1:-}"
+        timeout --kill-after=60s "${MOCK_TIMEOUT_MINUTES:-180}m" \
         podman run --rm --privileged \
             --pull=always \
             -v "${builddir}:/builddir:Z" \
