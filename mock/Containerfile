@@ -39,7 +39,19 @@ RUN dnf install -y \
 # newer distribution-gpg-keys (>= 1.117) than F41 ships, so plain rpm -i
 # cannot resolve that — dnf against the F44 repos does, and --best keeps it
 # from silently settling for an older, still-broken candidate.
-RUN dnf --releasever=44 install -y --best mock-core-configs \
+#
+# --exclude=openssl-libs,fips-provider: without it, dnf's depsolver treats
+# the switch to F44 repos as license to reconcile *other* already-installed
+# packages too, not just install mock-core-configs itself. It offers an
+# F44-tagged openssl-libs (already satisfied by the F45 base image) as an
+# "upgrade", which ships /usr/lib64/ossl-modules/fips.so — a file the F45
+# fips-provider package already owns. Two RPMs claiming the same file path
+# fails the transaction outright (`Rpm transaction failed`), not just a
+# resolvable dependency conflict. Excluding both keeps the base image's F45
+# openssl-libs/fips-provider untouched; mock-core-configs does not need a
+# newer openssl-libs, only the newer distribution-gpg-keys the comment above
+# describes.
+RUN dnf --releasever=44 install -y --best --exclude=openssl-libs --exclude=fips-provider mock-core-configs \
     && rm -rf /var/cache/dnf \
     && test ! -L /etc/mock/fedora-44-x86_64.cfg
 
