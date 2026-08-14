@@ -124,19 +124,6 @@
     },
     {
       "customType": "regex",
-      "description": "xfwl4: DISABLED (empty fileMatch). It tracked gitlab.xfce.org/xfce/xfwl4's main branch, but an xfwl4 bump is never a one-line edit and a regex manager can only ever make it one. Three values are coupled to the pinned commit: the commit itself, the pre-vendored vendor.tar.gz release asset keyed to it (Source1, xfwl4-vendor-<sha>), and the smithay git rev that the commit's Cargo.lock pins, which the spec repeats in its cargo source override. The Fedora build runs `cargo build --offline`, so when the override and the vendor tree do not match the commit's Cargo.lock, cargo cannot resolve smithay at all. This was already the documented reason packages/xfwl4/package.yaml was excluded; the spec and PKGBUILD carry the same coupling and were left in by oversight. #366 bumped the commit to c6c0e1c, upstream had moved smithay from 0a29aecf to 4cf0b620, and XFCE Wayland (Fedora) went red on main from 2026-08-12 through #367, #368 and #376 \u2014 four green-looking one-line PRs stacked on a build that had not compiled since the first of them. Re-enable only once a bump also regenerates the vendor asset and rewrites the smithay rev.",
-      "fileMatch": [],
-      "matchStrings": [
-        "(?:%global commit\\s+|\\n_commit=)(?<currentDigest>[a-f0-9]{40})"
-      ],
-      "currentValueTemplate": "main",
-      "datasourceTemplate": "git-refs",
-      "depNameTemplate": "xfwl4",
-      "depTypeTemplate": "upstream-source",
-      "packageNameTemplate": "https://gitlab.xfce.org/xfce/xfwl4"
-    },
-    {
-      "customType": "regex",
       "description": "fprintd: real version tags exist (unlike the xfce packages above), so track those directly instead of a branch tip.",
       "fileMatch": [
         "^src/deps/fprintd/fprintd\\.spec$"
