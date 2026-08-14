@@ -2,7 +2,7 @@
 name=Tuna OS - $releasever
 baseurl=https://repo.tunaos.org/repo/$releasever/$basearch/
 enabled=1
-gpgcheck=0
+gpgcheck=1
 gpgkey=https://repo.tunaos.org/public.gpg
 repo_gpgcheck=0
 metadata_expire=3600
