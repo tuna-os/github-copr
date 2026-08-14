@@ -612,7 +612,7 @@ set -euo pipefail
 
 WORKFLOW_BOOTSTRAP="build-gnome49-distributed.yml"
 WORKFLOW_PACKAGE="build-gnome49-package.yml"
-REPO="tuna-os/github-copr"
+REPO="tuna-os/tunaos-packages"
 BRANCH="gnome-49-pipeline"
 
 cmd="${1:-status}"
@@ -774,7 +774,7 @@ git commit -m "feat: add Renovate config to track GNOME 49 versions against Fedo
 
 ### Task 8.2: Enable Renovate on the GitHub repository
 
-- [ ] Install the [Renovate GitHub App](https://github.com/apps/renovate) on the `tuna-os/github-copr` repository (or verify it's already installed).
+- [ ] Install the [Renovate GitHub App](https://github.com/apps/renovate) on the `tuna-os/tunaos-packages` repository (or verify it's already installed).
 - [ ] Trigger a Renovate run: go to the Renovate App dashboard or push a commit to the branch.
 - [ ] Verify Renovate finds the spec files and creates (or would create) PRs.
 

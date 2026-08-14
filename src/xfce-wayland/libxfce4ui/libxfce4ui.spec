@@ -64,5 +64,5 @@ building against libxfce4ui.
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
-- Packaged for the XFCE Wayland stack (tuna-os/github-copr#65)
+- Packaged for the XFCE Wayland stack (tuna-os/tunaos-packages#65)
 
