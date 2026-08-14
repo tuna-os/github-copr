@@ -2,7 +2,7 @@
 # libxfce4ui -> xfwl4) — no equivalent of build-chain.sh/mock exists for
 # Arch, so this drives makepkg directly in an archlinux container, same
 # steps as the manual session that first got these three PKGBUILDs
-# building (tuna-os/github-copr#101).
+# building (tuna-os/tunaos-packages#101).
 #
 # No signing, no publish — this exists purely so a Renovate bump to any of
 # these three PKGBUILDs' _commit= pins is CI-gated instead of landing

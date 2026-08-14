@@ -158,7 +158,7 @@ jobs:
             --force
 
       # Same macro shape as build-xfce-distributed.yml's publish job (and
-      # build-xfce-fedora.yml as of tuna-os/github-copr#102) — the
+      # build-xfce-fedora.yml as of tuna-os/tunaos-packages#102) — the
       # hand-rolled __gpg_sign_cmd this replaced was missing the actual
       # "-u ... -sbo ..." signing directive and instead piped into an
       # unrelated --import-options import-show --import, which made every

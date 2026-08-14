@@ -3,7 +3,7 @@
 # Packages within a tier build in parallel; tiers are sequential.
 # Each package entry is a path relative to the repo root.
 #
-# Resolves issue: https://github.com/tuna-os/github-copr/issues/65
+# Resolves issue: https://github.com/tuna-os/tunaos-packages/issues/65
 #
 # Target: almalinux-kitten-10-x86_64 (also centos-stream-10-x86_64)
 # R2 path: repo/10/x86_64 (same as main GNOME 50 repo — XFCE packages
