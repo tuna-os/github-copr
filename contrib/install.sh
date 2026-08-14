@@ -52,8 +52,8 @@ detect_version() {
 
 install_gpg_key() {
     echo "Installing GPG key..."
-    curl -sSLo /etc/pki/rpm-gpg/RPM-GPG-KEY-james-rc "$REPO_URL/public.gpg"
-    rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-james-rc 2>/dev/null || true
+    curl -sSLo /etc/pki/rpm-gpg/RPM-GPG-KEY-tunaos "$REPO_URL/public.gpg"
+    rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-tunaos 2>/dev/null || true
 }
 
 install_repo_file() {
@@ -65,7 +65,7 @@ install_repo_file() {
 name=Tuna OS - \$releasever
 baseurl=${REPO_URL}/repo/\$releasever/\$basearch/
 enabled=1
-gpgcheck=0
+gpgcheck=1
 gpgkey=${REPO_URL}/public.gpg
 repo_gpgcheck=0
 metadata_expire=3600
