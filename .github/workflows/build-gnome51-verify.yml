@@ -94,11 +94,16 @@ jobs:
                   mutter \
                   gdm \
                   gnome-session-wayland-session \
+                  dbus-daemon \
                   glib2
                 glib-compile-schemas /usr/share/glib-2.0/schemas/
                 printf '[daemon]\nWaylandEnable=true\n' > /etc/gdm/custom.conf
                 systemctl enable gdm
                 systemctl set-default graphical.target
+                # Lima provisions an already-booted cloud image. Enabling the
+                # unit and changing the default target only affect the next
+                # boot, so start GDM explicitly for this verification run.
+                systemctl start gdm
           EOF
 
       - name: Start Lima VM
