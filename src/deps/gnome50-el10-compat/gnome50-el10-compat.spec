@@ -1,5 +1,5 @@
 Name:           gnome50-el10-compat
-Version:        1.2.8
+Version:        1.2.9
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
@@ -147,6 +147,18 @@ fi
 %{_libexecdir}/%{name}/useradd
 
 %changelog
+* Fri Aug 14 2026 James Reilly <jreilly1821@gmail.com> - 1.2.9-1
+- useradd-wrapper: fix `local: can only be used in a function` crash.
+  The -m/existing-home-dir branch used `local add_M=true` at the
+  script's top level (not inside a function); under `set -euo
+  pipefail` that error exits the wrapper with status 1 before it ever
+  calls the real useradd, silently breaking every `useradd -m` call
+  that hits the exact scenario the wrapper exists to handle (#17).
+  Also fixed an SC2015 `A && B || C` pattern shellcheck flagged in the
+  same function. Added tests/bats/test_gnome50_el10_compat_useradd_wrapper.bats
+  (tunaos-packages#392) so a regression like this fails in CI instead
+  of only in a live gnome-initial-setup run.
+
 * Thu Jul 24 2026 James Reilly <jreilly1821@gmail.com> - 1.2.8-1
 - gdm-gnome50.te: add unix_stream_socket bind+listen permissions for xdm_t.
   GDM 50 registers a systemd-userdb Varlink socket and calls bind()/listen()

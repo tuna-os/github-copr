@@ -21,7 +21,9 @@
 
 set -euo pipefail
 
-REAL_USERADD=/usr/sbin/useradd.shadow-utils
+# Overridable so tests can point this at a stub instead of the real system
+# binary; unset in production, where it's always the real path.
+REAL_USERADD="${REAL_USERADD:-/usr/sbin/useradd.shadow-utils}"
 
 has_flag() {
     local flag="$1"; shift
@@ -68,7 +70,7 @@ if has_flag "-m" "$@" || has_flag "--create-home" "$@"; then
         USERNAME=$(find_username "$@")
         # Strip -m/--create-home, add -M to skip home creation
         FILTERED=()
-        local add_M=true
+        add_M=true
         for arg in "$@"; do
             case "$arg" in
                 -m|--create-home) ;;
@@ -79,7 +81,9 @@ if has_flag "-m" "$@" || has_flag "--create-home" "$@"; then
         $add_M && FILTERED+=("-M")
         # Run real useradd, then fix ownership if it succeeded
         if "$REAL_USERADD" "${FILTERED[@]}"; then
-            [ -n "$USERNAME" ] && [ -d "$HOME_DIR" ] && chown -R "$USERNAME:$USERNAME" "$HOME_DIR" 2>/dev/null || true
+            if [ -n "$USERNAME" ] && [ -d "$HOME_DIR" ]; then
+                chown -R "$USERNAME:$USERNAME" "$HOME_DIR" 2>/dev/null || true
+            fi
             restorecon -RF "$HOME_DIR" 2>/dev/null || true
         fi
         exit $?

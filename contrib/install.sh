@@ -60,6 +60,12 @@ install_repo_file() {
     local version
     version=$(detect_version)
     
+    # gpgcheck=1 verifies each RPM against the tuna-os signing key -- every
+    # repo.tunaos.org publish pipeline signs its RPMs with `rpmsign
+    # --addsign` before upload (see tuna-os/tunaos-packages#394). repo_gpgcheck
+    # stays 0: repomd.xml isn't detached-signed (no repomd.xml.asc published),
+    # so =1 there would hard-fail every dnf transaction rather than add a
+    # check. Matches the working contrib/install-gnome49.sh pattern.
     cat > "/etc/yum.repos.d/${REPO_NAME}.repo" << EOF
 [${REPO_NAME}]
 name=Tuna OS - \$releasever
