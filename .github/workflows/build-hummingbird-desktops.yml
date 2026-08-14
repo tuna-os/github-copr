@@ -160,6 +160,7 @@ jobs:
         run: |
           curl -fsSL https://rclone.org/install.sh | sudo bash
           mkdir -p ~/.config/rclone
+          umask 077
           cat > ~/.config/rclone/rclone.conf <<EOF
           [r2]
           type = s3

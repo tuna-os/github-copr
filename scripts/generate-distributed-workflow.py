@@ -25,6 +25,26 @@ MAX_MATRIX_JOBS = 250
 RCLONE_FLAGS = "--transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line"
 
 
+def _rclone_env(r2_state):
+    """The env: block every rclone-configuring step needs (tunaos-packages#353).
+
+    Secrets get interpolated into the run script text by the Actions runner
+    before the shell ever sees it -- ${{ secrets.X }} inline in a heredoc
+    means the raw value sits in the compiled script (and workflow logs, if
+    debug logging is on). Passing them as env: keeps the value out of the
+    script text; the shell only ever sees an env-var reference.
+    """
+    env = {
+        'R2_ACCESS_KEY_ID': '${{ secrets.R2_ACCESS_KEY_ID }}',
+        'R2_SECRET_ACCESS_KEY': '${{ secrets.R2_SECRET_ACCESS_KEY }}',
+    }
+    if r2_state:
+        env['R2_ENDPOINT'] = '${{ secrets.R2_ENDPOINT }}'
+    else:
+        env['CLOUDFLARE_ACCOUNT_ID'] = '${{ secrets.CLOUDFLARE_ACCOUNT_ID }}'
+    return env
+
+
 def _rclone_conf(r2_state):
     """One rclone endpoint for the whole workflow.
 
@@ -34,13 +54,17 @@ def _rclone_conf(r2_state):
     unrelated to the change that introduced it. --r2-state makes every job
     use R2_ENDPOINT, which is the secret the existing Hummingbird workflow
     has been publishing with.
+
+    Secrets arrive via env: (_rclone_env, added by every caller) rather than
+    inlined here, and umask 077 keeps the written config from being
+    world-readable for the rest of the job (tunaos-packages#353).
     """
-    endpoint = ('${{ secrets.R2_ENDPOINT }}' if r2_state
-                else 'https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com')
-    return ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n'
+    endpoint = ('${R2_ENDPOINT}' if r2_state
+                else 'https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com')
+    return ('mkdir -p ~/.config/rclone\numask 077\ncat > ~/.config/rclone/rclone.conf << EOF\n'
             '[r2]\ntype = s3\nprovider = Cloudflare\n'
-            'access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\n'
-            'secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\n'
+            'access_key_id = ${R2_ACCESS_KEY_ID}\n'
+            'secret_access_key = ${R2_SECRET_ACCESS_KEY}\n'
             f'endpoint = {endpoint}\nEOF\n')
 
 
@@ -88,7 +112,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
         'steps': [
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
             {'name': 'Install dependencies', 'run': 'sudo apt-get update -q || sudo apt-get update -q || true\nsudo apt-get install -y -q createrepo-c rclone'},
-            {'name': 'Configure rclone', 'run': _rclone_conf(r2_state)},
+            {'name': 'Configure rclone', 'env': _rclone_env(r2_state), 'run': _rclone_conf(r2_state)},
             {'name': 'Seed local repo from R2', 'run': f'mkdir -p local-repo\necho "Downloading existing repo from R2..."\nrclone sync "r2:${{R2_BUCKET}}/{r2_path}/" "local-repo/" --exclude "repodata/**" {RCLONE_FLAGS} || true\ncreaterepo_c local-repo\n'},
             # With R2 as the shared state this job exists to guarantee the
             # repository has valid metadata before any runner seeds from it;
@@ -162,7 +186,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                         # Correctness is unchanged because the barrier is unchanged:
                         # a tier's runners start only after the previous tier's
                         # consolidate job has published to R2.
-                        {'name': 'Seed local repo from R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + ' || true\ncreaterepo_c local-repo\n') % r2_path},
+                        {'name': 'Seed local repo from R2', 'env': _rclone_env(r2_state), 'run': ('mkdir -p ~/.config/rclone\numask 077\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${R2_ACCESS_KEY_ID}\nsecret_access_key = ${R2_SECRET_ACCESS_KEY}\nendpoint = ${R2_ENDPOINT}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + ' || true\ncreaterepo_c local-repo\n') % r2_path},
                     ] if r2_state else [
                         {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
                     ]),
@@ -242,7 +266,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                 *([
                     # copy, not sync: this tier adds to what earlier tiers
                     # published and must never delete it.
-                    {'name': 'Publish this tier to R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nrclone copy local-repo/ "r2:${R2_BUCKET}/%s/" ' + RCLONE_FLAGS + '\n') % r2_path},
+                    {'name': 'Publish this tier to R2', 'env': _rclone_env(r2_state), 'run': ('mkdir -p ~/.config/rclone\numask 077\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${R2_ACCESS_KEY_ID}\nsecret_access_key = ${R2_SECRET_ACCESS_KEY}\nendpoint = ${R2_ENDPOINT}\nEOF\nrclone copy local-repo/ "r2:${R2_BUCKET}/%s/" ' + RCLONE_FLAGS + '\n') % r2_path},
                 ] if r2_state else [
                     {'name': 'Update repo', 'run': 'createrepo_c --update local-repo'},
                     {'name': 'Upload updated repo', 'uses': 'actions/upload-artifact@v7', 'with': {'name': repo_artifact_name, 'path': 'local-repo', 'retention-days': 1}},
@@ -263,14 +287,14 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
             {'name': 'Install dependencies', 'run': 'sudo apt-get update -q || sudo apt-get update -q || true\nsudo apt-get install -y -q rpm createrepo-c gpg gpgconf rclone'},
             *([
-                {'name': 'Seed final repo from R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + '\n') % r2_path},
+                {'name': 'Seed final repo from R2', 'env': _rclone_env(r2_state), 'run': ('mkdir -p ~/.config/rclone\numask 077\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${R2_ACCESS_KEY_ID}\nsecret_access_key = ${R2_SECRET_ACCESS_KEY}\nendpoint = ${R2_ENDPOINT}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + '\n') % r2_path},
             ] if r2_state else [
                 {'name': 'Download final repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
             ]),
             {'name': 'Import GPG key', 'id': 'import-gpg', 'uses': 'crazy-max/ghaction-import-gpg@v7', 'with': {'gpg_private_key': '${{ secrets.GPG_PRIVATE_KEY }}', 'passphrase': '${{ secrets.GPG_PASSPHRASE }}', 'git_committer_name': 'RPM Builder', 'git_committer_email': 'rpm-signing@tunaos.org'}},
             {'name': 'Configure RPM macros', 'run': 'echo "%_signature gpg" > ~/.rpmmacros\necho "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros\necho "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \\"%{_gpg_name}\\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros\n'},
             {'name': 'Sign RPMs', 'run': 'find local-repo -name "*.rpm" -exec rpmsign --addsign {} \\;\ncreaterepo_c --update local-repo\n'},
-            {'name': 'Configure rclone', 'run': _rclone_conf(r2_state)},
+            {'name': 'Configure rclone', 'env': _rclone_env(r2_state), 'run': _rclone_conf(r2_state)},
             {'name': 'Upload to R2', 'run': _build_upload_run(r2_path, secondary_r2_path, install_script, install_r2_dest)}
         ]
     }

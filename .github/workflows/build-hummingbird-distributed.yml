@@ -21,7 +21,13 @@ jobs:
 
           sudo apt-get install -y -q createrepo-c rclone'
       - name: Configure rclone
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -31,11 +37,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -75,7 +81,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -85,11 +97,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -147,7 +159,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -157,11 +175,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -195,7 +213,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -205,11 +229,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -267,7 +291,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -277,11 +307,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -312,7 +342,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -322,11 +358,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -384,7 +420,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -394,11 +436,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -430,7 +472,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -440,11 +488,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -502,7 +550,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -512,11 +566,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -753,7 +807,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -763,11 +823,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -825,7 +885,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -835,11 +901,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -948,7 +1014,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -958,11 +1030,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1020,7 +1092,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1030,11 +1108,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1087,7 +1165,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1097,11 +1181,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1159,7 +1243,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1169,11 +1259,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1211,7 +1301,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1221,11 +1317,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1283,7 +1379,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1293,11 +1395,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1344,7 +1446,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1354,11 +1462,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1416,7 +1524,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1426,11 +1540,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1542,7 +1656,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1552,11 +1672,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1614,7 +1734,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1624,11 +1750,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1696,7 +1822,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1706,11 +1838,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1768,7 +1900,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1778,11 +1916,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1841,7 +1979,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1851,11 +1995,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1913,7 +2057,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1923,11 +2073,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -1977,7 +2127,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -1987,11 +2143,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2049,7 +2205,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2059,11 +2221,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2117,7 +2279,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2127,11 +2295,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2189,7 +2357,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2199,11 +2373,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2246,7 +2420,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2256,11 +2436,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2318,7 +2498,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2328,11 +2514,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2400,7 +2586,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2410,11 +2602,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2472,7 +2664,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2482,11 +2680,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2546,7 +2744,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2556,11 +2760,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2618,7 +2822,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2628,11 +2838,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2666,7 +2876,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2676,11 +2892,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2738,7 +2954,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2748,11 +2970,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2797,7 +3019,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2807,11 +3035,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -2869,7 +3097,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -2879,11 +3113,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -3163,7 +3397,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3173,11 +3413,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -3242,7 +3482,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3252,11 +3498,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -3316,7 +3562,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3326,11 +3578,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -3502,7 +3754,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3512,11 +3770,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -3574,7 +3832,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3584,11 +3848,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -3692,7 +3956,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3702,11 +3972,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -3764,7 +4034,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3774,11 +4050,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -3837,7 +4113,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3847,11 +4129,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -3909,7 +4191,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3919,11 +4207,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -3979,7 +4267,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -3989,11 +4283,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4051,7 +4345,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4061,11 +4361,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4101,7 +4401,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4111,11 +4417,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4173,7 +4479,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4183,11 +4495,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4219,7 +4531,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4229,11 +4547,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4291,7 +4609,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4301,11 +4625,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4342,7 +4666,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4352,11 +4682,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4414,7 +4744,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4424,11 +4760,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4471,7 +4807,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4481,11 +4823,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4543,7 +4885,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4553,11 +4901,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4593,7 +4941,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4603,11 +4957,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4665,7 +5019,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4675,11 +5035,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4714,7 +5074,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4724,11 +5090,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4786,7 +5152,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4796,11 +5168,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4836,7 +5208,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4846,11 +5224,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4908,7 +5286,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4918,11 +5302,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -4953,7 +5337,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -4963,11 +5353,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5025,7 +5415,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5035,11 +5431,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5070,7 +5466,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5080,11 +5482,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5142,7 +5544,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5152,11 +5560,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5198,7 +5606,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5208,11 +5622,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5270,7 +5684,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5280,11 +5700,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5324,7 +5744,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5334,11 +5760,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5396,7 +5822,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5406,11 +5838,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5450,7 +5882,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5460,11 +5898,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5522,7 +5960,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5532,11 +5976,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5570,7 +6014,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5580,11 +6030,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5642,7 +6092,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5652,11 +6108,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5687,7 +6143,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5697,11 +6159,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5759,7 +6221,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5769,11 +6237,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5804,7 +6272,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5814,11 +6288,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5876,7 +6350,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5886,11 +6366,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5924,7 +6404,13 @@ jobs:
       - name: Load or pull image
         run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
       - name: Seed local repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -5934,11 +6420,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -5996,7 +6482,13 @@ jobs:
           path: local-repo
           merge-multiple: true
       - name: Publish this tier to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -6006,11 +6498,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -6029,7 +6521,13 @@ jobs:
 
           sudo apt-get install -y -q rpm createrepo-c gpg gpgconf rclone'
       - name: Seed final repo from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -6039,11 +6537,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 
@@ -6075,7 +6573,13 @@ jobs:
 
           '
       - name: Configure rclone
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: 'mkdir -p ~/.config/rclone
+
+          umask 077
 
           cat > ~/.config/rclone/rclone.conf << EOF
 
@@ -6085,11 +6589,11 @@ jobs:
 
           provider = Cloudflare
 
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          access_key_id = ${R2_ACCESS_KEY_ID}
 
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
 
-          endpoint = ${{ secrets.R2_ENDPOINT }}
+          endpoint = ${R2_ENDPOINT}
 
           EOF
 

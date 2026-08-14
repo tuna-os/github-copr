@@ -143,6 +143,7 @@ jobs:
             exit 1
           fi
           mkdir -p ~/.config/rclone
+          umask 077
           cat > ~/.config/rclone/rclone.conf << EOF
           [r2]
           type = s3

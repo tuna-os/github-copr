@@ -141,6 +141,7 @@ jobs:
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: |
           mkdir -p ~/.config/rclone
+          umask 077
           cat > ~/.config/rclone/rclone.conf << EOF
           [r2]
           type = s3
