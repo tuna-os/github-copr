@@ -2,6 +2,11 @@
 name=Tuna OS - $releasever
 baseurl=https://repo.tunaos.org/repo/$releasever/$basearch/
 enabled=1
+# gpgcheck=1 verifies each RPM against the tuna-os signing key -- every
+# repo.tunaos.org publish pipeline signs its RPMs with `rpmsign --addsign`
+# before upload (see tuna-os/tunaos-packages#394). repo_gpgcheck stays 0:
+# repomd.xml isn't detached-signed (no repomd.xml.asc published), so =1
+# there would hard-fail every dnf transaction rather than add a check.
 gpgcheck=1
 gpgkey=https://repo.tunaos.org/public.gpg
 repo_gpgcheck=0
