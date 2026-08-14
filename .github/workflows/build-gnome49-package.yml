@@ -140,6 +140,22 @@ jobs:
       - name: Mark build start
         run: touch build-start-marker
 
+      # tunaos-packages#391: mock/centos-stream-10-ci-gnome49.cfg's
+      # copr-gnome49 repo is a personal, unpinned COPR
+      # (jreilly1821/c10s-gnome-49) with no fallback mirror. If it's
+      # deleted, renamed, or goes stale, mock's own failure is a wall of
+      # generic dependency-resolution noise with no pointer back to the
+      # actual cause. Fail fast here instead, with the real answer.
+      - name: Check GNOME 49 COPR is reachable
+        run: |
+          COPR_URL="https://download.copr.fedorainfracloud.org/results/jreilly1821/c10s-gnome-49/epel-10-x86_64/repodata/repomd.xml"
+          if ! curl -fsSL --retry 3 --retry-delay 5 -o /dev/null "${COPR_URL}"; then
+            echo "::error::GNOME 49 COPR (jreilly1821/c10s-gnome-49) is unreachable at ${COPR_URL}." \
+                 "This is a personal, unpinned COPR with no fallback mirror (tuna-os/tunaos-packages#391)" \
+                 "-- the build below will fail with an unhelpful dependency-resolution error if this isn't fixed first."
+            exit 1
+          fi
+
       - name: Build package
         run: |
           ./scripts/build-chain.sh \
