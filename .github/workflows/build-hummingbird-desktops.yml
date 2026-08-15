@@ -15,23 +15,27 @@ name: Build Hummingbird desktops
 # packages earlier runs published.
 
 on:
-  # A green PR check is not enough for this workflow: the full desktop build
-  # is deliberately too large to run on every pull request. Exercise it after
-  # relevant changes reach main so the published repository converges and a
-  # regression produces an authoritative package log.
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/build-hummingbird-desktops.yml
-      - build-order-hummingbird-desktops.yml
-      - docs/hummingbird-desktop-gap.json
-      - manifests/package-factory.yaml
-      - mock/hummingbird-ci.cfg
-      - scripts/build-chain.sh
-      - scripts/import-fedora-distgit.py
-      - scripts/plan_hummingbird_matrix.py
-      - scripts/select-desktop-tiers.py
-      - src/hummingbird/**
+  # Scheduled, not push-triggered. The build converges: each run seeds the
+  # local repo from R2 and rebuilds only what is still missing, so what this
+  # needs is to run *often and undisturbed*, not to run the instant a file
+  # changes.
+  #
+  # A push trigger actively prevented that. The concurrency group below keeps
+  # at most one pending run, so a second push while a build is in flight
+  # cancels the first one still queued. With ten hot paths on a repository
+  # this active, runs evicted each other continuously: every run between
+  # 2026-08-13 18:42 and 2026-08-14 14:47 was `cancelled` without executing a
+  # single step — ten in a row, spanning the exact window in which the
+  # cache-key fix below landed. The fix was therefore never exercised, and the
+  # published repository stayed frozen at its 2026-08-09 contents.
+  #
+  # Daily is a floor, not a ceiling: raise the cadence or dispatch manually to
+  # push through the tier stack faster. 12:00 UTC deliberately avoids
+  # tuna-os/tunaOS's 04:00-09:00 proving window; note that five desktop jobs
+  # at up to six hours each is a real draw on a 20-concurrent-job org ceiling,
+  # so moving this is a scheduling decision rather than a free one.
+  schedule:
+    - cron: "0 12 * * *"
 
   workflow_dispatch:
     inputs:
@@ -65,7 +69,13 @@ on:
 
 concurrency:
   # Publishing is copy-not-sync, but two full matrices still waste runners and
-  # can race while signing the same RPM set. Queue a later main push instead.
+  # can race while signing the same RPM set. Queue a later run instead.
+  #
+  # cancel-in-progress: false does NOT mean "never cancel" -- GitHub keeps at
+  # most one *pending* run per group and cancels the previously-pending one
+  # when a newer arrives. That is survivable with a daily schedule and a
+  # human-paced dispatch; it was not survivable with a push trigger (see the
+  # `on:` block).
   group: hummingbird-desktops-${{ github.ref }}
   cancel-in-progress: false
 
@@ -153,6 +163,7 @@ jobs:
         run: podman pull "${MOCK_RUNNER_IMAGE}"
 
       - name: Configure R2 access
+        id: seed
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -172,6 +183,14 @@ jobs:
           # Seed from R2 so a resumed run does not rebuild what an earlier tier
           # already published. Non-fatal: the first run has nothing to seed.
           rclone copy "r2:${R2_BUCKET}/${{ steps.target.outputs.r2_path }}/" local-repo-hummingbird/ || true
+
+          # Count what the seed brought down. Everything after this point
+          # compares against this number to answer one question the workflow
+          # could not previously answer: did this run actually build anything,
+          # or is it about to re-publish the seed unchanged?
+          seeded=$(find local-repo-hummingbird -name '*.rpm' ! -name '*.src.rpm' | wc -l)
+          echo "seeded ${seeded} RPM(s) from R2"
+          echo "seeded_rpms=${seeded}" >> "$GITHUB_OUTPUT"
 
       - name: Select tiers
         id: tiers
@@ -250,6 +269,13 @@ jobs:
       # simply never set them.
       - name: Cache the mock chroot and its dnf downloads
         uses: actions/cache@v6
+        # A cache is an optimisation. Its failure must cost time, not
+        # correctness -- without this, ANY error here (a rejected key, a
+        # service outage, a quota) fails the step, and every following step
+        # that carries an implicit success() is skipped. `Build tiers` is one
+        # of them. That is not theoretical: it is exactly what happened for
+        # four days straight, and the comment on `key:` below is the autopsy.
+        continue-on-error: true
         with:
           # Absolute, and outside the checkout: MOCK_CACHE_DIR is
           # ${{ runner.temp }}/mock-cache (see the Build tiers step for why),
@@ -282,6 +308,8 @@ jobs:
 
       - name: Cache upstream source tarballs
         uses: actions/cache@v6
+        # Same reasoning as the chroot cache above.
+        continue-on-error: true
         with:
           path: .sources-cache
           # Content of the sources is pinned by the specs, which come from the
@@ -293,6 +321,7 @@ jobs:
             hummingbird-sources-
 
       - name: Build tiers
+        id: build
         env:
           # Give mock ONE buildroot for the whole job instead of one per
           # package.  /var/cache/mock lives inside the per-package container
@@ -333,6 +362,23 @@ jobs:
           # against the spec's checksums, so this one can stay in the
           # checkout where the rest of Tideforge keeps it.
           RPM_SOURCES_CACHE: ${{ github.workspace }}/.sources-cache
+          # Stop starting new tiers with this many minutes left of the job's
+          # 360-minute cap, so the run exits cleanly and its publish steps get
+          # to execute.
+          #
+          # Hitting the cap instead is not a slower success, it is a total
+          # loss: GitHub CANCELS a timed-out job, `!cancelled()` on the
+          # publish steps goes false, and every RPM the run built is thrown
+          # away. The next run then rebuilds all of it and hits the same cap
+          # at the same place. A full desktop is 40 tiers and 1,248 packages
+          # against a six-hour cap -- overrunning is the expected case, not
+          # the exception, so the run has to be able to stop early and keep
+          # what it made.
+          #
+          # 55 minutes: `Publish signed rpm-md repository` signs every RPM in
+          # the local repo and rclones it, and the artifact upload after it
+          # has taken ~6 minutes on a seeded repo.
+          BUILD_RESERVE_MINUTES: "55"
         run: |
           IFS=',' read -ra TIERS <<< "${{ steps.tiers.outputs.list }}"
           # One worker per core. This was hardcoded to 2, which was the right
@@ -363,7 +409,18 @@ jobs:
           # The step still fails if any tier did, so a red run stays red.
           rc=0
           failed_tiers=()
+          skipped_tiers=()
+          started=$(date +%s)
+          deadline=$(( started + (360 - BUILD_RESERVE_MINUTES) * 60 ))
           for tier in "${TIERS[@]}"; do
+            # Check BEFORE starting, never mid-tier: a half-built tier is
+            # fine (publishing is copy-not-sync and the next run reseeds),
+            # but a tier abandoned mid-package would leave the local repo in
+            # a state the next run has to reason about.
+            if (( $(date +%s) >= deadline )); then
+              skipped_tiers+=("${tier}")
+              continue
+            fi
             echo "::group::tier ${tier}"
             ./scripts/build-chain.sh "${ARGS[@]}" --tier "${tier}" || {
               rc=1
@@ -374,7 +431,64 @@ jobs:
           if (( rc )); then
             echo "::error::tiers with failures: ${failed_tiers[*]}"
           fi
+          if (( ${#skipped_tiers[@]} )); then
+            # A notice, not an error: stopping early is the design. The next
+            # scheduled run seeds from what this one publishes and picks up
+            # here, so the stack is walked over successive runs.
+            echo "::notice::ran out of time with ${#skipped_tiers[@]} tier(s) unattempted: ${skipped_tiers[*]}"
+            echo "TIERS_NOT_ATTEMPTED=${#skipped_tiers[@]}" >> "$GITHUB_ENV"
+          fi
           exit "${rc}"
+
+      # What did this run actually do? Nothing answered that before, which is
+      # how a pipeline that had compiled zero packages since 2026-08-09 went
+      # four days looking like a packaging shortfall rather than a stall. From
+      # the outside the repository just had "7,170 packages and no gnome-shell"
+      # -- indistinguishable from a rebuild that was 44% done.
+      - name: Summarise progress
+        id: progress
+        if: ${{ !cancelled() }}
+        env:
+          SEEDED: ${{ steps.seed.outputs.seeded_rpms }}
+          TIERS: ${{ steps.tiers.outputs.list }}
+          BUILD_RESULT: ${{ steps.build.conclusion }}
+          DESKTOP: ${{ matrix.desktop }}
+        run: |
+          set -euo pipefail
+          now=$(find local-repo-hummingbird -name '*.rpm' ! -name '*.src.rpm' | wc -l)
+          seeded="${SEEDED:-0}"
+          built=$(( now - seeded ))
+          (( built < 0 )) && built=0
+          selected=$(tr ',' '\n' <<< "${TIERS}" | grep -c . || true)
+
+          # Total the plan still has to get through, straight from the
+          # generated manifest rather than a number typed into a comment.
+          remaining=$(python3 -c "
+          import yaml
+          m = yaml.safe_load(open('${MANIFEST}'))
+          print(sum(len(t['packages']) for t in m['tiers']))
+          ")
+
+          echo "built_rpms=${built}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### ${DESKTOP}: ${built} RPM(s) built this run"
+            echo
+            echo "| | |"
+            echo "|---|---:|"
+            echo "| Tiers selected | ${selected} |"
+            echo "| RPMs seeded from R2 | ${seeded} |"
+            echo "| RPMs after build | ${now} |"
+            echo "| **Built this run** | **${built}** |"
+            echo "| Packages in the full plan | ${remaining} |"
+            echo "| Tiers left unattempted (out of time) | ${TIERS_NOT_ATTEMPTED:-0} |"
+            echo "| \`Build tiers\` result | ${BUILD_RESULT} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${BUILD_RESULT}" == "skipped" ]]; then
+            echo "::error::Build tiers did not run (result: skipped) — an earlier step failed and took the build with it. Nothing will be published."
+          elif (( built == 0 )); then
+            echo "::warning::No new RPMs were produced. Either every selected tier was already satisfied, or the build failed before producing output. Nothing will be published."
+          fi
 
       # !cancelled(): publish what BUILT even when some packages in the tier
       # failed. Tier gnome-00's first real run built 108 of 124 packages and
@@ -386,8 +500,33 @@ jobs:
       # already published can be deleted, and the R2 seed step makes the next
       # run rebuild only what is missing. The job still fails on failed
       # packages — publishing is not success, it is not losing the work.
+      #
+      # Two further clauses, both guarding the same hole from opposite sides.
+      # `!cancelled()` alone is true for a step that was SKIPPED, so when a
+      # failing cache step skipped `Build tiers`, these conditions still fired
+      # and the job signed and re-uploaded the seed it had just pulled down —
+      # a ~10 GB artifact and a "published repository" for a run that compiled
+      # nothing. Publishing an unchanged repository is not harmless: it is
+      # indistinguishable, from the outside, from a repository that is being
+      # actively maintained.
+      #
+      #   steps.build.conclusion != 'skipped'  -- the build must have RUN.
+      #                                          Not 'success': a tier with
+      #                                          failures is exactly what the
+      #                                          partial publish above exists
+      #                                          for.
+      #   built_rpms != '0'                    -- and must have produced
+      #                                          something. This is the
+      #                                          refuse-to-publish-empty guard
+      #                                          INCIDENT-repo-wipe-gnome.md
+      #                                          adopted for every other R2
+      #                                          writer in this repository.
       - name: Sign RPMs and publish
-        if: ${{ !cancelled() && (github.event_name == 'push' || inputs.publish) }}
+        if: >-
+          ${{ !cancelled()
+             && (github.event_name == 'schedule' || inputs.publish)
+             && steps.build.conclusion != 'skipped'
+             && steps.progress.outputs.built_rpms != '0' }}
         uses: crazy-max/ghaction-import-gpg@v7
         id: import-gpg
         with:
@@ -395,7 +534,11 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Publish signed rpm-md repository
-        if: ${{ !cancelled() && (github.event_name == 'push' || inputs.publish) }}
+        if: >-
+          ${{ !cancelled()
+             && (github.event_name == 'schedule' || inputs.publish)
+             && steps.build.conclusion != 'skipped'
+             && steps.progress.outputs.built_rpms != '0' }}
         run: |
           echo "%_signature gpg" > ~/.rpmmacros
           echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
