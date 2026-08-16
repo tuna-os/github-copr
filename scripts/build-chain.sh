@@ -602,9 +602,22 @@ check_package_exists() {
 
     # Query the spec file inside the container to get the expected NVR
     # We do this inside the container to ensure macro expansion (%autorelease, %dist, etc.)
+    #
+    # --pull=missing, not --pull=always. BUILD_IMAGE is a fixed tag, and the
+    # workflow already pulls it once in its own "Pull mock runner" step, so
+    # --pull=always bought nothing but a GHCR round-trip -- and this function
+    # runs for EVERY package the tier considers, before the skip decision, so
+    # it was paid for packages that were about to be skipped too. That cost
+    # grows as the R2 seed grows, which is backwards: the further hummingbird
+    # converges, the more of each 6-hour run goes on confirming there is
+    # nothing to do (tunaos-packages#410, #401).
+    #
+    # It is also more correct. The NVR this computes is compared against RPMs
+    # an earlier run built; re-resolving the tag mid-run could answer from a
+    # different image than the one that produced them.
     local nvr
     nvr=$(podman run --rm \
-        --pull=always \
+        --pull=missing \
         -v "$(dirname "$spec"):/specdir:Z" \
         "${BUILD_IMAGE}" \
         rpmspec -q "/specdir/${spec_basename}" \
