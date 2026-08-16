@@ -198,7 +198,14 @@ jobs:
 
       - name: Update local repo metadata
         run: |
-          createrepo_c --update "${HOME}/local-repo"
+          # Full regeneration, NOT --update: the seed step copies the
+          # currently published repodata into local-repo, and createrepo_c
+          # --update carries pre-existing entries forward VERBATIM without
+          # re-hashing the artifacts (gtkgreet-0.8-1.el10 incident). Drop
+          # the seeded repodata and rebuild from the actual files so
+          # repomd/primary always match what rclone sync uploads.
+          rm -rf "${HOME}/local-repo/repodata"
+          createrepo_c "${HOME}/local-repo"
 
       - name: Sync to R2
         env:
