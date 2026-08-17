@@ -464,6 +464,16 @@ def main() -> None:
              "Pass '' to fall back to runtime-Requires ordering.",
     )
     parser.add_argument("--arch", default="x86_64")
+    parser.add_argument(
+        "--membership", choices=("selfhost", "runtime"), default=None,
+        help="What the build order contains.  'selfhost': the full "
+             "Requires: + BuildRequires: closure, so every build tool is "
+             "built here too.  'runtime': only what images ship; build "
+             "tools come from the buildroot's own repositories (the "
+             "inherited Rawhide fallback at priority 99 -- see "
+             "mock/hummingbird-ci.cfg).  Defaults to the catalog's "
+             "`membership:` key, then 'selfhost'.",
+    )
     parser.add_argument("--desktop", action="append", dest="desktops")
     parser.add_argument(
         "--cache", type=pathlib.Path,
@@ -474,6 +484,7 @@ def main() -> None:
     args = parser.parse_args()
 
     catalog = yaml.safe_load(args.catalog.read_text())
+    membership = args.membership or catalog.get("membership") or "selfhost"
     target = catalog["target"]
     baseurl = target["baseurl"].replace("$arch", args.arch).replace(
         "$basearch", args.arch
@@ -482,6 +493,7 @@ def main() -> None:
     print(f"target       {target['id']}", file=sys.stderr)
     print(f"target repo  {baseurl}", file=sys.stderr)
     print(f"reference    {args.reference}", file=sys.stderr)
+    print(f"membership   {membership}", file=sys.stderr)
 
     target_blob, target_provenance = primary_of(baseurl, args.cache)
     target_index = parse_primary(target_blob)
@@ -516,6 +528,7 @@ def main() -> None:
         "reference_index": reference_provenance,
         "source_reference_index": source_provenance,
         "tier_ordering": "buildrequires" if source_index else "runtime-requires",
+        "membership": membership,
         "target_binary_packages": len(target_index["packages"]),
         "desktops": {},
     }
@@ -532,8 +545,17 @@ def main() -> None:
         )
         already = sorted(name for name in roots if name in target_index["packages"])
         need_roots = [name for name in roots if name not in target_index["packages"]]
+        # Membership and ordering are separate questions.  'runtime'
+        # membership walks Requires: only -- the build order then contains
+        # exactly what images ship, and BuildRequires: (bison, transfig,
+        # gtk-doc, the Java documentation stack) are satisfied by the
+        # buildroot's inherited Rawhide fallback instead of being rebuilt
+        # here.  Ordering below always uses the real BuildRequires: graph
+        # regardless, so members that build-depend on each other still come
+        # up in the right tiers.
         reachable, absent, unresolved = closure(
-            need_roots, reference_index, have, source_index
+            need_roots, reference_index, have,
+            source_index if membership == "selfhost" else None,
         )
         # A root the reference does not carry (quickshell, dms — packaged
         # upstream, not in Fedora) is reported separately under
@@ -670,6 +692,15 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -
         "",
         "tiers:",
     ]
+    if report.get("membership") == "runtime":
+        marker = lines.index(f"# Measured {report['measured_at']}")
+        lines[marker:marker] = [
+            "# Membership is `runtime`: only what images ship is built here.",
+            "# BuildRequires-only tools (bison, transfig, gtk-doc, ...) come",
+            "# from the buildroot's inherited Rawhide fallback at priority 99",
+            "# (mock/hummingbird-ci.cfg), never from this build order.",
+            "#",
+        ]
     # The declared bootstrap tiers come first and verbatim.  They are the
     # PEP-517 backends the measurement cannot discover (catalog `bootstrap:`),
     # and they used to be hand-written into this generated file, where the next

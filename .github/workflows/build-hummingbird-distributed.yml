@@ -532,212 +532,195 @@ jobs:
       matrix:
         package:
           - src/hummingbird/7zip
-          - src/hummingbird/AMF
-          - src/hummingbird/CharLS
-          - src/hummingbird/Cython
+          - src/hummingbird/DankMaterialShell
           - src/hummingbird/PackageKit-Qt
+          - src/hummingbird/abseil-cpp
           - src/hummingbird/acpid
-          - src/hummingbird/adobe-mappings-cmap
-          - src/hummingbird/adobe-mappings-pdf
-          - src/hummingbird/adobe-source-code-pro-fonts
           - src/hummingbird/adw-gtk3-theme
           - src/hummingbird/aribb24
-          - src/hummingbird/asl
-          - src/hummingbird/autoconf-archive
-          - src/hummingbird/blosc
           - src/hummingbird/brightnessctl
-          - src/hummingbird/byacc
-          - src/hummingbird/catch
           - src/hummingbird/cdparanoia
-          - src/hummingbird/cfitsio
-          - src/hummingbird/chrpath
           - src/hummingbird/cjson
-          - src/hummingbird/cliquer
-          - src/hummingbird/cmocka
+          - src/hummingbird/cliphist
           - src/hummingbird/color-filesystem
           - src/hummingbird/cosmic-config-fedora
+          - src/hummingbird/cosmic-icon-theme
           - src/hummingbird/cosmic-wallpapers
-          - src/hummingbird/decklink
+          - src/hummingbird/cups-pk-helper
+          - src/hummingbird/danksearch
+          - src/hummingbird/dconf
           - src/hummingbird/dejavu-fonts
           - src/hummingbird/desktop-backgrounds
+          - src/hummingbird/desktop-file-utils
+          - src/hummingbird/dgop
           - src/hummingbird/dmidecode
           - src/hummingbird/docbook-dtds
           - src/hummingbird/docbook-style-xsl
-          - src/hummingbird/docbook5-style-xsl
-          - src/hummingbird/duktape
           - src/hummingbird/editorconfig
-          - src/hummingbird/enca
+          - src/hummingbird/ethtool
           - src/hummingbird/exempi
-          - src/hummingbird/faad2
           - src/hummingbird/fdk-aac-free
-          - src/hummingbird/fdupes
-          - src/hummingbird/flexiblas
-          - src/hummingbird/fluid-soundfont
           - src/hummingbird/fribidi
-          - src/hummingbird/gc
-          - src/hummingbird/gflags
-          - src/hummingbird/ghc-pandoc
+          - src/hummingbird/giflib
           - src/hummingbird/gnome-backgrounds
           - src/hummingbird/gnome-shell-extensions
-          - src/hummingbird/google-droid-fonts
+          - src/hummingbird/gnome-user-docs
           - src/hummingbird/google-noto-emoji-fonts
-          - src/hummingbird/google-roboto-slab-fonts
+          - src/hummingbird/greetd
           - src/hummingbird/gsm
-          - src/hummingbird/gtest
+          - src/hummingbird/gweather-locations
           - src/hummingbird/hdparm
           - src/hummingbird/hicolor-icon-theme
+          - src/hummingbird/hidapi
+          - src/hummingbird/highway
+          - src/hummingbird/hunspell
           - src/hummingbird/hwdata
+          - src/hummingbird/hyphen
+          - src/hummingbird/i2c-tools
+          - src/hummingbird/imath
+          - src/hummingbird/inih
           - src/hummingbird/iniparser
-          - src/hummingbird/isns-utils
           - src/hummingbird/iso-codes
-          - src/hummingbird/itstool
-          - src/hummingbird/jbig2dec
           - src/hummingbird/jsoncpp
           - src/hummingbird/kde-filesystem
-          - src/hummingbird/kde-qdoc-common
           - src/hummingbird/kf6
-          - src/hummingbird/langtable
-          - src/hummingbird/laszip
-          - src/hummingbird/lato-fonts
+          - src/hummingbird/lame
           - src/hummingbird/lcms2
-          - src/hummingbird/libaec
+          - src/hummingbird/libICE
+          - src/hummingbird/libXdmcp
+          - src/hummingbird/libXfixes
+          - src/hummingbird/libXfont2
+          - src/hummingbird/libXinerama
+          - src/hummingbird/libXrandr
+          - src/hummingbird/libXres
+          - src/hummingbird/libXv
+          - src/hummingbird/libXxf86vm
           - src/hummingbird/libaribcaption
           - src/hummingbird/libasyncns
           - src/hummingbird/libatasmart
-          - src/hummingbird/libdca
+          - src/hummingbird/libbytesize
+          - src/hummingbird/libcdio
+          - src/hummingbird/libconfig
+          - src/hummingbird/libcue
+          - src/hummingbird/libdatrie
+          - src/hummingbird/libdb
+          - src/hummingbird/libdeflate
           - src/hummingbird/libdmtx
           - src/hummingbird/libdvdread
           - src/deps/libebur128
           - src/deps/libei
-          - src/hummingbird/libell
           - src/hummingbird/libevdev
           - src/hummingbird/libexif
-          - src/hummingbird/libgdither
-          - src/hummingbird/libgta
-          - src/hummingbird/libharu
-          - src/hummingbird/libid3tag
-          - src/hummingbird/libijs
-          - src/hummingbird/libklvanc
+          - src/hummingbird/libfyaml
+          - src/hummingbird/libieee1284
           - src/hummingbird/liblc3
           - src/deps/libldac
-          - src/hummingbird/liblqr-1
-          - src/hummingbird/libmad
-          - src/hummingbird/libmicrodns
           - src/hummingbird/libmodplug
-          - src/hummingbird/libmpcdec
           - src/hummingbird/libmpdclient
+          - src/hummingbird/libmtp
           - src/hummingbird/libmysofa
-          - src/hummingbird/libndp
-          - src/hummingbird/libnfs
+          - src/hummingbird/libnvme
           - src/hummingbird/libogg
+          - src/hummingbird/libpciaccess
+          - src/hummingbird/libplist
+          - src/hummingbird/libqalculate
+          - src/hummingbird/librabbitmq
           - src/hummingbird/libraw1394
-          - src/hummingbird/libsass
           - src/hummingbird/libudfread
           - src/hummingbird/libunibreak
-          - src/hummingbird/libusb-compat-0.1
+          - src/hummingbird/libuser
           - src/hummingbird/libutempter
-          - src/hummingbird/libvarlink
+          - src/hummingbird/libvdpau
+          - src/hummingbird/libvisual
+          - src/hummingbird/libvpx
           - src/deps/libxcvt
+          - src/hummingbird/libxkbfile
+          - src/hummingbird/libxshmfence
           - src/hummingbird/libzen
+          - src/hummingbird/lm_sensors
+          - src/hummingbird/lockdev
           - src/hummingbird/lpcnetfreedv
-          - src/hummingbird/luajit
-          - src/hummingbird/lynx
-          - src/hummingbird/mandoc
+          - src/hummingbird/mdadm
           - src/hummingbird/minizip-ng
-          - src/hummingbird/mm-common
           - src/hummingbird/mobile-broadband-provider-info
           - src/deps/mod_dnssd
           - src/hummingbird/mozilla-filesystem
           - src/hummingbird/mtdev
-          - src/hummingbird/muParser
-          - src/hummingbird/nettle3.10
           - src/hummingbird/noopenh264
-          - src/hummingbird/nv-codec-headers
+          - src/hummingbird/nss-mdns
+          - src/hummingbird/oath-toolkit
+          - src/hummingbird/open-sans-fonts
           - src/hummingbird/openapv
-          - src/hummingbird/opencl-headers
           - src/hummingbird/opencore-amr
-          - src/hummingbird/openfec
+          - src/hummingbird/openjph
+          - src/hummingbird/opus
+          - src/hummingbird/orc
+          - src/hummingbird/pcsc-lite
           - src/hummingbird/pixman
           - src/hummingbird/pkcs11-helper
+          - src/hummingbird/polkit-qt-1
           - src/hummingbird/pop-icon-theme
-          - src/hummingbird/pps-tools
           - src/hummingbird/pugixml
-          - src/hummingbird/pyserial
-          - src/hummingbird/python-aiodns
+          - src/hummingbird/python-aiohappyeyeballs
+          - src/hummingbird/python-argcomplete
           - src/hummingbird/python-click
           - src/hummingbird/python-configobj
-          - src/hummingbird/python-decorator
-          - src/hummingbird/python-docutils
-          - src/hummingbird/python-imagesize
+          - src/hummingbird/python-frozenlist
           - src/hummingbird/python-linux-procfs
-          - src/hummingbird/python-mako
-          - src/hummingbird/python-markdown
+          - src/hummingbird/python-lxml
+          - src/hummingbird/python-oauthlib
           - src/hummingbird/python-pam
-          - src/hummingbird/python-ptyprocess
+          - src/hummingbird/python-propcache
           - src/hummingbird/python-pyinotify
           - src/hummingbird/python-pyudev
-          - src/hummingbird/python-roman-numerals
-          - src/hummingbird/python-setproctitle
           - src/hummingbird/python-six
-          - src/hummingbird/python-sphinx-theme-alabaster
+          - src/hummingbird/python-tzlocal
+          - src/hummingbird/python-wcwidth
           - src/hummingbird/pytz
-          - src/hummingbird/qt5-qtdeclarative
-          - src/hummingbird/qt5-qtserialport
-          - src/hummingbird/qt5-qtsvg
-          - src/hummingbird/qt5-qtx11extras
-          - src/hummingbird/qt6-doc
-          - src/hummingbird/qt6-qtlanguageserver
+          - src/hummingbird/qrencode
           - src/hummingbird/qt6-qtserialport
-          - src/hummingbird/rpcsvc-proto
-          - src/hummingbird/rtmpdump
-          - src/hummingbird/rubygem-asciidoctor
-          - src/hummingbird/rust-askalono-cli
-          - src/hummingbird/rust-bindgen-cli
-          - src/hummingbird/rust-cargo-c
+          - src/hummingbird/rtkit
+          - src/hummingbird/rust-dolby_vision
           - src/hummingbird/rust-fd-find
-          - src/hummingbird/rust-just
           - src/hummingbird/rust-matugen
-          - src/hummingbird/rust-mdbook
-          - src/hummingbird/scdoc
-          - src/hummingbird/scons
+          - src/hummingbird/seatd
+          - src/hummingbird/serd
+          - src/hummingbird/shared-mime-info
           - src/deps/simdutf
-          - src/hummingbird/slang
+          - src/hummingbird/snowball
           - src/hummingbird/socat
-          - src/hummingbird/soundtouch
+          - src/hummingbird/sound-theme-freedesktop
           - src/hummingbird/source-foundry-hack-fonts
           - src/hummingbird/soxr
           - src/hummingbird/speexdsp
-          - src/hummingbird/spirv-headers
+          - src/hummingbird/spirv-tools
+          - src/hummingbird/srt
           - src/hummingbird/sshpass
-          - src/hummingbird/sudo
-          - src/hummingbird/teckit
+          - src/hummingbird/taglib
           - src/hummingbird/tesseract-tessdata
           - src/hummingbird/tinyxml2
-          - src/hummingbird/tllist
-          - src/hummingbird/ttembed
           - src/hummingbird/uchardet
-          - src/hummingbird/userspace-rcu
-          - src/hummingbird/utf8cpp
           - src/hummingbird/virt-what
           - src/hummingbird/vo-amrwbenc
           - src/hummingbird/volume_key
+          - src/hummingbird/vpnc
           - src/hummingbird/vpnc-script
-          - src/hummingbird/vulkan-headers
-          - src/hummingbird/wildmidi
+          - src/hummingbird/wavpack
           - src/hummingbird/wsdd
           - src/hummingbird/xcb-util
+          - src/hummingbird/xcb-util-errors
+          - src/hummingbird/xdg-utils
           - src/hummingbird/xevd
           - src/hummingbird/xeve
-          - src/hummingbird/xmlrpc-c
+          - src/hummingbird/xfwm4-themes
           - src/hummingbird/xmodmap
-          - src/hummingbird/xorg-x11-proto-devel
-          - src/hummingbird/xorg-x11-util-macros
           - src/hummingbird/xorg-x11-xinit
           - src/hummingbird/xprop
           - src/hummingbird/xvidcore
-          - src/hummingbird/xwayland-run
-          - src/hummingbird/yajl
+          - src/hummingbird/yelp-xsl
           - src/hummingbird/zimg
+          - src/hummingbird/zix
+          - src/hummingbird/zxing-cpp
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -855,84 +838,81 @@ jobs:
       matrix:
         package:
           - src/hummingbird/LibRaw
-          - src/hummingbird/arpack
-          - src/hummingbird/bdftopcf
-          - src/hummingbird/bubblewrap
-          - src/hummingbird/cli11
-          - src/hummingbird/cosmic-icon-theme
-          - src/hummingbird/dbus-glib
-          - src/hummingbird/earcut-hpp
+          - src/hummingbird/cosmic-files
+          - src/hummingbird/cosmic-screenshot
+          - src/hummingbird/cosmic-session
+          - src/hummingbird/cosmic-term
+          - src/hummingbird/enchant2
+          - src/hummingbird/exiv2
+          - src/hummingbird/f45-backgrounds
+          - src/hummingbird/fcft
           - src/hummingbird/flac
-          - src/hummingbird/fontawesome4-fonts
-          - src/hummingbird/gavl
-          - src/hummingbird/gnome-user-docs
-          - src/hummingbird/greetd
-          - src/hummingbird/guile22
-          - src/hummingbird/highway
+          - src/hummingbird/gnome-browser-connector
+          - src/deps/gnome-user-share
+          - src/hummingbird/hunspell-en
+          - src/hummingbird/iceauth
+          - src/hummingbird/ilbc
           - src/hummingbird/kde-settings
-          - src/hummingbird/libXScrnSaver
-          - src/hummingbird/libXfixes
-          - src/hummingbird/libXinerama
-          - src/hummingbird/libXrandr
-          - src/hummingbird/libXres
-          - src/hummingbird/libXv
-          - src/hummingbird/libXxf86vm
-          - src/hummingbird/libavc1394
-          - src/hummingbird/libavtp
-          - src/hummingbird/libdaemon
-          - src/hummingbird/libdatrie
-          - src/hummingbird/libdb
+          - src/hummingbird/kf6-attica
+          - src/hummingbird/kf6-breeze-icons
+          - src/hummingbird/kf6-karchive
+          - src/hummingbird/leptonica
+          - src/hummingbird/libSM
+          - src/hummingbird/libXcursor
+          - src/hummingbird/libXdamage
+          - src/hummingbird/libXpresent
+          - src/hummingbird/libass
+          - src/hummingbird/libbluray
+          - src/hummingbird/libcdio-paranoia
           - src/hummingbird/libdisplay-info
+          - src/hummingbird/libdrm
           - src/hummingbird/libdvdnav
+          - src/hummingbird/libgphoto2
           - src/hummingbird/libiec61883
+          - src/hummingbird/libimobiledevice-glue
           - src/hummingbird/libmediainfo
           - src/hummingbird/libmng
-          - src/hummingbird/libmtp
-          - src/hummingbird/libpciaccess
-          - src/hummingbird/libplist
+          - src/hummingbird/libphonenumber
           - src/hummingbird/librist
           - src/hummingbird/libsigc++20
           - src/hummingbird/libsigc++30
           - src/hummingbird/libtalloc
           - src/hummingbird/libtdb
-          - src/hummingbird/libultrahdr
-          - src/hummingbird/libxkbfile
-          - src/hummingbird/libxshmfence
-          - src/hummingbird/mdadm
-          - src/hummingbird/mingw-filesystem
-          - src/hummingbird/open-sans-fonts
+          - src/hummingbird/libthai
+          - src/hummingbird/libvorbis
+          - src/deps/mozjs140
+          - src/hummingbird/net-snmp
+          - src/hummingbird/ocean-sound-theme
+          - src/hummingbird/openexr
+          - src/hummingbird/openjpeg
           - src/hummingbird/openvpn
-          - src/hummingbird/openvr
-          - src/hummingbird/pam_wrapper
-          - src/hummingbird/pandoc-cli
+          - src/hummingbird/python-aiosignal
           - src/hummingbird/python-click-log
           - src/hummingbird/python-click-threading
-          - src/hummingbird/python-gssapi
-          - src/hummingbird/python-pexpect
-          - src/hummingbird/python-regex
-          - src/hummingbird/qhull
-          - src/hummingbird/qt5-qtsensors
-          - src/hummingbird/qt5-qtwebsockets
-          - src/hummingbird/qt5-qtxmlpatterns
-          - src/hummingbird/quota
-          - src/hummingbird/rust-cbindgen
-          - src/hummingbird/rust-dolby_vision
-          - src/hummingbird/sassc
-          - src/hummingbird/seatd
-          - src/hummingbird/snowball
+          - src/hummingbird/python-dateutil
+          - src/hummingbird/python-urwid
+          - src/hummingbird/pyxdg
+          - src/hummingbird/qaccessibilityclient
+          - src/hummingbird/qt6-qtshadertools
+          - src/hummingbird/redhat-menus
+          - src/hummingbird/setxkbmap
+          - src/deps/shaderc
+          - src/hummingbird/sord
           - src/hummingbird/spandsp
           - src/hummingbird/speex
-          - src/hummingbird/spirv-tools
-          - src/hummingbird/srt
-          - src/hummingbird/suitesparse
+          - src/hummingbird/tuned
+          - src/hummingbird/vid.stab
+          - src/hummingbird/wayland
+          - src/hummingbird/webrtc-audio-processing
+          - src/hummingbird/webrtc-audio-processing1
           - src/hummingbird/xcb-util-image
           - src/hummingbird/xcb-util-keysyms
           - src/hummingbird/xcb-util-renderutil
           - src/hummingbird/xcb-util-wm
           - src/hummingbird/xdg-dbus-proxy
           - src/hummingbird/xdg-user-dirs
-          - src/hummingbird/xorg-x11-xtrans-devel
-          - src/hummingbird/yelp-xsl
+          - src/hummingbird/xkbcomp
+          - src/hummingbird/zvbi
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -1049,29 +1029,33 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/armadillo
-          - src/hummingbird/glpk
-          - src/hummingbird/glslang
-          - src/hummingbird/libICE
-          - src/hummingbird/libXcursor
-          - src/hummingbird/libXdamage
-          - src/hummingbird/libXfont2
-          - src/hummingbird/libXpresent
-          - src/hummingbird/libdc1394
-          - src/hummingbird/libimobiledevice-glue
+          - src/hummingbird/cosmic-app-library
+          - src/hummingbird/cosmic-bg
+          - src/hummingbird/cosmic-idle
+          - src/hummingbird/cosmic-launcher
+          - src/hummingbird/cosmic-notifications
+          - src/hummingbird/cosmic-panel
+          - src/hummingbird/cosmic-randr
+          - src/hummingbird/ddcutil
+          - src/hummingbird/glibmm2.4
+          - src/hummingbird/glibmm2.68
+          - src/hummingbird/jpegxl
+          - src/hummingbird/kf6-kguiaddons
+          - src/hummingbird/kf6-kidletime
+          - src/hummingbird/khal
+          - src/hummingbird/libXt
+          - src/hummingbird/libliftoff
           - src/hummingbird/libtevent
-          - src/hummingbird/libthai
-          - src/hummingbird/mingw-headers
-          - src/hummingbird/python-dns
-          - src/hummingbird/python-expandvars
-          - src/hummingbird/python-re-assert
-          - src/hummingbird/python-requests-gssapi
-          - src/hummingbird/python-wcwidth
-          - src/hummingbird/qt5-qtwebchannel
-          - src/hummingbird/setxkbmap
-          - src/hummingbird/spirv-llvm-translator
+          - src/hummingbird/libtheora
+          - src/hummingbird/libusbmuxd
+          - src/hummingbird/python-aiohttp
+          - src/hummingbird/python-icalendar
+          - src/hummingbird/qt6-qtdeclarative
+          - src/hummingbird/sratom
+          - src/hummingbird/swayidle
+          - src/hummingbird/vulkan-loader
+          - src/hummingbird/wl-clipboard
           - src/hummingbird/xcb-util-cursor
-          - src/hummingbird/xkbcomp
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -1188,14 +1172,28 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/coin-or-CoinUtils
-          - src/hummingbird/iceauth
-          - src/hummingbird/libclc
-          - src/hummingbird/libusbmuxd
-          - src/hummingbird/python-frozenlist
-          - src/deps/shaderc
-          - src/hummingbird/sombok
-          - src/hummingbird/zvbi
+          - src/hummingbird/kf6-bluez-qt
+          - src/hummingbird/kf6-kconfig
+          - src/hummingbird/kf6-ki18n
+          - src/hummingbird/kf6-kitemmodels
+          - src/hummingbird/kf6-kquickcharts
+          - src/hummingbird/kf6-networkmanager-qt
+          - src/hummingbird/kf6-syntax-highlighting
+          - src/hummingbird/layer-shell-qt
+          - src/hummingbird/libXmu
+          - src/hummingbird/libimobiledevice
+          - src/hummingbird/libshout
+          - src/hummingbird/libxml++30
+          - src/hummingbird/python-aiohttp-oauthlib
+          - src/hummingbird/qt6-qt5compat
+          - src/hummingbird/qt6-qtpositioning
+          - src/hummingbird/qt6-qtquicktimeline
+          - src/hummingbird/qt6-qttools
+          - src/hummingbird/qt6-qtvirtualkeyboard
+          - src/hummingbird/qt6-qtwebsockets
+          - src/hummingbird/samba
+          - src/hummingbird/startup-notification
+          - src/hummingbird/xwayland-satellite
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -1312,23 +1310,37 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/coin-or-Osi
-          - src/hummingbird/libimobiledevice
-          - src/hummingbird/perl-ExtUtils-Install
-          - src/hummingbird/perl-ExtUtils-MakeMaker
-          - src/hummingbird/perl-ExtUtils-Manifest
-          - src/hummingbird/perl-ExtUtils-ParseXS
-          - src/hummingbird/perl-Fedora-VSP
-          - src/hummingbird/perl-JSON-PP
-          - src/hummingbird/perl-MIME-Charset
-          - src/hummingbird/perl-Math-BigInt
-          - src/hummingbird/perl-Module-Metadata
-          - src/hummingbird/perl-Term-Table
-          - src/hummingbird/perl-Test-Harness
-          - src/hummingbird/perl-Test-Simple
-          - src/hummingbird/perl-Unicode-LineBreak
-          - src/hummingbird/perl-generators
-          - src/hummingbird/perl-version
+          - src/hummingbird/kdegraphics-mobipocket
+          - src/hummingbird/kdsoap
+          - src/hummingbird/kf6-kcodecs
+          - src/hummingbird/kf6-kcolorscheme
+          - src/hummingbird/kf6-kcoreaddons
+          - src/hummingbird/kf6-kdbusaddons
+          - src/hummingbird/kf6-kdnssd
+          - src/hummingbird/kf6-kdoctools
+          - src/hummingbird/kf6-kholidays
+          - src/hummingbird/kf6-kirigami
+          - src/hummingbird/kf6-kitemviews
+          - src/hummingbird/kf6-kunitconversion
+          - src/hummingbird/kf6-kuserfeedback
+          - src/hummingbird/kf6-kwidgetsaddons
+          - src/hummingbird/kf6-kwindowsystem
+          - src/hummingbird/kf6-solid
+          - src/hummingbird/libXaw
+          - src/hummingbird/libffado
+          - src/hummingbird/libkexiv2
+          - src/hummingbird/qcoro
+          - src/hummingbird/qt6-qtlocation
+          - src/hummingbird/qt6-qtwebchannel
+          - src/hummingbird/sddm
+          - src/hummingbird/usbmuxd
+          - src/hummingbird/usermode
+          - src/hummingbird/v4l-utils
+          - src/hummingbird/vdirsyncer
+          - src/hummingbird/xhost
+          - src/hummingbird/xorg-x11-xauth
+          - src/hummingbird/xrdb
+          - src/hummingbird/xset
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -1445,88 +1457,99 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/autogen
-          - src/hummingbird/docbook-style-dsssl
-          - src/hummingbird/help2man
-          - src/hummingbird/i2c-tools
-          - src/hummingbird/latexmk
-          - src/hummingbird/lockdev
-          - src/hummingbird/nkf
-          - src/hummingbird/perl-Algorithm-Diff
-          - src/hummingbird/perl-Business-ISBN-Data
-          - src/hummingbird/perl-Business-ISSN
-          - src/hummingbird/perl-Class-Accessor
-          - src/hummingbird/perl-Class-Data-Inheritable
-          - src/hummingbird/perl-Class-Inspector
-          - src/hummingbird/perl-Class-Method-Modifiers
-          - src/hummingbird/perl-Class-Singleton
-          - src/hummingbird/perl-Clone
-          - src/hummingbird/perl-Clone-PP
-          - src/hummingbird/perl-Compress-Raw-Bzip2
-          - src/hummingbird/perl-Compress-Raw-Lzma
-          - src/hummingbird/perl-Compress-Raw-Zlib
-          - src/hummingbird/perl-Convert-ASN1
-          - src/hummingbird/perl-Crypt-URandom
-          - src/hummingbird/perl-Data-Dump
-          - src/hummingbird/perl-Data-Uniqid
-          - src/hummingbird/perl-Date-ISO8601
-          - src/hummingbird/perl-Date-Manip
-          - src/hummingbird/perl-Devel-StackTrace
-          - src/hummingbird/perl-Digest-SHA
-          - src/hummingbird/perl-DynaLoader-Functions
-          - src/hummingbird/perl-Email-Date-Format
-          - src/hummingbird/perl-Encode-Locale
-          - src/hummingbird/perl-File-Slurper
-          - src/hummingbird/perl-GSSAPI
-          - src/hummingbird/perl-Getopt-Tabular
-          - src/hummingbird/perl-HTML-Tagset
-          - src/hummingbird/perl-IO-HTML
-          - src/hummingbird/perl-IO-String
-          - src/hummingbird/perl-IPC-Run3
-          - src/hummingbird/perl-IPC-SysV
-          - src/hummingbird/perl-JSON
-          - src/hummingbird/perl-LWP-MediaTypes
-          - src/hummingbird/perl-Lingua-Translit
-          - src/hummingbird/perl-List-UtilsBy
-          - src/hummingbird/perl-MRO-Compat
-          - src/hummingbird/perl-Module-CoreList
-          - src/hummingbird/perl-Module-Load
-          - src/hummingbird/perl-Module-Runtime
-          - src/hummingbird/perl-Mozilla-CA
-          - src/hummingbird/perl-Net-SMTP-SSL
-          - src/hummingbird/perl-Number-Compare
-          - src/hummingbird/perl-PadWalker
-          - src/hummingbird/perl-Params-Check
-          - src/hummingbird/perl-Params-Util
-          - src/hummingbird/perl-Parse-Yapp
-          - src/hummingbird/perl-Ref-Util-XS
-          - src/hummingbird/perl-Regexp-Common
-          - src/hummingbird/perl-SGMLSpm
-          - src/hummingbird/perl-Sort-Key
-          - src/hummingbird/perl-Sub-Install
-          - src/hummingbird/perl-Sys-Hostname-Long
-          - src/hummingbird/perl-Sys-Syslog
-          - src/hummingbird/perl-Text-Balanced
-          - src/hummingbird/perl-Text-CSV
-          - src/hummingbird/perl-Text-Glob
-          - src/hummingbird/perl-Text-Roman
-          - src/hummingbird/perl-Text-Soundex
-          - src/hummingbird/perl-Text-Unidecode
-          - src/hummingbird/perl-Tie-Cycle
-          - src/hummingbird/perl-Tie-RefHash
-          - src/hummingbird/perl-TimeDate
-          - src/hummingbird/perl-Try-Tiny
-          - src/hummingbird/perl-Unicode-EastAsianWidth
-          - src/hummingbird/perl-Unicode-Normalize
-          - src/hummingbird/perl-Variable-Magic
-          - src/hummingbird/perl-WWW-RobotRules
-          - src/hummingbird/perl-XML-NamespaceSupport
-          - src/hummingbird/perl-XML-SAX-Base
-          - src/hummingbird/perl-XString
-          - src/hummingbird/perl-autovivification
-          - src/hummingbird/perl-bignum
-          - src/hummingbird/usbmuxd
-          - src/hummingbird/valgrind
+          - src/hummingbird/ModemManager
+          - src/hummingbird/SDL3
+          - src/hummingbird/appstream
+          - src/hummingbird/at-spi2-core
+          - src/hummingbird/bluez
+          - src/deps/cairo
+          - src/hummingbird/chromaprint
+          - src/hummingbird/codec2
+          - src/hummingbird/colord
+          - src/hummingbird/ffmpeg
+          - src/hummingbird/flite
+          - src/hummingbird/game-music-emu
+          - src/hummingbird/gcr
+          - src/deps/gdk-pixbuf2
+          - src/hummingbird/geoclue2
+          - src/hummingbird/geocode-glib
+          - src/hummingbird/glib-networking
+          - src/deps/glycin
+          - src/gnome-50/gnome-desktop3
+          - src/gnome-50/gnome-settings-daemon
+          - src/gnome-50/gobject-introspection
+          - src/hummingbird/graphene
+          - src/gnome-50/gsettings-desktop-schemas
+          - src/hummingbird/gssdp
+          - src/hummingbird/gstreamer1
+          - src/hummingbird/gstreamer1-plugins-bad-free
+          - src/hummingbird/gstreamer1-plugins-base
+          - src/hummingbird/gtk3
+          - src/gnome-50/gtk4
+          - src/hummingbird/gupnp
+          - src/hummingbird/gupnp-igd
+          - src/hummingbird/ibus
+          - src/hummingbird/jack-audio-connection-kit
+          - src/hummingbird/json-glib
+          - src/hummingbird/kdecoration
+          - src/hummingbird/kdsoap-ws-discovery-client
+          - src/hummingbird/kf6-kauth
+          - src/hummingbird/kf6-kcompletion
+          - src/hummingbird/kf6-kconfigwidgets
+          - src/hummingbird/kf6-kcrash
+          - src/hummingbird/kf6-kpackage
+          - src/hummingbird/kf6-kpty
+          - src/hummingbird/kf6-kstatusnotifieritem
+          - src/hummingbird/kf6-ksvg
+          - src/hummingbird/knighttime
+          - src/gnome-50/libadwaita
+          - src/hummingbird/libbs2b
+          - src/deps/libcanberra
+          - src/hummingbird/libcloudproviders
+          - src/hummingbird/libdbusmenu
+          - src/deps/libdecor
+          - src/hummingbird/libepoxy
+          - src/hummingbird/libglvnd
+          - src/hummingbird/libgudev
+          - src/hummingbird/libgusb
+          - src/hummingbird/libgweather
+          - src/hummingbird/libheif
+          - src/deps/libical
+          - src/hummingbird/libinput
+          - src/hummingbird/libmbim
+          - src/hummingbird/libnice
+          - src/hummingbird/libnotify
+          - src/hummingbird/libopenmpt
+          - src/hummingbird/libplacebo
+          - src/hummingbird/libproxy
+          - src/hummingbird/libqmi
+          - src/hummingbird/libqrtr-glib
+          - src/hummingbird/librsvg2
+          - src/hummingbird/libsamplerate
+          - src/hummingbird/libsecret
+          - src/hummingbird/libsndfile
+          - src/hummingbird/libsoup3
+          - src/hummingbird/libva
+          - src/hummingbird/libwacom
+          - src/hummingbird/libxmlb
+          - src/hummingbird/lilv
+          - src/hummingbird/mesa
+          - src/hummingbird/mpg123
+          - src/gnome-50/mutter
+          - src/deps/pango
+          - src/deps/pipewire
+          - src/hummingbird/plasma-activities
+          - src/hummingbird/pulseaudio
+          - src/hummingbird/rubberband
+          - src/hummingbird/sane-backends
+          - src/hummingbird/sbc
+          - src/hummingbird/sdl2-compat
+          - src/hummingbird/tesseract
+          - src/hummingbird/twolame
+          - src/hummingbird/upower
+          - src/hummingbird/xmessage
+          - src/hummingbird/xorg-x11-server
+          - src/hummingbird/xorg-x11-server-Xwayland
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -1643,44 +1666,96 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/bison
-          - src/hummingbird/flex
-          - src/hummingbird/hunspell
-          - src/hummingbird/hyphen
-          - src/hummingbird/libcdio
-          - src/hummingbird/libdrm
-          - src/hummingbird/libgphoto2
-          - src/hummingbird/libpaper
-          - src/hummingbird/metis
-          - src/hummingbird/nauty
-          - src/hummingbird/perl-Business-ISBN
-          - src/hummingbird/perl-Business-ISMN
-          - src/hummingbird/perl-Data-OptList
-          - src/hummingbird/perl-Devel-CallChecker
-          - src/hummingbird/perl-Devel-Caller
-          - src/hummingbird/perl-Digest-HMAC
-          - src/hummingbird/perl-Dist-CheckConflicts
-          - src/hummingbird/perl-Exception-Class
-          - src/hummingbird/perl-File-Find-Rule
-          - src/hummingbird/perl-File-ShareDir
-          - src/hummingbird/perl-HTTP-Date
-          - src/hummingbird/perl-IO-Compress
-          - src/hummingbird/perl-MIME-Lite
-          - src/hummingbird/perl-Mail-Sender
-          - src/hummingbird/perl-Mail-Sendmail
-          - src/hummingbird/perl-MailTools
-          - src/hummingbird/perl-Module-Load-Conditional
-          - src/hummingbird/perl-Package-Generator
-          - src/hummingbird/perl-Package-Stash-XS
-          - src/hummingbird/perl-Parse-RecDescent
-          - src/hummingbird/perl-Ref-Util
-          - src/hummingbird/perl-Role-Tiny
-          - src/hummingbird/perl-Text-BibTeX
-          - src/hummingbird/perl-Text-Diff
-          - src/hummingbird/perl-Unicode-Collate
-          - src/hummingbird/perl-XML-Writer
-          - src/hummingbird/perl-autodie
-          - src/hummingbird/rapidjson
+          - src/hummingbird/accountsservice
+          - src/hummingbird/adwaita-icon-theme
+          - src/hummingbird/adwaita-icon-theme-legacy
+          - src/hummingbird/atkmm
+          - src/hummingbird/cairomm
+          - src/hummingbird/cairomm1.16
+          - src/hummingbird/cava
+          - src/deps/colord-gtk
+          - src/hummingbird/cosmic-applets
+          - src/hummingbird/cosmic-comp
+          - src/hummingbird/cosmic-greeter
+          - src/hummingbird/cosmic-osd
+          - src/hummingbird/cosmic-settings
+          - src/hummingbird/cosmic-settings-daemon
+          - src/hummingbird/cosmic-workspaces
+          - src/hummingbird/gcr3
+          - src/gnome-50/gjs
+          - src/deps/gnome-autoar
+          - src/hummingbird/gnome-color-manager
+          - src/hummingbird/gnome-icon-theme
+          - src/hummingbird/gnome-menus
+          - src/gnome-50/gnome-session
+          - src/deps/gsound
+          - src/hummingbird/gspell
+          - src/hummingbird/gstreamer1-plugins-good
+          - src/xfce-wayland/gtk-layer-shell
+          - src/hummingbird/gtk4-layer-shell
+          - src/hummingbird/gtksourceview4
+          - src/hummingbird/hplip
+          - src/hummingbird/iio-sensor-proxy
+          - src/hummingbird/jasper
+          - src/hummingbird/kf6-kfilemetadata
+          - src/hummingbird/kf6-kglobalaccel
+          - src/hummingbird/kf6-kiconthemes
+          - src/hummingbird/kf6-kimageformats
+          - src/hummingbird/kf6-knotifications
+          - src/hummingbird/kf6-kservice
+          - src/hummingbird/kf6-sonnet
+          - src/hummingbird/kwayland
+          - src/hummingbird/libaccounts-glib
+          - src/hummingbird/libblockdev
+          - src/hummingbird/libgee
+          - src/deps/libgexiv2
+          - src/hummingbird/libgsf
+          - src/hummingbird/libgtop2
+          - src/hummingbird/libgxps
+          - src/hummingbird/libhandy
+          - src/hummingbird/libmanette
+          - src/hummingbird/libnma
+          - src/hummingbird/libpcap
+          - src/hummingbird/libportal
+          - src/hummingbird/libreport
+          - src/hummingbird/libvncserver
+          - src/hummingbird/libvpl
+          - src/hummingbird/libwnck3
+          - src/xfce-wayland/libxfce4util
+          - src/hummingbird/libxklavier
+          - src/hummingbird/mako
+          - src/hummingbird/nanosvg
+          - src/hummingbird/niri
+          - src/hummingbird/openxr
+          - src/hummingbird/osinfo-db-tools
+          - src/hummingbird/passim
+          - src/hummingbird/pinentry
+          - src/hummingbird/plasma-activities-stats
+          - src/hummingbird/playerctl
+          - src/hummingbird/poly2tri
+          - src/hummingbird/pop-launcher
+          - src/hummingbird/pycairo
+          - src/hummingbird/qt6-qtwayland
+          - src/hummingbird/qt6-qtwebengine
+          - src/hummingbird/qtkeychain
+          - src/hummingbird/quickshell
+          - src/hummingbird/rest
+          - src/hummingbird/sane-airscan
+          - src/hummingbird/signon
+          - src/hummingbird/sso-mib
+          - src/hummingbird/stoken
+          - src/hummingbird/swaybg
+          - src/hummingbird/swaylock
+          - src/hummingbird/switcheroo-control
+          - src/deps/tecla
+          - src/hummingbird/totem-pl-parser
+          - src/hummingbird/unity-gtk-module
+          - src/gnome-50/vte291
+          - src/hummingbird/wireplumber
+          - src/hummingbird/wlroots
+          - src/hummingbird/xdg-desktop-portal-cosmic
+          - src/hummingbird/xdg-user-dirs-gtk
+          - src/hummingbird/xorg-x11-drv-libinput
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -1797,35 +1872,52 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/augeas
-          - src/hummingbird/ddcutil
-          - src/hummingbird/hdf
-          - src/hummingbird/hunspell-en
-          - src/hummingbird/iscsi-initiator-utils
-          - src/hummingbird/libcdio-paranoia
-          - src/hummingbird/libcue
-          - src/hummingbird/libpq
-          - src/hummingbird/linux-atm
-          - src/hummingbird/perl-Authen-SASL
-          - src/hummingbird/perl-Data-Compare
-          - src/hummingbird/perl-Devel-LexAlias
-          - src/hummingbird/perl-File-Listing
-          - src/hummingbird/perl-HTTP-Message
-          - src/hummingbird/perl-IO-Compress-Lzma
-          - src/hummingbird/perl-IO-Zlib
-          - src/hummingbird/perl-IPC-Cmd
-          - src/hummingbird/perl-NTLM
-          - src/hummingbird/perl-Net-HTTP
-          - src/hummingbird/perl-Params-Classify
-          - src/hummingbird/perl-Sub-Exporter
-          - src/hummingbird/perl-XML-SAX
-          - src/hummingbird/perl-libintl-perl
-          - src/hummingbird/qt5-qtlocation
-          - src/hummingbird/scotch
-          - src/hummingbird/swig
-          - src/hummingbird/unixODBC
-          - src/hummingbird/vpnc
-          - src/hummingbird/xmlto
+          - src/hummingbird/NetworkManager-openvpn
+          - src/hummingbird/NetworkManager-ssh
+          - src/hummingbird/NetworkManager-vpnc
+          - src/hummingbird/SwayNotificationCenter
+          - src/hummingbird/assimp
+          - src/hummingbird/blueman
+          - src/hummingbird/cage
+          - src/deps/flatpak
+          - src/hummingbird/freerdp
+          - src/hummingbird/fuzzel
+          - src/hummingbird/fwupd
+          - src/gnome-50/gdm
+          - src/hummingbird/gnome-bluetooth
+          - src/hummingbird/gnome-keyring
+          - src/gnome-50/gnome-online-accounts
+          - src/hummingbird/gpsd
+          - src/xfce-wayland/gtkgreet
+          - src/hummingbird/kf6-kded
+          - src/hummingbird/kf6-kdesu
+          - src/hummingbird/kf6-kirigami-addons
+          - src/hummingbird/kf6-kjobwidgets
+          - src/hummingbird/kf6-kwallet
+          - src/hummingbird/kf6-kxmlgui
+          - src/hummingbird/kf6-qqc2-desktop-style
+          - src/hummingbird/kpipewire
+          - src/hummingbird/kwrited
+          - src/hummingbird/libaccounts-qt
+          - src/deps/libfprint
+          - src/hummingbird/libkscreen
+          - src/xfce-wayland/libxfce4windowing
+          - src/deps/malcontent
+          - src/hummingbird/network-manager-applet
+          - src/hummingbird/openconnect
+          - src/hummingbird/osinfo-db
+          - src/hummingbird/pangomm
+          - src/hummingbird/pangomm2.48
+          - src/gnome-50/ptyxis
+          - src/hummingbird/qqc2-breeze-style
+          - src/hummingbird/qt6-qtimageformats
+          - src/hummingbird/qt6-qtwebview
+          - src/hummingbird/qt6ct
+          - src/hummingbird/signon-plugin-oauth2
+          - src/xfce-wayland/tumbler
+          - src/hummingbird/udisks2
+          - src/hummingbird/webkitgtk
+          - src/xfce-wayland/xfconf
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -1942,26 +2034,25 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/MUMPS
-          - src/hummingbird/libSM
-          - src/hummingbird/libXdmcp
-          - src/hummingbird/libieee1284
-          - src/hummingbird/librabbitmq
-          - src/hummingbird/libteam
-          - src/hummingbird/ndctl
-          - src/hummingbird/netcdf
-          - src/hummingbird/perl-Archive-Tar
-          - src/hummingbird/perl-DateTime-TimeZone-SystemV
-          - src/hummingbird/perl-HTML-Parser
-          - src/hummingbird/perl-HTTP-Cookies
-          - src/hummingbird/perl-HTTP-Negotiate
-          - src/hummingbird/perl-Module-Implementation
-          - src/hummingbird/perl-Sub-Exporter-Progressive
-          - src/hummingbird/perl-XML-LibXML
-          - src/hummingbird/shared-mime-info
-          - src/hummingbird/texinfo
-          - src/hummingbird/wayland
-          - src/hummingbird/xdg-utils
+          - src/hummingbird/NetworkManager-openconnect
+          - src/hummingbird/accounts-qml-module
+          - src/hummingbird/cosmic-initial-setup
+          - src/deps/evolution-data-server
+          - src/deps/fprintd
+          - src/gnome-50/gnome-control-center
+          - src/hummingbird/gnome-disk-utility
+          - src/gnome-50/gnome-initial-setup
+          - src/hummingbird/gnome-remote-desktop
+          - src/hummingbird/gtkmm3.0
+          - src/hummingbird/gtkmm4.0
+          - src/hummingbird/kf6-kbookmarks
+          - src/hummingbird/ksshaskpass
+          - src/hummingbird/libosinfo
+          - src/xfce-wayland/libxfce4ui
+          - src/hummingbird/msgraph
+          - src/hummingbird/qt6-qtquick3d
+          - src/gnome-50/xdg-desktop-portal
+          - src/hummingbird/yelp
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -2078,30 +2169,23 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/bc
-          - src/hummingbird/cln
-          - src/hummingbird/coin-or-Cbc
-          - src/hummingbird/coin-or-Cgl
-          - src/hummingbird/coin-or-Clp
-          - src/hummingbird/cosmic-randr
-          - src/hummingbird/gpm
-          - src/hummingbird/libXt
-          - src/hummingbird/libconfig
-          - src/hummingbird/mingw-binutils
-          - src/hummingbird/perl-B-Hooks-EndOfScope
-          - src/hummingbird/perl-DateTime-TimeZone-Tzfile
-          - src/hummingbird/perl-Devel-GlobalDestruction
-          - src/hummingbird/perl-List-SomeUtils
-          - src/hummingbird/perl-Package-Stash
-          - src/hummingbird/perl-Params-Validate
-          - src/hummingbird/perl-XML-LibXML-Simple
-          - src/hummingbird/perl-XML-LibXSLT
-          - src/hummingbird/perl-libwww-perl
-          - src/hummingbird/perltidy
-          - src/hummingbird/pyxdg
-          - src/hummingbird/vulkan-loader
-          - src/deps/wayland-protocols
-          - src/hummingbird/xwayland-satellite
+          - src/xfce-wayland/exo
+          - src/xfce-wayland/garcon
+          - src/gnome-50/gnome-shell
+          - src/hummingbird/gnome-system-monitor
+          - src/hummingbird/gvfs
+          - src/hummingbird/kf6-kio
+          - src/deps/localsearch
+          - src/xfce-wayland/mousepad
+          - src/hummingbird/pavucontrol
+          - src/hummingbird/qt6-qtmultimedia
+          - src/hummingbird/waybar
+          - src/gnome-50/xdg-desktop-portal-gnome
+          - src/hummingbird/xdg-desktop-portal-gtk
+          - src/hummingbird/xfce-polkit
+          - src/xfce-wayland/xfce4-session
+          - src/xfce-wayland/xfce4-terminal
+          - src/hummingbird/xfwm4
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -2218,19 +2302,21 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/libXmu
-          - src/hummingbird/mingw-crt
-          - src/hummingbird/mingw-gcc
-          - src/hummingbird/mingw-winpthreads
-          - src/hummingbird/perl-Eval-Closure
-          - src/hummingbird/perl-LDAP
-          - src/hummingbird/perl-LWP-Protocol-https
-          - src/hummingbird/perl-List-AllUtils
-          - src/hummingbird/perl-XML-Parser
-          - src/hummingbird/perl-namespace-clean
-          - src/hummingbird/startup-notification
-          - src/hummingbird/swayidle
-          - src/hummingbird/wl-clipboard
+          - src/hummingbird/kactivitymanagerd
+          - src/hummingbird/kf6-baloo
+          - src/hummingbird/kf6-kcmutils
+          - src/hummingbird/kf6-kdeclarative
+          - src/hummingbird/kf6-krunner
+          - src/hummingbird/kf6-prison
+          - src/hummingbird/kf6-syndication
+          - src/hummingbird/kglobalacceld
+          - src/hummingbird/kmenuedit
+          - src/gnome-50/nautilus
+          - src/hummingbird/plasma-integration
+          - src/hummingbird/qt6-qtspeech
+          - src/xfce-wayland/ristretto
+          - src/xfce-wayland/xfce4-panel
+          - src/xfce-wayland/xfce4-settings
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -2347,44 +2433,14 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/DirectX-Headers
-          - src/hummingbird/abseil-cpp
-          - src/hummingbird/geos
-          - src/hummingbird/giflib
-          - src/hummingbird/glibmm2.4
-          - src/hummingbird/glibmm2.68
-          - src/hummingbird/hidapi
-          - src/hummingbird/inih
-          - src/hummingbird/intltool
-          - src/hummingbird/jxrlib
-          - src/hummingbird/libXaw
-          - src/hummingbird/libdeflate
-          - src/hummingbird/libxkbcommon
-          - src/hummingbird/mingw-brotli
-          - src/hummingbird/mingw-bzip2
-          - src/hummingbird/mingw-gmp
-          - src/hummingbird/mingw-libffi
-          - src/hummingbird/mingw-libidn2
-          - src/hummingbird/mingw-libogg
-          - src/hummingbird/mingw-libunistring
-          - src/hummingbird/mingw-pcre2
-          - src/hummingbird/mingw-termcap
-          - src/hummingbird/mingw-win-iconv
-          - src/hummingbird/mingw-xz
-          - src/hummingbird/mingw-zlib
-          - src/hummingbird/mingw-zstd
-          - src/hummingbird/opus
-          - src/hummingbird/perl-XML-Simple
-          - src/hummingbird/perl-XML-XPath
-          - src/hummingbird/perl-namespace-autoclean
-          - src/hummingbird/wavpack
-          - src/hummingbird/xerces-c
-          - src/hummingbird/xhost
-          - src/hummingbird/xkeyboard-config
-          - src/hummingbird/xmltoman
-          - src/hummingbird/xorg-x11-xauth
-          - src/hummingbird/xrdb
-          - src/hummingbird/xset
+          - src/hummingbird/Thunar
+          - src/hummingbird/baloo-widgets
+          - src/hummingbird/kaccounts-integration
+          - src/hummingbird/kf6-knotifyconfig
+          - src/hummingbird/kf6-ktextwidgets
+          - src/hummingbird/polkit-kde
+          - src/hummingbird/xdg-desktop-portal-kde
+          - src/xfce-wayland/xfce4-whiskermenu-plugin
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -2501,36 +2557,12 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/cosmic-bg
-          - src/hummingbird/cosmic-idle
-          - src/hummingbird/cosmic-notifications
-          - src/hummingbird/cosmic-panel
-          - src/hummingbird/exiv2
-          - src/hummingbird/freexl
-          - src/hummingbird/icon-naming-utils
-          - src/hummingbird/ilbc
-          - src/hummingbird/libkml
-          - src/hummingbird/libphonenumber
-          - src/hummingbird/libqalculate
-          - src/hummingbird/librttopo
-          - src/hummingbird/libvorbis
-          - src/hummingbird/libxml++30
-          - src/hummingbird/mingw-gettext
-          - src/hummingbird/mingw-libpng
-          - src/hummingbird/mingw-libpsl
-          - src/hummingbird/mingw-nettle
-          - src/hummingbird/mingw-sqlite
-          - src/hummingbird/opusfile
-          - src/hummingbird/perl-Specio
-          - src/hummingbird/qt6-qtnetworkauth
-          - src/hummingbird/qt6-qtserialbus
-          - src/hummingbird/qt6-qtshadertools
-          - src/hummingbird/sound-theme-freedesktop
-          - src/hummingbird/taglib
-          - src/hummingbird/webrtc-audio-processing
-          - src/hummingbird/webrtc-audio-processing1
-          - src/hummingbird/xfsprogs
-          - src/hummingbird/xmessage
+          - src/hummingbird/kf6-knewstuff
+          - src/hummingbird/kf6-kparts
+          - src/hummingbird/kf6-purpose
+          - src/hummingbird/kio-extras
+          - src/hummingbird/ksystemlog
+          - src/xfce-wayland/xfdesktop
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -2647,10 +2679,17 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/mingw-glib2
-          - src/hummingbird/mingw-libxml2
-          - src/hummingbird/perl-Params-ValidationCompiler
-          - src/hummingbird/qt6-qtdeclarative
+          - src/hummingbird/ark
+          - src/hummingbird/aurorae
+          - src/hummingbird/dolphin
+          - src/hummingbird/keditbookmarks
+          - src/hummingbird/kf6-frameworkintegration
+          - src/hummingbird/kf6-ktexteditor
+          - src/hummingbird/kio-fuse
+          - src/hummingbird/konsole
+          - src/hummingbird/libksysguard
+          - src/hummingbird/libplasma
+          - src/hummingbird/plasma-discover
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -2767,21 +2806,12 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/mingw-json-glib
-          - src/hummingbird/mingw-libarchive
-          - src/hummingbird/mingw-libxslt
-          - src/hummingbird/perl-DateTime-Locale
-          - src/hummingbird/perl-DateTime-TimeZone
-          - src/hummingbird/perl-Log-Dispatch
-          - src/hummingbird/qt6-qt5compat
-          - src/hummingbird/qt6-qtcharts
-          - src/hummingbird/qt6-qtdatavis3d
-          - src/hummingbird/qt6-qtquicktimeline
-          - src/hummingbird/qt6-qtremoteobjects
-          - src/hummingbird/qt6-qtscxml
-          - src/hummingbird/qt6-qtsensors
-          - src/hummingbird/qt6-qtvirtualkeyboard
-          - src/hummingbird/qt6-qtwebsockets
+          - src/hummingbird/kate
+          - src/hummingbird/kscreenlocker
+          - src/hummingbird/ksystemstats
+          - src/hummingbird/plasma-breeze
+          - src/hummingbird/plasma-keyboard
+          - src/hummingbird/plasma5support
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -2890,7 +2920,7 @@ jobs:
           rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
-  build-layer-15-00:
+  build-layer-15:
     needs: consolidate-layer-14
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
@@ -2898,256 +2928,7 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/ImageMagick
-          - src/hummingbird/ModemManager
-          - src/hummingbird/NetworkManager
-          - src/hummingbird/PDAL
-          - src/hummingbird/SDL3
-          - src/hummingbird/alembic
-          - src/hummingbird/appstream
-          - src/hummingbird/asciidoc
-          - src/hummingbird/at-spi2-core
-          - src/hummingbird/babel
-          - src/hummingbird/bluez
-          - src/hummingbird/bullet
-          - src/deps/cairo
-          - src/hummingbird/cepces
-          - src/hummingbird/cgnslib
-          - src/hummingbird/check
-          - src/hummingbird/chromaprint
-          - src/hummingbird/codec2
-          - src/hummingbird/colord
-          - src/hummingbird/dblatex
-          - src/hummingbird/dbus-c++
-          - src/hummingbird/dbus-python
-          - src/hummingbird/dconf
-          - src/hummingbird/desktop-file-utils
-          - src/hummingbird/docbook-utils
-          - src/hummingbird/efl
-          - src/hummingbird/emacs
-          - src/hummingbird/ffmpeg
-          - src/hummingbird/firewalld
-          - src/hummingbird/fish
-          - src/hummingbird/flite
-          - src/hummingbird/fluidsynth
-          - src/hummingbird/freeglut
-          - src/hummingbird/freerdp
-          - src/hummingbird/frei0r-plugins
-          - src/hummingbird/game-music-emu
-          - src/hummingbird/gcr
-          - src/hummingbird/gdal
-          - src/hummingbird/gdcm
-          - src/deps/gdk-pixbuf2
-          - src/hummingbird/geoclue2
-          - src/hummingbird/geocode-glib
-          - src/hummingbird/ghostscript
-          - src/deps/gi-docgen
-          - src/hummingbird/glib-networking
-          - src/deps/glycin
-          - src/gnome-50/gnome-desktop3
-          - src/gnome-50/gnome-settings-daemon
-          - src/gnome-50/gobject-introspection
-          - src/hummingbird/graphene
-          - src/gnome-50/gsettings-desktop-schemas
-          - src/hummingbird/gssdp
-          - src/hummingbird/gstreamer1
-          - src/hummingbird/gstreamer1-plugins-bad-free
-          - src/hummingbird/gstreamer1-plugins-base
-          - src/hummingbird/gtk-doc
-          - src/hummingbird/gtk2
-          - src/hummingbird/gtk3
-          - src/gnome-50/gtk4
-          - src/hummingbird/gupnp
-          - src/hummingbird/gupnp-igd
-          - src/hummingbird/gweather-locations
-          - src/hummingbird/ibus
-          - src/hummingbird/imath
-          - src/hummingbird/jack-audio-connection-kit
-          - src/hummingbird/jasper
-          - src/hummingbird/jpegxl
-          - src/hummingbird/json-glib
-          - src/hummingbird/ladspa
-          - src/hummingbird/lame
-          - src/hummingbird/leptonica
-          - src/gnome-50/libadwaita
-          - src/hummingbird/libao
-          - src/hummingbird/libappstream-glib
-          - src/hummingbird/libass
-          - src/hummingbird/libbluray
-          - src/hummingbird/libbs2b
-          - src/hummingbird/libcaca
-          - src/hummingbird/libcamera
-          - src/deps/libcanberra
-          - src/hummingbird/libcloudproviders
-          - src/hummingbird/libdbi
-          - src/hummingbird/libdbusmenu
-          - src/deps/libdecor
-          - src/hummingbird/libdicom
-          - src/hummingbird/libepoxy
-          - src/hummingbird/libffado
-          - src/hummingbird/libfyaml
-          - src/hummingbird/libgeotiff
-          - src/hummingbird/libglvnd
-          - src/hummingbird/libgudev
-          - src/hummingbird/libgusb
-          - src/hummingbird/libgweather
-          - src/hummingbird/libheif
-          - src/deps/libical
-          - src/hummingbird/libinput
-          - src/hummingbird/liblas
-          - src/hummingbird/liblrdf
-          - src/hummingbird/libmbim
-          - src/hummingbird/libnice
-          - src/hummingbird/libnotify
-          - src/hummingbird/libnvme
-          - src/hummingbird/libopenmpt
-          - src/hummingbird/libpcap
-          - src/hummingbird/libplacebo
-          - src/hummingbird/libproxy
-          - src/hummingbird/libqmi
-          - src/hummingbird/libqrtr-glib
-          - src/hummingbird/libraqm
-          - src/hummingbird/librsvg2
-          - src/hummingbird/libsamplerate
-          - src/hummingbird/libsecret
-          - src/hummingbird/libsndfile
-          - src/hummingbird/libsoup3
-          - src/hummingbird/libspatialite
-          - src/hummingbird/libspectre
-          - src/hummingbird/libsrtp
-          - src/hummingbird/libtheora
-          - src/hummingbird/libva
-          - src/hummingbird/libvdpau
-          - src/hummingbird/libvisual
-          - src/hummingbird/libvpx
-          - src/hummingbird/libwacom
-          - src/hummingbird/libwmf
-          - src/hummingbird/libxmlb
-          - src/hummingbird/lilv
-          - src/hummingbird/lirc
-          - src/hummingbird/lm_sensors
-          - src/hummingbird/lttng-ust
-          - src/hummingbird/lv2
-          - src/hummingbird/mesa
-          - src/hummingbird/mesa-libGLU
-          - src/hummingbird/mingw-lcms2
-          - src/hummingbird/mingw-libjpeg-turbo
-          - src/hummingbird/mingw-libtiff
-          - src/hummingbird/mjpegtools
-          - src/hummingbird/mpg123
-          - src/gnome-50/mutter
-          - src/hummingbird/nasm
-          - src/hummingbird/netpbm
-          - src/hummingbird/newt
-          - src/hummingbird/ocl-icd
-          - src/hummingbird/openal-soft
-          - src/hummingbird/opencascade
-          - src/hummingbird/opencv
-          - src/hummingbird/openexr
-          - src/hummingbird/openjade
-          - src/hummingbird/openjpeg
-          - src/hummingbird/openjph
-          - src/hummingbird/openslide
-          - src/hummingbird/opensp
-          - src/hummingbird/openxr
-          - src/hummingbird/orc
-          - src/deps/pango
-          - src/hummingbird/pcsc-lite
-          - src/hummingbird/perl-DateTime
-          - src/hummingbird/perl-Log-Dispatch-FileRotate
-          - src/deps/pipewire
-          - src/hummingbird/polkit
-          - src/hummingbird/portaudio
-          - src/hummingbird/ppp
-          - src/hummingbird/proj
-          - src/hummingbird/pulseaudio
-          - src/hummingbird/pycairo
-          - src/hummingbird/pygobject3
-          - src/hummingbird/python-accessible-pygments
-          - src/hummingbird/python-argcomplete
-          - src/hummingbird/python-beautifulsoup4
-          - src/hummingbird/python-breathe
-          - src/hummingbird/python-build
-          - src/hummingbird/python-cssselect
-          - src/hummingbird/python-dateutil
-          - src/deps/python-dbusmock
-          - src/hummingbird/python-execnet
-          - src/hummingbird/python-freezegun
-          - src/hummingbird/python-furo
-          - src/hummingbird/python-html5lib
-          - src/hummingbird/python-hypothesis
-          - src/hummingbird/python-lxml
-          - src/hummingbird/python-lxml-html-clean
-          - src/hummingbird/python-psutil
-          - src/hummingbird/python-pyasn1
-          - src/hummingbird/python-pytest-asyncio
-          - src/hummingbird/python-pytest-mock
-          - src/hummingbird/python-pytest-xdist
-          - src/hummingbird/python-qt5
-          - src/hummingbird/python-rdflib
-          - src/hummingbird/python-setuptools_scm
-          - src/deps/python-smartypants
-          - src/hummingbird/python-soupsieve
-          - src/hummingbird/python-sphinx
-          - src/hummingbird/python-sphinx-basic-ng
-          - src/hummingbird/python-sphinx-copybutton
-          - src/hummingbird/python-sphinx_rtd_theme
-          - src/deps/python-typogrify
-          - src/hummingbird/python-webencodings
-          - src/hummingbird/qcoro
-          - src/hummingbird/qrencode
-          - src/hummingbird/qt5-qtconnectivity
-          - src/hummingbird/qt5-qtmultimedia
-          - src/hummingbird/qt5-qttools
-          - src/hummingbird/qt6-qthttpserver
-          - src/hummingbird/qt6-qttools
-          - src/hummingbird/qt6-qtwebchannel
-          - src/hummingbird/raptor2
-          - src/hummingbird/redhat-fonts
-          - src/hummingbird/roc-toolkit
-          - src/hummingbird/rrdtool
-          - src/hummingbird/rubberband
-          - src/hummingbird/samba
-          - src/hummingbird/sbc
-          - src/hummingbird/sdl12-compat
-          - src/hummingbird/sdl2-compat
-          - src/hummingbird/serd
-          - src/hummingbird/sord
-          - src/hummingbird/sox
-          - src/hummingbird/sratom
-          - src/hummingbird/sso-mib
-          - src/hummingbird/subunit
-          - src/hummingbird/systemtap
-          - src/hummingbird/tesseract
-          - src/hummingbird/texlive-base
-          - src/hummingbird/texlive-collection-basic
-          - src/hummingbird/texlive-collection-fontsextra
-          - src/hummingbird/texlive-collection-fontsrecommended
-          - src/hummingbird/texlive-collection-formatsextra
-          - src/hummingbird/texlive-collection-latex
-          - src/hummingbird/texlive-collection-latexextra
-          - src/hummingbird/texlive-collection-latexrecommended
-          - src/hummingbird/texlive-collection-luatex
-          - src/hummingbird/texlive-collection-mathscience
-          - src/hummingbird/texlive-collection-pictures
-          - src/hummingbird/texlive-collection-xetex
-          - src/hummingbird/transfig
-          - src/hummingbird/twolame
-          - src/deps/umockdev
-          - src/hummingbird/upower
-          - src/hummingbird/urw-base35-fonts
-          - src/hummingbird/v4l-utils
-          - src/hummingbird/vala
-          - src/hummingbird/vapoursynth
-          - src/hummingbird/vid.stab
-          - src/hummingbird/vtk
-          - src/hummingbird/weston
-          - src/hummingbird/xorg-x11-server
-          - src/hummingbird/xorg-x11-server-Xwayland
-          - src/hummingbird/xpdf
-          - src/hummingbird/zbar
-          - src/hummingbird/zix
-          - src/hummingbird/zxing-cpp
+          - src/hummingbird/kwin
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -3218,89 +2999,8 @@ jobs:
           name: rpms-layer-15-0-${{ strategy.job-index }}
           path: new-rpms/*.rpm
           retention-days: 1
-  build-layer-15-01:
-    needs: consolidate-layer-14
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/zziplib
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-15 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-15-1-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
   consolidate-layer-15:
-    needs:
-      - build-layer-15-00
-      - build-layer-15-01
+    needs: build-layer-15
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
@@ -3345,148 +3045,7 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/accountsservice
-          - src/hummingbird/adwaita-icon-theme
-          - src/hummingbird/adwaita-icon-theme-legacy
-          - src/hummingbird/atkmm
-          - src/hummingbird/blueprint-compiler
-          - src/hummingbird/cairomm
-          - src/hummingbird/cairomm1.16
-          - src/hummingbird/cava
-          - src/hummingbird/certmonger
-          - src/deps/colord-gtk
-          - src/hummingbird/cosmic-app-library
-          - src/hummingbird/cosmic-applets
-          - src/hummingbird/cosmic-comp
-          - src/hummingbird/cosmic-files
-          - src/hummingbird/cosmic-greeter
-          - src/hummingbird/cosmic-launcher
-          - src/hummingbird/cosmic-osd
-          - src/hummingbird/cosmic-screenshot
-          - src/hummingbird/cosmic-session
-          - src/hummingbird/cosmic-settings
-          - src/hummingbird/cosmic-settings-daemon
-          - src/hummingbird/cosmic-term
-          - src/hummingbird/cosmic-workspaces
-          - src/hummingbird/cups-pk-helper
-          - src/hummingbird/enchant2
-          - src/hummingbird/ethtool
-          - src/hummingbird/extra-cmake-modules
-          - src/hummingbird/f44-backgrounds
-          - src/hummingbird/fcft
-          - src/hummingbird/gcr3
-          - src/hummingbird/glfw
-          - src/deps/gnome-autoar
-          - src/hummingbird/gnome-browser-connector
-          - src/hummingbird/gnome-color-manager
-          - src/hummingbird/gnome-icon-theme
-          - src/hummingbird/gnome-menus
-          - src/gnome-50/gnome-session
-          - src/deps/gnome-user-share
-          - src/deps/gsound
-          - src/xfce-wayland/gtk-layer-shell
-          - src/hummingbird/gtk4-layer-shell
-          - src/hummingbird/gtksourceview4
-          - src/hummingbird/iio-sensor-proxy
-          - src/hummingbird/kdsoap
-          - src/hummingbird/libaccounts-glib
-          - src/hummingbird/libappindicator
-          - src/hummingbird/libbytesize
-          - src/deps/libfprint
-          - src/hummingbird/libgee
-          - src/deps/libgexiv2
-          - src/deps/libglib-testing
-          - src/hummingbird/libgsf
-          - src/hummingbird/libgtop2
-          - src/hummingbird/libgxps
-          - src/hummingbird/libhandy
-          - src/hummingbird/libmanette
-          - src/hummingbird/libnma
-          - src/hummingbird/libportal
-          - src/hummingbird/libshout
-          - src/hummingbird/libuser
-          - src/hummingbird/libvncserver
-          - src/hummingbird/libvpl
-          - src/hummingbird/libwnck3
-          - src/xfce-wayland/libxfce4util
-          - src/hummingbird/libxklavier
-          - src/hummingbird/mako
-          - src/hummingbird/marshalparser
-          - src/deps/mozjs140
-          - src/hummingbird/net-snmp
-          - src/hummingbird/niri
-          - src/hummingbird/nss-mdns
-          - src/hummingbird/oath-toolkit
-          - src/hummingbird/osinfo-db-tools
-          - src/hummingbird/parted
-          - src/hummingbird/passim
-          - src/hummingbird/perl-DateTime-Calendar-Julian
-          - src/hummingbird/perl-DateTime-Format-Strptime
-          - src/hummingbird/perl-Log-Log4perl
-          - src/hummingbird/playerctl
-          - src/hummingbird/polkit-qt-1
-          - src/hummingbird/poly2tri
-          - src/hummingbird/pop-launcher
-          - src/hummingbird/protobuf3
-          - src/hummingbird/pyparsing
-          - src/hummingbird/python-aiohappyeyeballs
-          - src/hummingbird/python-aiosignal
-          - src/hummingbird/python-blinker
-          - src/hummingbird/python-boolean.py
-          - src/hummingbird/python-cloudpickle
-          - src/hummingbird/python-greenlet
-          - src/hummingbird/python-gunicorn
-          - src/hummingbird/python-icalendar
-          - src/hummingbird/python-itsdangerous
-          - src/hummingbird/python-multidict
-          - src/hummingbird/python-pkgconfig
-          - src/hummingbird/python-propcache
-          - src/hummingbird/python-sphinxext-opengraph
-          - src/hummingbird/python-tzlocal
-          - src/hummingbird/python-urwid
-          - src/hummingbird/python-werkzeug
-          - src/hummingbird/python-zlib-ng
-          - src/hummingbird/qt
-          - src/hummingbird/qt6-qtconnectivity
-          - src/hummingbird/qt6-qtimageformats
-          - src/hummingbird/qt6-qtpositioning
-          - src/hummingbird/qt6-qtwayland
-          - src/hummingbird/qtkeychain
-          - src/hummingbird/quickshell
-          - src/hummingbird/redhat-menus
-          - src/hummingbird/rest
-          - src/hummingbird/rtkit
-          - src/hummingbird/sane-backends
-          - src/hummingbird/satyr
-          - src/hummingbird/signon
-          - src/hummingbird/stb
-          - src/hummingbird/stoken
-          - src/hummingbird/swaybg
-          - src/hummingbird/swaylock
-          - src/hummingbird/switcheroo-control
-          - src/deps/tecla
-          - src/hummingbird/texlive-collection-bibtexextra
-          - src/hummingbird/texlive-collection-humanities
-          - src/hummingbird/texlive-collection-langarabic
-          - src/hummingbird/texlive-collection-langchinese
-          - src/hummingbird/texlive-collection-langcjk
-          - src/hummingbird/texlive-collection-langcyrillic
-          - src/hummingbird/texlive-collection-langenglish
-          - src/hummingbird/texlive-collection-langgerman
-          - src/hummingbird/texlive-collection-langjapanese
-          - src/hummingbird/texlive-collection-langkorean
-          - src/hummingbird/texlive-collection-langother
-          - src/hummingbird/texlive-collection-plaingeneric
-          - src/hummingbird/texlive-collection-pstricks
-          - src/hummingbird/totem-pl-parser
-          - src/hummingbird/tuned
-          - src/hummingbird/unity-gtk-module
-          - src/gnome-50/vte291
-          - src/hummingbird/w3m
-          - src/hummingbird/wireplumber
-          - src/hummingbird/xdg-desktop-portal-cosmic
-          - src/hummingbird/xdg-user-dirs-gtk
-          - src/hummingbird/xorg-x11-drv-libinput
+          - src/hummingbird/plasma-workspace
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -3603,80 +3162,10 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - src/hummingbird/NetworkManager-openvpn
-          - src/hummingbird/NetworkManager-ssh
-          - src/hummingbird/NetworkManager-vpnc
-          - src/hummingbird/SwayNotificationCenter
-          - src/hummingbird/assimp
-          - src/hummingbird/blueman
-          - src/hummingbird/emacs-auctex
-          - src/deps/flatpak
-          - src/deps/fprintd
-          - src/hummingbird/fwupd
-          - src/gnome-50/gdm
-          - src/gnome-50/gjs
-          - src/hummingbird/gnome-bluetooth
-          - src/hummingbird/gnome-keyring
-          - src/gnome-50/gnome-online-accounts
-          - src/hummingbird/gnome-remote-desktop
-          - src/hummingbird/gpsd
-          - src/hummingbird/gspell
-          - src/hummingbird/gstreamer1-plugins-good
-          - src/hummingbird/hplip
-          - src/hummingbird/kdegraphics-mobipocket
-          - src/hummingbird/kdsoap-ws-discovery-client
-          - src/hummingbird/kf6-attica
-          - src/hummingbird/kf6-bluez-qt
-          - src/hummingbird/kf6-breeze-icons
-          - src/hummingbird/kf6-karchive
-          - src/hummingbird/kf6-kcodecs
-          - src/hummingbird/kf6-kconfig
-          - src/hummingbird/kf6-kdbusaddons
-          - src/hummingbird/kf6-kdnssd
-          - src/hummingbird/kf6-kholidays
-          - src/hummingbird/kf6-ki18n
-          - src/hummingbird/kf6-kirigami
-          - src/hummingbird/kf6-kitemmodels
-          - src/hummingbird/kf6-kitemviews
-          - src/hummingbird/kf6-kquickcharts
-          - src/hummingbird/kf6-kuserfeedback
-          - src/hummingbird/kf6-networkmanager-qt
-          - src/hummingbird/kf6-solid
-          - src/hummingbird/kf6-sonnet
-          - src/hummingbird/kf6-syntax-highlighting
-          - src/hummingbird/khal
-          - src/hummingbird/libaccounts-qt
-          - src/hummingbird/libblockdev
-          - src/hummingbird/libkexiv2
-          - src/hummingbird/liborc
-          - src/hummingbird/libreport
-          - src/xfce-wayland/libxfce4windowing
-          - src/deps/malcontent
-          - src/hummingbird/nanosvg
-          - src/hummingbird/network-manager-applet
-          - src/hummingbird/ocean-sound-theme
-          - src/hummingbird/openconnect
-          - src/hummingbird/osinfo-db
-          - src/hummingbird/pangomm
-          - src/hummingbird/pangomm2.48
-          - src/hummingbird/perl-DateTime-Format-Builder
-          - src/hummingbird/plasma-wayland-protocols
-          - src/gnome-50/ptyxis
-          - src/hummingbird/python-aiohttp
-          - src/hummingbird/python-flask
-          - src/hummingbird/python-license-expression
-          - src/hummingbird/python-oauthlib
-          - src/hummingbird/python-pytest-httpserver
-          - src/hummingbird/python-pytest-localserver
-          - src/hummingbird/qaccessibilityclient
-          - src/hummingbird/qt6-qtlocation
-          - src/hummingbird/sane-airscan
-          - src/hummingbird/sddm
-          - src/hummingbird/signon-plugin-oauth2
-          - src/xfce-wayland/tumbler
-          - src/hummingbird/usermode
-          - src/hummingbird/webkitgtk
-          - src/xfce-wayland/xfconf
+          - src/hummingbird/kde-cli-tools
+          - src/hummingbird/plasma-desktop
+          - src/hummingbird/plasma-systemsettings
+          - src/hummingbird/powerdevil
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -3785,2240 +3274,8 @@ jobs:
           rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
 
           '
-  build-layer-18:
-    needs: consolidate-layer-17
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/NetworkManager-openconnect
-          - src/hummingbird/accounts-qml-module
-          - src/hummingbird/biber
-          - src/hummingbird/cosmic-initial-setup
-          - src/deps/evolution-data-server
-          - src/hummingbird/fuzzel
-          - src/gnome-50/gnome-initial-setup
-          - src/hummingbird/go-vendor-tools
-          - src/hummingbird/gtkmm3.0
-          - src/hummingbird/gtkmm4.0
-          - src/hummingbird/kf6-kdoctools
-          - src/hummingbird/kf6-kidletime
-          - src/hummingbird/kf6-kimageformats
-          - src/hummingbird/kf6-kwindowsystem
-          - src/hummingbird/kwayland
-          - src/hummingbird/layer-shell-qt
-          - src/hummingbird/libarrow
-          - src/hummingbird/libkscreen
-          - src/hummingbird/libosinfo
-          - src/xfce-wayland/libxfce4ui
-          - src/hummingbird/msgraph
-          - src/hummingbird/python-aiohttp-oauthlib
-          - src/hummingbird/python-httpbin
-          - src/hummingbird/qt6-qt3d
-          - src/hummingbird/qt6-qtquick3d
-          - src/hummingbird/qt6-qtwebengine
-          - src/hummingbird/udisks2
-          - src/gnome-50/xdg-desktop-portal
-          - src/hummingbird/yelp
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-18 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-18-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-18:
-    needs: build-layer-18
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-18-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-19:
-    needs: consolidate-layer-18
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/DankMaterialShell
-          - src/hummingbird/cliphist
-          - src/hummingbird/danksearch
-          - src/hummingbird/dgop
-          - src/xfce-wayland/exo
-          - src/xfce-wayland/garcon
-          - src/gnome-50/gnome-control-center
-          - src/hummingbird/gnome-disk-utility
-          - src/gnome-50/gnome-shell
-          - src/hummingbird/gnome-system-monitor
-          - src/hummingbird/gvfs
-          - src/deps/localsearch
-          - src/hummingbird/mousepad
-          - src/hummingbird/pavucontrol
-          - src/hummingbird/python-pytest-httpbin
-          - src/hummingbird/qt6-qtgraphs
-          - src/hummingbird/qt6-qtmultimedia
-          - src/hummingbird/qt6-qtwebview
-          - src/hummingbird/vdirsyncer
-          - src/hummingbird/waybar
-          - src/gnome-50/xdg-desktop-portal-gnome
-          - src/hummingbird/xdg-desktop-portal-gtk
-          - src/hummingbird/xfce-polkit
-          - src/xfce-wayland/xfce4-session
-          - src/xfce-wayland/xfce4-terminal
-          - src/hummingbird/xfwm4
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-19 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-19-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-19:
-    needs: build-layer-19
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-19-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-20:
-    needs: consolidate-layer-19
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/kf6-prison
-          - src/gnome-50/nautilus
-          - src/hummingbird/qt6-qtspeech
-          - src/hummingbird/ristretto
-          - src/xfce-wayland/xfce4-panel
-          - src/xfce-wayland/xfce4-settings
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-20 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-20-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-20:
-    needs: build-layer-20
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-20-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-21:
-    needs: consolidate-layer-20
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/Thunar
-          - src/hummingbird/python-pyside6
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-21 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-21-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-21:
-    needs: build-layer-21
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-21-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-22:
-    needs: consolidate-layer-21
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/kf6-kcoreaddons
-          - src/hummingbird/kf6-kguiaddons
-          - src/hummingbird/kf6-knotifications
-          - src/hummingbird/kf6-kstatusnotifieritem
-          - src/hummingbird/kf6-kunitconversion
-          - src/hummingbird/kf6-kwidgetsaddons
-          - src/xfce-wayland/xfdesktop
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-22 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-22-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-22:
-    needs: build-layer-22
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-22-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-23:
-    needs: consolidate-layer-22
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/kdecoration
-          - src/hummingbird/kf6-kauth
-          - src/hummingbird/kf6-kcolorscheme
-          - src/hummingbird/kf6-kcompletion
-          - src/hummingbird/kf6-kcrash
-          - src/hummingbird/kf6-kfilemetadata
-          - src/hummingbird/kf6-kjobwidgets
-          - src/hummingbird/kf6-kpackage
-          - src/hummingbird/kf6-kpty
-          - src/hummingbird/knighttime
-          - src/hummingbird/kpipewire
-          - src/hummingbird/pinentry
-          - src/hummingbird/plasma-activities
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-23 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-23-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-23:
-    needs: build-layer-23
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-23-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-24:
-    needs: consolidate-layer-23
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/kf6-kconfigwidgets
-          - src/hummingbird/kf6-kglobalaccel
-          - src/hummingbird/kf6-kservice
-          - src/hummingbird/kf6-ksvg
-          - src/hummingbird/kwrited
-          - src/hummingbird/plasma-activities-stats
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-24 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-24-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-24:
-    needs: build-layer-24
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-24-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-25:
-    needs: consolidate-layer-24
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/kf6-kded
-          - src/hummingbird/kf6-kdesu
-          - src/hummingbird/kf6-kiconthemes
-          - src/hummingbird/kf6-ktextwidgets
-          - src/hummingbird/kf6-kwallet
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-25 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-25-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-25:
-    needs: build-layer-25
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-25-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-26:
-    needs: consolidate-layer-25
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/kf6-kirigami-addons
-          - src/hummingbird/kf6-kxmlgui
-          - src/hummingbird/kf6-qqc2-desktop-style
-          - src/hummingbird/ksshaskpass
-          - src/hummingbird/qqc2-breeze-style
-          - src/hummingbird/qt6ct
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-26 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-26-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-26:
-    needs: build-layer-26
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-26-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-27:
-    needs: consolidate-layer-26
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/kf6-kbookmarks
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-27 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-27-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-27:
-    needs: build-layer-27
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-27-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-28:
-    needs: consolidate-layer-27
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/kf6-kio
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-28 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-28-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-28:
-    needs: build-layer-28
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-28-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-29:
-    needs: consolidate-layer-28
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/kactivitymanagerd
-          - src/hummingbird/kf6-baloo
-          - src/hummingbird/kf6-kcmutils
-          - src/hummingbird/kf6-kdeclarative
-          - src/hummingbird/kf6-knotifyconfig
-          - src/hummingbird/kf6-kparts
-          - src/hummingbird/kf6-krunner
-          - src/hummingbird/kf6-syndication
-          - src/hummingbird/kglobalacceld
-          - src/hummingbird/kmenuedit
-          - src/hummingbird/ksystemlog
-          - src/hummingbird/plasma-integration
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-29 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-29-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-29:
-    needs: build-layer-29
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-29-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-30:
-    needs: consolidate-layer-29
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/ark
-          - src/hummingbird/baloo-widgets
-          - src/hummingbird/kaccounts-integration
-          - src/hummingbird/keditbookmarks
-          - src/hummingbird/kf6-knewstuff
-          - src/hummingbird/kf6-ktexteditor
-          - src/hummingbird/kio-extras
-          - src/hummingbird/libplasma
-          - src/hummingbird/polkit-kde
-          - src/hummingbird/xdg-desktop-portal-kde
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-30 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-30-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-30:
-    needs: build-layer-30
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-30-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-31:
-    needs: consolidate-layer-30
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/aurorae
-          - src/hummingbird/dolphin
-          - src/hummingbird/kate
-          - src/hummingbird/kf6-frameworkintegration
-          - src/hummingbird/kf6-purpose
-          - src/hummingbird/kio-fuse
-          - src/hummingbird/konsole
-          - src/hummingbird/kscreenlocker
-          - src/hummingbird/libksysguard
-          - src/hummingbird/plasma-keyboard
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-31 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-31-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-31:
-    needs: build-layer-31
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-31-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-32:
-    needs: consolidate-layer-31
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/ksystemstats
-          - src/hummingbird/plasma-breeze
-          - src/hummingbird/plasma-discover
-          - src/hummingbird/plasma5support
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-32 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-32-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-32:
-    needs: build-layer-32
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-32-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-33:
-    needs: consolidate-layer-32
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/kwin
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-33 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-33-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-33:
-    needs: build-layer-33
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-33-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-34:
-    needs: consolidate-layer-33
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/plasma-workspace
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-34 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-34-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-34:
-    needs: build-layer-34
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-34-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
-  build-layer-35:
-    needs: consolidate-layer-34
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - src/hummingbird/kde-cli-tools
-          - src/hummingbird/plasma-desktop
-          - src/hummingbird/plasma-systemsettings
-          - src/hummingbird/powerdevil
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install host dependencies
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q podman createrepo-c rpm rclone'
-      - name: Cache CentOS Stream 10 image
-        uses: actions/cache@v6
-        with:
-          path: /tmp/cs10-image.tar
-          key: cs10-image-${{ hashFiles('mock/hummingbird-ci.cfg') }}
-      - name: Load or pull image
-        run: "if [[ -f /tmp/cs10-image.tar ]]; then\n  podman load -i /tmp/cs10-image.tar\nelse\n  podman pull quay.io/centos/centos:stream10\n  podman save -o /tmp/cs10-image.tar quay.io/centos/centos:stream10\nfi\npodman pull ${{ env.MOCK_RUNNER_IMAGE }}\n"
-      - name: Seed local repo from R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          mkdir -p local-repo
-
-          rclone copy "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" local-repo/ --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line || true
-
-          createrepo_c local-repo
-
-          '
-      - name: Cache mock chroot (dnf downloads)
-        uses: actions/cache@v6
-        with:
-          path: .mock-cache
-          key: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-${{ github.run_id }}
-          restore-keys: mock-cache-${{ hashFiles('mock/hummingbird-ci.cfg') }}-
-      - name: Import this package's dist-git packaging
-        run: "set -euo pipefail\npkg_path=\"${{ matrix.package }}\"\nif [ -d \"$pkg_path\" ]; then\n  echo \"$pkg_path is maintained in-tree; nothing to import\"\nelse\n  python3 scripts/import-fedora-distgit.py \\\n    --package \"$(basename \"$pkg_path\")\" \\\n    --dest \"$(dirname \"$pkg_path\")\" \\\n    --branch rawhide --release-bump\nfi\n"
-      - name: Build package
-        env:
-          MOCK_CACHE_DIR: ${{ github.workspace }}/.mock-cache
-        run: "touch .build-marker\nARGS=(--backend podman --tier layer-35 --package ${{ matrix.package }} --manifest build-order-hummingbird-desktops.yml --mock-config hummingbird-ci)\nif [[ \"${{ github.event.inputs.force }}\" == \"true\" ]]; then\n  ARGS+=(--force)\nfi\n./scripts/build-chain.sh \"${ARGS[@]}\"\n"
-      - name: Find new RPMs
-        id: find-rpms
-        run: 'mkdir -p new-rpms
-
-          find local-repo -name "*.rpm" -newer .build-marker -exec cp {} new-rpms/ \;
-
-          count=$(ls -1 new-rpms/*.rpm 2>/dev/null | wc -l)
-
-          echo "count=$count" >> $GITHUB_OUTPUT
-
-          '
-      - name: Upload RPMs
-        if: steps.find-rpms.outputs.count > '0'
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpms-layer-35-0-${{ strategy.job-index }}
-          path: new-rpms/*.rpm
-          retention-days: 1
-  consolidate-layer-35:
-    needs: build-layer-35
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install createrepo_c
-        run: 'sudo apt-get update -q || sudo apt-get update -q || true
-
-          sudo apt-get install -y -q createrepo-c rclone'
-      - name: Download new RPMs
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: rpms-layer-35-*
-          path: local-repo
-          merge-multiple: true
-      - name: Publish this tier to R2
-        run: 'mkdir -p ~/.config/rclone
-
-          cat > ~/.config/rclone/rclone.conf << EOF
-
-          [r2]
-
-          type = s3
-
-          provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-
-          EOF
-
-          rclone copy local-repo/ "r2:${R2_BUCKET}/hummingbird/20251124-x86_64/" --transfers 32 --checkers 64 --fast-list --stats 30s --stats-one-line
-
-          '
   publish:
-    needs: consolidate-layer-35
+    needs: consolidate-layer-17
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
