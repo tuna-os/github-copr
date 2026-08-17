@@ -70,10 +70,27 @@ targets:
     # this is what a probe would boot. It is recorded for provenance; see the
     # note above for why it is not yet trustworthy to probe against.
     probe_image: registry.fedoraproject.org/fedora:rawhide
-    architectures: [x86_64]
+    # aarch64 added for tunaOS#1755 §3: hummingbird's desktop flavors declare
+    # linux/arm64, but until this leg publishes something, every aarch64
+    # rebuild path 404s -- the only live repo was 20251124-x86_64. mock/
+    # hummingbird-ci-aarch64.cfg is the aarch64 counterpart of
+    # mock/hummingbird-ci.cfg (same shape as centos-stream-10-ci-aarch64.cfg
+    # is to centos-stream-10-ci.cfg); build-hummingbird-desktops.yml's
+    # build-aarch64 job runs it on ubuntu-24.04-arm against
+    # ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64.
+    architectures: [x86_64, aarch64]
     # Not under rpm/: this path is already published and holds the packages
     # the desktop builds have produced. Moving it would orphan them.
     r2_path: hummingbird/20251124-x86_64
+    # A second literal field, not a `{arch}` template substituted at read
+    # time: r2_path above is read verbatim by build-hummingbird-desktops.yml's
+    # `build` job (steps.target), unformatted, and that job publishes the
+    # already-live x86_64 leg -- templating r2_path itself and leaving that
+    # step un-updated would have made it publish to the literal path
+    # "hummingbird/20251124-{arch}" instead. r2_path_aarch64 is read only by
+    # the new `build-aarch64` job, so the established leg's step never has to
+    # change to accommodate it.
+    r2_path_aarch64: hummingbird/20251124-aarch64
     repository: rpm-md
     # Buildroot inputs only, never repositories on a produced image. Fedora
     # Rawhide supplies -devel headers and build backends Hummingbird has no
