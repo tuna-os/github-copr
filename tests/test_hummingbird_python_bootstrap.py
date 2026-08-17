@@ -209,10 +209,17 @@ def test_build_gets_pyproject_hooks_before_it_needs_it() -> None:
         "python-pyproject-hooks is in no tier, so python-build cannot resolve "
         "its BuildRequires however the tiers are ordered"
     )
-    assert tier_of("python-build") > tier_of("python-pyproject-hooks"), (
-        "python-build must build in a later tier than python-pyproject-hooks; "
-        "packages inside a tier run concurrently, so sharing one is a race"
-    )
+    # Under `membership: runtime` python-build is not built here at all -- it
+    # is a build-time frontend no image ships, so it comes from the buildroot's
+    # inherited Rawhide fallback with its pyproject_hooks Requires-Dist
+    # resolved by dnf.  The ordering constraint above only binds when the
+    # manifest does build it (a selfhost regeneration, or a future runtime
+    # closure that pulls it in through an actual runtime dependency).
+    if any("python-build" in by_name[n] for n in order):
+        assert tier_of("python-build") > tier_of("python-pyproject-hooks"), (
+            "python-build must build in a later tier than python-pyproject-hooks; "
+            "packages inside a tier run concurrently, so sharing one is a race"
+        )
 
 def test_the_bootstrap_does_not_carry_a_pep517_frontend() -> None:
     """`build` is a frontend, not a backend, and nothing asked for it.
