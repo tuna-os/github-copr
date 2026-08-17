@@ -58,6 +58,18 @@ on:
           against it.
         type: string
         default: ""
+      arch:
+        description: >
+          Architecture(s) to build. x86_64 is the established leg
+          (hummingbird/20251124-x86_64, ~7673 packages as of 2026-08-16);
+          aarch64 is new for tunaOS#1755 §3 and starts from an empty seed.
+          Defaults to x86_64 only on a manual dispatch so a human debugging
+          one desktop/tier does not also kick off an unrelated six-hour
+          aarch64 run; the scheduled run (no inputs) always builds both, see
+          the `arch` job `if:` conditions below.
+        type: choice
+        options: [x86_64, aarch64, all]
+        default: x86_64
       publish:
         description: Sign and publish the resulting RPM repository
         type: boolean
@@ -93,6 +105,11 @@ env:
   # bootstrap image for whatever --mock-config asks for. build-xfce-fedora.yml
   # uses the same image for a fedora-44 chroot.
   MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
+  # A separate tag, not a multi-arch manifest -- build-mock-runner.yml pushes
+  # this from its own build-and-push-aarch64 job (mock/Containerfile built on
+  # ubuntu-24.04-arm). Confirmed live on GHCR before this workflow was written:
+  # the tag exists and its image config reports architecture "arm64".
+  MOCK_RUNNER_IMAGE_AARCH64: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
 
 jobs:
   # `desktop: all` used to mean "one runner builds all 60 tiers", which cannot
@@ -116,6 +133,12 @@ jobs:
 
   build:
     needs: plan
+    # Skipped only when a manual dispatch explicitly asked for aarch64 alone.
+    # `inputs.arch` is unset on the schedule trigger (workflow_dispatch inputs
+    # do not exist for other events), so `|| 'all'` resolves to 'all' there --
+    # same fallback idiom TRIGGER_DESKTOP etc. already use above -- and the
+    # scheduled run always builds both architectures.
+    if: ${{ (inputs.arch || 'all') != 'aarch64' }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     # ONE strategy block. Both sides of the #297 merge grew their own, and a
@@ -553,5 +576,299 @@ jobs:
         if: always()
         with:
           name: hummingbird-rpms-${{ matrix.desktop }}
+          path: local-repo-hummingbird
+          if-no-files-found: warn
+
+  # The aarch64 leg (tunaOS#1755 §3). Deliberately a SEPARATE job, not an
+  # `arch` axis on `build`'s matrix -- every other aarch64 leg in this repo
+  # (build-fprintd-aarch64.yml; build-mock-runner.yml's build-and-push-aarch64)
+  # is its own job/workflow on a statically-declared ubuntu-24.04-arm runner,
+  # not a matrix-computed `runs-on:`, and mirroring that keeps this job
+  # readable as "the aarch64 build" rather than a conditional buried in one
+  # shared job. The cost is duplication: every step below is `build`'s step of
+  # the same name with the arch-specific bits swapped (image, mock-config,
+  # r2_path, cache keys, artifact names) -- see each step's comment for the
+  # delta. Steps that had nothing arch-specific to say are unchanged from
+  # `build` on purpose, so a diff between the two jobs is exactly the diff
+  # that matters.
+  #
+  # What this starts from: hummingbird/20251124-x86_64 is ~7673 packages after
+  # many months of daily 6-hour runs (docs/hummingbird-desktop-gap.md,
+  # workflow header above). hummingbird/20251124-aarch64 starts at zero. The
+  # same BUILD_RESERVE_MINUTES / partial-publish mechanism that let x86_64
+  # converge incrementally applies unchanged here, but the first several
+  # scheduled runs will publish a small increment each, the same way
+  # x86_64's early runs did -- there is no shortcut through that, and nothing
+  # about this job's design changes the wall-clock cost of rebuilding ~1248
+  # packages from an empty local repo.
+  build-aarch64:
+    needs: plan
+    # Skipped only when a manual dispatch explicitly asked for x86_64 alone
+    # (the default -- see the `arch` input above). The schedule trigger has no
+    # `inputs`, so `|| 'all'` resolves to 'all' and this job always runs
+    # alongside `build`.
+    if: ${{ (inputs.arch || 'all') != 'x86_64' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        # Same desktops the x86_64 job fans out over, from the same plan job
+        # -- the package list is arch-neutral (RPM spec sources imported from
+        # Fedora Rawhide dist-git build for whatever architecture mock's
+        # chroot targets), so there is no separate aarch64 gap measurement to
+        # run or keep in sync.
+        desktop: ${{ fromJson(needs.plan.outputs.desktops) }}
+        target: [hummingbird]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve the target's R2 path from the package factory manifest
+        id: target
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          # Single source of truth, same as the x86_64 job's identically-named
+          # step -- but reads r2_path_aarch64, not r2_path. r2_path is read
+          # VERBATIM and unformatted by the x86_64 job, which already
+          # publishes the live leg; putting a `{arch}` placeholder in that
+          # same field and leaving the x86_64 step un-updated would have made
+          # it publish to the literal, wrong path "hummingbird/20251124-{arch}".
+          # A second field keeps that step untouched.
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, yaml
+          factory = yaml.safe_load(open("manifests/package-factory.yaml"))
+          target = factory["targets"][os.environ["TARGET"]]
+          print("r2_path=" + target["r2_path_aarch64"])
+          PY
+          echo "resolved r2_path for ${TARGET} (aarch64)"
+
+      - name: Install build tools
+        run: sudo apt-get update -q && sudo apt-get install -y -q podman createrepo-c rpm gpg gpgconf python3-yaml
+
+      - name: Pull mock runner
+        run: podman pull "${MOCK_RUNNER_IMAGE_AARCH64}"
+
+      - name: Configure R2 access
+        id: seed
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf <<EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = ${R2_ENDPOINT}
+          EOF
+          mkdir -p local-repo-hummingbird
+          # Seed from R2 so a resumed run does not rebuild what an earlier run
+          # already published. First run of this leg has nothing to seed --
+          # the || true is what makes that a no-op instead of a failure.
+          rclone copy "r2:${R2_BUCKET}/${{ steps.target.outputs.r2_path }}/" local-repo-hummingbird/ || true
+
+          seeded=$(find local-repo-hummingbird -name '*.rpm' ! -name '*.src.rpm' | wc -l)
+          echo "seeded ${seeded} RPM(s) from R2"
+          echo "seeded_rpms=${seeded}" >> "$GITHUB_OUTPUT"
+
+      - name: Select tiers
+        id: tiers
+        env:
+          IN_DESKTOP: ${{ matrix.desktop }}
+          IN_TIERS: ${{ env.TRIGGER_TIERS }}
+          IN_EXCLUDE: ${{ env.TRIGGER_EXCLUDE_TIERS }}
+        run: |
+          list=$(python3 scripts/select-desktop-tiers.py \
+            --manifest "${MANIFEST}" \
+            --gap-report docs/hummingbird-desktop-gap.json \
+            --desktop "${IN_DESKTOP}" \
+            --tiers "${IN_TIERS}" \
+            --exclude-tiers "${IN_EXCLUDE}")
+          echo "selected $(tr ',' '\n' <<< "$list" | wc -l) tiers: $list"
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "slug=$(printf '%s' "$list" | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+      - name: Import Fedora Rawhide packaging for the selected tiers
+        run: |
+          TIER_ARGS=()
+          IFS=',' read -ra TIERS <<< "${{ steps.tiers.outputs.list }}"
+          for tier in "${TIERS[@]}"; do TIER_ARGS+=(--tier "${tier}"); done
+          python3 scripts/import-fedora-distgit.py \
+            --build-order "${MANIFEST}" \
+            "${TIER_ARGS[@]}" \
+            --branch rawhide \
+            --state hummingbird-imports.json \
+            --release-bump \
+            --jobs 4
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          # -aarch64 suffix: `build`'s x86_64 job uploads
+          # hummingbird-import-state-${{ matrix.desktop }} in the SAME
+          # workflow run, and actions/upload-artifact v4+ hard-fails a second
+          # upload of a name already used in the run.
+          name: hummingbird-import-state-${{ matrix.desktop }}-aarch64
+          path: hummingbird-imports.json
+          if-no-files-found: warn
+
+      - name: Cache the mock chroot and its dnf downloads
+        uses: actions/cache@v6
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/mock-cache
+          # aarch64 in the key itself, not just a different hashFiles input:
+          # this cache holds a real chroot tree, and an aarch64 root cache
+          # restored into an x86_64 mock run (or vice versa) is not a cache
+          # hit, it is a corrupt buildroot. hashFiles names the aarch64 cfg,
+          # so an edit to hummingbird-ci.cfg alone (no aarch64-specific
+          # change) does not invalidate this leg's cache for nothing.
+          key: hummingbird-mock-aarch64-${{ matrix.desktop }}-${{ hashFiles('mock/hummingbird-ci-aarch64.cfg') }}-${{ steps.tiers.outputs.slug }}-${{ github.run_id }}
+          restore-keys: |
+            hummingbird-mock-aarch64-${{ matrix.desktop }}-${{ hashFiles('mock/hummingbird-ci-aarch64.cfg') }}-${{ steps.tiers.outputs.slug }}-
+            hummingbird-mock-aarch64-${{ matrix.desktop }}-${{ hashFiles('mock/hummingbird-ci-aarch64.cfg') }}-
+
+      - name: Cache upstream source tarballs
+        uses: actions/cache@v6
+        continue-on-error: true
+        with:
+          path: .sources-cache
+          # Deliberately the SAME key as `build`'s (no arch component):
+          # upstream source tarballs are identical bytes regardless of which
+          # architecture rebuilds them, verified by the spec's own checksum
+          # before anything reads this cache (build-chain.sh, "Fetch dist-git
+          # lookaside sources"). Sharing it means this leg's first runs do not
+          # re-download everything the x86_64 runs already cached.
+          key: hummingbird-sources-${{ hashFiles('build-order-hummingbird-desktops.yml') }}-${{ github.run_id }}
+          restore-keys: |
+            hummingbird-sources-${{ hashFiles('build-order-hummingbird-desktops.yml') }}-
+            hummingbird-sources-
+
+      - name: Build tiers
+        id: build
+        env:
+          MOCK_CACHE_DIR: ${{ runner.temp }}/mock-cache
+          RPM_SOURCES_CACHE: ${{ github.workspace }}/.sources-cache
+          BUILD_RESERVE_MINUTES: "55"
+        run: |
+          IFS=',' read -ra TIERS <<< "${{ steps.tiers.outputs.list }}"
+          # --mock-config carries the -aarch64 suffix (hummingbird-ci-aarch64,
+          # config_opts['root'] in mock/hummingbird-ci-aarch64.cfg) and
+          # --image is passed explicitly and MUST be. build-chain.sh's own
+          # BUILD_IMAGE default is the x86_64 tag, and MOCK_RUNNER_IMAGE_AARCH64
+          # above is otherwise decorative -- nothing in the script reads an
+          # env var for this, only --image. build-fprintd-aarch64.yml hit this
+          # exact bug first: without --image, podman pulled the amd64 tag onto
+          # this arm64 runner and every package failed with "Exec format
+          # error" (that workflow's own "Build libfprint + fprintd" step
+          # comment records the failure).
+          ARGS=(--manifest "${MANIFEST}" --mock-config "${{ matrix.target }}-ci-aarch64"
+                --image "${MOCK_RUNNER_IMAGE_AARCH64}"
+                --local-repo "$PWD/local-repo-hummingbird" --jobs "$(nproc)")
+          if [[ "${TRIGGER_FORCE}" == "true" ]]; then ARGS+=(--force); fi
+          rc=0
+          failed_tiers=()
+          skipped_tiers=()
+          started=$(date +%s)
+          deadline=$(( started + (360 - BUILD_RESERVE_MINUTES) * 60 ))
+          for tier in "${TIERS[@]}"; do
+            if (( $(date +%s) >= deadline )); then
+              skipped_tiers+=("${tier}")
+              continue
+            fi
+            echo "::group::tier ${tier}"
+            ./scripts/build-chain.sh "${ARGS[@]}" --tier "${tier}" || {
+              rc=1
+              failed_tiers+=("${tier}")
+            }
+            echo "::endgroup::"
+          done
+          if (( rc )); then
+            echo "::error::tiers with failures: ${failed_tiers[*]}"
+          fi
+          if (( ${#skipped_tiers[@]} )); then
+            echo "::notice::ran out of time with ${#skipped_tiers[@]} tier(s) unattempted: ${skipped_tiers[*]}"
+            echo "TIERS_NOT_ATTEMPTED=${#skipped_tiers[@]}" >> "$GITHUB_ENV"
+          fi
+          exit "${rc}"
+
+      - name: Summarise progress
+        id: progress
+        if: ${{ !cancelled() }}
+        env:
+          SEEDED: ${{ steps.seed.outputs.seeded_rpms }}
+          TIERS: ${{ steps.tiers.outputs.list }}
+          BUILD_RESULT: ${{ steps.build.conclusion }}
+          DESKTOP: ${{ matrix.desktop }}
+        run: |
+          set -euo pipefail
+          now=$(find local-repo-hummingbird -name '*.rpm' ! -name '*.src.rpm' | wc -l)
+          seeded="${SEEDED:-0}"
+          built=$(( now - seeded ))
+          (( built < 0 )) && built=0
+          selected=$(tr ',' '\n' <<< "${TIERS}" | grep -c . || true)
+
+          remaining=$(python3 -c "
+          import yaml
+          m = yaml.safe_load(open('${MANIFEST}'))
+          print(sum(len(t['packages']) for t in m['tiers']))
+          ")
+
+          echo "built_rpms=${built}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### ${DESKTOP} (aarch64): ${built} RPM(s) built this run"
+            echo
+            echo "| | |"
+            echo "|---|---:|"
+            echo "| Tiers selected | ${selected} |"
+            echo "| RPMs seeded from R2 | ${seeded} |"
+            echo "| RPMs after build | ${now} |"
+            echo "| **Built this run** | **${built}** |"
+            echo "| Packages in the full plan | ${remaining} |"
+            echo "| Tiers left unattempted (out of time) | ${TIERS_NOT_ATTEMPTED:-0} |"
+            echo "| \`Build tiers\` result | ${BUILD_RESULT} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${BUILD_RESULT}" == "skipped" ]]; then
+            echo "::error::Build tiers did not run (result: skipped) — an earlier step failed and took the build with it. Nothing will be published."
+          elif (( built == 0 )); then
+            echo "::warning::No new RPMs were produced. Either every selected tier was already satisfied, or the build failed before producing output. Nothing will be published."
+          fi
+
+      - name: Sign RPMs and publish
+        if: >-
+          ${{ !cancelled()
+             && (github.event_name == 'schedule' || inputs.publish)
+             && steps.build.conclusion != 'skipped'
+             && steps.progress.outputs.built_rpms != '0' }}
+        uses: crazy-max/ghaction-import-gpg@v7
+        id: import-gpg
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Publish signed rpm-md repository
+        if: >-
+          ${{ !cancelled()
+             && (github.event_name == 'schedule' || inputs.publish)
+             && steps.build.conclusion != 'skipped'
+             && steps.progress.outputs.built_rpms != '0' }}
+        run: |
+          echo "%_signature gpg" > ~/.rpmmacros
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          find local-repo-hummingbird -name '*.rpm' ! -name '*.src.rpm' -print0 | xargs -0 -r rpmsign --addsign
+          createrepo_c --update local-repo-hummingbird
+          rclone copy local-repo-hummingbird/ "r2:${R2_BUCKET}/${{ steps.target.outputs.r2_path }}/"
+          rclone copy public.gpg "r2:${R2_BUCKET}/${{ steps.target.outputs.r2_path }}/"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: hummingbird-rpms-${{ matrix.desktop }}-aarch64
           path: local-repo-hummingbird
           if-no-files-found: warn
