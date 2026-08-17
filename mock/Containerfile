@@ -52,15 +52,21 @@ RUN dnf install -y \
 # newer openssl-libs, only the newer distribution-gpg-keys the comment above
 # describes.
 #
-# --exclude=mock: with F44's updates repo live, mock 6.8-1.fc44 (a newer
-# build than the F45 base image's mock) requires python(abi) = 3.14, which
-# the F44 repos do not provide (F44 ships python 3.13). Without the exclude,
-# the depsolver offers mock-6.8-1.fc44 as an "upgrade" and the transaction
-# dies with `Problem: package mock-6.8-1.fc44.noarch from updates requires
-# python(abi) = 3.14, but none of the providers can be installed`. The F45
-# mock is already correct for the image; mock-core-configs is all this step
-# is for.
-RUN dnf --releasever=44 install -y --best --exclude=openssl-libs --exclude=fips-provider --exclude=mock mock-core-configs \
+# --exclude=mock + --disablerepo='updates*': with F44's updates repo live,
+# mock 6.8-1.fc44 (a newer build than the F45 base image's mock) requires
+# python(abi) = 3.14, which the F44 repos do not provide (F44 ships python
+# 3.13). The depsolver offers mock-6.8-1.fc44 as an "upgrade" and the
+# transaction dies with `Problem: package mock-6.8-1.fc44.noarch from updates
+# requires python(abi) = 3.14, but none of the providers can be installed`.
+# Worse, updates' mock-core-configs-45.1-1.fc44 then requires mock >= 6.8,
+# and with mock excluded there is no provider at all (`filtered out by
+# exclude filtering`). The F45 mock is already correct for the image;
+# mock-core-configs is all this step is for. Disabling the updates repos
+# removes both broken candidates: the depsolver then settles on the F44 base
+# mock-core-configs (real fedora-44-x86_64.cfg, not a rawhide symlink) or
+# keeps the already-installed F45-era 44.4-2.fc45 — either way the guard
+# below passes.
+RUN dnf --releasever=44 --disablerepo='updates*' install -y --best --exclude=openssl-libs --exclude=fips-provider --exclude=mock mock-core-configs \
     && rm -rf /var/cache/dnf \
     && test ! -L /etc/mock/fedora-44-x86_64.cfg
 
