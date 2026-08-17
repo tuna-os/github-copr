@@ -57,7 +57,10 @@ jobs:
           python-version: '3.14'
 
       - if: steps.drift.outputs.drifted == 'true'
-        run: pip install --disable-pip-version-check PyYAML
+        # zstandard: the Fedora Rawhide reference primary.xml is .zst; the
+        # measure script's decompress() imports it lazily. First scheduled run
+        # (32017727489) died on exactly this import.
+        run: pip install --disable-pip-version-check PyYAML zstandard
 
       - name: Re-measure the gap against live upstream
         if: steps.drift.outputs.drifted == 'true'
