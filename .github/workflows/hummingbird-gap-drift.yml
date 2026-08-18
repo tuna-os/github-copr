@@ -3,7 +3,7 @@ name: Hummingbird Gap Drift
 # Re-measures the desktop gap against the LIVE upstream public-hummingbird
 # repository whenever upstream publishes a new revision.  The build order is
 # generated as (desktop closure) minus (what upstream ships) — see
-# scripts/measure-hummingbird-gap.py — so every package upstream adopts must
+# scripts/measure-target-gap.py --target hummingbird — so every package upstream adopts must
 # drop out of our build set, or the factory keeps rebuilding something the
 # target already maintains.  Upstream adopted 12 of our packages between the
 # 2026-08-06 measurement and 2026-08-17 alone; the drift is continuous.
@@ -65,7 +65,7 @@ jobs:
       - name: Re-measure the gap against live upstream
         if: steps.drift.outputs.drifted == 'true'
         run: |
-          python3 scripts/measure-hummingbird-gap.py \
+          python3 scripts/measure-target-gap.py --target hummingbird \
             --report-json docs/hummingbird-desktop-gap.json \
             --build-order build-order-hummingbird-desktops.yml
 
