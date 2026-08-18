@@ -28,6 +28,13 @@ def test_hummingbird_gap_contract_is_complete() -> None:
     assert measurement["reference_index"].startswith("https://")
 
 
+def test_fedora_xfce_gap_contract_is_complete() -> None:
+    measurement = gap.target_measurement(factory(), "fedora")
+    assert measurement["roots_manifest"] == "manifests/xfce-fedora.yaml"
+    assert "releases/44" in measurement["target_index"]
+    assert "rawhide" in measurement["reference_index"]
+
+
 def test_target_without_gap_contract_is_not_silently_measured() -> None:
     with pytest.raises(SystemExit, match="no gap_measurement contract"):
         gap.target_measurement(factory(), "el10")
