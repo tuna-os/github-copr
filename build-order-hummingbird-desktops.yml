@@ -16,9 +16,9 @@
 # from the buildroot's inherited Rawhide fallback at priority 99
 # (mock/hummingbird-ci.cfg), never from this build order.
 #
-# Measured 2026-08-17T07:01:27.489617+00:00
-# target primary.xml   sha256 3675597d5581cc8ea01813d930d129ea361513848e0fc1f46515f2c146c96cc8
-# reference primary.xml sha256 ee7fda3dae94b61072c21d1af2204d03781856658996a6d26c55bd1cb15bcfda
+# Measured 2026-08-18T09:48:11.831748+00:00
+# target primary.xml   sha256 b6610e8dfaa28eef3c2639de50e1a2cb7e9a3c6d37a3547f6a41cc3bda71e795
+# reference primary.xml sha256 5e324190028d308360ae94926af5c8824840e9bb1f2fe0124ba25903d269f763
 #
 # `distgit:` means the packaging is imported from Fedora Rawhide
 # dist-git at build time (scripts/import-fedora-distgit.py).  A package
