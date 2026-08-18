@@ -46,21 +46,6 @@ targets:
     r2_path: apt/debian/{suite}/{arch}
     repository: apt
     probe_image: docker.io/library/debian:sid
-  # Declared 2026-08-18 during the RFC 011 Phase 0 catalog bootstrap: the
-  # XFWL4 Fedora validation family (build-order-xfce-fedora.yml,
-  # build-xfce-fedora.yml) has been building for fedora-44-x86_64 and
-  # publishing to xfce/44-x86_64 without this contract naming the target —
-  # exactly the gap the catalog's targets-must-be-declared rule exists to
-  # catch, found on the contract itself before the rule could be enforced.
-  fedora:
-    status: experimental
-    format: rpm
-    buildroot: fedora-44
-    architectures: [x86_64]
-    r2_path: xfce/44-x86_64
-    repository: rpm-md
-    probe_image: registry.fedoraproject.org/fedora:44
-
   hummingbird:
     # Hummingbird is a target of a different shape from the rest, and the
     # differences are load-bearing rather than cosmetic.

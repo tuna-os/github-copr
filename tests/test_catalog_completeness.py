@@ -32,6 +32,17 @@ FACTORY = ROOT / "manifests" / "package-factory.yaml"
 # to prevent.
 KNOWN_ORPHAN_RECIPES = {"cpptrace-devel", "gtkgreet", "iio-niri"}
 
+# Targets a family builds for that manifests/package-factory.yaml does not
+# declare. The bootstrap found exactly one: the XFWL4 Fedora validation
+# family (build-order-xfce-fedora.yml) builds fedora-44-x86_64 and publishes
+# to xfce/44-x86_64 — but the factory contract cannot simply gain a `fedora`
+# entry, because scripts/validate-package-factory.py rightly requires every
+# declared target to have a Tideforge gate cell (#139), and this family is
+# native-spec with no Tideforge involvement. Resolving the mismatch —
+# a gate cell + declaration, or retiring the family — is Phase 1 work; until
+# then the gap stays visible here and may only shrink, never grow.
+KNOWN_UNDECLARED_TARGETS = {"fedora"}
+
 
 def _load_builder():
     spec = importlib.util.spec_from_file_location(
@@ -73,12 +84,19 @@ def test_targets_are_declared_in_the_factory_contract() -> None:
     """
     declared = set(yaml.safe_load(
         FACTORY.read_text(encoding="utf-8"))["targets"])
+    seen_undeclared: set[str] = set()
     for p in _catalog()["packages"]:
         rogue = set(p["targets"]) - declared
+        seen_undeclared |= rogue & KNOWN_UNDECLARED_TARGETS
+        rogue -= KNOWN_UNDECLARED_TARGETS
         assert not rogue, (
             f"{p['name']} ({p['family']}) names undeclared target(s) "
             f"{sorted(rogue)}; declare them in manifests/package-factory.yaml "
             f"or fix the order/queue")
+    healed = KNOWN_UNDECLARED_TARGETS - seen_undeclared
+    assert not healed, (
+        f"{sorted(healed)} no longer appear as undeclared targets — remove "
+        f"them from KNOWN_UNDECLARED_TARGETS so the allowlist only shrinks")
 
 
 def test_executed_packages_have_recorded_provenance() -> None:

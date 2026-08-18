@@ -260,9 +260,17 @@ def main() -> None:
         "packages": packages,
     }
     out = os.path.join(ROOT, "manifests/catalog.yaml")
+
+    # The repo's yamllint (extends: default) wants sequence items indented
+    # under their key; yaml.safe_dump left-aligns them, which fails CI on
+    # every list in an 11k-line file.
+    class _IndentDumper(yaml.SafeDumper):
+        def increase_indent(self, flow=False, indentless=False):
+            return super().increase_indent(flow, False)
+
     with open(out, "w", encoding="utf-8") as fh:
-        yaml.safe_dump(doc, fh, sort_keys=False, width=100,
-                       default_flow_style=False, allow_unicode=True)
+        yaml.dump(doc, fh, Dumper=_IndentDumper, sort_keys=False, width=100,
+                  default_flow_style=False, allow_unicode=True)
     print(f"wrote {out}: {len(packages)} entries")
 
 
