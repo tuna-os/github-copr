@@ -24,6 +24,15 @@ targets:
     buildroot: epel-10
     architectures: [x86_64, aarch64]
     r2_path: rpm/el10/{arch}
+    # The SERVED read URL of what this target has published — distinct from
+    # r2_path, which is the bucket WRITE path (the two genuinely differ:
+    # rpm/el10/x86_64 404s on repo.tunaos.org while repo/10/x86_64 serves,
+    # measured 2026-08-18). scripts/factory-status.py reads these to report
+    # built-vs-needed per target; only declare an index that actually
+    # resolves. aarch64 has no served el10 index yet, so it is deliberately
+    # absent — the status page reports what it cannot measure.
+    published_index:
+      x86_64: https://repo.tunaos.org/repo/10/x86_64/
     repository: rpm-md
     probe_image: quay.io/centos/centos:stream10
     # CRB is a signed, target-native CentOS repository.  It supplies selected
@@ -91,6 +100,12 @@ targets:
     # the new `build-aarch64` job, so the established leg's step never has to
     # change to accommodate it.
     r2_path_aarch64: hummingbird/20251124-aarch64
+    # Served read URLs of the published snapshots (see el10's note: r2_path
+    # is the write path; these are what images and scripts/factory-status.py
+    # actually resolve). Both legs verified live 2026-08-18.
+    published_index:
+      x86_64: https://repo.tunaos.org/hummingbird/20251124-x86_64/
+      aarch64: https://repo.tunaos.org/hummingbird/20251124-aarch64/
     repository: rpm-md
     # Buildroot inputs only, never repositories on a produced image. Fedora
     # Rawhide supplies -devel headers and build backends Hummingbird has no
