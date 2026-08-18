@@ -83,8 +83,16 @@ jobs:
       - name: Seed local repo from the published state
         run: |
           mkdir -p "${LOCAL_REPO}"
+          # Exclude the published repodata and regenerate from the actual
+          # files: seeding it and running `createrepo_c --update` later
+          # carries pre-existing entries forward VERBATIM without re-hashing
+          # the artifacts, so one drifted checksum is republished forever —
+          # the gtkgreet-0.8-1.el10 incident (#358, audited in #421). The
+          # sign step only rewrites RPMs newer than build-start-marker, so
+          # nothing else would ever re-hash the seeded ones.
           rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" "${LOCAL_REPO}/" \
-            --progress --transfers 8
+            --exclude "repodata/**" --progress --transfers 8
+          createrepo_c "${LOCAL_REPO}"
 
       - name: Mark build start
         run: touch "${{ github.workspace }}/build-start-marker"
