@@ -81,8 +81,12 @@ sync-to-r2 target:
     #!/usr/bin/env bash
     set -euo pipefail
     rclone --s3-no-check-bucket sync ./output/{{target}}/ "r2:${R2_BUCKET}/repo/{{target}}/"
-    rclone --s3-no-check-bucket sync "r2:${R2_BUCKET}/repo/{{target}}/" ./repodata/{{target}}/
-    createrepo_c --update ./repodata/{{target}}/
+    # Pull the RPMs but NOT the published repodata, then regenerate from the
+    # actual files: `--update` against seeded published metadata carries
+    # pre-existing entries forward without re-hashing, so one drifted
+    # checksum is republished forever (#358, audited in #421).
+    rclone --s3-no-check-bucket sync "r2:${R2_BUCKET}/repo/{{target}}/" ./repodata/{{target}}/ --exclude "repodata/**"
+    createrepo_c ./repodata/{{target}}/
     rclone --s3-no-check-bucket sync ./repodata/{{target}}/ "r2:${R2_BUCKET}/repo/{{target}}/"
 
 # Full build and publish pipeline

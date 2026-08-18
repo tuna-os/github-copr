@@ -116,6 +116,14 @@ jobs:
           mkdir -p .tideforge/arch/${{ matrix.package }}/artifacts
           docker run --rm --volume "$PWD/.tideforge/arch/${{ matrix.package }}:/work" --workdir /work docker.io/library/archlinux:latest bash -lc '
             set -euo pipefail
+            # db and pool must come from ONE mirror. 2026-08-18: fastly
+            # (first in the image mirrorlist) served a core.db still naming
+            # elfutils-0.195-8 while every pool 404d it — Arch had moved to
+            # 0.196-1 on 08-17 and geo db+pool agreed — so pacman resolved
+            # from the stale db and no amount of retrying could succeed.
+            # Pinning geo removes the split-brain: a single mirror keeps its
+            # db and pool in step.
+            echo "Server = https://geo.mirror.pkgbuild.com/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
             pacman -Syu --noconfirm
             pacman -S --needed --noconfirm base-devel sudo
             useradd --create-home builder

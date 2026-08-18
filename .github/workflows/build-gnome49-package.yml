@@ -131,8 +131,12 @@ jobs:
           mkdir -p local-repo
           rclone copy "r2:${R2_BUCKET}/${R2_REPO_PATH}/" local-repo/ \
             --exclude "repodata/**" --progress --transfers 8
-          # Always create valid repodata so mock doesn't fatal on empty repo
-          createrepo_c local-repo || createrepo_c --update local-repo || true
+          # Always create valid repodata so mock doesn't fatal on empty repo.
+          # No fallback chain: the old `|| createrepo_c --update || true`
+          # could mask a real metadata-generation failure that mock then hit
+          # later with a worse error (#421), and with repodata excluded from
+          # the seed there is nothing for --update to update anyway.
+          createrepo_c local-repo
 
       # Marks "now" so the sign and refuse-empty steps below can tell this run's
       # output apart from the already-published, already-signed RPMs just seeded
