@@ -2,7 +2,8 @@ name: Build Hummingbird desktops
 
 # Builds the desktop RPMs Hummingbird does not ship.
 #
-# The package list is not hand-written.  scripts/measure-hummingbird-gap.py
+# The package list is not hand-written. scripts/measure-target-gap.py
+# --target hummingbird
 # resolves each desktop's install roots against Fedora Rawhide, subtracts
 # everything the Hummingbird repository already provides, and emits
 # build-order-hummingbird-desktops.yml.  As measured on 2026-08-06 that is 670

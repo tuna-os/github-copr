@@ -107,6 +107,14 @@ targets:
       x86_64: https://repo.tunaos.org/hummingbird/20251124-x86_64/
       aarch64: https://repo.tunaos.org/hummingbird/20251124-aarch64/
     repository: rpm-md
+    # RFC 011 Phase 1: the generic gap-engine contract. The roots remain
+    # target-specific (the desktop manifest); live repository inputs belong
+    # here alongside the rest of the target contract, not in a workflow.
+    gap_measurement:
+      roots_manifest: manifests/hummingbird-desktops.yaml
+      target_index: https://packages.redhat.com/api/pulp-content/public-hummingbird/$arch/
+      reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/
+      source_reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/source/tree/
     # Buildroot inputs only, never repositories on a produced image. Fedora
     # Rawhide supplies -devel headers and build backends Hummingbird has no
     # build of yet; Fedora 44 supplies the Python namespace at the target's
