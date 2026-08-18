@@ -1439,7 +1439,11 @@ jobs:
             # perl 5.42.3 broke ALL debian DEB cells at toolchain install,
             # before the package under test was even fetched — tunaOS#1833's
             # class, hitting the gate itself).
-            apt-get build-dep -y --no-install-recommends ./
+            # absolute path, not "./": sid and ubuntu apt alike reject the
+            # bare relative form with "Unsupported file ./ given on
+            # commandline" (measured on this PR's first wave, both suites) —
+            # the documented directory form is a full path to the tree.
+            apt-get build-dep -y --no-install-recommends "$PWD"
             dpkg-buildpackage -us -uc -b
             mkdir -p /work/artifacts
             cp ../*.deb /work/artifacts/
@@ -1591,7 +1595,11 @@ jobs:
             # perl 5.42.3 broke ALL debian DEB cells at toolchain install,
             # before the package under test was even fetched — tunaOS#1833's
             # class, hitting the gate itself).
-            apt-get build-dep -y --no-install-recommends ./
+            # absolute path, not "./": sid and ubuntu apt alike reject the
+            # bare relative form with "Unsupported file ./ given on
+            # commandline" (measured on this PR's first wave, both suites) —
+            # the documented directory form is a full path to the tree.
+            apt-get build-dep -y --no-install-recommends "$PWD"
             dpkg-buildpackage -us -uc -b
             mkdir -p /work/artifacts
             cp ../*.deb /work/artifacts/
@@ -1692,7 +1700,11 @@ jobs:
             # perl 5.42.3 broke ALL debian DEB cells at toolchain install,
             # before the package under test was even fetched — tunaOS#1833's
             # class, hitting the gate itself).
-            apt-get build-dep -y --no-install-recommends ./
+            # absolute path, not "./": sid and ubuntu apt alike reject the
+            # bare relative form with "Unsupported file ./ given on
+            # commandline" (measured on this PR's first wave, both suites) —
+            # the documented directory form is a full path to the tree.
+            apt-get build-dep -y --no-install-recommends "$PWD"
             dpkg-buildpackage -us -uc -b
             mkdir -p /work/artifacts
             cp ../*.deb /work/artifacts/
