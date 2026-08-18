@@ -1430,9 +1430,16 @@ jobs:
             set -euo pipefail
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
-            apt-get install -y --no-install-recommends build-essential ca-certificates devscripts equivs
+            apt-get install -y --no-install-recommends build-essential ca-certificates
             cd "$(cat /work/source-dir)"
-            mk-build-deps --install --remove --tool "apt-get -y --no-install-recommends" debian/control
+            # apt resolves Build-Depends from debian/control natively; the
+            # devscripts/equivs mk-build-deps route this replaces dragged in
+            # a perl module chain that goes uninstallable during every sid
+            # perl transition (2026-08-18: libclass-xsaccessor-perl +b6 vs
+            # perl 5.42.3 broke ALL debian DEB cells at toolchain install,
+            # before the package under test was even fetched — tunaOS#1833's
+            # class, hitting the gate itself).
+            apt-get build-dep -y --no-install-recommends ./
             dpkg-buildpackage -us -uc -b
             mkdir -p /work/artifacts
             cp ../*.deb /work/artifacts/
@@ -1575,9 +1582,16 @@ jobs:
             set -euo pipefail
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
-            apt-get install -y --no-install-recommends build-essential ca-certificates devscripts equivs
+            apt-get install -y --no-install-recommends build-essential ca-certificates
             cd "$(cat /work/source-dir)"
-            mk-build-deps --install --remove --tool "apt-get -y --no-install-recommends" debian/control
+            # apt resolves Build-Depends from debian/control natively; the
+            # devscripts/equivs mk-build-deps route this replaces dragged in
+            # a perl module chain that goes uninstallable during every sid
+            # perl transition (2026-08-18: libclass-xsaccessor-perl +b6 vs
+            # perl 5.42.3 broke ALL debian DEB cells at toolchain install,
+            # before the package under test was even fetched — tunaOS#1833's
+            # class, hitting the gate itself).
+            apt-get build-dep -y --no-install-recommends ./
             dpkg-buildpackage -us -uc -b
             mkdir -p /work/artifacts
             cp ../*.deb /work/artifacts/
@@ -1669,9 +1683,16 @@ jobs:
             set -euo pipefail
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
-            apt-get install -y --no-install-recommends build-essential ca-certificates devscripts equivs
+            apt-get install -y --no-install-recommends build-essential ca-certificates
             cd "$(cat /work/source-dir)"
-            mk-build-deps --install --remove --tool "apt-get -y --no-install-recommends" debian/control
+            # apt resolves Build-Depends from debian/control natively; the
+            # devscripts/equivs mk-build-deps route this replaces dragged in
+            # a perl module chain that goes uninstallable during every sid
+            # perl transition (2026-08-18: libclass-xsaccessor-perl +b6 vs
+            # perl 5.42.3 broke ALL debian DEB cells at toolchain install,
+            # before the package under test was even fetched — tunaOS#1833's
+            # class, hitting the gate itself).
+            apt-get build-dep -y --no-install-recommends ./
             dpkg-buildpackage -us -uc -b
             mkdir -p /work/artifacts
             cp ../*.deb /work/artifacts/
