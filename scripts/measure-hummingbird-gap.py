@@ -39,6 +39,8 @@ import xml.etree.ElementTree as ET
 
 import yaml
 
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
 COMMON = "{http://linux.duke.edu/metadata/common}"
 RPM = "{http://linux.duke.edu/metadata/rpm}"
 REPO = "{http://linux.duke.edu/metadata/repo}"
@@ -55,6 +57,37 @@ DEFAULT_SOURCE_REFERENCE = (
 # Capabilities no rebuild can supply because they are the buildroot itself or
 # an unversioned rich-dep alternative that rpm resolves at install time.
 RICH_DEP_PREFIX = "("
+
+
+def target_measurement(factory: dict, target_id: str) -> dict:
+    """Return one target's declared gap-measurement contract.
+
+    The desktop manifest remains the target-specific *roots* declaration. Its
+    repository URLs used to make it a second target contract, though, which is
+    exactly the per-family drift RFC 011 removes. A target enabled through the
+    generic entry point declares those inputs next to its target contract.
+    """
+    target = factory.get("targets", {}).get(target_id)
+    if target is None:
+        raise SystemExit(f"unknown factory target: {target_id}")
+    if target.get("repository") != "rpm-md":
+        raise SystemExit(
+            f"{target_id}: gap measurement currently supports rpm-md only"
+        )
+    measurement = target.get("gap_measurement")
+    if not isinstance(measurement, dict):
+        raise SystemExit(
+            f"{target_id}: no gap_measurement contract; add roots_manifest, "
+            "target_index and reference_index before enabling this target"
+        )
+    required = ("roots_manifest", "target_index", "reference_index")
+    missing = [key for key in required if not measurement.get(key)]
+    if missing:
+        raise SystemExit(
+            f"{target_id}: incomplete gap_measurement contract: missing "
+            f"{', '.join(missing)}"
+        )
+    return measurement
 
 
 def fetch(url: str, cache: pathlib.Path) -> bytes:
@@ -455,11 +488,22 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--catalog", type=pathlib.Path,
-        default=pathlib.Path("manifests/hummingbird-desktops.yaml"),
+        help="Target roots manifest. Defaults to Hummingbird's legacy manifest; "
+             "--target resolves this from package-factory.yaml.",
     )
-    parser.add_argument("--reference", default=DEFAULT_REFERENCE)
     parser.add_argument(
-        "--source-reference", default=DEFAULT_SOURCE_REFERENCE,
+        "--factory", type=pathlib.Path,
+        default=ROOT / "manifests" / "package-factory.yaml",
+        help="Factory target contract used with --target.",
+    )
+    parser.add_argument(
+        "--target",
+        help="Factory target to measure. Its gap_measurement contract supplies "
+             "the roots and repository indexes.",
+    )
+    parser.add_argument("--reference")
+    parser.add_argument(
+        "--source-reference",
         help="Fedora source repository, used for real BuildRequires: ordering. "
              "Pass '' to fall back to runtime-Requires ordering.",
     )
@@ -483,26 +527,51 @@ def main() -> None:
     parser.add_argument("--build-order", type=pathlib.Path)
     args = parser.parse_args()
 
-    catalog = yaml.safe_load(args.catalog.read_text())
+    measurement = None
+    if args.target:
+        factory = yaml.safe_load(args.factory.read_text(encoding="utf-8"))
+        measurement = target_measurement(factory, args.target)
+    catalog_path = args.catalog or pathlib.Path(
+        measurement["roots_manifest"] if measurement
+        else "manifests/hummingbird-desktops.yaml"
+    )
+    reference = args.reference or (
+        measurement.get("reference_index") if measurement else DEFAULT_REFERENCE
+    )
+    source_reference = args.source_reference
+    if source_reference is None:
+        source_reference = (
+            measurement.get("source_reference_index", "") if measurement
+            else DEFAULT_SOURCE_REFERENCE
+        )
+
+    catalog = yaml.safe_load(catalog_path.read_text())
     membership = args.membership or catalog.get("membership") or "selfhost"
-    target = catalog["target"]
+    target = dict(catalog["target"])
+    if measurement:
+        target["baseurl"] = measurement["target_index"]
+        if target["id"] != args.target and not target["id"].startswith(args.target + "-"):
+            raise SystemExit(
+                f"{args.target}: roots manifest identifies {target['id']}; "
+                "use a manifest for this target"
+            )
     baseurl = target["baseurl"].replace("$arch", args.arch).replace(
         "$basearch", args.arch
     )
 
     print(f"target       {target['id']}", file=sys.stderr)
     print(f"target repo  {baseurl}", file=sys.stderr)
-    print(f"reference    {args.reference}", file=sys.stderr)
+    print(f"reference    {reference}", file=sys.stderr)
     print(f"membership   {membership}", file=sys.stderr)
 
     target_blob, target_provenance = primary_of(baseurl, args.cache)
     target_index = parse_primary(target_blob)
-    reference_blob, reference_provenance = primary_of(args.reference, args.cache)
+    reference_blob, reference_provenance = primary_of(reference, args.cache)
     reference_index = parse_primary(reference_blob)
     source_index = None
     source_provenance = None
-    if args.source_reference:
-        source_blob, source_provenance = primary_of(args.source_reference, args.cache)
+    if source_reference:
+        source_blob, source_provenance = primary_of(source_reference, args.cache)
         source_index = parse_source_primary(source_blob)
         print(
             f"source reference has {len(source_index)} SRPMs with BuildRequires",
@@ -660,7 +729,7 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -
         return f"src/hummingbird/{name}", True
 
     lines = [
-        "# GENERATED BY scripts/measure-hummingbird-gap.py — DO NOT HAND-EDIT.",
+        "# GENERATED BY scripts/measure-target-gap.py --target hummingbird — DO NOT HAND-EDIT.",
         "#",
         "# Tiers are ONE topological order over the condensed BuildRequires:",
         "# graph of every desktop at once -- not one order per desktop glued",
@@ -669,7 +738,7 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -
         f"# {target['id']} already ships.  Each tier builds in",
         "# parallel; tiers are sequential.  Regenerate with:",
         "#",
-        "#   scripts/measure-hummingbird-gap.py \\",
+        "#   scripts/measure-target-gap.py --target hummingbird \\",
         "#     --report-json docs/hummingbird-desktop-gap.json \\",
         "#     --build-order build-order-hummingbird-desktops.yml",
         "#",
