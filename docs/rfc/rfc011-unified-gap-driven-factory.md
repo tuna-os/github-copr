@@ -1,6 +1,7 @@
 # RFC 011: One gap-driven factory
 
-**Status:** Draft
+**Status:** Accepted — maintainer sign-off by hanthor, 2026-08-18
+**ADR:** [0001](../adr/0001-rfc011-unified-gap-driven-factory.md)
 **Tracking issue:** [#418](https://github.com/tuna-os/tunaos-packages/issues/418)
 **Owner:** hanthor
 **Interacts with:** `docs/PACKAGE_FACTORY.md` (promotion contract),
