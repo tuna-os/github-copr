@@ -1437,11 +1437,11 @@ jobs:
             # a perl module chain that goes uninstallable during every sid
             # perl transition (2026-08-18: libclass-xsaccessor-perl +b6 vs
             # perl 5.42.3 broke ALL debian DEB cells at toolchain install,
-            # before the package under test was even fetched — tunaOS#1833's
-            # class, hitting the gate itself).
+            # before the package under test was even fetched — tunaOS#1833
+            # class of skew, hitting the gate itself).
             # absolute path, not "./": sid and ubuntu apt alike reject the
             # bare relative form with "Unsupported file ./ given on
-            # commandline" (measured on this PR's first wave, both suites) —
+            # commandline" (measured on this PR first wave, both suites) —
             # the documented directory form is a full path to the tree.
             apt-get build-dep -y --no-install-recommends "$PWD"
             dpkg-buildpackage -us -uc -b
@@ -1593,11 +1593,11 @@ jobs:
             # a perl module chain that goes uninstallable during every sid
             # perl transition (2026-08-18: libclass-xsaccessor-perl +b6 vs
             # perl 5.42.3 broke ALL debian DEB cells at toolchain install,
-            # before the package under test was even fetched — tunaOS#1833's
-            # class, hitting the gate itself).
+            # before the package under test was even fetched — tunaOS#1833
+            # class of skew, hitting the gate itself).
             # absolute path, not "./": sid and ubuntu apt alike reject the
             # bare relative form with "Unsupported file ./ given on
-            # commandline" (measured on this PR's first wave, both suites) —
+            # commandline" (measured on this PR first wave, both suites) —
             # the documented directory form is a full path to the tree.
             apt-get build-dep -y --no-install-recommends "$PWD"
             dpkg-buildpackage -us -uc -b
@@ -1698,11 +1698,11 @@ jobs:
             # a perl module chain that goes uninstallable during every sid
             # perl transition (2026-08-18: libclass-xsaccessor-perl +b6 vs
             # perl 5.42.3 broke ALL debian DEB cells at toolchain install,
-            # before the package under test was even fetched — tunaOS#1833's
-            # class, hitting the gate itself).
+            # before the package under test was even fetched — tunaOS#1833
+            # class of skew, hitting the gate itself).
             # absolute path, not "./": sid and ubuntu apt alike reject the
             # bare relative form with "Unsupported file ./ given on
-            # commandline" (measured on this PR's first wave, both suites) —
+            # commandline" (measured on this PR first wave, both suites) —
             # the documented directory form is a full path to the tree.
             apt-get build-dep -y --no-install-recommends "$PWD"
             dpkg-buildpackage -us -uc -b
