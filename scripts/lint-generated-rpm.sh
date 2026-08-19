@@ -18,9 +18,17 @@ fatal_checks=(
 # future RPM targets without treating Fedora as an EL derivative.
 if command -v zypper >/dev/null 2>&1; then
     zypper --non-interactive install rpmlint >/dev/null
-elif ! dnf -y install rpmlint >/dev/null; then
-    dnf -y install epel-release >/dev/null
-    dnf -y install rpmlint >/dev/null
+else
+    dnf_options=()
+    if dnf repolist --enabled 2>/dev/null | grep -q 'fedora-cisco-openh264'; then
+        dnf_options+=(--disablerepo=fedora-cisco-openh264)
+    fi
+    if dnf -y "${dnf_options[@]}" install rpmlint >/dev/null; then
+        :
+    else
+        dnf -y install epel-release >/dev/null
+        dnf -y install rpmlint >/dev/null
+    fi
 fi
 
 mapfile -t rpms < <(find "$rpm_directory" -name '*.rpm' -type f | sort)
