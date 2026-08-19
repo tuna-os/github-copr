@@ -26,9 +26,10 @@ COMMON_INPUTS = {
 }
 FORMAT_INPUTS = {
     "scripts/assemble-deb-source-tree.py": {"deb"},
-    "scripts/build-chain.sh": {"rpm"},
     "scripts/arch-clean-install.sh": {"pkg.tar.zst"},
 }
+NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py"}
+DISTGIT_INPUTS = {"scripts/import-fedora-distgit.py"}
 DEPENDENCY_TREE_CHANGE = re.compile(r"^manifests/dependency-trees/[^/]+\.ya?ml$")
 TARGET_QUEUE_CHANGE = re.compile(r"^manifests/target-queues/[^/]+\.ya?ml$")
 
@@ -100,6 +101,7 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                         "dependency_tree": "",
                         "target_queue": "",
                         "canary": bool((recipe.get("ci") or {}).get("canary", False)),
+                        "uses_distgit": False,
                     }
                 )
     return cells
@@ -137,6 +139,7 @@ def native_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                 "dependency_tree": str(cell.get("dependency_tree") or ""),
                 "target_queue": str(cell.get("target_queue") or ""),
                 "canary": bool(cell.get("canary", False)),
+                "uses_distgit": "distgit:" in (root / str(cell["manifest"])).read_text(encoding="utf-8"),
             }
         )
         cells.append(cell)
@@ -215,6 +218,12 @@ def select_cells(
             selected.append(cell)
             continue
         if formats and cell["format"] in formats:
+            selected.append(cell)
+            continue
+        if changed & NATIVE_INPUTS and cell["engine"] == "build-chain":
+            selected.append(cell)
+            continue
+        if changed & DISTGIT_INPUTS and cell["engine"] == "build-chain" and cell["uses_distgit"]:
             selected.append(cell)
             continue
         if cell["engine"] == "build-chain" and any(

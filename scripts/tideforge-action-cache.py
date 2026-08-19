@@ -23,7 +23,7 @@ COMMON_RENDERERS = (
 )
 FORMAT_RENDERERS = {
     "deb": ("scripts/assemble-deb-source-tree.py",),
-    "rpm": ("scripts/build-chain.sh",),
+    "rpm": (),
     "pkg.tar.zst": (),
 }
 

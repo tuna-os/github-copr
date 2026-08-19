@@ -105,7 +105,7 @@ def test_target_slice_ignores_unconsumed_dependency_capabilities(tmp_path):
 def test_renderer_inputs_are_partitioned_by_package_format(tmp_path):
     rpm = cache.action_inputs(fixture(tmp_path))
     deb = cache.action_inputs(fixture(tmp_path, target="debian", arch="amd64"))
-    assert "scripts/build-chain.sh" in rpm["renderer_inputs"]
+    assert "scripts/build-chain.sh" not in rpm["renderer_inputs"]
     assert "scripts/assemble-deb-source-tree.py" not in rpm["renderer_inputs"]
     assert "scripts/assemble-deb-source-tree.py" in deb["renderer_inputs"]
     assert "scripts/build-chain.sh" not in deb["renderer_inputs"]

@@ -32,6 +32,7 @@ def repo(tmp_path: pathlib.Path) -> pathlib.Path:
     (tmp_path / "packages" / "demo" / "package.yaml").write_text(
         "name: demo\nci: {canary: true}\ndependencies: {build: {capabilities: [cmake]}}\ntargets: [el10, debian]\n"
     )
+    (tmp_path / "order.yml").write_text("tiers: []\n")
     return tmp_path
 
 
@@ -48,6 +49,12 @@ def test_debian_renderer_change_does_not_select_rpm_or_native(tmp_path):
     root = repo(tmp_path)
     selected = planner.select_cells(planner.all_cells(root), ["scripts/assemble-deb-source-tree.py"])
     assert {cell["format"] for cell in selected} == {"deb"}
+
+
+def test_native_build_chain_change_does_not_select_tideforge_rpm(tmp_path):
+    root = repo(tmp_path)
+    selected = planner.select_cells(planner.all_cells(root), ["scripts/build-chain.sh"])
+    assert [cell["engine"] for cell in selected] == ["build-chain"]
 
 
 def test_native_source_change_selects_only_its_queue(tmp_path):
