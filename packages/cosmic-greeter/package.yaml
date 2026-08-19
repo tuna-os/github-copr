@@ -26,7 +26,10 @@ dependencies:
       el10: [cargo, lld, wayland-devel, clang-devel, libxkbcommon-devel, just, libudev-devel, libinput-devel]
   runtime:
     targets:
-      el10: [dbus, greetd, greetd-selinux, fprintd-pam, pam, cosmic-comp >= 1.4.0, cosmic-icon-theme >= 1.4.0]
+      # CentOS Stream 10 has no greetd-selinux provider. Requiring a
+      # nonexistent subpackage made the first clean-install gate fail before
+      # the greeter itself could be tested (#169).
+      el10: [dbus, greetd, fprintd-pam, pam, cosmic-comp >= 1.4.0, cosmic-icon-theme >= 1.4.0]
 files:
   common: [usr/bin/cosmic-greeter, usr/bin/cosmic-greeter-daemon, usr/bin/cosmic-greeter-start, usr/share/dbus-1/system.d/com.system76.CosmicGreeter.conf, usr/lib/sysusers.d/cosmic-greeter.conf, usr/lib/tmpfiles.d/cosmic-greeter.conf, etc/greetd/cosmic-greeter.toml, usr/lib/systemd/system/cosmic-greeter.service, usr/lib/systemd/system/cosmic-greeter-daemon.service, etc/pam.d/cosmic-greeter]
 install:
@@ -41,4 +44,6 @@ install:
     - install -Dm0644 debian/cosmic-greeter.service {destdir}/usr/lib/systemd/system/cosmic-greeter.service
     - install -Dm0644 debian/cosmic-greeter-daemon.service {destdir}/usr/lib/systemd/system/cosmic-greeter-daemon.service
     - install -Dm0644 debian/greetd.pam {destdir}/etc/pam.d/cosmic-greeter
+verify:
+  smoke: test -x /usr/bin/cosmic-greeter && test -x /usr/bin/cosmic-greeter-daemon && test -f /usr/lib/systemd/system/cosmic-greeter.service && test -f /etc/greetd/cosmic-greeter.toml
 targets: [el10]

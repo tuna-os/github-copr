@@ -41,7 +41,11 @@ dependencies:
       el10: [cargo, lld, just, patch, systemd-devel, libudev-devel, libinput-devel, wayland-devel, clang-devel, libxkbcommon-devel, pulseaudio-utils, pipewire-devel, openssl-devel]
   runtime:
     targets:
-      el10: [acpid, adw-gtk3-theme, sound-theme-freedesktop]
+      # The daemon does not load GTK themes; adw-gtk3-theme was inherited from
+      # the full desktop closure and has no EL10 provider. Keep the actual
+      # daemon runtime dependencies explicit so this package can be installed
+      # and asserted independently.
+      el10: [acpid, sound-theme-freedesktop]
 files:
   common:
     - usr/bin/cosmic-settings-daemon
@@ -49,4 +53,6 @@ files:
     - usr/share/polkit-1/rules.d/cosmic-settings-daemon.rules
 install:
   commands: ["make install DESTDIR={destdir} prefix=/usr"]
+verify:
+  smoke: test -x /usr/bin/cosmic-settings-daemon && test -f /usr/share/polkit-1/rules.d/cosmic-settings-daemon.rules
 targets: [el10]

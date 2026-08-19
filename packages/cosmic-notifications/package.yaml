@@ -38,4 +38,6 @@ files:
   common: [usr/bin/cosmic-notifications]
 install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
+verify:
+  smoke: test -x /usr/bin/cosmic-notifications
 targets: [el10]
