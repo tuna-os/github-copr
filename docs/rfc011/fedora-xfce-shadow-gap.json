@@ -1,0 +1,67 @@
+{
+  "build_order": {
+    "buildrequires_cycles": [],
+    "tiers": []
+  },
+  "desktops": {
+    "xfce": {
+      "binary_packages_to_build": [],
+      "buildrequires_cycles": [],
+      "closure_binary_packages": 0,
+      "roots": [
+        "xfconf",
+        "libxfce4ui",
+        "xfwl4"
+      ],
+      "roots_absent_from_reference": [
+        "xfwl4"
+      ],
+      "roots_already_in_target": [
+        "libxfce4ui",
+        "xfconf"
+      ],
+      "roots_missing_from_target": [
+        "xfwl4"
+      ],
+      "source_packages_to_build": [],
+      "tiers": [],
+      "unresolved_capabilities": {}
+    }
+  },
+  "measured_at": "2026-08-18T23:45:01.902212+00:00",
+  "membership": "runtime",
+  "reference_index": {
+    "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/",
+    "primary_bytes": 16111521,
+    "primary_href": "repodata/5e324190028d308360ae94926af5c8824840e9bb1f2fe0124ba25903d269f763-primary.xml.zst",
+    "primary_sha256": "5e324190028d308360ae94926af5c8824840e9bb1f2fe0124ba25903d269f763",
+    "primary_sha256_declared": "5e324190028d308360ae94926af5c8824840e9bb1f2fe0124ba25903d269f763",
+    "revision": "1787032528"
+  },
+  "source_reference_index": {
+    "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/source/tree/",
+    "primary_bytes": 6067902,
+    "primary_href": "repodata/d023d59d47ff548e0e66e967825f91c11c3cece6f2fb79cca76741a543b6c0a2-primary.xml.zst",
+    "primary_sha256": "d023d59d47ff548e0e66e967825f91c11c3cece6f2fb79cca76741a543b6c0a2",
+    "primary_sha256_declared": "d023d59d47ff548e0e66e967825f91c11c3cece6f2fb79cca76741a543b6c0a2",
+    "revision": "1787032432"
+  },
+  "target": {
+    "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Everything/x86_64/os/",
+    "dist": ".fc44",
+    "id": "fedora-44-x86_64",
+    "r2_path": "xfce/44-x86_64",
+    "reference": "fedora-rawhide",
+    "resolved_baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Everything/x86_64/os/"
+  },
+  "target_binary_packages": 67424,
+  "target_index": {
+    "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Everything/x86_64/os/",
+    "primary_bytes": 15678154,
+    "primary_href": "repodata/c48e47563bbf65b996c95caf4a608223f982c314cab637e6ab87dd1df67b9d26-primary.xml.zst",
+    "primary_sha256": "c48e47563bbf65b996c95caf4a608223f982c314cab637e6ab87dd1df67b9d26",
+    "primary_sha256_declared": "c48e47563bbf65b996c95caf4a608223f982c314cab637e6ab87dd1df67b9d26",
+    "revision": "1776864872"
+  },
+  "tier_ordering": "buildrequires"
+}

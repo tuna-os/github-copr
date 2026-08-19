@@ -1,0 +1,20 @@
+# RFC 011 Phase 1 input for the Fedora 44 XFWL4 build order.
+#
+# Shadow mode only: build-order-xfce-fedora.yml remains the executed,
+# evidence-backed three-package order until a measured run has reproduced it
+# exactly or its differences are explained in the conversion PR.
+schema: 1
+membership: runtime
+target:
+  id: fedora-44-x86_64
+  baseurl: https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Everything/x86_64/os/
+  r2_path: xfce/44-x86_64
+  dist: .fc44
+  reference: fedora-rawhide
+
+desktops:
+  xfce:
+    release: "4.21"
+    sources: [{local: src/xfce-wayland}]
+    required_packages: [xfconf, libxfce4ui, xfwl4]
+    install_packages: [xfconf, libxfce4ui, xfwl4]

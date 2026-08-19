@@ -34,7 +34,7 @@ def gate_targets(workflows: list[Path]) -> set[str]:
         # enter the set as a target literally called "matrix.target".
         for match in re.finditer(r"--target\s+\"?([a-z0-9-]+)\b", text):
             exercised.add(match.group(1))
-        for match in re.finditer(r"^\s*target:\s*([a-z0-9-]+)\s*$", text, re.MULTILINE):
+        for match in re.finditer(r"^\s*(?:target|FACTORY_TARGET):\s*([a-z0-9-]+)\s*$", text, re.MULTILINE):
             exercised.add(match.group(1))
         # A matrix axis exercises its targets just as much as an include list
         # does -- `target: [hummingbird]` or a block list under `target:`. Only
@@ -95,7 +95,7 @@ def main() -> None:
         seen_upstreams.add(upstream_id)
 
     targets = data.get("targets", {})
-    required = {"el10", "ubuntu", "debian", "hummingbird", "opensuse-tumbleweed", "arch"}
+    required = {"el10", "ubuntu", "debian", "hummingbird", "fedora", "opensuse-tumbleweed", "arch"}
     if set(targets) != required:
         fail(f"targets must be exactly {sorted(required)}")
     for target_id, target in targets.items():
@@ -110,7 +110,7 @@ def main() -> None:
         # else's distribution rather than a TunaOS repository, and its path is
         # already published with the desktop packages in it. Moving it under
         # rpm/ to satisfy this check would orphan them.
-        if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/", "hummingbird/")):
+        if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/", "hummingbird/", "xfce/")):
             fail(f"{target_id}: r2_path has an unsupported namespace")
         if not all(arch in {"x86_64", "aarch64", "amd64", "arm64"} for arch in target["architectures"]):
             fail(f"{target_id}: unsupported architecture")
@@ -133,6 +133,7 @@ def main() -> None:
             # would make hummingbird look uncovered when it is the busiest
             # target in the repository.
             workflow_directory / "build-hummingbird-desktops.yml",
+            workflow_directory / "build-xfce-fedora.yml",
         ]
     check_gate_coverage(set(targets), workflows)
 

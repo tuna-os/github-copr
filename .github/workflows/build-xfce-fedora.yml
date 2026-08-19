@@ -39,6 +39,10 @@ on:
   workflow_dispatch:
 
 env:
+  # Read by validate-package-factory.py. Keeping the target identity beside
+  # its real build prevents this native-spec gate from becoming invisible to
+  # the factory contract merely because it is not a Tideforge matrix cell.
+  FACTORY_TARGET: fedora
   R2_BUCKET: bluefin
   # Separate from the EL10 tree (xfce/10-stream-x86_64) — different dist tag,
   # different ABI, must not be mixed.
