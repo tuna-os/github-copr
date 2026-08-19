@@ -72,7 +72,6 @@ def test_no_diff_information_builds_everything(workflow):
         "mock/centos-stream-10-local.cfg",
         ".github/workflows/build-tideforge-supported.yml",
         ".github/actions/tideforge-source-cache/action.yml",
-        "manifests/package-factory.yaml",
         "build-order-xfce.yml",
     ],
 )
@@ -88,6 +87,22 @@ def test_an_unrelated_change_builds_nothing(workflow):
     result = plan(workflow, ["README.md", "docs/whatever.md"], root=ROOT)
     assert cells(result) == 0
     assert running(result) == set()
+
+def test_target_local_factory_and_measurement_changes_do_not_build_tideforge(workflow):
+    """Factory validation and gap measurement are not Tideforge renderer inputs."""
+    changed = [
+        "manifests/package-factory.yaml",
+        "scripts/measure-target-gap.py",
+        "scripts/measure-hummingbird-gap.py",
+        "scripts/validate-package-factory.py",
+    ]
+    assert not any(is_shared_input(path) for path in changed)
+    result = plan(workflow, changed, root=ROOT)
+    assert result["_full"] is False
+    assert cells(result) == 0
+    assert running(result) == set()
+
+
 
 
 def test_a_missing_recipe_directory_cannot_be_proven(tmp_path):

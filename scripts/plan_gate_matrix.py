@@ -48,11 +48,14 @@ import yaml
 # gate, so the plan degrades to "build everything".  Deliberately broad: a
 # false full-build costs runner minutes, a false skip costs a regression.
 SHARED_INPUT_PATTERNS = (
-    re.compile(r"^scripts/"),
+    # Only the renderer/planner entry points, not every helper under scripts/.
+    # Measurement and factory-validation utilities do not influence a
+    # Tideforge package build and must not fan a target-local change out to
+    # every RPM and DEB cell.
+    re.compile(r"^scripts/(?:tideforge\.py|assemble-deb-source-tree\.py|build-chain\.sh|plan_gate_matrix\.py)$"),
     re.compile(r"^mock/"),
     re.compile(r"^\.github/workflows/build-tideforge-"),
     re.compile(r"^\.github/actions/"),
-    re.compile(r"^manifests/package-factory\.yaml$"),
     re.compile(r"^build-order-"),
 )
 
