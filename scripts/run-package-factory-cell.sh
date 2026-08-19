@@ -18,6 +18,9 @@ if [[ $engine == build-chain ]]; then
     args=(--manifest "${MANIFEST:?}" --backend podman --image "$image"
           --mock-config "${MOCK_CONFIG:?}" --local-repo "$out/artifacts"
           --with-checks)
+    if [[ -n ${TIERS:-} ]]; then
+      args+=(--stream --tiers "$TIERS")
+    fi
     ./scripts/build-chain.sh "${args[@]}"
     exit 0
 fi

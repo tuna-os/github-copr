@@ -115,6 +115,16 @@ def test_shared_executor_pr_uses_contract_canaries(tmp_path):
     } == coordinates
 
 
+def test_native_canary_scope_has_a_distinct_identity(tmp_path):
+    root = repo(tmp_path)
+    registry = root / "manifests" / "package-builds.yaml"
+    registry.write_text(registry.read_text().replace("source_paths: [src/gnome/]", "source_paths: [src/gnome/], canary_tiers: base"))
+    selected = planner.canary_cells(planner.all_cells(root))
+    native = next(cell for cell in selected if cell["engine"] == "build-chain")
+    assert native["id"] == "gnome-canary"
+    assert native["tiers"] == "base"
+
+
 def test_shared_executor_dominates_a_simultaneous_target_contract_change(tmp_path):
     cells = planner.all_cells(repo(tmp_path))
     selected = planner.select_cells(

@@ -81,6 +81,8 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                         "mock_config": "",
                         "family": "tideforge",
                         "r2_path": str(target.get("r2_path") or ""),
+                        "tiers": "",
+                        "canary_tiers": "",
                     }
                 )
     return cells
@@ -106,6 +108,8 @@ def native_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                 "recipe": "",
                 "family": str(cell.get("family") or "native"),
                 "r2_path": str(cell.get("r2_path") or ""),
+                "tiers": str(cell.get("tiers") or ""),
+                "canary_tiers": str(cell.get("canary_tiers") or ""),
             }
         )
         cells.append(cell)
@@ -181,7 +185,11 @@ def canary_cells(cells: list[dict[str, Any]]) -> list[dict[str, Any]]:
             str(cell["format"]),
             str(cell["architecture"]),
         )
-        selected.setdefault(coordinate, cell)
+        candidate = dict(cell)
+        if candidate["engine"] == "build-chain" and candidate.get("canary_tiers"):
+            candidate["id"] += "-canary"
+            candidate["tiers"] = candidate["canary_tiers"]
+        selected.setdefault(coordinate, candidate)
     return sorted(selected.values(), key=lambda cell: cell["id"])
 
 
