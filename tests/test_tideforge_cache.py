@@ -87,8 +87,11 @@ def test_fetch_miss_downloads_and_populates_cache(tmp_path, monkeypatch):
     cache = tmp_path / "cache"
 
     class Response:
-        def read(self):
-            return PAYLOAD
+        payload = PAYLOAD
+
+        def read(self, *_args):
+            payload, self.payload = self.payload, b""
+            return payload
 
     monkeypatch.setattr(fetch_sources, "urlopen", lambda request: Response())
     destination = tmp_path / "SOURCES"
