@@ -141,6 +141,9 @@ def select_cells(
     changed = {path.strip() for path in changed_files if path.strip()}
     if not changed:
         return []
+    formats = affected_formats(changed)
+    if formats is None:
+        return canary_cells(cells) if canary_common else cells
     if "manifests/package-factory.yaml" in changed:
         if changed_targets is None:
             return cells
@@ -149,9 +152,6 @@ def select_cells(
         if changed_native_ids is None:
             return cells
         return [cell for cell in cells if cell["id"] in changed_native_ids]
-    formats = affected_formats(changed)
-    if formats is None:
-        return canary_cells(cells) if canary_common else cells
     changed_packages = {match.group(1) for path in changed if (match := RECIPE_CHANGE.match(path))}
     selected = []
     for cell in cells:

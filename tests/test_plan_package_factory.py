@@ -113,3 +113,14 @@ def test_shared_executor_pr_uses_contract_canaries(tmp_path):
         (cell["engine"], cell["target"], cell["format"], cell["architecture"])
         for cell in selected
     } == coordinates
+
+
+def test_shared_executor_dominates_a_simultaneous_target_contract_change(tmp_path):
+    cells = planner.all_cells(repo(tmp_path))
+    selected = planner.select_cells(
+        cells,
+        ["scripts/run-package-factory-cell.sh", "manifests/package-factory.yaml"],
+        changed_targets={"debian"},
+        canary_common=True,
+    )
+    assert {cell["target"] for cell in selected} == {"el10", "debian"}
