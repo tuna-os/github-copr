@@ -26,8 +26,10 @@ hummingbird's actually executes as a query.
 package identity; a generalized, target-parameterized gap engine
 (`scripts/measure-target-gap.py`, the proven hummingbird machinery) computes
 per-target build orders against live repo indexes with revision-gated drift
-PRs; one reusable orchestrator per package format replaces the hand-copied
-families. Packaging payloads stay heterogeneous — Tideforge recipes where
+PRs; one unified format-agnostic factory (`package-factory.yml` planner +
+`package-factory-cell.yml` boundary, landed in #430) replaces the hand-copied
+families — amending the originally-proposed per-format orchestrators.
+Packaging payloads stay heterogeneous — Tideforge recipes where
 they are proven, native EL10 specs where the TIDEFORGE-READINESS verdict
 says there is nothing to switch.
 

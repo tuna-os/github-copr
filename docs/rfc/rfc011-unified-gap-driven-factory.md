@@ -1,6 +1,10 @@
 # RFC 011: One gap-driven factory
 
 **Status:** Accepted — maintainer sign-off by hanthor, 2026-08-18
+**Amended:** 2026-08-19 (#430) — Design §3 and Phase 2 updated to the unified
+format-agnostic factory that #430 actually landed (one `package-factory.yml`
+planner + `package-factory-cell.yml` boundary), replacing the per-format
+reusable workflows originally proposed.
 **ADR:** [0001](../adr/0001-rfc011-unified-gap-driven-factory.md)
 **Tracking issue:** [#418](https://github.com/tuna-os/tunaos-packages/issues/418)
 **Owner:** hanthor
@@ -63,7 +67,9 @@ been composed:
 - **The catalog shape.** `manifests/hummingbird-desktops.yaml` already
   declares intent separately from execution.
 - **The target contract.** `manifests/package-factory.yaml` is the
-  authoritative list of targets, formats, and R2 paths.
+  authoritative list of targets, formats, and R2 paths; `manifests/package-builds.yaml`
+  records the legacy native-spec queues as data so they stay buildable
+  without owning a workflow (added by #430).
 - **The recipe layer.** Tideforge recipes cover 40 packages with proven
   source and build parity (per `docs/TIDEFORGE-READINESS.md`); native EL10
   specs cover the hard GNOME bootstrap that a generic recipe format cannot
@@ -145,16 +151,31 @@ measure-target-gap.py --catalog manifests/catalog.yaml --target el10
   obligation*: Phase 1 is complete for a family only when regeneration
   reproduces the curated order, with every difference explained in the PR.
 
-### 3. The orchestrator (one reusable workflow per package format)
+### 3. The orchestrator — one unified format-agnostic factory *(amended 2026-08-19)*
 
-`build-rpm-distributed.yml` (reusable, `workflow_call`) parameterized by
-`(target, build-order file, mock config)`; likewise `build-deb.yml`,
-`build-arch.yml`. The six hand-copied distributed families become thin
-callers. Shared once, not five times: tier scheduling, the already-built skip
-check (#410's cost problem gets one fix), `createrepo_c --update` handling
-(#358's class dies structurally), staged-install gating, publish gates,
-R2 paths from `manifests/package-factory.yaml`, and the step-summary
-reporting.
+The original design proposed one reusable workflow per package format
+(`build-rpm-distributed.yml`, `build-deb.yml`, `build-arch.yml`). #430
+implemented a *more* unified shape, and this RFC adopts it:
+
+- `package-factory.yml` is the single planner and required gate. It computes
+  the affected coordinates `(package | native queue, target, architecture,
+  release track, engine)` and emits only those cells.
+- `package-factory-cell.yml` is the single reusable build boundary. Every
+  coordinate derives an exact content-addressed action key, restores only an
+  exact cached result, verifies every restored byte, and skips compilation
+  only after the restored result passes the same package checks as a fresh
+  build.
+- `manifests/package-factory.yaml` remains the target contract (formats,
+  R2 paths); `manifests/package-builds.yaml` records the legacy native-spec
+  queues as data so they stay buildable without owning a workflow.
+
+The per-family workflows (`build-gnome*`, `build-xfce*`,
+`build-hummingbird*`, `build-tideforge-*`, `build-fprintd-*`) are removed.
+The shared mechanics this RFC wanted unified — tier scheduling, the
+already-built skip check (#410), `createrepo_c --update` handling (#358's
+class), staged-install gating, publish gates, and R2 paths from
+`manifests/package-factory.yaml` — now live once in the factory, not once
+per format.
 
 ### 4. What does NOT change
 
@@ -193,16 +214,14 @@ already works this way); then `build-order-xfce-fedora.yml` (smallest), then
 the conversion PR. The curated file is then deleted and the generated one
 committed with its provenance header.*
 
-**Phase 2 — orchestrator consolidation.**
-Extract the reusable `build-rpm-distributed.yml` from the *best* current copy
-(the xfce-package one, which carries the #358 fix). Convert callers
-lowest-risk-first: xfce-fedora → xfce → hummingbird → gnome49 → gnome50 →
-gnome51 → `build.yml`. Each conversion PR must show an unchanged (or
-improved) run on the same inputs before the old workflow file is deleted.
-DEB and Arch orchestrators follow the same pattern from the tideforge
-workflows.
-*Gate per family: one green run of the converted workflow producing the same
-artifact set as the last green run of the old one.*
+**Phase 2 — orchestrator consolidation.** ✅ **Landed via #430 (2026-08-19),
+amending the per-format design above to one format-agnostic factory.** The
+hand-copied families were removed in one merge and replaced by
+`package-factory.yml` + `package-factory-cell.yml` driven by
+`package-factory.yaml` + `package-builds.yaml`, with content-addressed exact
+reuse and SLSA attestation. Required contexts remained as zero-build aliases
+of the factory gate during the ruleset transition.
+*Gate satisfied: the merge queue ran the full package-factory matrix green.*
 
 **Phase 3 — runtime gates, then (separately) promotion.**
 Implement the 12 declared gate types from `docs/TIDEFORGE-READINESS.md`
@@ -214,9 +233,13 @@ factory-complete.
 each row's removal cites the run that covered it. Automated promotion remains
 out of scope and requires its own RFC with the incident safeguards.*
 
-**Cleanup.** When the last family converts, the factory is: one catalog,
-one gap engine + N drift detectors, one orchestrator per format,
-heterogeneous payloads. The per-family workflow count drops from ~20 to ~6.
+**Cleanup.** ✅ Achieved by #430. The factory is one catalog, one gap engine +
+N drift detectors, and one format-agnostic factory (`package-factory.yml` +
+`package-factory-cell.yml`) over heterogeneous payloads. The per-family
+workflow count dropped from ~20 to ~2 factory workflows plus the shared
+auxiliary workflows (`lint.yml`, `validate-package-factory.yml`, the legacy
+`build.yml`/`build-distributed.yml` dispatch, `publish-tideforge-debs.yml`,
+`r2-inventory.yml`, and the non-factory scheduled jobs).
 
 ## Risks
 
