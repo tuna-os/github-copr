@@ -1,0 +1,23 @@
+name: Tideforge action cache
+description: Restore/save a content-addressed Tideforge build output
+inputs:
+  action-key:
+    required: true
+  path:
+    required: true
+outputs:
+  cache-hit:
+    value: ${{ steps.restore.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - id: restore
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ inputs.path }}
+        key: tideforge-action-v1-${{ inputs.action-key }}
+    - if: steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ inputs.path }}
+        key: tideforge-action-v1-${{ inputs.action-key }}
