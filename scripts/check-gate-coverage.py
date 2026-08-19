@@ -31,7 +31,7 @@ GATE_WORKFLOWS = (
     ".github/workflows/build-tideforge-supported.yml",
     ".github/workflows/build-tideforge-arch.yml",
 )
-MANIFEST = "manifests/package-factory.yaml"
+MANIFEST = "manifests/package-factory.yaml"\nUNIFIED_WORKFLOW = ".github/workflows/package-factory.yml"\nUNIFIED_PLANNER = "scripts/plan-package-factory.py"
 
 Pair = tuple[str, str]
 
