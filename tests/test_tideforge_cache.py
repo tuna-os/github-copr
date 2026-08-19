@@ -146,7 +146,7 @@ def test_verify_miss_downloads_and_populates_cache(tmp_path, monkeypatch):
         def __exit__(self, *args):
             return False
 
-    monkeypatch.setattr(verify_source, "urlopen", lambda request: Response())
+    monkeypatch.setattr(verify_source, "urlopen", lambda request, **_kwargs: Response())
     monkeypatch.setattr("sys.argv", ["verify", str(recipe_path), "--cache-dir", str(cache)])
     verify_source.main()
     assert tideforge_cache.lookup(cache, DIGEST) == PAYLOAD
