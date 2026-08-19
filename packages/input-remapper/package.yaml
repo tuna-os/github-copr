@@ -74,7 +74,13 @@ dependencies:
     common: [gettext]
     targets:
       el10: [python3-devel, python3-setuptools]
-      arch: [python]
+      # python-pip, not just python: install/module.py runs
+      # `python3 -m pip install . --target <site-packages> --no-deps` for the
+      # python module component, and Arch keeps pip out of the `python`
+      # package, so package() died with "No module named pip" (run
+      # 31514766907).  EL10 gets pip transitively from its buildroot, which is
+      # why only arch needs it named here.
+      arch: [python, python-pip]
   runtime:
     targets:
       # python3-evdev is the Tideforge package built alongside this one.  All
