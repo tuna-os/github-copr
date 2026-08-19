@@ -31,6 +31,7 @@ def fixture(tmp_path: pathlib.Path, **overrides) -> argparse.Namespace:
         "build-chain.sh",
         "run-package-factory-cell.sh",
         "fetch-tideforge-sources.py",
+        "import-fedora-distgit.py",
     ):
         (scripts / name).write_text(f"# {name}\n", encoding="utf-8")
     factory = tmp_path / "factory.yaml"
@@ -182,6 +183,25 @@ def test_native_key_tracks_only_declared_source_trees(tmp_path):
     before = cache.action_key(cache.native_action_inputs(args))
     (source / "demo.spec").write_text("Version: 2\n")
     assert cache.action_key(cache.native_action_inputs(args)) != before
+
+
+def test_native_distgit_importer_is_hashed_only_when_declared(tmp_path):
+    base = fixture(tmp_path)
+    manifest = tmp_path / "order.yml"
+    source = tmp_path / "src"
+    source.mkdir()
+    args = argparse.Namespace(
+        root=base.root, factory=base.factory, identity="native",
+        manifest=str(manifest), input=[str(source)], target="fedora",
+        arch="x86_64", image=base.image, source_date_epoch=base.source_date_epoch,
+        dependency_tree="", target_queue="", track="stable", series="",
+    )
+    manifest.write_text("tiers: []\n")
+    plain = cache.native_action_inputs(args)
+    assert "scripts/import-fedora-distgit.py" not in plain["renderer_inputs"]
+    manifest.write_text("tiers: [{packages: [{path: src/x, distgit: x}]}]\n")
+    imported = cache.native_action_inputs(args)
+    assert "scripts/import-fedora-distgit.py" in imported["renderer_inputs"]
 
 
 def test_native_release_contract_hashes_only_selected_track_and_target(tmp_path):

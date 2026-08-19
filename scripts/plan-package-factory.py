@@ -99,6 +99,7 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                         "series": str(recipe.get("version") or ""),
                         "dependency_tree": "",
                         "target_queue": "",
+                        "canary": bool((recipe.get("ci") or {}).get("canary", False)),
                     }
                 )
     return cells
@@ -135,6 +136,7 @@ def native_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                 "series": str(cell.get("series") or ""),
                 "dependency_tree": str(cell.get("dependency_tree") or ""),
                 "target_queue": str(cell.get("target_queue") or ""),
+                "canary": bool(cell.get("canary", False)),
             }
         )
         cells.append(cell)
@@ -237,7 +239,9 @@ def canary_cells(cells: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if candidate["engine"] == "build-chain" and candidate.get("canary_tiers"):
             candidate["id"] += "-canary"
             candidate["tiers"] = candidate["canary_tiers"]
-        selected.setdefault(coordinate, candidate)
+        current = selected.get(coordinate)
+        if current is None or (candidate.get("canary") and not current.get("canary")):
+            selected[coordinate] = candidate
     return sorted(selected.values(), key=lambda cell: cell["id"])
 
 

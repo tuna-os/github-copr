@@ -30,7 +30,7 @@ def repo(tmp_path: pathlib.Path) -> pathlib.Path:
         "- {id: gnome, target: el10, architecture: x86_64, image: image, manifest: order.yml, mock_config: mock, source_paths: [src/gnome/]}\n"
     )
     (tmp_path / "packages" / "demo" / "package.yaml").write_text(
-        "name: demo\ndependencies: {build: {capabilities: [cmake]}}\ntargets: [el10, debian]\n"
+        "name: demo\nci: {canary: true}\ndependencies: {build: {capabilities: [cmake]}}\ntargets: [el10, debian]\n"
     )
     return tmp_path
 
@@ -140,6 +140,16 @@ def test_shared_executor_pr_uses_contract_canaries(tmp_path):
         (cell["engine"], cell["target"], cell["format"], cell["architecture"])
         for cell in selected
     } == coordinates
+
+
+def test_explicit_canary_wins_over_alphabetical_order(tmp_path):
+    root = repo(tmp_path)
+    other = root / "packages" / "aaa" / "package.yaml"
+    other.parent.mkdir()
+    other.write_text("name: aaa\ntargets: [el10, debian]\n")
+    selected = planner.canary_cells(planner.all_cells(root))
+    tideforge = [cell for cell in selected if cell["engine"] == "tideforge"]
+    assert {cell["package"] for cell in tideforge} == {"demo"}
 
 
 def test_native_canary_scope_has_a_distinct_identity(tmp_path):

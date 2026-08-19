@@ -212,6 +212,15 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
                 "digest": digest_json({"schema": data.get("schema"), "queue": queues[args.target]}),
             }
         )
+    native_renderers = ["scripts/build-chain.sh", "scripts/run-package-factory-cell.sh"]
+    if "distgit:" in pathlib.Path(args.manifest).read_text(encoding="utf-8"):
+        native_renderers.append("scripts/import-fedora-distgit.py")
+    renderer_inputs = {}
+    for relative in native_renderers:
+        path = root / relative
+        if not path.is_file():
+            raise SystemExit(f"renderer input does not exist: {relative}")
+        renderer_inputs[relative] = digest_file(path)
     return {
         "schema": SCHEMA,
         "identity": args.identity,
@@ -220,7 +229,7 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
         "release_track": {"name": args.track, "series": args.series},
         "target": {"id": args.target, "architecture": args.arch, "inputs": selected},
         "build_image": require_image_digest(args.image),
-        "renderer_inputs": {"scripts/build-chain.sh": digest_file(root / "scripts/build-chain.sh")},
+        "renderer_inputs": renderer_inputs,
         "dependency_action_keys": [],
         "reproducibility": {"contract": 1, "source_date_epoch": int(args.source_date_epoch)},
     }
