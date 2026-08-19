@@ -98,7 +98,7 @@ jobs:
           TARGET: ${{ matrix.target }}
           FORMAT: ${{ matrix.format }}
           ARCHITECTURE: ${{ matrix.architecture }}
-          IMAGE: ${{ matrix.verify_image }}
+          IMAGE: ${{ matrix.image }}
           MANIFEST: ${{ matrix.manifest }}
           MOCK_CONFIG: ${{ matrix.mock_config }}
           TIERS: ${{ matrix.tiers }}
@@ -122,7 +122,7 @@ jobs:
           RECIPE: ${{ matrix.recipe }}
           TARGET: ${{ matrix.target }}
           FORMAT: ${{ matrix.format }}
-          IMAGE: ${{ matrix.image }}
+          IMAGE: ${{ matrix.verify_image }}
         run: bash scripts/verify-package-factory-cell.sh
       - name: Write immutable artifact checksums
         run: |
