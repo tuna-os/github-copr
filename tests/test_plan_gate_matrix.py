@@ -88,6 +88,16 @@ def test_an_unrelated_change_builds_nothing(workflow):
     assert cells(result) == 0
     assert running(result) == set()
 
+def test_workflow_relevance_excludes_factory_and_measurement_utilities():
+    """The outer gate must agree with the planner or static matrices still fan out."""
+    text = SUPPORTED.read_text(encoding="utf-8")
+    start = text.index('if echo "$changed"')
+    detect = text[start:text.index("\n", start)]
+    assert "manifests/package-factory" not in detect
+    for utility in ("measure-target-gap.py", "measure-hummingbird-gap.py", "validate-package-factory.py"):
+        assert utility not in detect
+
+
 def test_target_local_factory_and_measurement_changes_do_not_build_tideforge(workflow):
     """Factory validation and gap measurement are not Tideforge renderer inputs."""
     changed = [

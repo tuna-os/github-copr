@@ -45,7 +45,7 @@ jobs:
           fi
           changed=$(git diff --name-only "$BASE_SHA"...HEAD)
           echo "$changed"
-          if echo "$changed" | grep -qE '^(packages/|manifests/package-factory\.yaml|scripts/|\.github/workflows/build-tideforge-|\.github/actions/)'; then
+          if echo "$changed" | grep -qE '^(packages/|mock/|scripts/(tideforge\.py|assemble-deb-source-tree\.py|build-chain\.sh|plan_gate_matrix\.py)$|\.github/workflows/build-tideforge-|\.github/actions/|build-order-)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
