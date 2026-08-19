@@ -37,7 +37,7 @@ def _rclone_conf(r2_state):
     """
     endpoint = ('${{ secrets.R2_ENDPOINT }}' if r2_state
                 else 'https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com')
-    return ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n'
+    return ('mkdir -p ~/.config/rclone\numask 077\ncat > ~/.config/rclone/rclone.conf << EOF\n'
             '[r2]\ntype = s3\nprovider = Cloudflare\n'
             'access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\n'
             'secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\n'
@@ -162,7 +162,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                         # Correctness is unchanged because the barrier is unchanged:
                         # a tier's runners start only after the previous tier's
                         # consolidate job has published to R2.
-                        {'name': 'Seed local repo from R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + ' || true\ncreaterepo_c local-repo\n') % r2_path},
+                        {'name': 'Seed local repo from R2', 'run': ('mkdir -p ~/.config/rclone\numask 077\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + ' || true\ncreaterepo_c local-repo\n') % r2_path},
                     ] if r2_state else [
                         {'name': 'Download previous repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
                     ]),
@@ -242,7 +242,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                 *([
                     # copy, not sync: this tier adds to what earlier tiers
                     # published and must never delete it.
-                    {'name': 'Publish this tier to R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nrclone copy local-repo/ "r2:${R2_BUCKET}/%s/" ' + RCLONE_FLAGS + '\n') % r2_path},
+                    {'name': 'Publish this tier to R2', 'run': ('mkdir -p ~/.config/rclone\numask 077\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nrclone copy local-repo/ "r2:${R2_BUCKET}/%s/" ' + RCLONE_FLAGS + '\n') % r2_path},
                 ] if r2_state else [
                     {'name': 'Update repo', 'run': 'createrepo_c --update local-repo'},
                     {'name': 'Upload updated repo', 'uses': 'actions/upload-artifact@v7', 'with': {'name': repo_artifact_name, 'path': 'local-repo', 'retention-days': 1}},
@@ -263,7 +263,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
             {'name': 'Install dependencies', 'run': 'sudo apt-get update -q || sudo apt-get update -q || true\nsudo apt-get install -y -q rpm createrepo-c gpg gpgconf rclone'},
             *([
-                {'name': 'Seed final repo from R2', 'run': ('mkdir -p ~/.config/rclone\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + '\n') % r2_path},
+                {'name': 'Seed final repo from R2', 'run': ('mkdir -p ~/.config/rclone\numask 077\ncat > ~/.config/rclone/rclone.conf << EOF\n[r2]\ntype = s3\nprovider = Cloudflare\naccess_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}\nsecret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}\nendpoint = ${{ secrets.R2_ENDPOINT }}\nEOF\nmkdir -p local-repo\nrclone copy "r2:${R2_BUCKET}/%s/" local-repo/ ' + RCLONE_FLAGS + '\n') % r2_path},
             ] if r2_state else [
                 {'name': 'Download final repo', 'uses': 'actions/download-artifact@v8', 'with': {'name': prev_tier_repo, 'path': 'local-repo'}},
             ]),
