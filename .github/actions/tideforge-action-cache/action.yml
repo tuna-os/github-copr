@@ -26,12 +26,14 @@ runs:
         esac
     - id: restore
       if: inputs.operation == 'restore'
-      uses: actions/cache/restore@v6
+      # actions/cache v6.0.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
       with:
         path: ${{ inputs.path }}
         key: tideforge-action-v1-${{ inputs.action-key }}
     - if: inputs.operation == 'save'
-      uses: actions/cache/save@v6
+      # actions/cache v6.0.0
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
       with:
         path: ${{ inputs.path }}
         key: tideforge-action-v1-${{ inputs.action-key }}

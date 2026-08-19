@@ -8,7 +8,7 @@ artifacts="$out/artifacts"
 test -d "$artifacts"
 
 if [[ ${ENGINE:?} == build-chain ]]; then
-  mapfile -d '' rpms < <(find "$artifacts" -type f -name '*.rpm' -print0)
+  mapfile -d '' rpms < <(find "$artifacts" -type f -name '*.rpm' ! -name '*.src.rpm' -print0)
   ((${#rpms[@]} > 0)) || { echo "native queue produced no RPMs" >&2; exit 1; }
   rpm -qp "${rpms[@]}" >/dev/null
   docker run --rm --entrypoint /bin/bash --volume "$artifacts:/artifacts:ro" \
@@ -19,11 +19,11 @@ if [[ ${ENGINE:?} == build-chain ]]; then
     set -euo pipefail
     dnf -y install createrepo_c
     mkdir /factory-repo
-    cp /artifacts/*.rpm /factory-repo/
+    find /artifacts -maxdepth 1 -type f -name "*.rpm" ! -name "*.src.rpm" -exec cp -t /factory-repo {} +
     createrepo_c /factory-repo
     dnf -y install --nogpgcheck --repofrompath factory,file:///factory-repo \
       --setopt=factory.priority=1 --enablerepo=factory /factory-repo/*.rpm
-    mapfile -t names < <(rpm -qp --qf "%{NAME}\n" /artifacts/*.rpm | sort -u)
+    mapfile -t names < <(rpm -qp --qf "%{NAME}\n" /factory-repo/*.rpm | sort -u)
     rpm -q "${names[@]}"
     rpm -V "${names[@]}"
   '

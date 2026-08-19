@@ -1,19 +1,11 @@
 name: Tideforge source cache
-description: >
-  Restore the content-addressed Tideforge source store for one recipe.
-  The key hashes only the recipe's pinned sha256 digests, so it is
-  identical across every build target (el10, Fedora, Debian, Ubuntu,
-  Arch) and changes exactly when a source pin changes. A miss is a
-  normal, silent path — the fetch/verify scripts download as before and
-  the post step saves what they stored. Requires python3 + pyyaml on
-  the runner (every Tideforge job installs them before this action).
+description: Restore the content-addressed source store for one recipe
 inputs:
   recipe:
     description: Path to the package.yaml recipe
     required: true
 outputs:
   cache-hit:
-    description: Whether the exact key was already cached
     value: ${{ steps.restore.outputs.cache-hit }}
 runs:
   using: composite
@@ -24,7 +16,8 @@ runs:
         set -euo pipefail
         echo "key=tideforge-src-v1-$(python3 scripts/tideforge_cache.py key '${{ inputs.recipe }}')" >> "$GITHUB_OUTPUT"
     - id: restore
-      uses: actions/cache@v6
+      # actions/cache v6.0.0
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
       with:
         path: ~/.cache/tideforge/sources
         key: ${{ steps.key.outputs.key }}
