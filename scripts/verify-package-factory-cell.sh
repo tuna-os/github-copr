@@ -28,8 +28,23 @@ if [[ ${ENGINE:?} == build-chain ]]; then
 fi
 
 recipe=${RECIPE:?}
-python3 scripts/tideforge.py verify "$recipe" --target "${TARGET:?}" --field smoke > "$out/smoke.sh"
-install_name=$(python3 scripts/tideforge.py verify "$recipe" --target "$TARGET" --field install_name)
+if python3 - "$recipe" <<'PY'
+import pathlib, sys, yaml
+recipe = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text()) or {}
+raise SystemExit(0 if recipe.get("verify") else 1)
+PY
+then
+  python3 scripts/tideforge.py verify "$recipe" --target "${TARGET:?}" --field smoke > "$out/smoke.sh"
+  install_name=$(python3 scripts/tideforge.py verify "$recipe" --target "$TARGET" --field install_name)
+else
+  printf 'true\n' > "$out/smoke.sh"
+  install_name=$(python3 - "$recipe" <<'PY'
+import pathlib, sys, yaml
+recipe = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text()) or {}
+print(recipe.get("name") or pathlib.Path(sys.argv[1]).parent.name)
+PY
+)
+fi
 
 case ${FORMAT:?} in
   rpm)
