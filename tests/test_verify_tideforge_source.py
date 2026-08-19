@@ -9,7 +9,7 @@ from urllib.error import HTTPError
 sys.modules.setdefault("tideforge_cache", types.SimpleNamespace())
 SPEC = importlib.util.spec_from_file_location(
     "verify_tideforge_source",
-    pathlib.Path(__file__).with_name("verify-tideforge-source.py"),
+    pathlib.Path(__file__).parents[1] / "scripts" / "verify-tideforge-source.py",
 )
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
