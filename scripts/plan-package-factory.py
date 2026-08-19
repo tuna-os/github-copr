@@ -50,6 +50,14 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
             continue
         recipe = load_yaml(recipe_path)
         package = str(recipe.get("name") or recipe_path.parent.name)
+        dependencies = recipe.get("dependencies") or {}
+        capabilities = sorted(
+            {
+                str(capability)
+                for phase in ("build", "runtime")
+                for capability in ((dependencies.get(phase) or {}).get("capabilities") or [])
+            }
+        )
         for target_id in recipe.get("targets") or []:
             target = (factory.get("targets") or {}).get(target_id)
             if not isinstance(target, dict):
@@ -83,6 +91,7 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                         "r2_path": str(target.get("r2_path") or ""),
                         "tiers": "",
                         "canary_tiers": "",
+                        "capabilities": capabilities,
                     }
                 )
     return cells
@@ -110,6 +119,7 @@ def native_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                 "r2_path": str(cell.get("r2_path") or ""),
                 "tiers": str(cell.get("tiers") or ""),
                 "canary_tiers": str(cell.get("canary_tiers") or ""),
+                "capabilities": [],
             }
         )
         cells.append(cell)
@@ -140,6 +150,7 @@ def select_cells(
     *,
     changed_targets: set[str] | None = None,
     changed_native_ids: set[str] | None = None,
+    changed_capabilities: set[tuple[str, str]] | None = None,
     canary_common: bool = False,
 ) -> list[dict[str, Any]]:
     if changed_files is None:
@@ -153,7 +164,16 @@ def select_cells(
     if "manifests/package-factory.yaml" in changed:
         if changed_targets is None:
             return cells
-        return [cell for cell in cells if cell["target"] in changed_targets]
+        return [
+            cell
+            for cell in cells
+            if cell["target"] in changed_targets
+            or (
+                cell["engine"] == "tideforge"
+                and changed_capabilities is not None
+                and any((capability, cell["target"]) in changed_capabilities for capability in cell["capabilities"])
+            )
+        ]
     if "manifests/package-builds.yaml" in changed:
         if changed_native_ids is None:
             return cells
@@ -206,7 +226,9 @@ def yaml_at_revision(root: pathlib.Path, revision: str, path: str) -> dict[str, 
     return value if isinstance(value, dict) else {}
 
 
-def changed_contracts(root: pathlib.Path, base: str) -> tuple[set[str], set[str]]:
+def changed_contracts(
+    root: pathlib.Path, base: str
+) -> tuple[set[str], set[str], set[tuple[str, str]]]:
     """Return semantic target/native changes relative to base.
 
     Missing or unreadable base data fails toward rebuilding every affected
@@ -221,13 +243,23 @@ def changed_contracts(root: pathlib.Path, base: str) -> tuple[set[str], set[str]
         target for target in target_ids if current_targets.get(target) != old_targets.get(target)
     }
 
+    current_catalog = current_factory.get("dependency_catalog") or {}
+    old_catalog = old_factory.get("dependency_catalog") or {}
+    changed_capabilities: set[tuple[str, str]] = set()
+    for capability in set(current_catalog) | set(old_catalog):
+        current_mapping = current_catalog.get(capability) or {}
+        old_mapping = old_catalog.get(capability) or {}
+        for target in set(current_mapping) | set(old_mapping):
+            if current_mapping.get(target) != old_mapping.get(target):
+                changed_capabilities.add((str(capability), str(target)))
+
     current_registry = load_yaml(root / "manifests/package-builds.yaml")
     old_registry = yaml_at_revision(root, base, "manifests/package-builds.yaml")
     current_rows = {str(row.get("id")): row for row in current_registry.get("native_builds") or []}
     old_rows = {str(row.get("id")): row for row in old_registry.get("native_builds") or []}
     row_ids = set(current_rows) | set(old_rows)
     changed_rows = {row for row in row_ids if current_rows.get(row) != old_rows.get(row)}
-    return changed_targets, changed_rows
+    return changed_targets, changed_rows, changed_capabilities
 
 
 def select_by(cells: list[dict[str, Any]], selector: str) -> list[dict[str, Any]]:
@@ -261,18 +293,19 @@ def main() -> int:
         changed = None
         if args.changed_files:
             changed = args.changed_files.read_text(encoding="utf-8").splitlines()
-        target_changes = native_changes = None
+        target_changes = native_changes = capability_changes = None
         if args.base:
             try:
-                target_changes, native_changes = changed_contracts(args.root, args.base)
+                target_changes, native_changes, capability_changes = changed_contracts(args.root, args.base)
             except (OSError, subprocess.CalledProcessError, ValueError, yaml.YAMLError):
                 # Fail toward building all cells in a changed manifest class.
-                target_changes = native_changes = None
+                target_changes = native_changes = capability_changes = None
         selected = select_cells(
             cells,
             changed,
             changed_targets=target_changes,
             changed_native_ids=native_changes,
+            changed_capabilities=capability_changes,
             canary_common=args.canary_common,
         )
         if args.cell:
