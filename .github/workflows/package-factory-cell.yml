@@ -30,7 +30,7 @@ jobs:
       - name: Install host tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q createrepo-c jq rpm
+          sudo apt-get install -y -q createrepo-c jq podman rpm
           pip install pyyaml
       - name: Restore source downloads
         if: matrix.engine == 'tideforge'

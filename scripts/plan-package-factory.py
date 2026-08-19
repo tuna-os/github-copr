@@ -205,12 +205,29 @@ def changed_contracts(root: pathlib.Path, base: str) -> tuple[set[str], set[str]
     return changed_targets, changed_rows
 
 
+def select_by(cells: list[dict[str, Any]], selector: str) -> list[dict[str, Any]]:
+    """Filter by a stable cell ID or a data field (``target=``/``family=``)."""
+    if not selector:
+        return cells
+    if "=" not in selector:
+        selected = [cell for cell in cells if cell["id"] == selector]
+    else:
+        field, value = selector.split("=", 1)
+        if field not in {"target", "family", "engine", "architecture"} or not value:
+            raise ValueError(f"unsupported package factory selector: {selector}")
+        selected = [cell for cell in cells if str(cell[field]) == value]
+    if not selected:
+        raise ValueError(f"package factory selector matched no cells: {selector}")
+    return selected
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path("."))
     parser.add_argument("--changed-files", type=pathlib.Path)
     parser.add_argument("--base", help="base git revision for semantic manifest diffs")
     parser.add_argument("--cell", help="optional exact cell ID for a manual run")
+    parser.add_argument("--selector", help="cell ID or target=/family=/engine=/architecture=")
     parser.add_argument("--github-output", type=pathlib.Path)
     args = parser.parse_args()
     try:
@@ -232,9 +249,9 @@ def main() -> int:
             changed_native_ids=native_changes,
         )
         if args.cell:
-            selected = [cell for cell in cells if cell["id"] == args.cell]
-            if not selected:
-                raise ValueError(f"unknown package factory cell: {args.cell}")
+            selected = select_by(cells, args.cell)
+        if args.selector:
+            selected = select_by(selected, args.selector)
     except (OSError, ValueError, yaml.YAMLError) as exc:
         print(f"package-factory planner failed closed: {exc}", file=sys.stderr)
         return 2

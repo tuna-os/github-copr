@@ -5,10 +5,16 @@ on:
   merge_group:
   push:
     branches: [main]
+  schedule:
+    - cron: '0 12 * * *'
   workflow_dispatch:
     inputs:
       cell:
         description: Optional exact matrix cell ID
+        required: false
+        type: string
+      selector:
+        description: Optional target=, family=, engine=, or architecture= filter
         required: false
         type: string
 
@@ -50,6 +56,8 @@ jobs:
         name: Emit the unified package matrix
         env:
           REQUESTED_CELL: ${{ inputs.cell || '' }}
+          REQUESTED_SELECTOR: ${{ inputs.selector || '' }}
+          EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           set -euo pipefail
@@ -57,6 +65,10 @@ jobs:
           [ ! -f changed-files.txt ] || args+=(--changed-files changed-files.txt)
           [ -z "${BASE_SHA:-}" ] || args+=(--base "$BASE_SHA")
           [ -z "$REQUESTED_CELL" ] || args+=(--cell "$REQUESTED_CELL")
+          if [ "$EVENT_NAME" = schedule ]; then
+            REQUESTED_SELECTOR=family=hummingbird-desktops
+          fi
+          [ -z "$REQUESTED_SELECTOR" ] || args+=(--selector "$REQUESTED_SELECTOR")
           python3 scripts/plan-package-factory.py "${args[@]}"
 
   build-0:

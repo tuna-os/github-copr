@@ -89,3 +89,9 @@ def test_native_registry_change_selects_only_changed_row(tmp_path):
 def test_every_matrix_row_has_the_same_schema(tmp_path):
     cells = planner.all_cells(repo(tmp_path))
     assert len({tuple(sorted(cell)) for cell in cells}) == 1
+
+
+def test_selector_is_data_driven(tmp_path):
+    cells = planner.all_cells(repo(tmp_path))
+    assert {cell["target"] for cell in planner.select_by(cells, "target=debian")} == {"debian"}
+    assert [cell["id"] for cell in planner.select_by(cells, "family=native")] == ["gnome"]

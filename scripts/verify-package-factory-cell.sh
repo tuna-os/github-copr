@@ -11,6 +11,19 @@ if [[ ${ENGINE:?} == build-chain ]]; then
   mapfile -d '' rpms < <(find "$artifacts" -type f -name '*.rpm' -print0)
   ((${#rpms[@]} > 0)) || { echo "native queue produced no RPMs" >&2; exit 1; }
   rpm -qp "${rpms[@]}" >/dev/null
+  docker run --rm --volume "$artifacts:/artifacts:ro" \
+    --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" \
+    bash /scripts/lint-generated-rpm.sh /artifacts
+  docker run --rm --volume "$artifacts:/artifacts:ro" "${IMAGE:?}" bash -lc '
+    set -euo pipefail
+    dnf -y install createrepo_c
+    createrepo_c /artifacts
+    dnf -y install --nogpgcheck --repofrompath factory,file:///artifacts \
+      --setopt=factory.priority=1 --enablerepo=factory /artifacts/*.rpm
+    mapfile -t names < <(rpm -qp --qf "%{NAME}\n" /artifacts/*.rpm | sort -u)
+    rpm -q "${names[@]}"
+    rpm -V "${names[@]}"
+  '
   exit 0
 fi
 

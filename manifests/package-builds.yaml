@@ -35,7 +35,7 @@ native_builds:
     architecture: x86_64
     image: ghcr.io/tuna-os/mock-runner:centos-stream-10
     manifest: build-order-xfce.yml
-    mock_config: centos-stream-10-ci-xfce
+    mock_config: centos-stream-10-ci
     source_paths: [src/xfce-wayland/]
     r2_path: xfce/10-stream-x86_64
   - id: xfce-fedora-x86_64
@@ -44,7 +44,7 @@ native_builds:
     architecture: x86_64
     image: registry.fedoraproject.org/fedora:44
     manifest: build-order-xfce-fedora.yml
-    mock_config: fedora-44-x86_64
+    mock_config: fedora-44-ci
     source_paths: [src/xfce-wayland/]
     r2_path: xfce/44-x86_64
   - id: hummingbird-x86_64
