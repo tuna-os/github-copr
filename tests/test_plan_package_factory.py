@@ -95,3 +95,21 @@ def test_selector_is_data_driven(tmp_path):
     cells = planner.all_cells(repo(tmp_path))
     assert {cell["target"] for cell in planner.select_by(cells, "target=debian")} == {"debian"}
     assert [cell["id"] for cell in planner.select_by(cells, "family=native")] == ["gnome"]
+
+
+def test_shared_executor_pr_uses_contract_canaries(tmp_path):
+    cells = planner.all_cells(repo(tmp_path))
+    selected = planner.select_cells(
+        cells,
+        ["scripts/run-package-factory-cell.sh"],
+        canary_common=True,
+    )
+    coordinates = {
+        (cell["engine"], cell["target"], cell["format"], cell["architecture"])
+        for cell in cells
+    }
+    assert len(selected) == len(coordinates)
+    assert {
+        (cell["engine"], cell["target"], cell["format"], cell["architecture"])
+        for cell in selected
+    } == coordinates

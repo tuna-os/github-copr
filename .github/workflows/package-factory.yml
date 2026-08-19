@@ -68,6 +68,9 @@ jobs:
           if [ "$EVENT_NAME" = schedule ]; then
             REQUESTED_SELECTOR=family=hummingbird-desktops
           fi
+          case "$EVENT_NAME" in
+            pull_request|merge_group) args+=(--canary-common) ;;
+          esac
           [ -z "$REQUESTED_SELECTOR" ] || args+=(--selector "$REQUESTED_SELECTOR")
           python3 scripts/plan-package-factory.py "${args[@]}"
 

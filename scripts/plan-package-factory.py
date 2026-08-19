@@ -134,6 +134,7 @@ def select_cells(
     *,
     changed_targets: set[str] | None = None,
     changed_native_ids: set[str] | None = None,
+    canary_common: bool = False,
 ) -> list[dict[str, Any]]:
     if changed_files is None:
         return cells
@@ -150,7 +151,7 @@ def select_cells(
         return [cell for cell in cells if cell["id"] in changed_native_ids]
     formats = affected_formats(changed)
     if formats is None:
-        return cells
+        return canary_cells(cells) if canary_common else cells
     changed_packages = {match.group(1) for path in changed if (match := RECIPE_CHANGE.match(path))}
     selected = []
     for cell in cells:
@@ -166,6 +167,20 @@ def select_cells(
         ):
             selected.append(cell)
     return selected
+
+
+def canary_cells(cells: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One deterministic row per engine/target/format/architecture contract."""
+    selected: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for cell in cells:
+        coordinate = (
+            str(cell["engine"]),
+            str(cell["target"]),
+            str(cell["format"]),
+            str(cell["architecture"]),
+        )
+        selected.setdefault(coordinate, cell)
+    return sorted(selected.values(), key=lambda cell: cell["id"])
 
 
 def yaml_at_revision(root: pathlib.Path, revision: str, path: str) -> dict[str, Any]:
@@ -228,6 +243,7 @@ def main() -> int:
     parser.add_argument("--base", help="base git revision for semantic manifest diffs")
     parser.add_argument("--cell", help="optional exact cell ID for a manual run")
     parser.add_argument("--selector", help="cell ID or target=/family=/engine=/architecture=")
+    parser.add_argument("--canary-common", action="store_true")
     parser.add_argument("--github-output", type=pathlib.Path)
     args = parser.parse_args()
     try:
@@ -247,6 +263,7 @@ def main() -> int:
             changed,
             changed_targets=target_changes,
             changed_native_ids=native_changes,
+            canary_common=args.canary_common,
         )
         if args.cell:
             selected = select_by(cells, args.cell)
