@@ -29,9 +29,11 @@ jobs:
           python-version: '3.14'
       - name: Install host tools
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q createrepo-c jq podman rpm
-          pip install pyyaml==6.0.3
+          if [[ '${{ matrix.engine }}' == 'build-chain' ]]; then
+            sudo apt-get update -q
+            sudo apt-get install -y -q podman rpm
+          fi
+          python -m pip install pyyaml==6.0.3
       - name: Restore source downloads
         if: matrix.engine == 'tideforge'
         uses: ./.github/actions/tideforge-source-cache
