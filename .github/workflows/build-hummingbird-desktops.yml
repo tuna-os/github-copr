@@ -30,13 +30,12 @@ on:
   # cache-key fix below landed. The fix was therefore never exercised, and the
   # published repository stayed frozen at its 2026-08-09 contents.
   #
-  # Daily is a floor, not a ceiling: raise the cadence or dispatch manually to
-  # push through the tier stack faster. 12:00 UTC deliberately avoids
-  # tuna-os/tunaOS's 04:00-09:00 proving window; note that five desktop jobs
-  # at up to six hours each is a real draw on a 20-concurrent-job org ceiling,
-  # so moving this is a scheduling decision rather than a free one.
+  # The 00:00, 08:00, and 16:00 UTC cadence leaves at least two hours after
+  # each six-hour job budget. That makes partial publish + R2 seeding a true
+  # convergence loop without creating overlapping full desktop matrices.
+  # It also avoids tuna-os/tunaOS's 04:00-09:00 proving window.
   schedule:
-    - cron: "0 12 * * *"
+    - cron: "0 0,8,16 * * *"
 
   workflow_dispatch:
     inputs:
