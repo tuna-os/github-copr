@@ -30,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0
       - id: diff
-        name: Decide whether anything Tideforge-relevant changed
+        name: Decide whether an Arch build input changed
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: |
@@ -41,7 +41,7 @@ jobs:
           fi
           changed=$(git diff --name-only "$BASE_SHA"...HEAD)
           echo "$changed"
-          if echo "$changed" | grep -qE '^(packages/|manifests/package-factory\.yaml|scripts/|\.github/workflows/build-tideforge-|\.github/actions/)'; then
+          if echo "$changed" | grep -qE '^(packages/|mock/|scripts/(?:tideforge\.py|build-chain\.sh|assert-arch-runtime-closure\.sh|plan_gate_matrix\.py)$|\.github/workflows/build-tideforge-arch\.yml|\.github/actions/)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
