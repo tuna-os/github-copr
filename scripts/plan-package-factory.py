@@ -46,6 +46,8 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
     factory = load_yaml(root / "manifests/package-factory.yaml")
     cells = []
     for recipe_path in sorted((root / "packages").glob("*/package.yaml")):
+        if recipe_path.parent.name.startswith("_"):
+            continue
         recipe = load_yaml(recipe_path)
         package = str(recipe.get("name") or recipe_path.parent.name)
         for target_id in recipe.get("targets") or []:
