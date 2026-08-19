@@ -96,7 +96,8 @@ def test_mutable_build_image_and_bad_dependency_key_are_refused(tmp_path):
 
 
 def test_result_verification_detects_tampering_and_wrong_action(tmp_path):
-    package = tmp_path / "demo.rpm"
+    package = tmp_path / "x86_64" / "demo.rpm"
+    package.parent.mkdir()
     package.write_bytes(b"first")
     action = "sha256:" + "c" * 64
     result = cache.create_result(action, [package])
@@ -130,3 +131,26 @@ def test_result_rejects_path_traversal_empty_and_duplicate_artifacts(tmp_path):
 def test_r2_path_is_canonical():
     key = "sha256:" + "f" * 64
     assert cache.result_path(key) == "actions/sha256/" + "f" * 64 + ".json"
+
+
+def test_native_key_tracks_only_declared_source_trees(tmp_path):
+    base = fixture(tmp_path)
+    manifest = tmp_path / "order.yml"
+    source = tmp_path / "src" / "gnome"
+    source.mkdir(parents=True)
+    manifest.write_text("tiers: {}\n")
+    (source / "demo.spec").write_text("Version: 1\n")
+    args = argparse.Namespace(
+        root=base.root,
+        factory=base.factory,
+        identity="gnome-fedora",
+        manifest=str(manifest),
+        input=[str(source)],
+        target="fedora",
+        arch="x86_64",
+        image=base.image,
+        source_date_epoch=base.source_date_epoch,
+    )
+    before = cache.action_key(cache.native_action_inputs(args))
+    (source / "demo.spec").write_text("Version: 2\n")
+    assert cache.action_key(cache.native_action_inputs(args)) != before

@@ -1,0 +1,87 @@
+schema: 1
+# Legacy native-spec trees remain data-driven build cells until their sources
+# migrate to packages/<name>/package.yaml. No family owns a workflow.
+native_builds:
+  - id: gnome49-el10-x86_64
+    family: gnome49
+    target: el10
+    architecture: x86_64
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+    manifest: .copr/build-order-gnome49.yml
+    mock_config: centos-stream-10-ci-gnome49
+    source_paths: [src/gnome-49/, src/deps/]
+    r2_path: gnome49/10-stream-x86_64
+  - id: gnome50-el10-x86_64
+    family: gnome50
+    target: el10
+    architecture: x86_64
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+    manifest: build-order.yml
+    mock_config: centos-stream-10-ci
+    source_paths: [src/gnome-50/, src/deps/]
+    r2_path: repo/10-x86_64
+  - id: gnome51-el10-x86_64
+    family: gnome51
+    target: el10
+    architecture: x86_64
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+    manifest: build-order-gnome51.yml
+    mock_config: centos-stream-10-ci-gnome51
+    source_paths: [src/gnome-51/, src/deps/]
+    r2_path: gnome51/10-stream-x86_64
+  - id: xfce-el10-x86_64
+    family: xfce
+    target: el10
+    architecture: x86_64
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+    manifest: build-order-xfce.yml
+    mock_config: centos-stream-10-ci-xfce
+    source_paths: [src/xfce-wayland/]
+    r2_path: xfce/10-stream-x86_64
+  - id: xfce-fedora-x86_64
+    family: xfce
+    target: fedora
+    architecture: x86_64
+    image: registry.fedoraproject.org/fedora:44
+    manifest: build-order-xfce-fedora.yml
+    mock_config: fedora-44-x86_64
+    source_paths: [src/xfce-wayland/]
+    r2_path: xfce/44-x86_64
+  - id: hummingbird-x86_64
+    family: hummingbird-desktops
+    target: hummingbird
+    architecture: x86_64
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+    manifest: build-order-hummingbird-desktops.yml
+    mock_config: hummingbird-ci
+    source_paths: [src/hummingbird/, src/xfce-wayland/]
+    r2_path: hummingbird/20251124-x86_64
+  - id: hummingbird-aarch64
+    family: hummingbird-desktops
+    target: hummingbird
+    architecture: aarch64
+    runner: ubuntu-24.04-arm
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+    manifest: build-order-hummingbird-desktops.yml
+    mock_config: hummingbird-ci-aarch64
+    source_paths: [src/hummingbird/, src/xfce-wayland/]
+    r2_path: hummingbird/20251124-aarch64
+  - id: fprintd-el10-x86_64
+    family: fprintd
+    target: el10
+    architecture: x86_64
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+    manifest: build-order-fprintd.yml
+    mock_config: centos-stream-10-ci
+    source_paths: [src/deps/libfprint/, src/deps/fprintd/]
+    publish: false
+  - id: fprintd-el10-aarch64
+    family: fprintd
+    target: el10
+    architecture: aarch64
+    runner: ubuntu-24.04-arm
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+    manifest: build-order-fprintd-aarch64.yml
+    mock_config: centos-stream-10-ci-aarch64
+    source_paths: [src/deps/libfprint/, src/deps/fprintd/]
+    r2_path: fprintd/10-stream-aarch64

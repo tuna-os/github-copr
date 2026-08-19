@@ -51,6 +51,12 @@ def digest_tree(root: pathlib.Path) -> str:
     return digest_json(entries)
 
 
+def digest_path(path: pathlib.Path) -> str:
+    if path.is_file():
+        return digest_file(path)
+    return digest_tree(path)
+
+
 def require_sha256(value: str, label: str = "digest") -> str:
     if not SHA256.fullmatch(value):
         raise SystemExit(f"{label} must be sha256:<64 lowercase hexadecimal characters>")
@@ -143,6 +149,35 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
+    root = pathlib.Path(args.root)
+    factory = load_factory(pathlib.Path(args.factory))
+    selected = target_inputs(factory, args.target)
+    target = selected["contract"]
+    if args.arch not in target.get("architectures", []):
+        raise SystemExit(f"{args.arch} is not declared for target {args.target}")
+    if int(args.source_date_epoch) <= 0:
+        raise SystemExit("SOURCE_DATE_EPOCH must be a positive integer")
+    inputs = []
+    for raw in [args.manifest, *args.input]:
+        path = pathlib.Path(raw)
+        try:
+            relative = path.resolve().relative_to(root.resolve()).as_posix()
+        except ValueError as exc:
+            raise SystemExit(f"native input must be inside repository root: {path}") from exc
+        inputs.append({"path": relative, "digest": digest_path(path)})
+    return {
+        "schema": SCHEMA,
+        "identity": args.identity,
+        "native_inputs": sorted(inputs, key=lambda entry: entry["path"]),
+        "target": {"id": args.target, "architecture": args.arch, "inputs": selected},
+        "build_image": require_image_digest(args.image),
+        "renderer_inputs": {"scripts/build-chain.sh": digest_file(root / "scripts/build-chain.sh")},
+        "dependency_action_keys": [],
+        "reproducibility": {"contract": 1, "source_date_epoch": int(args.source_date_epoch)},
+    }
+
+
 def action_key(inputs: dict[str, Any]) -> str:
     return digest_json(inputs)
 
@@ -179,6 +214,14 @@ def verify_result(result: dict[str, Any], artifact_dir: pathlib.Path, expected_k
     entries = result.get("artifacts")
     if not isinstance(entries, list) or not entries:
         raise SystemExit("ActionResult must contain a non-empty artifacts list")
+    candidates: dict[str, pathlib.Path] = {}
+    for path in artifact_dir.rglob("*"):
+        if not path.is_file() or path.is_symlink():
+            continue
+        if path.name in candidates:
+            raise SystemExit(f"artifact directory contains duplicate basenames: {path.name}")
+        candidates[path.name] = path
+
     seen = set()
     for expected in entries:
         if not isinstance(expected, dict):
@@ -190,7 +233,8 @@ def verify_result(result: dict[str, Any], artifact_dir: pathlib.Path, expected_k
         require_sha256(str(expected.get("digest", "")), "artifact digest")
         if not isinstance(expected.get("size"), int) or expected["size"] < 0:
             raise SystemExit("artifact size must be a non-negative integer")
-        if artifact(artifact_dir / name) != expected:
+        path = candidates.get(name)
+        if path is None or artifact(path) != expected:
             raise SystemExit(f"artifact verification failed: {name}")
 
 
@@ -210,6 +254,16 @@ def main() -> int:
     key_parser.add_argument("--image", required=True)
     key_parser.add_argument("--source-date-epoch", required=True, type=int)
     key_parser.add_argument("--dependency-key", action="append", default=[])
+    native_parser = commands.add_parser("native-key")
+    native_parser.add_argument("--identity", required=True)
+    native_parser.add_argument("--manifest", required=True)
+    native_parser.add_argument("--input", action="append", default=[])
+    native_parser.add_argument("--factory", default="manifests/package-factory.yaml")
+    native_parser.add_argument("--root", default=".")
+    native_parser.add_argument("--target", required=True)
+    native_parser.add_argument("--arch", required=True)
+    native_parser.add_argument("--image", required=True)
+    native_parser.add_argument("--source-date-epoch", required=True, type=int)
     result_parser = commands.add_parser("result")
     result_parser.add_argument("--action-key", required=True)
     result_parser.add_argument("--artifact", action="append", required=True)
@@ -223,6 +277,9 @@ def main() -> int:
 
     if args.__dict__.get("recipe"):
         inputs = action_inputs(args)
+        print(json.dumps({"action_key": action_key(inputs), "inputs": inputs}, sort_keys=True))
+    elif args.__dict__.get("identity"):
+        inputs = native_action_inputs(args)
         print(json.dumps({"action_key": action_key(inputs), "inputs": inputs}, sort_keys=True))
     elif args.__dict__.get("artifact"):
         print(json.dumps(create_result(args.action_key, map(pathlib.Path, args.artifact)), sort_keys=True))

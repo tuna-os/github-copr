@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+import importlib.util
+import pathlib
+
+import yaml
+
+
+HERE = pathlib.Path(__file__).resolve().parent
+SPEC = importlib.util.spec_from_file_location("planner", HERE / "plan_package_factory.py")
+planner = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(planner)
+
+
+def repo(tmp_path: pathlib.Path) -> pathlib.Path:
+    (tmp_path / "manifests").mkdir()
+    (tmp_path / "packages" / "demo").mkdir(parents=True)
+    (tmp_path / "manifests" / "package-factory.yaml").write_text(
+        "targets:\n"
+        "  el10: {format: rpm, architectures: [x86_64], probe_image: example/el@sha256:abc}\n"
+        "  debian: {format: deb, architectures: [amd64], probe_image: example/deb@sha256:def}\n"
+    )
+    (tmp_path / "manifests" / "package-builds.yaml").write_text(
+        "native_builds:\n"
+        "- {id: gnome, target: el10, architecture: x86_64, image: image, manifest: order.yml, mock_config: mock, source_paths: [src/gnome/]}\n"
+    )
+    (tmp_path / "packages" / "demo" / "package.yaml").write_text(
+        "name: demo\ntargets: [el10, debian]\n"
+    )
+    return tmp_path
+
+
+def test_recipe_change_selects_only_that_recipes_targets(tmp_path):
+    root = repo(tmp_path)
+    cells = planner.all_cells(root)
+    selected = planner.select_cells(cells, ["packages/demo/package.yaml"])
+    assert {(cell["package"], cell["target"]) for cell in selected} == {
+        ("demo", "el10"), ("demo", "debian")
+    }
+
+
+def test_debian_renderer_change_does_not_select_rpm_or_native(tmp_path):
+    root = repo(tmp_path)
+    selected = planner.select_cells(planner.all_cells(root), ["scripts/assemble-deb-source-tree.py"])
+    assert {cell["format"] for cell in selected} == {"deb"}
+
+
+def test_native_source_change_selects_only_its_queue(tmp_path):
+    root = repo(tmp_path)
+    selected = planner.select_cells(planner.all_cells(root), ["src/gnome/mutter/mutter.spec"])
+    assert [cell["id"] for cell in selected] == ["gnome"]
+
+
+def test_unrelated_change_selects_nothing(tmp_path):
+    root = repo(tmp_path)
+    assert planner.select_cells(planner.all_cells(root), ["README.md"]) == []
+
+
+def test_factory_contract_change_fails_toward_building_everything(tmp_path):
+    root = repo(tmp_path)
+    cells = planner.all_cells(root)
+    assert planner.select_cells(cells, ["manifests/package-factory.yaml"]) == cells
