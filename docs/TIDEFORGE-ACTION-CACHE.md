@@ -1,19 +1,23 @@
 # Tideforge action cache
 
-A package build is a content-addressed action, not an opaque CI run. Its key
-hashes the complete recipe directory, selected target contract, architecture,
-immutable build-image digest, renderer scripts, and dependency action keys.
-Changing one target cannot reuse another target's output.
+Tideforge identifies a package build by canonical declared inputs rather than a
+workflow run. The key covers the complete recipe directory, selected target and
+architecture, the selected target's contract and dependency-capability slice,
+the immutable OCI build-image digest, the package-format renderer set, dependency
+action keys, and the reproducibility contract including SOURCE_DATE_EPOCH.
 
-An ActionResult lives at `actions/sha256/<key>.json` in R2 and records every
-artifact name, size, and SHA-256. A hit is usable only after restoring artifacts
-and verifying that manifest. Pull requests never publish an R2 ActionResult;
-trusted default-branch builds do so after package lint and clean-install tests.
+Only renderer inputs used by a target are hashed: a Debian assembler change does
+not invalidate RPM, Arch, or openSUSE actions. Every build image is resolved to
+an image@sha256 digest before key generation.
 
-The GitHub cache action is an acceleration layer, not authority. It may restore
-bytes for the same action key; result hashes decide whether those bytes are
-accepted. R2 promotion, signatures, SBOMs and provenance attach to that same
-ActionResult without changing the identity.
+An ActionResult records the exact action key plus every artifact's safe basename,
+byte size, and SHA-256. Restore verifies the requested key, schema, unique safe
+filenames, sizes, and hashes before a result may skip compilation. Lint,
+clean-install, and smoke validation still run on hits.
 
-This follows Bazel's action-cache/CAS split, Homebrew's bottle JSON plus
-checksum validation, and Chainguard's digest/provenance verification.
+GitHub Actions cache is an acceleration transport. Workflows restore before
+compilation and save only after all validation; the cache action never saves
+implicitly. R2 uses actions/sha256/<action-key>.json as the authoritative
+result index and blobs/sha256/<artifact-digest> for immutable content. Protected
+main jobs alone may publish trusted R2 results, writing blobs first and the
+ActionResult last.

@@ -1,23 +1,132 @@
 from __future__ import annotations
-import importlib.util, json, pathlib, subprocess
+
+import argparse
+import importlib.util
+import json
+import pathlib
+
 import pytest
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("cache", ROOT / "scripts/tideforge-action-cache.py")
-cache = importlib.util.module_from_spec(spec); spec.loader.exec_module(cache)
-def args(tmp_path, **overrides):
-    recipe = tmp_path / "pkg" / "package.yaml"; recipe.parent.mkdir(); recipe.write_text("name: demo\n")
-    factory = tmp_path / "factory.yaml"; factory.write_text("targets: {fedora: {architectures: [x86_64, aarch64]}}\n")
-    values = dict(recipe=str(recipe), factory=str(factory), target="fedora", arch="x86_64", image="registry.example/build@sha256:" + "a"*64, dependency_key=[]); values.update(overrides); return type("Args", (), values)()
-def test_key_changes_for_target_arch_and_dependencies(tmp_path):
-    base = cache.digest_json(cache.action_inputs(args(tmp_path)))
-    assert base != cache.digest_json(cache.action_inputs(args(tmp_path, arch="aarch64")))
-    assert base != cache.digest_json(cache.action_inputs(args(tmp_path, dependency_key=["sha256:" + "b"*64])))
-def test_mutable_build_image_is_refused(tmp_path):
-    with pytest.raises(SystemExit, match="digest-pinned"): cache.action_inputs(args(tmp_path, image="registry.example/build:latest"))
-def test_result_verification_detects_tampering(tmp_path):
-    artifact = tmp_path / "demo.rpm"; artifact.write_bytes(b"first")
-    result = json.loads(subprocess.check_output(["python3", str(ROOT / "scripts/tideforge-action-cache.py"), "result", "--action-key", "sha256:" + "c"*64, "--artifact", str(artifact)], text=True))
-    manifest = tmp_path / "result.json"; manifest.write_text(json.dumps(result))
-    cache.cmd_verify(type("Args", (), {"result": str(manifest), "artifact_dir": str(tmp_path)})())
-    artifact.write_bytes(b"second")
-    with pytest.raises(SystemExit, match="verification failed"): cache.cmd_verify(type("Args", (), {"result": str(manifest), "artifact_dir": str(tmp_path)})())
+
+
+HERE = pathlib.Path(__file__).resolve().parent
+SPEC = importlib.util.spec_from_file_location("cache", HERE / "tideforge_action_cache.py")
+cache = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(cache)
+
+
+def fixture(tmp_path: pathlib.Path, **overrides) -> argparse.Namespace:
+    recipe = tmp_path / "packages" / "demo" / "package.yaml"
+    recipe.parent.mkdir(parents=True, exist_ok=True)
+    recipe.write_text("name: demo\n", encoding="utf-8")
+    scripts = tmp_path / "scripts"
+    scripts.mkdir(exist_ok=True)
+    for name in ("tideforge.py", "assemble-deb-source-tree.py", "build-chain.sh"):
+        (scripts / name).write_text(f"# {name}\n", encoding="utf-8")
+    factory = tmp_path / "factory.yaml"
+    factory.write_text(
+        "targets:\n"
+        "  fedora: {format: rpm, architectures: [x86_64, aarch64]}\n"
+        "  debian: {format: deb, architectures: [amd64]}\n"
+        "dependency_catalog:\n"
+        "  compiler: {fedora: [gcc], debian: [build-essential]}\n",
+        encoding="utf-8",
+    )
+    values = {
+        "root": str(tmp_path),
+        "recipe": str(recipe),
+        "factory": str(factory),
+        "target": "fedora",
+        "arch": "x86_64",
+        "image": "registry.example/build@sha256:" + "a" * 64,
+        "source_date_epoch": 1_700_000_000,
+        "dependency_key": [],
+    }
+    values.update(overrides)
+    return argparse.Namespace(**values)
+
+
+def key(args: argparse.Namespace) -> str:
+    return cache.action_key(cache.action_inputs(args))
+
+
+def test_key_is_stable_and_uses_repository_relative_recipe_path(tmp_path):
+    first = cache.action_inputs(fixture(tmp_path))
+    second = cache.action_inputs(fixture(tmp_path))
+    assert cache.action_key(first) == cache.action_key(second)
+    assert first["recipe"]["path"] == "packages/demo/package.yaml"
+
+
+def test_key_changes_for_arch_dependency_and_epoch(tmp_path):
+    base = key(fixture(tmp_path))
+    assert base != key(fixture(tmp_path, arch="aarch64"))
+    assert base != key(fixture(tmp_path, dependency_key=["sha256:" + "b" * 64]))
+    assert base != key(fixture(tmp_path, source_date_epoch=1_700_000_001))
+
+
+def test_target_slice_ignores_an_unrelated_target_change(tmp_path):
+    args = fixture(tmp_path)
+    before = key(args)
+    factory = pathlib.Path(args.factory)
+    factory.write_text(factory.read_text().replace("build-essential", "clang"), encoding="utf-8")
+    assert key(args) == before
+
+
+def test_target_slice_tracks_selected_dependency_capabilities(tmp_path):
+    args = fixture(tmp_path)
+    before = key(args)
+    factory = pathlib.Path(args.factory)
+    factory.write_text(factory.read_text().replace("[gcc]", "[gcc, gcc-c++]"), encoding="utf-8")
+    assert key(args) != before
+
+
+def test_renderer_inputs_are_partitioned_by_package_format(tmp_path):
+    rpm = cache.action_inputs(fixture(tmp_path))
+    deb = cache.action_inputs(fixture(tmp_path, target="debian", arch="amd64"))
+    assert "scripts/build-chain.sh" in rpm["renderer_inputs"]
+    assert "scripts/assemble-deb-source-tree.py" not in rpm["renderer_inputs"]
+    assert "scripts/assemble-deb-source-tree.py" in deb["renderer_inputs"]
+    assert "scripts/build-chain.sh" not in deb["renderer_inputs"]
+
+
+def test_mutable_build_image_and_bad_dependency_key_are_refused(tmp_path):
+    with pytest.raises(SystemExit, match="digest-pinned"):
+        cache.action_inputs(fixture(tmp_path, image="registry.example/build:latest"))
+    with pytest.raises(SystemExit, match="dependency action key"):
+        cache.action_inputs(fixture(tmp_path, dependency_key=["not-a-digest"]))
+
+
+def test_result_verification_detects_tampering_and_wrong_action(tmp_path):
+    package = tmp_path / "demo.rpm"
+    package.write_bytes(b"first")
+    action = "sha256:" + "c" * 64
+    result = cache.create_result(action, [package])
+    cache.verify_result(result, tmp_path, action)
+    with pytest.raises(SystemExit, match="requested action"):
+        cache.verify_result(result, tmp_path, "sha256:" + "d" * 64)
+    package.write_bytes(b"second")
+    with pytest.raises(SystemExit, match="verification failed"):
+        cache.verify_result(result, tmp_path, action)
+
+
+def test_result_rejects_path_traversal_empty_and_duplicate_artifacts(tmp_path):
+    action = "sha256:" + "c" * 64
+    with pytest.raises(SystemExit, match="at least one"):
+        cache.create_result(action, [])
+    bad = {
+        "schema": 1,
+        "action_key": action,
+        "artifacts": [{"name": "../escape.rpm", "size": 0, "digest": "sha256:" + "0" * 64}],
+    }
+    with pytest.raises(SystemExit, match="unsafe artifact"):
+        cache.verify_result(bad, tmp_path)
+    package = tmp_path / "demo.rpm"
+    package.write_bytes(b"ok")
+    duplicate = cache.create_result(action, [package])
+    duplicate["artifacts"].append(dict(duplicate["artifacts"][0]))
+    with pytest.raises(SystemExit, match="duplicate"):
+        cache.verify_result(duplicate, tmp_path)
+
+
+def test_r2_path_is_canonical():
+    key = "sha256:" + "f" * 64
+    assert cache.result_path(key) == "actions/sha256/" + "f" * 64 + ".json"
