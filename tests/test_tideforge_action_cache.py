@@ -19,10 +19,19 @@ SPEC.loader.exec_module(cache)
 def fixture(tmp_path: pathlib.Path, **overrides) -> argparse.Namespace:
     recipe = tmp_path / "packages" / "demo" / "package.yaml"
     recipe.parent.mkdir(parents=True, exist_ok=True)
-    recipe.write_text("name: demo\n", encoding="utf-8")
+    recipe.write_text(
+        "name: demo\ndependencies: {build: {capabilities: [compiler]}}\n",
+        encoding="utf-8",
+    )
     scripts = tmp_path / "scripts"
     scripts.mkdir(exist_ok=True)
-    for name in ("tideforge.py", "assemble-deb-source-tree.py", "build-chain.sh"):
+    for name in (
+        "tideforge.py",
+        "assemble-deb-source-tree.py",
+        "build-chain.sh",
+        "run-package-factory-cell.sh",
+        "fetch-tideforge-sources.py",
+    ):
         (scripts / name).write_text(f"# {name}\n", encoding="utf-8")
     factory = tmp_path / "factory.yaml"
     factory.write_text(
@@ -81,6 +90,17 @@ def test_target_slice_tracks_selected_dependency_capabilities(tmp_path):
     assert key(args) != before
 
 
+def test_target_slice_ignores_unconsumed_dependency_capabilities(tmp_path):
+    args = fixture(tmp_path)
+    before = key(args)
+    factory = pathlib.Path(args.factory)
+    factory.write_text(
+        factory.read_text() + "  unused: {fedora: [unused-devel]}\n",
+        encoding="utf-8",
+    )
+    assert key(args) == before
+
+
 def test_renderer_inputs_are_partitioned_by_package_format(tmp_path):
     rpm = cache.action_inputs(fixture(tmp_path))
     deb = cache.action_inputs(fixture(tmp_path, target="debian", arch="amd64"))
@@ -88,6 +108,8 @@ def test_renderer_inputs_are_partitioned_by_package_format(tmp_path):
     assert "scripts/assemble-deb-source-tree.py" not in rpm["renderer_inputs"]
     assert "scripts/assemble-deb-source-tree.py" in deb["renderer_inputs"]
     assert "scripts/build-chain.sh" not in deb["renderer_inputs"]
+    assert "scripts/run-package-factory-cell.sh" in rpm["renderer_inputs"]
+    assert "scripts/run-package-factory-cell.sh" in deb["renderer_inputs"]
 
 
 def test_mutable_build_image_and_bad_dependency_key_are_refused(tmp_path):
