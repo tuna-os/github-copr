@@ -16,7 +16,11 @@ import yaml
 SCHEMA = 1
 SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 IMAGE_DIGEST = re.compile(r"^.+@sha256:[0-9a-f]{64}$")
-COMMON_RENDERERS = ("scripts/tideforge.py",)
+COMMON_RENDERERS = (
+    "scripts/tideforge.py",
+    "scripts/run-package-factory-cell.sh",
+    "scripts/fetch-tideforge-sources.py",
+)
 FORMAT_RENDERERS = {
     "deb": ("scripts/assemble-deb-source-tree.py",),
     "rpm": ("scripts/build-chain.sh",),
@@ -76,7 +80,9 @@ def load_factory(path: pathlib.Path) -> dict[str, Any]:
     return data
 
 
-def target_inputs(factory: dict[str, Any], target_id: str) -> dict[str, Any]:
+def target_inputs(
+    factory: dict[str, Any], target_id: str, capabilities: Iterable[str] = ()
+) -> dict[str, Any]:
     try:
         target = factory["targets"][target_id]
     except (KeyError, TypeError) as exc:
@@ -84,11 +90,23 @@ def target_inputs(factory: dict[str, Any], target_id: str) -> dict[str, Any]:
     if not isinstance(target, dict):
         raise SystemExit(f"factory target {target_id} must contain a mapping")
 
-    capabilities = {}
-    for name, targets in (factory.get("dependency_catalog") or {}).items():
-        if isinstance(targets, dict) and target_id in targets:
-            capabilities[name] = targets[target_id]
-    return {"contract": target, "dependency_capabilities": capabilities}
+    resolved = {}
+    catalog = factory.get("dependency_catalog") or {}
+    for name in sorted(set(capabilities)):
+        targets = catalog.get(name)
+        if not isinstance(targets, dict) or target_id not in targets:
+            raise SystemExit(f"dependency capability {name} has no mapping for {target_id}")
+        resolved[name] = targets[target_id]
+    return {"contract": target, "dependency_capabilities": resolved}
+
+
+def recipe_capabilities(recipe: dict[str, Any]) -> list[str]:
+    dependencies = recipe.get("dependencies") or {}
+    return [
+        str(capability)
+        for phase in ("build", "runtime")
+        for capability in ((dependencies.get(phase) or {}).get("capabilities") or [])
+    ]
 
 
 def renderer_paths(target: dict[str, Any]) -> tuple[str, ...]:
@@ -109,7 +127,8 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
     root = pathlib.Path(args.root)
     recipe = pathlib.Path(args.recipe)
     factory = load_factory(pathlib.Path(args.factory))
-    selected = target_inputs(factory, args.target)
+    recipe_data = load_factory(recipe)
+    selected = target_inputs(factory, args.target, recipe_capabilities(recipe_data))
     target = selected["contract"]
     if args.arch not in target.get("architectures", []):
         raise SystemExit(f"{args.arch} is not declared for target {args.target}")
@@ -152,6 +171,8 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
 def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
     root = pathlib.Path(args.root)
     factory = load_factory(pathlib.Path(args.factory))
+    # Native build-order manifests do not consume Tideforge's dependency
+    # capability catalog, so catalog edits must not invalidate native queues.
     selected = target_inputs(factory, args.target)
     target = selected["contract"]
     if args.arch not in target.get("architectures", []):
