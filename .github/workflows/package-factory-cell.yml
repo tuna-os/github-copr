@@ -100,7 +100,7 @@ jobs:
           MOCK_CONFIG: ${{ matrix.mock_config }}
           TIERS: ${{ matrix.tiers }}
           SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
-        run: scripts/run-package-factory-cell.sh
+        run: bash scripts/run-package-factory-cell.sh
       - name: Record a new ActionResult
         if: steps.verdict.outputs.hit != 'true'
         run: |
@@ -120,7 +120,7 @@ jobs:
           TARGET: ${{ matrix.target }}
           FORMAT: ${{ matrix.format }}
           IMAGE: ${{ matrix.image }}
-        run: scripts/verify-package-factory-cell.sh
+        run: bash scripts/verify-package-factory-cell.sh
       - name: Write immutable artifact checksums
         run: |
           set -euo pipefail
