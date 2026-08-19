@@ -10,7 +10,6 @@ test -d "$artifacts"
 if [[ ${ENGINE:?} == build-chain ]]; then
   mapfile -d '' rpms < <(find "$artifacts" -type f -name '*.rpm' ! -name '*.src.rpm' -print0)
   ((${#rpms[@]} > 0)) || { echo "native queue produced no RPMs" >&2; exit 1; }
-  rpm -qp "${rpms[@]}" >/dev/null
   docker run --rm --entrypoint /bin/bash --volume "$artifacts:/artifacts:ro" \
     --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" \
     /scripts/lint-generated-rpm.sh /artifacts

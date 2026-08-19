@@ -27,12 +27,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
-      - name: Install host tools
+      - name: Install planner dependency
         run: |
-          if [[ '${{ matrix.engine }}' == 'build-chain' ]]; then
-            sudo apt-get update -q
-            sudo apt-get install -y -q createrepo-c podman rpm
-          fi
           python -m pip install pyyaml==6.0.3
       - name: Restore source downloads
         if: matrix.engine == 'tideforge'
@@ -90,6 +86,11 @@ jobs:
             hit=true
           fi
           echo "hit=$hit" >> "$GITHUB_OUTPUT"
+      - name: Install native build tools on an exact miss
+        if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q createrepo-c podman rpm
       - name: Build on an exact miss
         if: steps.verdict.outputs.hit != 'true'
         env:
