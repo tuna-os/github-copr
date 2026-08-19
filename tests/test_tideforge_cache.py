@@ -140,8 +140,12 @@ def test_verify_miss_downloads_and_populates_cache(tmp_path, monkeypatch):
     cache = tmp_path / "cache"
 
     class Response:
-        def read(self):
-            return PAYLOAD
+        def __init__(self):
+            self.payload = PAYLOAD
+
+        def read(self, *_args):
+            payload, self.payload = self.payload, b""
+            return payload
 
         def __enter__(self):
             return self
