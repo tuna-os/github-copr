@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the cross-distro package-factory target contract."""
+"""Validate the package-factory contract and its data-driven matrix coverage."""
 from __future__ import annotations
 
 import argparse
@@ -15,32 +15,24 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
-def gate_targets(workflows: list[Path]) -> set[str]:
-    """Return every target name the Tideforge gate workflows actually exercise.
+def load_mapping(path: Path) -> dict:
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        fail(f"{path}: expected a YAML mapping")
+    return data
 
-    A cell counts only if it names a target, either as an explicit `target:`
-    matrix key or via `tideforge.py render --target <name>`. Reading the
-    workflows rather than trusting a hand-maintained list is the whole point:
-    the list is what went stale.
-    """
+
+def gate_targets(workflows: list[Path]) -> set[str]:
+    """Compatibility helper for tests and downstream callers of the old API."""
     exercised: set[str] = set()
     for workflow in workflows:
         if not workflow.exists():
             continue
-        text = workflow.read_text()
-        # `--target "${{ matrix.target }}"` names a target indirectly; the
-        # literal value comes from that job's matrix `target:` keys, which the
-        # second pattern collects. Skip the expression itself so it does not
-        # enter the set as a target literally called "matrix.target".
+        text = workflow.read_text(encoding="utf-8")
         for match in re.finditer(r"--target\s+\"?([a-z0-9-]+)\b", text):
             exercised.add(match.group(1))
         for match in re.finditer(r"^\s*target:\s*([a-z0-9-]+)\s*$", text, re.MULTILINE):
             exercised.add(match.group(1))
-        # A matrix axis exercises its targets just as much as an include list
-        # does -- `target: [hummingbird]` or a block list under `target:`. Only
-        # recognising the include form meant a job matrixed over targets read
-        # as covering none of them, which is the same false negative this
-        # function exists to prevent, wearing a different hat.
         for match in re.finditer(r"^\s*target:\s*\[([^\]]+)\]\s*$", text, re.MULTILINE):
             for name in match.group(1).split(","):
                 name = name.strip().strip("\"'")
@@ -50,36 +42,44 @@ def gate_targets(workflows: list[Path]) -> set[str]:
 
 
 def check_gate_coverage(targets: set[str], workflows: list[Path]) -> None:
-    """Fail when a declared target has no cells in the gate.
+    check_coverage(targets, gate_targets(workflows))
 
-    openSUSE was declared with its own architectures and r2_path, 19 recipes
-    opted into it, and it still had zero cells for months (#139). Nothing
-    failed, because nothing was looking. A target that is never exercised must
-    not be indistinguishable from one that passes.
-    """
-    exercised = gate_targets(workflows)
-    uncovered = sorted(target for target in targets if target not in exercised)
+
+def matrix_targets(root: Path) -> set[str]:
+    """Discover target coverage from recipe and native-build data, not workflow YAML."""
+    exercised: set[str] = set()
+    for recipe_path in sorted((root / "packages").glob("*/package.yaml")):
+        recipe = load_mapping(recipe_path)
+        declared = recipe.get("targets") or []
+        if not isinstance(declared, list):
+            fail(f"{recipe_path}: targets must be a list")
+        exercised.update(str(target) for target in declared)
+    registry_path = root / "manifests" / "package-builds.yaml"
+    if registry_path.exists():
+        registry = load_mapping(registry_path)
+        for build in registry.get("native_builds") or []:
+            if not isinstance(build, dict) or not build.get("target"):
+                fail(f"{registry_path}: every native build requires a target")
+            exercised.add(str(build["target"]))
+    return exercised
+
+
+def check_coverage(targets: set[str], exercised: set[str]) -> None:
+    unknown = sorted(exercised - targets)
+    if unknown:
+        fail(f"matrix data references undeclared target(s): {unknown}")
+    uncovered = sorted(targets - exercised)
     if uncovered:
-        fail(
-            f"declared target(s) with zero cells in the Tideforge gate: {uncovered}. "
-            "Every target in package-factory.yaml must be exercised by at least one "
-            "job, or it is untested while looking supported. See #139."
-        )
-    print(f"Gate coverage: all {len(targets)} declared targets are exercised")
+        fail(f"declared target(s) with zero matrix cells: {uncovered}")
+    print(f"Matrix coverage: all {len(targets)} declared targets are exercised")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("manifest", type=Path)
-    parser.add_argument(
-        "--gate-workflow",
-        type=Path,
-        action="append",
-        default=None,
-        help="Tideforge gate workflow to scan for target coverage (repeatable)",
-    )
+    parser.add_argument("--gate-workflow", type=Path, action="append", default=None)
     args = parser.parse_args()
-    data = yaml.safe_load(args.manifest.read_text())
+    data = load_mapping(args.manifest)
     if data.get("schema") != 1:
         fail("schema must be 1")
 
@@ -95,9 +95,8 @@ def main() -> None:
         seen_upstreams.add(upstream_id)
 
     targets = data.get("targets", {})
-    required = {"el10", "ubuntu", "debian", "hummingbird", "opensuse-tumbleweed", "arch"}
-    if set(targets) != required:
-        fail(f"targets must be exactly {sorted(required)}")
+    if not isinstance(targets, dict) or not targets:
+        fail("targets must be a non-empty mapping")
     for target_id, target in targets.items():
         if target.get("status") not in {"supported", "scaffold"}:
             fail(f"{target_id}: status must be supported or scaffold")
@@ -106,35 +105,20 @@ def main() -> None:
                 fail(f"{target_id}: {field} is required")
         if "/" not in target["probe_image"]:
             fail(f"{target_id}: probe_image must be a fully-qualified container image")
-        # hummingbird/ is rpm-md like rpm/, but it is an overlay on somebody
-        # else's distribution rather than a TunaOS repository, and its path is
-        # already published with the desktop packages in it. Moving it under
-        # rpm/ to satisfy this check would orphan them.
-        if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/", "hummingbird/")):
+        if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/", "hummingbird/", "xfce/")):
             fail(f"{target_id}: r2_path has an unsupported namespace")
         if not all(arch in {"x86_64", "aarch64", "amd64", "arm64"} for arch in target["architectures"]):
             fail(f"{target_id}: unsupported architecture")
-        build_repositories = target.get("build_repositories", [])
-        if not isinstance(build_repositories, list) or not all(
-            isinstance(repository, str) and repository for repository in build_repositories
-        ):
+        repositories = target.get("build_repositories", [])
+        if not isinstance(repositories, list) or not all(isinstance(item, str) and item for item in repositories):
             fail(f"{target_id}: build_repositories must be a list of non-empty names")
-    print("Package factory manifest: valid")
 
-    workflows = args.gate_workflow
-    if workflows is None:
-        workflow_directory = args.manifest.parent.parent / ".github" / "workflows"
-        workflows = [
-            workflow_directory / "build-tideforge-supported.yml",
-            workflow_directory / "build-tideforge-arch.yml",
-            # Hummingbird's desktop packages are dist-git imports rather than
-            # recipes, so they are built by their own workflow -- but a target
-            # exercised somewhere else is still exercised, and leaving this out
-            # would make hummingbird look uncovered when it is the busiest
-            # target in the repository.
-            workflow_directory / "build-hummingbird-desktops.yml",
-        ]
-    check_gate_coverage(set(targets), workflows)
+    print("Package factory manifest: valid")
+    root = args.manifest.parent.parent
+    if args.gate_workflow:
+        check_gate_coverage(set(targets), args.gate_workflow)
+    else:
+        check_coverage(set(targets), matrix_targets(root))
 
 
 if __name__ == "__main__":

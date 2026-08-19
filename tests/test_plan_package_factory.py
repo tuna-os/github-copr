@@ -6,8 +6,10 @@ import pathlib
 import yaml
 
 
-HERE = pathlib.Path(__file__).resolve().parent
-SPEC = importlib.util.spec_from_file_location("planner", HERE / "plan_package_factory.py")
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location(
+    "planner", ROOT / "scripts" / "plan-package-factory.py"
+)
 planner = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(planner)
 
@@ -60,3 +62,8 @@ def test_factory_contract_change_fails_toward_building_everything(tmp_path):
     root = repo(tmp_path)
     cells = planner.all_cells(root)
     assert planner.select_cells(cells, ["manifests/package-factory.yaml"]) == cells
+
+
+def test_every_matrix_row_has_the_same_schema(tmp_path):
+    cells = planner.all_cells(repo(tmp_path))
+    assert len({tuple(sorted(cell)) for cell in cells}) == 1

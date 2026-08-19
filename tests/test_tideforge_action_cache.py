@@ -8,8 +8,10 @@ import pathlib
 import pytest
 
 
-HERE = pathlib.Path(__file__).resolve().parent
-SPEC = importlib.util.spec_from_file_location("cache", HERE / "tideforge_action_cache.py")
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location(
+    "cache", ROOT / "scripts" / "tideforge-action-cache.py"
+)
 cache = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(cache)
 

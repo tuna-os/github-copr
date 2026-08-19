@@ -71,6 +71,10 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                         "image": image,
                         "runner": runner_for(str(architecture)),
                         "source_paths": [recipe_path.parent.relative_to(root).as_posix() + "/"],
+                        "manifest": "",
+                        "mock_config": "",
+                        "family": "tideforge",
+                        "r2_path": str(target.get("r2_path") or ""),
                     }
                 )
     return cells
@@ -92,6 +96,10 @@ def native_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                 "engine": "build-chain",
                 "format": "rpm",
                 "runner": cell.get("runner") or runner_for(str(cell["architecture"])),
+                "package": "",
+                "recipe": "",
+                "family": str(cell.get("family") or "native"),
+                "r2_path": str(cell.get("r2_path") or ""),
             }
         )
         cells.append(cell)

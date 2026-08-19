@@ -18,6 +18,8 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write
+  attestations: write
 
 jobs:
   plan:
@@ -57,21 +59,21 @@ jobs:
 
   build-0:
     needs: plan
-    if: ${{ fromJSON(needs.plan.outputs.count) > 0 && fromJSON(needs.plan.outputs.matrix_0).include[0] != null }}
+    if: ${{ fromJSON(needs.plan.outputs.count) > 0 }}
     uses: ./.github/workflows/package-factory-cell.yml
     with:
       matrix: ${{ needs.plan.outputs.matrix_0 }}
 
   build-1:
     needs: plan
-    if: ${{ fromJSON(needs.plan.outputs.count) > 200 && fromJSON(needs.plan.outputs.matrix_1).include[0] != null }}
+    if: ${{ fromJSON(needs.plan.outputs.count) > 200 }}
     uses: ./.github/workflows/package-factory-cell.yml
     with:
       matrix: ${{ needs.plan.outputs.matrix_1 }}
 
   build-2:
     needs: plan
-    if: ${{ fromJSON(needs.plan.outputs.count) > 400 && fromJSON(needs.plan.outputs.matrix_2).include[0] != null }}
+    if: ${{ fromJSON(needs.plan.outputs.count) > 400 }}
     uses: ./.github/workflows/package-factory-cell.yml
     with:
       matrix: ${{ needs.plan.outputs.matrix_2 }}

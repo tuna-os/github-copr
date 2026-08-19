@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: read
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -88,14 +90,14 @@ jobs:
         env:
           CELL_ID: ${{ matrix.id }}
           ENGINE: ${{ matrix.engine }}
-          PACKAGE: ${{ matrix.package || '' }}
-          RECIPE: ${{ matrix.recipe || '' }}
+          PACKAGE: ${{ matrix.package }}
+          RECIPE: ${{ matrix.recipe }}
           TARGET: ${{ matrix.target }}
           FORMAT: ${{ matrix.format }}
           ARCHITECTURE: ${{ matrix.architecture }}
           IMAGE: ${{ matrix.image }}
-          MANIFEST: ${{ matrix.manifest || '' }}
-          MOCK_CONFIG: ${{ matrix.mock_config || '' }}
+          MANIFEST: ${{ matrix.manifest }}
+          MOCK_CONFIG: ${{ matrix.mock_config }}
           SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
         run: scripts/run-package-factory-cell.sh
       - name: Record a new ActionResult
@@ -113,11 +115,43 @@ jobs:
         env:
           CELL_ID: ${{ matrix.id }}
           ENGINE: ${{ matrix.engine }}
-          RECIPE: ${{ matrix.recipe || '' }}
+          RECIPE: ${{ matrix.recipe }}
           TARGET: ${{ matrix.target }}
           FORMAT: ${{ matrix.format }}
           IMAGE: ${{ matrix.image }}
         run: scripts/verify-package-factory-cell.sh
+      - name: Write immutable artifact checksums
+        run: |
+          set -euo pipefail
+          mkdir -p '.factory/${{ matrix.id }}/metadata'
+          cd '.factory/${{ matrix.id }}/artifacts'
+          find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum \
+            > ../metadata/SHA256SUMS
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .factory/${{ matrix.id }}/artifacts
+          format: spdx-json
+          output-file: .factory/${{ matrix.id }}/metadata/sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Validate supply-chain metadata
+        run: |
+          set -euo pipefail
+          test -s '.factory/${{ matrix.id }}/metadata/SHA256SUMS'
+          jq -e '.spdxVersion | startswith("SPDX-")' \
+            '.factory/${{ matrix.id }}/metadata/sbom.spdx.json' >/dev/null
+      - name: Attest SLSA build provenance
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest@v4
+        with:
+          subject-path: .factory/${{ matrix.id }}/artifacts/*
+      - name: Attest SPDX SBOM
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest@v4
+        with:
+          subject-path: .factory/${{ matrix.id }}/artifacts/*
+          sbom-path: .factory/${{ matrix.id }}/metadata/sbom.spdx.json
       - name: Save validated output
         if: steps.verdict.outputs.hit != 'true'
         continue-on-error: true
@@ -130,5 +164,5 @@ jobs:
         if: always()
         with:
           name: ${{ matrix.id }}
-          path: .factory/${{ matrix.id }}/artifacts/
+          path: .factory/${{ matrix.id }}/
           if-no-files-found: error

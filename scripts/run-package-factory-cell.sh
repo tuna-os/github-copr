@@ -6,7 +6,7 @@ set -eEuo pipefail
 cell_id=${CELL_ID:?}
 engine=${ENGINE:?}
 target=${TARGET:?}
-architecture=${ARCHITECTURE:?}
+: "${ARCHITECTURE:?}"
 image=${IMAGE:?}
 out=${OUT_DIR:-"$PWD/.factory/$cell_id"}
 mkdir -p "$out/artifacts"
@@ -47,6 +47,7 @@ case ${FORMAT:?} in
         '
     else
       docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
+        --env TARGET="$target" \
         --volume "$root:/work" "$image" bash -lc '
           set -euo pipefail
           dnf -y install dnf-plugins-core rpm-build
