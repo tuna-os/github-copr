@@ -121,6 +121,7 @@ def test_selector_is_data_driven(tmp_path):
     cells = planner.all_cells(repo(tmp_path))
     assert {cell["target"] for cell in planner.select_by(cells, "target=debian")} == {"debian"}
     assert [cell["id"] for cell in planner.select_by(cells, "family=native")] == ["gnome"]
+    assert {cell["engine"] for cell in planner.select_by(cells, "track=stable")} == {"tideforge", "build-chain"}
 
 
 def test_shared_executor_pr_uses_contract_canaries(tmp_path):

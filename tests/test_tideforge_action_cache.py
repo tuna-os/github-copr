@@ -174,7 +174,39 @@ def test_native_key_tracks_only_declared_source_trees(tmp_path):
         arch="x86_64",
         image=base.image,
         source_date_epoch=base.source_date_epoch,
+        dependency_tree="",
+        target_queue="",
+        track="stable",
+        series="50",
     )
     before = cache.action_key(cache.native_action_inputs(args))
     (source / "demo.spec").write_text("Version: 2\n")
+    assert cache.action_key(cache.native_action_inputs(args)) != before
+
+
+def test_native_release_contract_hashes_only_selected_track_and_target(tmp_path):
+    base = fixture(tmp_path)
+    manifest = tmp_path / "order.yml"
+    source = tmp_path / "src"
+    source.mkdir()
+    manifest.write_text("tiers: []\n")
+    tree = tmp_path / "tree.yaml"
+    tree.write_text(
+        "schema: 1\nnodes: {demo: {needs: []}}\ntracks:\n"
+        "  stable: {series: '50'}\n  next: {series: '51'}\n"
+    )
+    queue = tmp_path / "queue.yaml"
+    queue.write_text("schema: 1\nqueues:\n  fedora: {gates: [install]}\n  debian: {gates: [install]}\n")
+    args = argparse.Namespace(
+        root=base.root, factory=base.factory, identity="gnome-stable",
+        manifest=str(manifest), input=[str(source)], target="fedora",
+        arch="x86_64", image=base.image, source_date_epoch=base.source_date_epoch,
+        dependency_tree=str(tree), target_queue=str(queue), track="stable", series="50",
+    )
+    before = cache.action_key(cache.native_action_inputs(args))
+    tree.write_text(tree.read_text().replace("series: '51'", "series: '52'"))
+    assert cache.action_key(cache.native_action_inputs(args)) == before
+    queue.write_text(queue.read_text().replace("debian: {gates: [install]}", "debian: {gates: [install, smoke]}"))
+    assert cache.action_key(cache.native_action_inputs(args)) == before
+    tree.write_text(tree.read_text().replace("series: '50'", "series: '50.1'"))
     assert cache.action_key(cache.native_action_inputs(args)) != before

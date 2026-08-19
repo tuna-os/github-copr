@@ -29,6 +29,8 @@ FORMAT_INPUTS = {
     "scripts/build-chain.sh": {"rpm"},
     "scripts/arch-clean-install.sh": {"pkg.tar.zst"},
 }
+DEPENDENCY_TREE_CHANGE = re.compile(r"^manifests/dependency-trees/[^/]+\.ya?ml$")
+TARGET_QUEUE_CHANGE = re.compile(r"^manifests/target-queues/[^/]+\.ya?ml$")
 
 
 def load_yaml(path: pathlib.Path) -> dict[str, Any]:
@@ -83,6 +85,7 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                         "format": package_format,
                         "architecture": architecture,
                         "image": image,
+                        "verify_image": image,
                         "runner": runner_for(str(architecture)),
                         "source_paths": [recipe_path.parent.relative_to(root).as_posix() + "/"],
                         "manifest": "",
@@ -92,6 +95,10 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                         "tiers": "",
                         "canary_tiers": "",
                         "capabilities": capabilities,
+                        "track": "stable",
+                        "series": str(recipe.get("version") or ""),
+                        "dependency_tree": "",
+                        "target_queue": "",
                     }
                 )
     return cells
@@ -104,6 +111,9 @@ def native_cells(root: pathlib.Path) -> list[dict[str, Any]]:
         if not isinstance(raw, dict):
             raise ValueError("native build entries must be mappings")
         cell = dict(raw)
+        if cell.get("enabled", True) is False:
+            continue
+        cell.pop("enabled", None)
         required = {"id", "target", "architecture", "image", "manifest", "mock_config", "source_paths"}
         missing = sorted(required - cell.keys())
         if missing:
@@ -113,6 +123,7 @@ def native_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                 "engine": "build-chain",
                 "format": "rpm",
                 "runner": cell.get("runner") or runner_for(str(cell["architecture"])),
+                "verify_image": str(cell.get("verify_image") or cell["image"]),
                 "package": "",
                 "recipe": "",
                 "family": str(cell.get("family") or "native"),
@@ -120,6 +131,10 @@ def native_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                 "tiers": str(cell.get("tiers") or ""),
                 "canary_tiers": str(cell.get("canary_tiers") or ""),
                 "capabilities": [],
+                "track": str(cell.get("track") or "stable"),
+                "series": str(cell.get("series") or ""),
+                "dependency_tree": str(cell.get("dependency_tree") or ""),
+                "target_queue": str(cell.get("target_queue") or ""),
             }
         )
         cells.append(cell)
@@ -151,6 +166,7 @@ def select_cells(
     changed_targets: set[str] | None = None,
     changed_native_ids: set[str] | None = None,
     changed_capabilities: set[tuple[str, str]] | None = None,
+    changed_graph_ids: set[str] | None = None,
     canary_common: bool = False,
 ) -> list[dict[str, Any]]:
     if changed_files is None:
@@ -178,6 +194,18 @@ def select_cells(
         if changed_native_ids is None:
             return cells
         return [cell for cell in cells if cell["id"] in changed_native_ids]
+    graph_paths = {
+        path for path in changed if DEPENDENCY_TREE_CHANGE.match(path) or TARGET_QUEUE_CHANGE.match(path)
+    }
+    if graph_paths:
+        graph_cells = [
+            cell
+            for cell in cells
+            if cell["dependency_tree"] in graph_paths or cell["target_queue"] in graph_paths
+        ]
+        if changed_graph_ids is None:
+            return graph_cells
+        return [cell for cell in graph_cells if cell["id"] in changed_graph_ids]
     changed_packages = {match.group(1) for path in changed if (match := RECIPE_CHANGE.match(path))}
     selected = []
     for cell in cells:
@@ -262,6 +290,45 @@ def changed_contracts(
     return changed_targets, changed_rows, changed_capabilities
 
 
+def changed_graph_cells(
+    root: pathlib.Path, base: str, cells: list[dict[str, Any]], changed: list[str]
+) -> set[str]:
+    """Select semantic release-track and target-queue slices."""
+    selected: set[str] = set()
+    for path in changed:
+        if DEPENDENCY_TREE_CHANGE.match(path):
+            current = load_yaml(root / path)
+            old = yaml_at_revision(root, base, path)
+            current_common = {key: value for key, value in current.items() if key != "tracks"}
+            old_common = {key: value for key, value in old.items() if key != "tracks"}
+            referencing = [cell for cell in cells if cell["dependency_tree"] == path]
+            if current_common != old_common:
+                selected.update(cell["id"] for cell in referencing)
+                continue
+            current_tracks = current.get("tracks") or {}
+            old_tracks = old.get("tracks") or {}
+            changed_tracks = {
+                track
+                for track in set(current_tracks) | set(old_tracks)
+                if current_tracks.get(track) != old_tracks.get(track)
+            }
+            selected.update(cell["id"] for cell in referencing if cell["track"] in changed_tracks)
+        elif TARGET_QUEUE_CHANGE.match(path):
+            current = load_yaml(root / path).get("queues") or {}
+            old = yaml_at_revision(root, base, path).get("queues") or {}
+            changed_targets = {
+                target
+                for target in set(current) | set(old)
+                if current.get(target) != old.get(target)
+            }
+            selected.update(
+                cell["id"]
+                for cell in cells
+                if cell["target_queue"] == path and cell["target"] in changed_targets
+            )
+    return selected
+
+
 def select_by(cells: list[dict[str, Any]], selector: str) -> list[dict[str, Any]]:
     """Filter by a stable cell ID or a data field (``target=``/``family=``)."""
     if not selector:
@@ -270,7 +337,7 @@ def select_by(cells: list[dict[str, Any]], selector: str) -> list[dict[str, Any]
         selected = [cell for cell in cells if cell["id"] == selector]
     else:
         field, value = selector.split("=", 1)
-        if field not in {"target", "family", "engine", "architecture"} or not value:
+        if field not in {"target", "family", "engine", "architecture", "track", "series"} or not value:
             raise ValueError(f"unsupported package factory selector: {selector}")
         selected = [cell for cell in cells if str(cell[field]) == value]
     if not selected:
@@ -293,19 +360,21 @@ def main() -> int:
         changed = None
         if args.changed_files:
             changed = args.changed_files.read_text(encoding="utf-8").splitlines()
-        target_changes = native_changes = capability_changes = None
+        target_changes = native_changes = capability_changes = graph_changes = None
         if args.base:
             try:
                 target_changes, native_changes, capability_changes = changed_contracts(args.root, args.base)
+                graph_changes = changed_graph_cells(args.root, args.base, cells, changed or [])
             except (OSError, subprocess.CalledProcessError, ValueError, yaml.YAMLError):
                 # Fail toward building all cells in a changed manifest class.
-                target_changes = native_changes = capability_changes = None
+                target_changes = native_changes = capability_changes = graph_changes = None
         selected = select_cells(
             cells,
             changed,
             changed_targets=target_changes,
             changed_native_ids=native_changes,
             changed_capabilities=capability_changes,
+            changed_graph_ids=graph_changes,
             canary_common=args.canary_common,
         )
         if args.cell:

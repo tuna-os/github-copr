@@ -187,10 +187,37 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
         except ValueError as exc:
             raise SystemExit(f"native input must be inside repository root: {path}") from exc
         inputs.append({"path": relative, "digest": digest_path(path)})
+    contracts = []
+    if args.dependency_tree:
+        path = pathlib.Path(args.dependency_tree)
+        data = load_factory(path)
+        tracks = data.pop("tracks", {}) or {}
+        if args.track not in tracks:
+            raise SystemExit(f"dependency tree has no release track {args.track}")
+        contracts.append(
+            {
+                "path": path.resolve().relative_to(root.resolve()).as_posix(),
+                "digest": digest_json({"common": data, "track": tracks[args.track]}),
+            }
+        )
+    if args.target_queue:
+        path = pathlib.Path(args.target_queue)
+        data = load_factory(path)
+        queues = data.get("queues") or {}
+        if args.target not in queues:
+            raise SystemExit(f"target queue has no target {args.target}")
+        contracts.append(
+            {
+                "path": path.resolve().relative_to(root.resolve()).as_posix(),
+                "digest": digest_json({"schema": data.get("schema"), "queue": queues[args.target]}),
+            }
+        )
     return {
         "schema": SCHEMA,
         "identity": args.identity,
         "native_inputs": sorted(inputs, key=lambda entry: entry["path"]),
+        "native_contracts": sorted(contracts, key=lambda entry: entry["path"]),
+        "release_track": {"name": args.track, "series": args.series},
         "target": {"id": args.target, "architecture": args.arch, "inputs": selected},
         "build_image": require_image_digest(args.image),
         "renderer_inputs": {"scripts/build-chain.sh": digest_file(root / "scripts/build-chain.sh")},
@@ -279,6 +306,10 @@ def main() -> int:
     native_parser.add_argument("--identity", required=True)
     native_parser.add_argument("--manifest", required=True)
     native_parser.add_argument("--input", action="append", default=[])
+    native_parser.add_argument("--dependency-tree", default="")
+    native_parser.add_argument("--target-queue", default="")
+    native_parser.add_argument("--track", default="stable")
+    native_parser.add_argument("--series", default="")
     native_parser.add_argument("--factory", default="manifests/package-factory.yaml")
     native_parser.add_argument("--root", default=".")
     native_parser.add_argument("--target", required=True)

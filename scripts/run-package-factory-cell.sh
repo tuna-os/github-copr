@@ -15,6 +15,17 @@ export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:?}
 export TZ=UTC LANG=C.UTF-8 LC_ALL=C.UTF-8
 
 if [[ $engine == build-chain ]]; then
+    if grep -q '^[[:space:]]*distgit:' "${MANIFEST:?}"; then
+      tier_args=()
+      if [[ -n ${TIERS:-} ]]; then
+        IFS=',' read -ra selected_tiers <<< "$TIERS"
+        for tier in "${selected_tiers[@]}"; do tier_args+=(--tier "$tier"); done
+      fi
+      python3 scripts/import-fedora-distgit.py \
+        --build-order "$MANIFEST" "${tier_args[@]}" \
+        --branch rawhide --state "$out/import-state.json" \
+        --release-bump --jobs 4
+    fi
     args=(--manifest "${MANIFEST:?}" --backend podman --image "$image"
           --mock-config "${MOCK_CONFIG:?}" --local-repo "$out/artifacts"
           --with-checks)

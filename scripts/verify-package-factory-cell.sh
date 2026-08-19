@@ -11,15 +11,18 @@ if [[ ${ENGINE:?} == build-chain ]]; then
   mapfile -d '' rpms < <(find "$artifacts" -type f -name '*.rpm' -print0)
   ((${#rpms[@]} > 0)) || { echo "native queue produced no RPMs" >&2; exit 1; }
   rpm -qp "${rpms[@]}" >/dev/null
-  docker run --rm --volume "$artifacts:/artifacts:ro" \
+  docker run --rm --entrypoint /bin/bash --volume "$artifacts:/artifacts:ro" \
     --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" \
-    bash /scripts/lint-generated-rpm.sh /artifacts
-  docker run --rm --volume "$artifacts:/artifacts:ro" "${IMAGE:?}" bash -lc '
+    /scripts/lint-generated-rpm.sh /artifacts
+  docker run --rm --entrypoint /bin/bash \
+    --env TARGET="${TARGET:?}" --volume "$artifacts:/artifacts:ro" "${IMAGE:?}" -lc '
     set -euo pipefail
     dnf -y install createrepo_c
-    createrepo_c /artifacts
-    dnf -y install --nogpgcheck --repofrompath factory,file:///artifacts \
-      --setopt=factory.priority=1 --enablerepo=factory /artifacts/*.rpm
+    mkdir /factory-repo
+    cp /artifacts/*.rpm /factory-repo/
+    createrepo_c /factory-repo
+    dnf -y install --nogpgcheck --repofrompath factory,file:///factory-repo \
+      --setopt=factory.priority=1 --enablerepo=factory /factory-repo/*.rpm
     mapfile -t names < <(rpm -qp --qf "%{NAME}\n" /artifacts/*.rpm | sort -u)
     rpm -q "${names[@]}"
     rpm -V "${names[@]}"
@@ -48,23 +51,25 @@ fi
 
 case ${FORMAT:?} in
   rpm)
-    docker run --rm --volume "$artifacts:/artifacts:ro" \
+    docker run --rm --entrypoint /bin/bash --volume "$artifacts:/artifacts:ro" \
       --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" \
-      bash /scripts/lint-generated-rpm.sh /artifacts
-    docker run --rm --env INSTALL_NAME="$install_name" \
+      /scripts/lint-generated-rpm.sh /artifacts
+    docker run --rm --entrypoint /bin/bash --env INSTALL_NAME="$install_name" \
       --volume "$artifacts:/artifacts:ro" --volume "$out/smoke.sh:/smoke.sh:ro" \
-      --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" bash -lc '
+      --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" -lc '
         set -euo pipefail
+        mkdir /factory-repo
+        cp /artifacts/*.rpm /factory-repo/
         if command -v zypper >/dev/null; then
           zypper --non-interactive install createrepo_c
-          createrepo_c /artifacts
-          zypper --non-interactive addrepo --no-gpgcheck --priority 1 file:///artifacts tideforge
+          createrepo_c /factory-repo
+          zypper --non-interactive addrepo --no-gpgcheck --priority 1 file:///factory-repo tideforge
           zypper --non-interactive --gpg-auto-import-keys refresh tideforge
           zypper --non-interactive --no-gpg-checks install "$INSTALL_NAME"
         else
           dnf -y install createrepo_c
-          createrepo_c /artifacts
-          dnf -y install --nogpgcheck --repofrompath tideforge,file:///artifacts \
+          createrepo_c /factory-repo
+          dnf -y install --nogpgcheck --repofrompath tideforge,file:///factory-repo \
             --setopt=tideforge.priority=1 --enablerepo=tideforge "$INSTALL_NAME"
         fi
         rpm -q "$INSTALL_NAME"

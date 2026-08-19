@@ -38,7 +38,7 @@ jobs:
         with:
           recipe: ${{ matrix.recipe }}
       - name: Pull the declared build image
-        run: scripts/pull-container-image.sh "${{ matrix.image }}"
+        run: scripts/pull-container-image.sh "${{ matrix.image }}" "${{ matrix.verify_image }}"
       - id: identity
         name: Resolve immutable inputs and action key
         env:
@@ -61,6 +61,9 @@ jobs:
               --identity '${{ matrix.id }}' --manifest '${{ matrix.manifest }}' \
               "${args[@]}" --target '${{ matrix.target }}' \
               --arch '${{ matrix.architecture }}' --image "$image" \
+              --dependency-tree '${{ matrix.dependency_tree }}' \
+              --target-queue '${{ matrix.target_queue }}' \
+              --track '${{ matrix.track }}' --series '${{ matrix.series }}' \
               --source-date-epoch "$epoch")
           fi
           echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
@@ -95,7 +98,7 @@ jobs:
           TARGET: ${{ matrix.target }}
           FORMAT: ${{ matrix.format }}
           ARCHITECTURE: ${{ matrix.architecture }}
-          IMAGE: ${{ matrix.image }}
+          IMAGE: ${{ matrix.verify_image }}
           MANIFEST: ${{ matrix.manifest }}
           MOCK_CONFIG: ${{ matrix.mock_config }}
           TIERS: ${{ matrix.tiers }}
