@@ -45,7 +45,7 @@ shift 2
 # pool 404d it, so any sync that takes fastly's db resolves packages no
 # mirror still carries. One mirror keeps db and pool in step.
 echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' > /etc/pacman.d/mirrorlist
-pacman -Sy --noconfirm pacman-contrib
+pacman -Sy --noconfirm pacman-contrib pkgconf
 
 repo-add /tmp/tideforge.db.tar.gz "$artifacts"/*.pkg.tar.*
 mkdir -p /var/lib/tideforge

@@ -145,16 +145,12 @@ def test_the_real_repository_has_no_cell_for_an_undeclared_pair() -> None:
     assert coverage.gate_pairs(tree) - coverage.declared_pairs(tree) == set()
 
 
-def test_the_real_repository_coverage_is_reported_not_asserted() -> None:
-    """Pins the shape of today's gap so a silent collapse to zero is visible.
-
-    If this ever fails because coverage improved, raise the floor -- do not
-    delete the test.
-    """
+def test_the_unified_planner_covers_every_declared_pair() -> None:
     tree = coverage.Tree()
     declared = coverage.declared_pairs(tree)
     assert len(declared) >= 122
-    assert coverage.uncovered(tree), "no uncovered pairs would make the ratchet vacuous"
+    assert coverage.gate_pairs(tree) == declared
+    assert coverage.uncovered(tree) == set()
 
 
 # --- job shapes the parser must not miss (the #159 blind spot) --------------

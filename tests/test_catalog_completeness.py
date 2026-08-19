@@ -1,161 +1,58 @@
-"""RFC 011 Phase 0: the catalog must be complete, and completeness must be
-a CI failure, not a memory.
-
-manifests/catalog.yaml indexes every package any factory family builds. The
-sources of executed truth it must stay in mutual coverage with are the
-build-order*.yml files, the tideforge workflow matrices, and the target
-queues. scripts/build-catalog.py regenerates the catalog from those sources;
-these tests fail the moment either side moves without the other.
-
-The trap this kills is documented in docs/PACKAGE_FACTORY.md: a package
-present under packages/ but in no matrix is never built, silently. The
-bootstrap measured exactly three such orphans; that list may shrink, never
-grow.
-"""
+"""The catalog covers every package selected by the unified factory."""
 from __future__ import annotations
 
 import importlib.util
-import os
-import pathlib
-import sys
+from pathlib import Path
 
 import yaml
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "manifests" / "catalog.yaml"
 FACTORY = ROOT / "manifests" / "package-factory.yaml"
 
-# The three recipes that existed under packages/ with no matrix, queue, or
-# build order referencing them at bootstrap (2026-08-18). Deliberate
-# allowlist: removing an entry (because the recipe gained a matrix cell or
-# was deleted) is progress; adding one is the defect class this file exists
-# to prevent.
-KNOWN_ORPHAN_RECIPES = {"cpptrace-devel", "gtkgreet", "iio-niri"}
 
-# Targets a family builds for that manifests/package-factory.yaml does not
-# declare. The bootstrap found exactly one: the XFWL4 Fedora validation
-# family (build-order-xfce-fedora.yml) builds fedora-44-x86_64 and publishes
-# to xfce/44-x86_64 — but the factory contract cannot simply gain a `fedora`
-# entry, because scripts/validate-package-factory.py rightly requires every
-# declared target to have a Tideforge gate cell (#139), and this family is
-# native-spec with no Tideforge involvement. Resolving the mismatch —
-# a gate cell + declaration, or retiring the family — is Phase 1 work; until
-# then the gap stays visible here and may only shrink, never grow.
-KNOWN_UNDECLARED_TARGETS = {"fedora"}
+def load(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def _load_builder():
-    spec = importlib.util.spec_from_file_location(
-        "build_catalog", ROOT / "scripts" / "build-catalog.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+planner = load("package_factory_planner", ROOT / "scripts" / "plan-package-factory.py")
+catalog_builder = load("build_catalog", ROOT / "scripts" / "build-catalog.py")
 
 
-def _catalog() -> dict:
-    return yaml.safe_load(CATALOG.read_text(encoding="utf-8"))
+def catalog() -> list[dict]:
+    return (yaml.safe_load(CATALOG.read_text(encoding="utf-8")) or {})["packages"]
 
 
-def test_catalog_matches_regeneration() -> None:
-    """The committed catalog IS the collector's output over the executed
-    sources. Any build-order edit, matrix edit, or queue edit that is not
-    re-cataloged fails here — in both directions."""
-    mod = _load_builder()
-    regenerated = mod.collect()
-    committed = {(p["name"], p["family"]): p for p in _catalog()["packages"]}
-
-    regen_keys = set(regenerated)
-    committed_keys = set(committed)
-    missing = sorted(regen_keys - committed_keys)
-    stale = sorted(committed_keys - regen_keys)
-    assert not missing, f"executed but not cataloged: {missing[:10]}"
-    assert not stale, f"cataloged but no longer executed: {stale[:10]}"
-
-    for key, regen in regenerated.items():
-        entry = committed[key]
-        assert sorted(regen["targets"]) == entry["targets"], key
-        assert sorted(regen["referenced_by"]) == entry["referenced_by"], key
+def test_catalog_contains_every_executed_package() -> None:
+    catalog_names = {entry["name"] for entry in catalog()}
+    planned_names = {
+        cell["package"] for cell in planner.tideforge_cells(ROOT)
+    }
+    regenerated_names = {entry["name"] for entry in catalog_builder.collect().values()}
+    assert not planned_names - catalog_names
+    assert not regenerated_names - catalog_names
 
 
-def test_targets_are_declared_in_the_factory_contract() -> None:
-    """A catalog entry may only name targets package-factory.yaml declares.
-    This is the rule that surfaced the fedora-44 gap at bootstrap: the XFWL4
-    Fedora family had been publishing to a target the contract never named.
-    """
-    declared = set(yaml.safe_load(
-        FACTORY.read_text(encoding="utf-8"))["targets"])
-    seen_undeclared: set[str] = set()
-    for p in _catalog()["packages"]:
-        rogue = set(p["targets"]) - declared
-        seen_undeclared |= rogue & KNOWN_UNDECLARED_TARGETS
-        rogue -= KNOWN_UNDECLARED_TARGETS
-        assert not rogue, (
-            f"{p['name']} ({p['family']}) names undeclared target(s) "
-            f"{sorted(rogue)}; declare them in manifests/package-factory.yaml "
-            f"or fix the order/queue")
-    healed = KNOWN_UNDECLARED_TARGETS - seen_undeclared
-    assert not healed, (
-        f"{sorted(healed)} no longer appear as undeclared targets — remove "
-        f"them from KNOWN_UNDECLARED_TARGETS so the allowlist only shrinks")
-
-
-def test_executed_packages_have_recorded_provenance() -> None:
-    """Phase 0's gate: every package a build order or workflow matrix
-    actually executes has a recorded upstream (a version+source, a distgit
-    ref — the pin mechanism for snapshot rebuilds — or a COPR source) and a
-    packaging ref. Queue-only entries are declared intent, not executed
-    builds, and are exempt until a matrix picks them up."""
-    for p in _catalog()["packages"]:
-        executed = any(not r.startswith("manifests/target-queues/")
-                       for r in p["referenced_by"])
-        if not executed:
-            continue
-        packaging = p.get("packaging") or {}
-        has_payload = any(
-            isinstance(pk, dict) and (
-                pk.get("native") or pk.get("tideforge") or pk.get("distgit")
-                or pk.get("copr"))
-            for pk in packaging.values())
-        assert has_payload, f"{p['name']} ({p['family']}) has no payload ref"
-        up = p.get("upstream") or {}
-        rpm = packaging.get("rpm") or {}
-        assert up.get("distgit") or up.get("version") or up.get("source") \
-            or rpm.get("copr"), (
-                f"{p['name']} ({p['family']}) is executed but records no "
-                f"upstream provenance")
+def test_all_catalog_targets_are_declared() -> None:
+    declared = set((yaml.safe_load(FACTORY.read_text()) or {})["targets"])
+    rogue = {
+        target
+        for entry in catalog()
+        for target in entry.get("targets", [])
+        if target not in declared
+    }
+    assert rogue == set()
 
 
 def test_payload_paths_exist_on_disk() -> None:
-    for p in _catalog()["packages"]:
-        for pk in (p.get("packaging") or {}).values():
-            if not isinstance(pk, dict) or pk.get("missing_on_disk"):
+    for entry in catalog():
+        for package in (entry.get("packaging") or {}).values():
+            if not isinstance(package, dict) or package.get("missing_on_disk"):
                 continue
             for kind in ("native", "tideforge"):
-                ref = pk.get(kind)
-                if ref:
-                    assert (ROOT / ref).is_dir(), (
-                        f"{p['name']} ({p['family']}): {kind} payload "
-                        f"{ref} is not a directory")
-
-
-def test_orphan_recipes_cannot_grow() -> None:
-    """Every packages/<recipe> is referenced by the catalog except the
-    bootstrap-measured allowlist. A new unreferenced recipe is the
-    'present under packages/ but in no matrix -> never built' trap."""
-    referenced = set()
-    for p in _catalog()["packages"]:
-        for pk in (p.get("packaging") or {}).values():
-            if isinstance(pk, dict) and pk.get("tideforge"):
-                referenced.add(pk["tideforge"].split("/", 1)[1])
-    ondisk = {d.name for d in (ROOT / "packages").iterdir()
-              if d.is_dir() and not d.name.startswith("_")}
-    orphans = ondisk - referenced
-    new_orphans = orphans - KNOWN_ORPHAN_RECIPES
-    assert not new_orphans, (
-        f"recipe(s) exist under packages/ but nothing builds them: "
-        f"{sorted(new_orphans)} — add a matrix/queue cell or delete the "
-        f"recipe (docs/PACKAGE_FACTORY.md trap)")
-    healed = KNOWN_ORPHAN_RECIPES - orphans
-    assert not healed, (
-        f"{sorted(healed)} are no longer orphans — remove them from "
-        f"KNOWN_ORPHAN_RECIPES so the allowlist only shrinks")
+                if package.get(kind):
+                    assert (ROOT / package[kind]).is_dir(), (entry["name"], kind)

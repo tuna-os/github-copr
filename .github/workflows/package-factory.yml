@@ -1,0 +1,146 @@
+name: Package Factory
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+    inputs:
+      cell:
+        description: Optional exact matrix cell ID
+        required: false
+        type: string
+      selector:
+        description: Optional target=, family=, engine=, or architecture= filter
+        required: false
+        type: string
+
+concurrency:
+  group: package-factory-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      count: ${{ steps.plan.outputs.count }}
+      matrix_0: ${{ steps.plan.outputs.matrix_0 }}
+      matrix_1: ${{ steps.plan.outputs.matrix_1 }}
+      matrix_2: ${{ steps.plan.outputs.matrix_2 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - name: Collect changed paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BASE_SHA:-}" ] && [ "$BASE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            git diff --name-only "$BASE_SHA"...HEAD > changed-files.txt
+            cat changed-files.txt
+          fi
+      - id: plan
+        name: Emit the unified package matrix
+        env:
+          REQUESTED_CELL: ${{ inputs.cell || '' }}
+          REQUESTED_SELECTOR: ${{ inputs.selector || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          args=(--github-output "$GITHUB_OUTPUT")
+          [ ! -f changed-files.txt ] || args+=(--changed-files changed-files.txt)
+          [ -z "${BASE_SHA:-}" ] || args+=(--base "$BASE_SHA")
+          [ -z "$REQUESTED_CELL" ] || args+=(--cell "$REQUESTED_CELL")
+          if [ "$EVENT_NAME" = schedule ]; then
+            REQUESTED_SELECTOR=family=hummingbird-desktops
+          fi
+          case "$EVENT_NAME" in
+            pull_request|merge_group) args+=(--canary-common) ;;
+          esac
+          [ -z "$REQUESTED_SELECTOR" ] || args+=(--selector "$REQUESTED_SELECTOR")
+          python3 scripts/plan-package-factory.py "${args[@]}"
+
+  build-0:
+    needs: plan
+    if: ${{ fromJSON(needs.plan.outputs.count) > 0 }}
+    uses: ./.github/workflows/package-factory-cell.yml
+    with:
+      matrix: ${{ needs.plan.outputs.matrix_0 }}
+
+  build-1:
+    needs: plan
+    if: ${{ fromJSON(needs.plan.outputs.count) > 200 }}
+    uses: ./.github/workflows/package-factory-cell.yml
+    with:
+      matrix: ${{ needs.plan.outputs.matrix_1 }}
+
+  build-2:
+    needs: plan
+    if: ${{ fromJSON(needs.plan.outputs.count) > 400 }}
+    uses: ./.github/workflows/package-factory-cell.yml
+    with:
+      matrix: ${{ needs.plan.outputs.matrix_2 }}
+
+  gate:
+    name: Package factory gate
+    if: ${{ always() }}
+    needs: [plan, build-0, build-1, build-2]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every planned shard to pass
+        env:
+          PLAN: ${{ needs.plan.result }}
+          COUNT: ${{ needs.plan.outputs.count || '0' }}
+          SHARD_0: ${{ needs.build-0.result }}
+          SHARD_1: ${{ needs.build-1.result }}
+          SHARD_2: ${{ needs.build-2.result }}
+        run: |
+          set -euo pipefail
+          test "$PLAN" = success
+          results=("$SHARD_0" "$SHARD_1" "$SHARD_2")
+          needed=$(( (COUNT + 199) / 200 ))
+          for ((index=0; index<needed; index++)); do
+            test "${results[$index]}" = success
+          done
+          echo "$COUNT package action(s) planned across $needed shard(s)."
+
+  # Transitional aliases keep existing branch-protection contexts reporting
+  # while their former workflows are removed. They execute no builds and can
+  # be removed after the repository ruleset requires Package factory gate.
+  compatibility-tideforge:
+    name: Tideforge gate
+    if: ${{ always() }}
+    needs: gate
+    runs-on: ubuntu-24.04
+    steps:
+      - run: test '${{ needs.gate.result }}' = success
+
+  compatibility-arch:
+    name: Tideforge gate (arch)
+    if: ${{ always() }}
+    needs: gate
+    runs-on: ubuntu-24.04
+    steps:
+      - run: test '${{ needs.gate.result }}' = success
+
+  compatibility-el10:
+    name: el10-release-gate
+    if: ${{ always() }}
+    needs: gate
+    runs-on: ubuntu-24.04
+    steps:
+      - run: test '${{ needs.gate.result }}' = success

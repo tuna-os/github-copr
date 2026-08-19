@@ -45,10 +45,10 @@ jobs:
     name: YAML Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.0
 
       - name: Run yamllint
-        uses: ibiqlik/action-yamllint@v3
+        uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3
         with:
           file_or_dir: .
           config_data: |
@@ -71,10 +71,10 @@ jobs:
     name: ShellCheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.0
 
       - name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@2.0.0
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
         with:
           scandir: './'
           severity: warning
@@ -88,7 +88,7 @@ jobs:
     name: Workflow Syntax Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.0
 
       - name: Validate workflow YAMLs
         run: |
@@ -109,7 +109,7 @@ jobs:
     name: Build Order Schema Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.0
 
       - name: Install yq and check-jsonschema
         run: |
@@ -131,13 +131,20 @@ jobs:
   bats-tests:
     name: BATS Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.0
 
-      - name: Install BATS
+      - name: Install pinned BATS
+        env:
+          BATS_COMMIT: 713504bc0224a19b3d7c7958c18dc07f64f54b44 # v1.12.0
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq bats
+          install_root="$RUNNER_TEMP/bats-core"
+          git init "$install_root"
+          git -C "$install_root" remote add origin https://github.com/bats-core/bats-core.git
+          timeout 120s git -C "$install_root" fetch --depth=1 origin "$BATS_COMMIT"
+          git -C "$install_root" checkout --detach FETCH_HEAD
+          sudo "$install_root/install.sh" /usr/local
 
       - name: Run BATS tests
         run: |
@@ -154,9 +161,9 @@ jobs:
     name: Python Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.0
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
 

@@ -1,0 +1,39 @@
+name: Tideforge action cache
+description: Restore or save an exact content-addressed Tideforge build output
+inputs:
+  operation:
+    description: restore before compilation or save after validation
+    required: true
+  action-key:
+    required: true
+  path:
+    required: true
+outputs:
+  cache-hit:
+    value: ${{ steps.restore.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - name: Validate cache operation
+      shell: bash
+      env:
+        OPERATION: ${{ inputs.operation }}
+      run: |
+        set -euo pipefail
+        case "$OPERATION" in
+          restore|save) ;;
+          *) echo "operation must be restore or save" >&2; exit 2 ;;
+        esac
+    - id: restore
+      if: inputs.operation == 'restore'
+      # actions/cache v6.0.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      with:
+        path: ${{ inputs.path }}
+        key: tideforge-action-v1-${{ inputs.action-key }}
+    - if: inputs.operation == 'save'
+      # actions/cache v6.0.0
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      with:
+        path: ${{ inputs.path }}
+        key: tideforge-action-v1-${{ inputs.action-key }}

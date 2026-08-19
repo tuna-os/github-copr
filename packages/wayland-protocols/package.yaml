@@ -13,6 +13,10 @@ source:
   sha256: 8d94eee148db4d8111ccc0d4331de2f82d4b28c38e30eace9f052886480f7d86
   directory: wayland-protocols-1.49
 build_system: data
+ci:
+  # Small, dependency-light, and valid on every package-factory target. The
+  # planner uses explicit canaries instead of alphabetic package accidents.
+  canary: true
 files:
   common: [usr/share/wayland-protocols]
 install:
@@ -37,7 +41,7 @@ outputs:
     packages:
       - name: wayland-protocols
         summary: Wayland protocol definitions
-        description: Current Wayland protocol XML definitions.
+        description: Current Wayland protocol definitions.
         files: [usr/share/wayland-protocols, usr/share/pkgconfig/wayland-protocols.pc]
 verify:
   smoke: "pkg-config --atleast-version=1.41 wayland-protocols && test -f /usr/share/wayland-protocols/staging/ext-session-lock/ext-session-lock-v1.xml"

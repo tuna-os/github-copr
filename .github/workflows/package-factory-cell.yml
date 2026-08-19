@@ -1,0 +1,175 @@
+name: Package Factory Matrix
+
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    name: ${{ matrix.id }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Install planner dependency
+        run: |
+          python -m pip install pyyaml==6.0.3
+      - name: Restore source downloads
+        if: matrix.engine == 'tideforge'
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: ${{ matrix.recipe }}
+      - name: Pull the declared build image
+        run: scripts/pull-container-image.sh "${{ matrix.image }}" "${{ matrix.verify_image }}"
+      - id: identity
+        name: Resolve immutable inputs and action key
+        env:
+          CELL: ${{ toJSON(matrix) }}
+        run: |
+          set -euo pipefail
+          image=$(docker image inspect --format '{{json .RepoDigests}}' '${{ matrix.image }}' | jq -r 'sort | .[0]')
+          if [ '${{ matrix.engine }}' = tideforge ]; then
+            epoch=$(git log -1 --format=%ct -- "$(dirname '${{ matrix.recipe }}')")
+            payload=$(python3 scripts/tideforge-action-cache.py key \
+              --recipe '${{ matrix.recipe }}' --target '${{ matrix.target }}' \
+              --arch '${{ matrix.architecture }}' --image "$image" \
+              --source-date-epoch "$epoch")
+          else
+            mapfile -t source_paths < <(jq -r '.source_paths[]' <<<"$CELL")
+            epoch=$(git log -1 --format=%ct -- '${{ matrix.manifest }}' "${source_paths[@]}")
+            args=()
+            for path in "${source_paths[@]}"; do args+=(--input "$path"); done
+            payload=$(python3 scripts/tideforge-action-cache.py native-key \
+              --identity '${{ matrix.id }}' --manifest '${{ matrix.manifest }}' \
+              "${args[@]}" --target '${{ matrix.target }}' \
+              --arch '${{ matrix.architecture }}' --image "$image" \
+              --dependency-tree '${{ matrix.dependency_tree }}' \
+              --target-queue '${{ matrix.target_queue }}' \
+              --track '${{ matrix.track }}' --series '${{ matrix.series }}' \
+              --source-date-epoch "$epoch")
+          fi
+          echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
+          echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
+          jq . <<<"$payload"
+      - id: restore
+        uses: ./.github/actions/tideforge-action-cache
+        with:
+          operation: restore
+          action-key: ${{ steps.identity.outputs.key }}
+          path: .factory/${{ matrix.id }}
+      - id: verdict
+        name: Verify restored output
+        run: |
+          set -euo pipefail
+          hit=false
+          if [ '${{ steps.restore.outputs.cache-hit }}' = true ]; then
+            python3 scripts/tideforge-action-cache.py verify \
+              --result '.factory/${{ matrix.id }}/action-result.json' \
+              --artifact-dir '.factory/${{ matrix.id }}/artifacts' \
+              --expected-action-key '${{ steps.identity.outputs.key }}'
+            hit=true
+          fi
+          echo "hit=$hit" >> "$GITHUB_OUTPUT"
+      - name: Install native build tools on an exact miss
+        if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q createrepo-c podman rpm
+      - name: Build on an exact miss
+        if: steps.verdict.outputs.hit != 'true'
+        env:
+          CELL_ID: ${{ matrix.id }}
+          ENGINE: ${{ matrix.engine }}
+          PACKAGE: ${{ matrix.package }}
+          RECIPE: ${{ matrix.recipe }}
+          TARGET: ${{ matrix.target }}
+          FORMAT: ${{ matrix.format }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          IMAGE: ${{ matrix.image }}
+          MANIFEST: ${{ matrix.manifest }}
+          MOCK_CONFIG: ${{ matrix.mock_config }}
+          TIERS: ${{ matrix.tiers }}
+          SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
+        run: bash scripts/run-package-factory-cell.sh
+      - name: Record a new ActionResult
+        if: steps.verdict.outputs.hit != 'true'
+        run: |
+          set -euo pipefail
+          artifacts=()
+          while IFS= read -r -d '' path; do artifacts+=(--artifact "$path"); done \
+            < <(find '.factory/${{ matrix.id }}/artifacts' -type f \
+              \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' \) -print0)
+          python3 scripts/tideforge-action-cache.py result \
+            --action-key '${{ steps.identity.outputs.key }}' "${artifacts[@]}" \
+            > '.factory/${{ matrix.id }}/action-result.json'
+      - name: Validate package installation and smoke contract
+        env:
+          CELL_ID: ${{ matrix.id }}
+          ENGINE: ${{ matrix.engine }}
+          RECIPE: ${{ matrix.recipe }}
+          TARGET: ${{ matrix.target }}
+          FORMAT: ${{ matrix.format }}
+          IMAGE: ${{ matrix.verify_image }}
+        run: bash scripts/verify-package-factory-cell.sh
+      - name: Write immutable artifact checksums
+        run: |
+          set -euo pipefail
+          mkdir -p '.factory/${{ matrix.id }}/metadata'
+          cd '.factory/${{ matrix.id }}/artifacts'
+          find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum \
+            > ../metadata/SHA256SUMS
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          path: .factory/${{ matrix.id }}/artifacts
+          format: spdx-json
+          output-file: .factory/${{ matrix.id }}/metadata/sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Validate supply-chain metadata
+        run: |
+          set -euo pipefail
+          test -s '.factory/${{ matrix.id }}/metadata/SHA256SUMS'
+          jq -e '.spdxVersion | startswith("SPDX-")' \
+            '.factory/${{ matrix.id }}/metadata/sbom.spdx.json' >/dev/null
+      - name: Attest SLSA build provenance
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.0.0
+        with:
+          subject-path: .factory/${{ matrix.id }}/artifacts/*
+      - name: Attest SPDX SBOM
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.0.0
+        with:
+          subject-path: .factory/${{ matrix.id }}/artifacts/*
+          sbom-path: .factory/${{ matrix.id }}/metadata/sbom.spdx.json
+      - name: Save validated output
+        if: steps.verdict.outputs.hit != 'true'
+        continue-on-error: true
+        uses: ./.github/actions/tideforge-action-cache
+        with:
+          operation: save
+          action-key: ${{ steps.identity.outputs.key }}
+          path: .factory/${{ matrix.id }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        if: always()
+        with:
+          name: ${{ matrix.id }}
+          path: .factory/${{ matrix.id }}/
+          if-no-files-found: error

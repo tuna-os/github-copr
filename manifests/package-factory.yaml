@@ -55,6 +55,21 @@ targets:
     r2_path: apt/debian/{suite}/{arch}
     repository: apt
     probe_image: docker.io/library/debian:sid
+  fedora:
+    status: supported
+    format: rpm
+    buildroot: fedora-44
+    architectures: [x86_64]
+    r2_path: xfce/44-x86_64
+    repository: rpm-md
+    probe_image: registry.fedoraproject.org/fedora:44
+    build_repositories: [fedora-44]
+    gap_measurement:
+      roots_manifest: manifests/xfce-fedora.yaml
+      target_index: https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Everything/x86_64/os/
+      reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/
+      source_reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/source/tree/
+
   hummingbird:
     # Hummingbird is a target of a different shape from the rest, and the
     # differences are load-bearing rather than cosmetic.
