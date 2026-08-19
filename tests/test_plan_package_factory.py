@@ -21,13 +21,16 @@ def repo(tmp_path: pathlib.Path) -> pathlib.Path:
         "targets:\n"
         "  el10: {format: rpm, architectures: [x86_64], probe_image: example/el@sha256:abc}\n"
         "  debian: {format: deb, architectures: [amd64], probe_image: example/deb@sha256:def}\n"
+        "dependency_catalog:\n"
+        "  cmake: {el10: [cmake], debian: [cmake]}\n"
+        "  rust: {el10: [rust], debian: [rustc]}\n"
     )
     (tmp_path / "manifests" / "package-builds.yaml").write_text(
         "native_builds:\n"
         "- {id: gnome, target: el10, architecture: x86_64, image: image, manifest: order.yml, mock_config: mock, source_paths: [src/gnome/]}\n"
     )
     (tmp_path / "packages" / "demo" / "package.yaml").write_text(
-        "name: demo\ntargets: [el10, debian]\n"
+        "name: demo\ndependencies: {build: {capabilities: [cmake]}}\ntargets: [el10, debian]\n"
     )
     return tmp_path
 
@@ -84,6 +87,29 @@ def test_native_registry_change_selects_only_changed_row(tmp_path):
         changed_native_ids={"gnome"},
     )
     assert [cell["id"] for cell in selected] == ["gnome"]
+
+
+def test_dependency_catalog_change_selects_only_consumers_and_target(tmp_path):
+    root = repo(tmp_path)
+    cells = planner.all_cells(root)
+    selected = planner.select_cells(
+        cells,
+        ["manifests/package-factory.yaml"],
+        changed_targets=set(),
+        changed_capabilities={("cmake", "debian")},
+    )
+    assert [(cell["package"], cell["target"]) for cell in selected] == [("demo", "debian")]
+
+
+def test_unused_dependency_catalog_change_selects_nothing(tmp_path):
+    root = repo(tmp_path)
+    selected = planner.select_cells(
+        planner.all_cells(root),
+        ["manifests/package-factory.yaml"],
+        changed_targets=set(),
+        changed_capabilities={("rust", "el10")},
+    )
+    assert selected == []
 
 
 def test_every_matrix_row_has_the_same_schema(tmp_path):
