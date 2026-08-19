@@ -7,6 +7,7 @@ import argparse
 import json
 import pathlib
 import re
+import subprocess
 import sys
 from typing import Any
 
@@ -16,8 +17,11 @@ import yaml
 RECIPE_CHANGE = re.compile(r"^packages/([^/]+)/")
 COMMON_INPUTS = {
     ".github/workflows/package-factory.yml",
+    ".github/workflows/package-factory-cell.yml",
+    ".github/actions/tideforge-action-cache/action.yml",
     "scripts/run-package-factory-cell.sh",
     "scripts/verify-package-factory-cell.sh",
+    "scripts/tideforge-action-cache.py",
     "scripts/tideforge.py",
 }
 FORMAT_INPUTS = {
@@ -124,14 +128,26 @@ def affected_formats(changed: set[str]) -> set[str] | None:
     return formats
 
 
-def select_cells(cells: list[dict[str, Any]], changed_files: list[str] | None) -> list[dict[str, Any]]:
+def select_cells(
+    cells: list[dict[str, Any]],
+    changed_files: list[str] | None,
+    *,
+    changed_targets: set[str] | None = None,
+    changed_native_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
     if changed_files is None:
         return cells
     changed = {path.strip() for path in changed_files if path.strip()}
     if not changed:
         return []
-    if "manifests/package-factory.yaml" in changed or "manifests/package-builds.yaml" in changed:
-        return cells
+    if "manifests/package-factory.yaml" in changed:
+        if changed_targets is None:
+            return cells
+        return [cell for cell in cells if cell["target"] in changed_targets]
+    if "manifests/package-builds.yaml" in changed:
+        if changed_native_ids is None:
+            return cells
+        return [cell for cell in cells if cell["id"] in changed_native_ids]
     formats = affected_formats(changed)
     if formats is None:
         return cells
@@ -152,10 +168,48 @@ def select_cells(cells: list[dict[str, Any]], changed_files: list[str] | None) -
     return selected
 
 
+def yaml_at_revision(root: pathlib.Path, revision: str, path: str) -> dict[str, Any]:
+    completed = subprocess.run(
+        ["git", "show", f"{revision}:{path}"],
+        cwd=root,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    value = yaml.safe_load(completed.stdout)
+    return value if isinstance(value, dict) else {}
+
+
+def changed_contracts(root: pathlib.Path, base: str) -> tuple[set[str], set[str]]:
+    """Return semantic target/native changes relative to base.
+
+    Missing or unreadable base data fails toward rebuilding every affected
+    class by raising; the caller then leaves its selector as ``None``.
+    """
+    current_factory = load_yaml(root / "manifests/package-factory.yaml")
+    old_factory = yaml_at_revision(root, base, "manifests/package-factory.yaml")
+    current_targets = current_factory.get("targets") or {}
+    old_targets = old_factory.get("targets") or {}
+    target_ids = set(current_targets) | set(old_targets)
+    changed_targets = {
+        target for target in target_ids if current_targets.get(target) != old_targets.get(target)
+    }
+
+    current_registry = load_yaml(root / "manifests/package-builds.yaml")
+    old_registry = yaml_at_revision(root, base, "manifests/package-builds.yaml")
+    current_rows = {str(row.get("id")): row for row in current_registry.get("native_builds") or []}
+    old_rows = {str(row.get("id")): row for row in old_registry.get("native_builds") or []}
+    row_ids = set(current_rows) | set(old_rows)
+    changed_rows = {row for row in row_ids if current_rows.get(row) != old_rows.get(row)}
+    return changed_targets, changed_rows
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path("."))
     parser.add_argument("--changed-files", type=pathlib.Path)
+    parser.add_argument("--base", help="base git revision for semantic manifest diffs")
     parser.add_argument("--cell", help="optional exact cell ID for a manual run")
     parser.add_argument("--github-output", type=pathlib.Path)
     args = parser.parse_args()
@@ -164,7 +218,19 @@ def main() -> int:
         changed = None
         if args.changed_files:
             changed = args.changed_files.read_text(encoding="utf-8").splitlines()
-        selected = select_cells(cells, changed)
+        target_changes = native_changes = None
+        if args.base:
+            try:
+                target_changes, native_changes = changed_contracts(args.root, args.base)
+            except (OSError, subprocess.CalledProcessError, ValueError, yaml.YAMLError):
+                # Fail toward building all cells in a changed manifest class.
+                target_changes = native_changes = None
+        selected = select_cells(
+            cells,
+            changed,
+            changed_targets=target_changes,
+            changed_native_ids=native_changes,
+        )
         if args.cell:
             selected = [cell for cell in cells if cell["id"] == args.cell]
             if not selected:

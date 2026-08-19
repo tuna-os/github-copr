@@ -64,6 +64,28 @@ def test_factory_contract_change_fails_toward_building_everything(tmp_path):
     assert planner.select_cells(cells, ["manifests/package-factory.yaml"]) == cells
 
 
+def test_factory_contract_change_selects_only_changed_target(tmp_path):
+    root = repo(tmp_path)
+    cells = planner.all_cells(root)
+    selected = planner.select_cells(
+        cells,
+        ["manifests/package-factory.yaml"],
+        changed_targets={"debian"},
+    )
+    assert {cell["target"] for cell in selected} == {"debian"}
+
+
+def test_native_registry_change_selects_only_changed_row(tmp_path):
+    root = repo(tmp_path)
+    cells = planner.all_cells(root)
+    selected = planner.select_cells(
+        cells,
+        ["manifests/package-builds.yaml"],
+        changed_native_ids={"gnome"},
+    )
+    assert [cell["id"] for cell in selected] == ["gnome"]
+
+
 def test_every_matrix_row_has_the_same_schema(tmp_path):
     cells = planner.all_cells(repo(tmp_path))
     assert len({tuple(sorted(cell)) for cell in cells}) == 1
