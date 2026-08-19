@@ -311,3 +311,60 @@ Honesty about the boundary of the measurement:
   `choose_provider` rule as the rest of this document, and treats
   `(A if B)`-guarded rich dependencies as inert — every one of them in this set
   is `(python3dist(tomli) if python3-devel < 3.11)`, which is false here.
+
+## Finding 8 — upstream report: `golang1.26-src` owns the plain Go path (#403)
+
+The local exclusion in `mock/hummingbird-ci.cfg` is a workaround for a
+packaging defect in Hummingbird, not a complete upstream fix. The public
+Hummingbird repository currently publishes
+`golang1.26-src-1.26.5-0.1.1.hum1.noarch`, whose source tree is installed below
+`/usr/lib/golang/src/`. Fedora's plain `golang-src` uses that same path. The
+packages therefore cannot be installed together even though their RPM names
+are different.
+
+The reproducible failure observed in run [31697678706](https://github.com/tuna-os/tunaos-packages/issues/403)
+was:
+
+```text
+Transaction failed: Rpm transaction failed.
+- file /usr/lib/golang/src/... conflicts between attempted installs of
+  golang-src-1.27~rc2-2.fc45.noarch and
+  golang1.26-src-1.26.5-0.1.1.hum1.noarch
+```
+
+This is a file-layout collision, not an ABI requirement. Go programs built
+from the toolchain do not carry a versioned Go runtime soname, and the
+Hummingbird desktop closure does not require `golang1.26` by name. The local
+buildroot therefore excludes `golang1.26*` from the Hummingbird repository so
+plain `golang` BuildRequires resolve from Rawhide without allowing the two
+source trees into one transaction. The exclusion is guarded by
+`tests/test_hummingbird_golang_name_split.py` and must remain until the
+upstream package is corrected.
+
+### Requested upstream correction
+
+Fedora's `golang.spec` (rawhide, line 75) derives the install prefix from the
+package name rather than hardcoding it:
+
+```spec
+%global goroot          /usr/lib/%{name}
+```
+
+A compat package built from that spec as `golang1.26` therefore lands in
+`/usr/lib/golang1.26/` **automatically** — no convention to adopt, no policy
+to argue, it falls out of the spec Hummingbird presumably forked. That
+reframes the request from "please adopt Fedora's convention" to a regression
+report against Hummingbird's own source: the spec's own `%global goroot
+/usr/lib/%{name}` derivation appears broken in the Hummingbird build, because
+`golang1.26-src` is landing in `/usr/lib/golang/` rather than
+`/usr/lib/golang1.26/`. The likely cause is either `goroot` was hardcoded, or
+`%{name}` is still `golang` with the version carried elsewhere.
+
+Hummingbird should install the alternate toolchain's source and supporting
+files under that version-scoped prefix. After a corrected Hummingbird build is
+published, remove the local exclusion only after a buildroot transaction
+proves that plain `golang` and `golang1.26` can coexist.
+
+This finding records the workaround, evidence, and exact upstream request with
+the configuration. The distribution-side report belongs with the Hummingbird
+package maintainers; this repository cannot repair the RPM payload itself.
