@@ -145,11 +145,50 @@ jobs:
           python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/rpmbuild/SOURCES" --cache-dir "$HOME/.cache/tideforge/sources"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
+      - id: action-key
+        name: Resolve the immutable RPM action key
+        run: |
+          set -euo pipefail
+          recipe="packages/${{ matrix.package }}/package.yaml"
+          image=$(docker image inspect --format '{{json .RepoDigests}}' quay.io/centos/centos:stream10 | jq -r 'sort | .[0]')
+          epoch=$(git log -1 --format=%ct -- "$(dirname "$recipe")")
+          payload=$(python3 scripts/tideforge-action-cache.py key \
+            --recipe "$recipe" --target "${{ matrix.target }}" --arch x86_64 \
+            --image "$image" --source-date-epoch "$epoch")
+          echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
+          echo "source-date-epoch=$epoch" >> "$GITHUB_OUTPUT"
+          jq . <<<"$payload"
+      - id: action-cache
+        name: Restore the exact RPM action
+        uses: ./.github/actions/tideforge-action-cache
+        with:
+          operation: restore
+          action-key: ${{ steps.action-key.outputs.key }}
+          path: |
+            .tideforge/rpm/${{ matrix.package }}/rpmbuild/RPMS
+            .tideforge/rpm/${{ matrix.package }}/action-result.json
+      - id: cache-verdict
+        name: Verify a restored RPM action
+        run: |
+          set -euo pipefail
+          hit=false
+          if [ "${{ steps.action-cache.outputs.cache-hit }}" = "true" ]; then
+            root="$PWD/.tideforge/rpm/${{ matrix.package }}"
+            python3 scripts/tideforge-action-cache.py verify \
+              --result "$root/action-result.json" \
+              --artifact-dir "$root/rpmbuild/RPMS" \
+              --expected-action-key "${{ steps.action-key.outputs.key }}"
+            hit=true
+          fi
+          echo "hit=$hit" >> "$GITHUB_OUTPUT"
       - name: Build generated RPM payload
         run: |
           set -euo pipefail
           root="$PWD/.tideforge/rpm-payload/${{ matrix.package }}"
-          docker run --rm --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
+          docker run --rm \
+            --env SOURCE_DATE_EPOCH="${{ steps.action-key.outputs.source-date-epoch }}" \
+            --env TZ=UTC --env LANG=C.UTF-8 --env LC_ALL=C.UTF-8 \
+            --volume "$root:/work" quay.io/centos/centos:stream10 bash -lc '
             set -euo pipefail
             # NOTE: no apostrophes in this comment. It lives inside a single-
             # quoted bash -lc block, and an apostrophe closes that string early
@@ -251,6 +290,7 @@ jobs:
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh quay.io/centos/centos:stream10
       - name: Build generated RPM with only declared BuildRequires
+        if: steps.cache-verdict.outputs.hit != 'true'
         run: |
           set -euo pipefail
           root="$PWD/.tideforge/rpm/${{ matrix.package }}"
@@ -266,6 +306,17 @@ jobs:
             dnf -y builddep /work/rpmbuild/SPECS/*.spec
             rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
           '
+      - name: Record the RPM ActionResult
+        if: steps.cache-verdict.outputs.hit != 'true'
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/rpm/${{ matrix.package }}"
+          artifacts=()
+          while IFS= read -r -d '' path; do artifacts+=(--artifact "$path"); done \
+            < <(find "$root/rpmbuild/RPMS" -type f -name '*.rpm' -print0)
+          python3 scripts/tideforge-action-cache.py result \
+            --action-key "${{ steps.action-key.outputs.key }}" \
+            "${artifacts[@]}" > "$root/action-result.json"
       - name: Lint the generated RPM
         run: |
           set -euo pipefail
@@ -300,6 +351,16 @@ jobs:
             rpm -q "$INSTALL_NAME"
             bash /work/verify-smoke.sh
           '
+      - name: Save the validated RPM action
+        if: steps.cache-verdict.outputs.hit != 'true'
+        continue-on-error: true
+        uses: ./.github/actions/tideforge-action-cache
+        with:
+          operation: save
+          action-key: ${{ steps.action-key.outputs.key }}
+          path: |
+            .tideforge/rpm/${{ matrix.package }}/rpmbuild/RPMS
+            .tideforge/rpm/${{ matrix.package }}/action-result.json
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -450,6 +511,42 @@ jobs:
           path: .tideforge/xfconf-split/artifacts
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh "${{ matrix.image }}"
+      - id: action-key
+        name: Resolve the immutable DEB action key
+        run: |
+          set -euo pipefail
+          recipe="packages/${{ matrix.package }}/package.yaml"
+          image=$(docker image inspect --format '{{json .RepoDigests}}' "${{ matrix.image }}" | jq -r 'sort | .[0]')
+          epoch=$(git log -1 --format=%ct -- "$(dirname "$recipe")")
+          payload=$(python3 scripts/tideforge-action-cache.py key \
+            --recipe "$recipe" --target "${{ matrix.target }}" --arch amd64 \
+            --image "$image" --source-date-epoch "$epoch")
+          echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
+          echo "source-date-epoch=$epoch" >> "$GITHUB_OUTPUT"
+          jq . <<<"$payload"
+      - id: action-cache
+        name: Restore the exact DEB action
+        uses: ./.github/actions/tideforge-action-cache
+        with:
+          operation: restore
+          action-key: ${{ steps.action-key.outputs.key }}
+          path: |
+            .tideforge/deb/${{ matrix.target }}-${{ matrix.package }}/artifacts
+            .tideforge/deb/${{ matrix.target }}-${{ matrix.package }}/action-result.json
+      - id: cache-verdict
+        name: Verify a restored DEB action
+        run: |
+          set -euo pipefail
+          hit=false
+          if [ "${{ steps.action-cache.outputs.cache-hit }}" = "true" ]; then
+            root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
+            python3 scripts/tideforge-action-cache.py verify \
+              --result "$root/action-result.json" \
+              --artifact-dir "$root/artifacts" \
+              --expected-action-key "${{ steps.action-key.outputs.key }}"
+            hit=true
+          fi
+          echo "hit=$hit" >> "$GITHUB_OUTPUT"
       - name: Assert the split package actually splits
         run: |
           set -euo pipefail
@@ -1423,10 +1520,14 @@ jobs:
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh "${{ matrix.image }}"
       - name: Build generated DEB with only declared Build-Depends
+        if: steps.cache-verdict.outputs.hit != 'true'
         run: |
           set -euo pipefail
           root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
-          docker run --rm --volume "$root:/work" "${{ matrix.image }}" bash -lc '
+          docker run --rm \
+            --env SOURCE_DATE_EPOCH="${{ steps.action-key.outputs.source-date-epoch }}" \
+            --env TZ=UTC --env LANG=C.UTF-8 --env LC_ALL=C.UTF-8 \
+            --volume "$root:/work" "${{ matrix.image }}" bash -lc '
             set -euo pipefail
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
@@ -1448,6 +1549,17 @@ jobs:
             mkdir -p /work/artifacts
             cp ../*.deb /work/artifacts/
           '
+      - name: Record the DEB ActionResult
+        if: steps.cache-verdict.outputs.hit != 'true'
+        run: |
+          set -euo pipefail
+          root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
+          artifacts=()
+          while IFS= read -r -d '' path; do artifacts+=(--artifact "$path"); done \
+            < <(find "$root/artifacts" -type f -name '*.deb' -print0)
+          python3 scripts/tideforge-action-cache.py result \
+            --action-key "${{ steps.action-key.outputs.key }}" \
+            "${artifacts[@]}" > "$root/action-result.json"
       - name: Lint the generated DEB
         run: |
           set -euo pipefail
@@ -1504,6 +1616,16 @@ jobs:
             fi
             bash /work/verify-smoke.sh
           '
+      - name: Save the validated DEB action
+        if: steps.cache-verdict.outputs.hit != 'true'
+        continue-on-error: true
+        uses: ./.github/actions/tideforge-action-cache
+        with:
+          operation: save
+          action-key: ${{ steps.action-key.outputs.key }}
+          path: |
+            .tideforge/deb/${{ matrix.target }}-${{ matrix.package }}/artifacts
+            .tideforge/deb/${{ matrix.target }}-${{ matrix.package }}/action-result.json
       - uses: actions/upload-artifact@v7
         if: always()
         with:
