@@ -70,7 +70,9 @@ native_builds:
     target: hummingbird
     architecture: x86_64
     image: ghcr.io/tuna-os/mock-runner:centos-stream-10
-    verify_image: registry.fedoraproject.org/fedora:rawhide
+    # The mock contract emits .fc43 packages against Python 3.14. Verify the
+    # same ABI rather than rolling Rawhide, which has already moved to 3.15.
+    verify_image: registry.fedoraproject.org/fedora:43
     manifest: build-order-hummingbird-desktops.yml
     mock_config: hummingbird-ci
     source_paths: [src/hummingbird/, src/xfce-wayland/]
@@ -82,7 +84,7 @@ native_builds:
     architecture: aarch64
     runner: ubuntu-24.04-arm
     image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
-    verify_image: registry.fedoraproject.org/fedora:rawhide
+    verify_image: registry.fedoraproject.org/fedora:43
     manifest: build-order-hummingbird-desktops.yml
     mock_config: hummingbird-ci-aarch64
     source_paths: [src/hummingbird/, src/xfce-wayland/]
