@@ -83,8 +83,19 @@ PY
             dnf -y install epel-release
             dnf config-manager --set-enabled crb
           fi
+          # priority=999, WORSE than the system repos'\''s default 99: dnf
+          # priority excludes lower-priority repos for any name a
+          # higher-priority repo carries, so the published index fills only
+          # the names the system repos lack (gtk-layer-shell-devel,
+          # cpptrace-devel) and can never upgrade base packages into the
+          # buildroot. At 50 it BEAT the system repos and pulled the
+          # GNOME-50 glib2 stack into a generic buildroot, where the
+          # rearranged gir layout broke g-ir-scanner ("Couldn'\''t find
+          # include GObject-2.0.gir" — publish run 32396660104,
+          # gtk-layer-shell) — the exact repo-poisoning hazard AGENTS.md
+          # documents for ICU. System repos first; the factory fills gaps.
           dnf -y builddep \
-            ${PUBLISHED_INDEX:+--repofrompath tunaos,"$PUBLISHED_INDEX" --setopt=tunaos.priority=50 --setopt=tunaos.gpgcheck=0 --enablerepo=tunaos} \
+            ${PUBLISHED_INDEX:+--repofrompath tunaos,"$PUBLISHED_INDEX" --setopt=tunaos.priority=999 --setopt=tunaos.gpgcheck=0 --enablerepo=tunaos} \
             /work/rpmbuild/SPECS/*.spec
           rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
         '
