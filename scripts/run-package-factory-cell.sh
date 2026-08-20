@@ -83,20 +83,30 @@ PY
             dnf -y install epel-release
             dnf config-manager --set-enabled crb
           fi
-          # priority=999, WORSE than the system repos'\''s default 99: dnf
-          # priority excludes lower-priority repos for any name a
-          # higher-priority repo carries, so the published index fills only
-          # the names the system repos lack (gtk-layer-shell-devel,
-          # cpptrace-devel) and can never upgrade base packages into the
-          # buildroot. At 50 it BEAT the system repos and pulled the
-          # GNOME-50 glib2 stack into a generic buildroot, where the
-          # rearranged gir layout broke g-ir-scanner ("Couldn'\''t find
-          # include GObject-2.0.gir" — publish run 32396660104,
-          # gtk-layer-shell) — the exact repo-poisoning hazard AGENTS.md
-          # documents for ICU. System repos first; the factory fills gaps.
-          dnf -y builddep \
-            ${PUBLISHED_INDEX:+--repofrompath tunaos,"$PUBLISHED_INDEX" --setopt=tunaos.priority=999 --setopt=tunaos.gpgcheck=0 --enablerepo=tunaos} \
-            /work/rpmbuild/SPECS/*.spec
+          # The published index is a GAP-FILLER, never an upgrader: it may
+          # resolve only names the system repos lack (gtk-layer-shell-devel,
+          # cpptrace-devel - the cross-cell BuildRequires it exists for) and
+          # must never displace a base package. Publish runs 32396660104 and
+          # 32400889983 both failed when the served repo GNOME-50 glib2
+          # 2.87 (whose glib2-devel is a 6.4kB stub with no gir files) beat
+          # AppStream full 2.80 by VERSION and starved g-ir-scanner of
+          # GObject-2.0.gir - the AGENTS.md ICU repo-poisoning hazard, live.
+          # A --setopt priority on a --repofrompath repo does not take
+          # effect (run 32400889983 proved it: priority=999 still upgraded
+          # glib2 from the repo), so write a real repo file, where
+          # priority=999 (worse than the system repos default 99)
+          # reliably excludes every name a system repo already carries.
+          if [[ -n "${PUBLISHED_INDEX:-}" ]]; then
+            {
+              echo "[tunaos-published]"
+              echo "name=TunaOS published index (cross-cell gap filler)"
+              echo "baseurl=${PUBLISHED_INDEX}"
+              echo "enabled=1"
+              echo "gpgcheck=0"
+              echo "priority=999"
+            } > /etc/yum.repos.d/tunaos-published.repo
+          fi
+          dnf -y builddep /work/rpmbuild/SPECS/*.spec
           rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
         '
     fi
