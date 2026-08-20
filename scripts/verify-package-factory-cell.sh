@@ -7,6 +7,20 @@ out=${OUT_DIR:-"$PWD/.factory/${CELL_ID:?}"}
 artifacts="$out/artifacts"
 test -d "$artifacts"
 
+# The target's runtime repo set (#446): the clean-install verify must resolve
+# against the same repos a produced image enables (for el10: crb + epel, per
+# tunaOS build_scripts/10-base-packages.sh), or real-world-installable
+# packages fail the gate on deps the image serves fine — run 32382594650
+# failed every cosmic el10 cell on EPEL-served gnome-icon-theme/libdav1d.so.7.
+# Empty for targets that declare none; only the dnf paths consume it today.
+system_repos="$(python3 - "${TARGET:-}" <<'PY'
+import pathlib, sys, yaml
+d = yaml.safe_load(pathlib.Path("manifests/package-factory.yaml").read_text()) or {}
+t = d.get("targets", {}).get(sys.argv[1]) or {}
+print(" ".join(t.get("system_repositories") or []))
+PY
+)"
+
 if [[ ${ENGINE:?} == build-chain ]]; then
   mapfile -d '' rpms < <(find "$artifacts" -type f -name '*.rpm' ! -name '*.src.rpm' -print0)
   ((${#rpms[@]} > 0)) || { echo "native queue produced no RPMs" >&2; exit 1; }
@@ -14,8 +28,16 @@ if [[ ${ENGINE:?} == build-chain ]]; then
     --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" \
     /scripts/lint-generated-rpm.sh /artifacts
   docker run --rm --entrypoint /bin/bash \
-    --env TARGET="${TARGET:?}" --volume "$artifacts:/artifacts:ro" "${IMAGE:?}" -lc '
+    --env TARGET="${TARGET:?}" --env SYSTEM_REPOS="$system_repos" \
+    --volume "$artifacts:/artifacts:ro" "${IMAGE:?}" -lc '
     set -euo pipefail
+    for sysrepo in ${SYSTEM_REPOS:-}; do
+      case $sysrepo in
+        epel) dnf -y install epel-release ;;
+        *) dnf -y install "dnf-command(config-manager)"
+           dnf config-manager --set-enabled "$sysrepo" ;;
+      esac
+    done
     dnf -y install createrepo_c
     mkdir /factory-repo
     find /artifacts -maxdepth 1 -type f -name "*.rpm" ! -name "*.src.rpm" -exec cp -t /factory-repo {} +
@@ -67,7 +89,7 @@ PY
       --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" \
       /scripts/lint-generated-rpm.sh /artifacts
     docker run --rm --entrypoint /bin/bash --env INSTALL_NAME="$install_name" \
-      --env PUBLISHED_INDEX="$published_index" \
+      --env PUBLISHED_INDEX="$published_index" --env SYSTEM_REPOS="$system_repos" \
       --volume "$artifacts:/artifacts:ro" --volume "$out/smoke.sh:/smoke.sh:ro" \
       --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" -lc '
         set -euo pipefail
@@ -83,6 +105,13 @@ PY
           zypper --non-interactive --gpg-auto-import-keys refresh
           zypper --non-interactive --no-gpg-checks install "$INSTALL_NAME"
         else
+          for sysrepo in ${SYSTEM_REPOS:-}; do
+            case $sysrepo in
+              epel) dnf -y install epel-release ;;
+              *) dnf -y install "dnf-command(config-manager)"
+                 dnf config-manager --set-enabled "$sysrepo" ;;
+            esac
+          done
           dnf -y install createrepo_c
           createrepo_c /factory-repo
           dnf -y install --nogpgcheck --repofrompath tideforge,file:///factory-repo \

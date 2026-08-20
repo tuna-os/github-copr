@@ -43,6 +43,20 @@ python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/t
 
 case ${FORMAT:?} in
   rpm)
+    # Cross-cell BUILD dependency resolution — the build-side twin of #440's
+    # verify fix: a package whose BuildRequires are themselves factory
+    # products (gtkgreet needs gtk-layer-shell-devel, xfwl4 needs
+    # xfconf-devel/libxfce4ui-devel, quickshell needs cpptrace-devel — run
+    # 32382594650) can only resolve them from the PUBLISHED factory repo,
+    # built by earlier waves. Same manifest field the verify reads; empty
+    # (e.g. el10/aarch64, which has no served index yet) adds nothing.
+    published_index="$(python3 - "$target" "${ARCHITECTURE:-}" <<'PY'
+import pathlib, sys, yaml
+d = yaml.safe_load(pathlib.Path("manifests/package-factory.yaml").read_text()) or {}
+t = d.get("targets", {}).get(sys.argv[1]) or {}
+print((t.get("published_index") or {}).get(sys.argv[2], ""))
+PY
+)"
     root="$out/rpm"
     python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$root/rpmbuild/SPECS"
     mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
@@ -61,7 +75,7 @@ case ${FORMAT:?} in
         '
     else
       docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
-        --env TARGET="$target" \
+        --env TARGET="$target" --env PUBLISHED_INDEX="$published_index" \
         --volume "$root:/work" "$image" bash -lc '
           set -euo pipefail
           dnf -y install dnf-plugins-core rpm-build
@@ -69,7 +83,9 @@ case ${FORMAT:?} in
             dnf -y install epel-release
             dnf config-manager --set-enabled crb
           fi
-          dnf -y builddep /work/rpmbuild/SPECS/*.spec
+          dnf -y builddep \
+            ${PUBLISHED_INDEX:+--repofrompath tunaos,"$PUBLISHED_INDEX" --setopt=tunaos.priority=50 --setopt=tunaos.gpgcheck=0 --enablerepo=tunaos} \
+            /work/rpmbuild/SPECS/*.spec
           rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
         '
     fi
