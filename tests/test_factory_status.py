@@ -130,15 +130,16 @@ def test_render_names_generation_and_counts(tmp_path):
 
 def test_repo_manifests_pass_check_structure():
     """The real package-factory.yaml stays consistent with the tool's rules:
-    every published_index target is rpm, every arch is declared, every URL
-    scheme is supported. Runs the same code path CI's drift check uses."""
+    every published_index target uses a readable format (rpm-md or flat
+    apt), every arch is declared, every URL scheme is supported. Runs the
+    same code path CI's drift check uses."""
     factory = fs.load_yaml(ROOT / "manifests" / "package-factory.yaml")
     measured = [t for t, spec in factory["targets"].items()
                 if spec.get("published_index")]
     assert measured, "no target declares a published_index"
     for target_id in measured:
         spec = factory["targets"][target_id]
-        assert spec["format"] == "rpm"
+        assert spec["format"] in ("rpm", "deb")
         for arch, url in spec["published_index"].items():
             assert arch in spec["architectures"], (target_id, arch)
             assert str(url).startswith("https://"), (target_id, url)

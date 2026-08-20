@@ -47,8 +47,66 @@
       "roots": 6
     }
   },
-  "measured_at": "2026-08-18T14:01:27+00:00",
+  "measured_at": "2026-08-20T17:24:50+00:00",
   "targets": {
+    "debian": {
+      "amd64": {
+        "built": [
+          "cosmic-icon-theme",
+          "cosmic-panel",
+          "cosmic-randr",
+          "pop-icon-theme"
+        ],
+        "catalog_entries": 44,
+        "index": {
+          "baseurl": "https://repo.tunaos.org/tideforge/debian-sid/",
+          "package_names": 6,
+          "packages_gz_sha256": "48c1bd027bf9195ccc4acaeda8d92a2e83acb6fb9aaab1643faedc0ede5f260c"
+        },
+        "needed": [
+          "bazaar",
+          "cli11-devel",
+          "cosmic-bg",
+          "cosmic-comp",
+          "cosmic-greeter",
+          "cosmic-idle",
+          "cosmic-notifications",
+          "cosmic-osd",
+          "cosmic-session",
+          "cosmic-settings",
+          "cosmic-settings-daemon",
+          "cpptrace-devel",
+          "danksearch",
+          "dgop",
+          "dms",
+          "dms-cli",
+          "dms-greeter",
+          "gdm",
+          "glib2",
+          "gnome-session",
+          "gnome-shell",
+          "gobject-introspection",
+          "greetd",
+          "gtk4",
+          "kairpods",
+          "krunner-bazaar",
+          "libadwaita",
+          "libseat",
+          "libunwind-devel",
+          "libxfce4ui",
+          "mutter",
+          "ninja-build",
+          "niri",
+          "oversteer-udev",
+          "quickshell",
+          "uupd",
+          "wayland-protocols",
+          "xdg-desktop-portal-cosmic",
+          "xfconf",
+          "xfwl4"
+        ]
+      }
+    },
     "el10": {
       "x86_64": {
         "built": [
@@ -109,7 +167,7 @@
           "xdg-desktop-portal",
           "xdg-desktop-portal-gnome"
         ],
-        "catalog_entries": 129,
+        "catalog_entries": 130,
         "index": {
           "baseurl": "https://repo.tunaos.org/repo/10/x86_64/",
           "package_names": 473,
@@ -133,6 +191,7 @@
           "cosmic-session",
           "cosmic-settings",
           "cosmic-settings-daemon",
+          "cpptrace-devel",
           "danksearch",
           "dgop",
           "dms",
@@ -194,6 +253,26 @@
           "xfwl4",
           "xfwm4-themes"
         ]
+      }
+    },
+    "fedora": {
+      "x86_64": {
+        "built": [
+          "libxfce4ui",
+          "xfconf",
+          "xfwl4"
+        ],
+        "catalog_entries": 3,
+        "index": {
+          "baseurl": "https://repo.tunaos.org/xfce/44-x86_64/",
+          "package_names": 10,
+          "primary_bytes": 3365,
+          "primary_href": "repodata/93ffaa34ecc5fece5816d67b48d279e24642b0330ddf455e09e9fc1d7fcacff4-primary.xml.gz",
+          "primary_sha256": "93ffaa34ecc5fece5816d67b48d279e24642b0330ddf455e09e9fc1d7fcacff4",
+          "primary_sha256_declared": "93ffaa34ecc5fece5816d67b48d279e24642b0330ddf455e09e9fc1d7fcacff4",
+          "revision": "1786873291"
+        },
+        "needed": []
       }
     },
     "hummingbird": {
@@ -1575,27 +1654,73 @@
           "zxing-cpp"
         ]
       }
+    },
+    "ubuntu": {
+      "amd64": {
+        "built": [
+          "cosmic-icon-theme",
+          "cosmic-panel",
+          "cosmic-randr",
+          "pop-icon-theme"
+        ],
+        "catalog_entries": 42,
+        "index": {
+          "baseurl": "https://repo.tunaos.org/tideforge/ubuntu/",
+          "package_names": 4,
+          "packages_gz_sha256": "42db88ca372d8725fff1ef0e1b5d8ae3fb3072398437f2da6c6c3ca13608b5df"
+        },
+        "needed": [
+          "bazaar",
+          "cli11-devel",
+          "cosmic-bg",
+          "cosmic-comp",
+          "cosmic-greeter",
+          "cosmic-idle",
+          "cosmic-notifications",
+          "cosmic-osd",
+          "cosmic-session",
+          "cosmic-settings",
+          "cosmic-settings-daemon",
+          "cpptrace-devel",
+          "danksearch",
+          "dgop",
+          "dms",
+          "dms-cli",
+          "dms-greeter",
+          "gdm",
+          "glib2",
+          "gnome-session",
+          "gnome-shell",
+          "gobject-introspection",
+          "greetd",
+          "gtk4",
+          "kairpods",
+          "krunner-bazaar",
+          "libadwaita",
+          "libseat",
+          "libunwind-devel",
+          "mutter",
+          "ninja-build",
+          "niri",
+          "oversteer-udev",
+          "quickshell",
+          "uupd",
+          "wayland-protocols",
+          "xdg-desktop-portal-cosmic",
+          "xfconf"
+        ]
+      }
     }
   },
   "unmeasured_targets": {
     "arch": {
-      "catalog_entries": 21,
+      "catalog_entries": 22,
       "format": "pkg.tar.zst",
       "reason": "no published_index declared in package-factory.yaml"
     },
-    "debian": {
-      "catalog_entries": 43,
-      "format": "deb",
-      "reason": "no published_index declared in package-factory.yaml"
-    },
     "opensuse-tumbleweed": {
-      "catalog_entries": 8,
+      "catalog_entries": 9,
       "format": "rpm",
-      "reason": "no published_index declared in package-factory.yaml"
-    },
-    "ubuntu": {
-      "catalog_entries": 41,
-      "format": "deb",
       "reason": "no published_index declared in package-factory.yaml"
     }
   }

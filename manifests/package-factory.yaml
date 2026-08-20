@@ -55,6 +55,12 @@ targets:
     suites: [resolute]
     architectures: [amd64, arm64]
     r2_path: apt/ubuntu/{suite}/{arch}
+    # The SERVED flat apt repo publish-tideforge-debs.yml maintains (Packages.gz
+    # at the root, HTTP 200 measured 2026-08-20). The publisher builds amd64
+    # debs only today, so only amd64 is declared — same honesty rule as el10's
+    # missing aarch64 entry.
+    published_index:
+      amd64: https://repo.tunaos.org/tideforge/ubuntu/
     repository: apt
     probe_image: docker.io/library/ubuntu:26.04
   debian:
@@ -63,6 +69,9 @@ targets:
     suites: [sid]
     architectures: [amd64, arm64]
     r2_path: apt/debian/{suite}/{arch}
+    # Same shape as ubuntu's: the served tideforge debian-sid repo, amd64 only.
+    published_index:
+      amd64: https://repo.tunaos.org/tideforge/debian-sid/
     repository: apt
     probe_image: docker.io/library/debian:sid
   fedora:
@@ -71,6 +80,11 @@ targets:
     buildroot: fedora-44
     architectures: [x86_64]
     r2_path: xfce/44-x86_64
+    # The served rpm-md index for the Fedora XFCE family (repomd.xml HTTP 200
+    # measured 2026-08-20) — declaring it makes the target measured with the
+    # existing rpm reader.
+    published_index:
+      x86_64: https://repo.tunaos.org/xfce/44-x86_64/
     repository: rpm-md
     probe_image: registry.fedoraproject.org/fedora:44
     build_repositories: [fedora-44]

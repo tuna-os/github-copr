@@ -178,3 +178,21 @@ def test_shared_executor_dominates_a_simultaneous_target_contract_change(tmp_pat
         canary_common=True,
     )
     assert {cell["target"] for cell in selected} == {"el10", "debian"}
+
+
+def test_measurement_only_contract_keys_do_not_reprove_deb_families():
+    """published_index is read by the rpm build/verify paths but by neither
+    the deb nor the arch pipeline — there it exists solely for
+    factory-status measurement. Declaring a served apt index must not
+    re-plan every deb cell (run 32397627179 blocked a measurement-only
+    change on the family's pre-existing breakage); the same key on an rpm
+    target IS pipeline-visible and must keep re-proving."""
+    old = {"format": "deb", "suites": ["resolute"]}
+    new = {"format": "deb", "suites": ["resolute"],
+           "published_index": {"amd64": "https://repo.example/tideforge/ubuntu/"}}
+    assert planner._pipeline_view(old) == planner._pipeline_view(new)
+
+    old_rpm = {"format": "rpm"}
+    new_rpm = {"format": "rpm",
+               "published_index": {"x86_64": "https://repo.example/repo/10/x86_64/"}}
+    assert planner._pipeline_view(old_rpm) != planner._pipeline_view(new_rpm)
