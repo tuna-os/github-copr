@@ -15,7 +15,12 @@ build:
   # optional upstream; use its standard allocator path until a native package
   # becomes available.
   cmake_generator: Ninja
-  cmake_options: [-DUSE_JEMALLOC=OFF]
+  # CMAKE_SKIP_INSTALL_RPATH: upstream installs /usr/bin/quickshell with
+  # RUNPATH $ORIGIN:$ORIGIN/../lib64, which lint-generated-rpm treats as
+  # fatal (binary-or-shlib-defines-rpath — publish run 32427186464). The
+  # package ships no private libraries for $ORIGIN to find, so dropping
+  # the install rpath loses nothing.
+  cmake_options: [-DUSE_JEMALLOC=OFF, -DCMAKE_SKIP_INSTALL_RPATH=ON]
 dependencies:
   build:
     # Toolchain and Qt build-time deps are listed per-target: a common list
