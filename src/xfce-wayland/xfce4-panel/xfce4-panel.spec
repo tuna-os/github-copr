@@ -2,12 +2,16 @@
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name:           xfce4-panel
 Version:        4.21.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Panel for the Xfce desktop environment (Wayland-ready)
 
 License:        GPL-2.0-or-later AND LGPL-2.1-or-later
 URL:            https://gitlab.xfce.org/xfce/xfce4-panel
 Source0: https://gitlab.xfce.org/xfce/xfce4-panel/-/archive/%{commit}/xfce4-panel-%{commit}.tar.gz
+# The #ifndef guard around the shim is inert (autoptr cleanup funcs are
+# inline functions, not macros), so it collides with the definition our
+# libxfce4ui 4.21.x ships. See the patch header.
+Patch0: 0001-drop-XfceTitledDialog-autoptr-shim.patch
 
 BuildRequires: gcc
 BuildRequires:  gtk3-devel
@@ -43,7 +47,7 @@ Headers, pkgconfig, GObject-Introspection typelib, and Vala bindings for
 building xfce4-panel plugins.
 
 %prep
-%autosetup -n xfce4-panel-%{commit}
+%autosetup -n xfce4-panel-%{commit} -p1
 
 %build
 # Wayland-only build (matches thunar's -Dx11=disabled convention in this
@@ -78,5 +82,8 @@ building xfce4-panel plugins.
 %{_datadir}/vala/vapi/*
 
 %changelog
+* Thu Aug 20 2026 TunaOS Bot <bot@tunaos.org> - 4.21.0-2
+- Drop the XfceTitledDialog autoptr shim that collides with libxfce4ui 4.21
+
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.0-1
 - Initial XFCE Wayland package for TunaOS EL10
