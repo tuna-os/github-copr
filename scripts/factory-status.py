@@ -15,8 +15,10 @@ hand. This tool makes the answer a generated artifact with provenance:
   * for the hummingbird target, additionally measure each desktop's
     `required_packages` roots against the index — the per-desktop coverage
     table that decides which desktops tunaOS can wire (tunaOS#1755);
-  * targets whose repository format this tool cannot read yet (apt, pacman)
-    are REPORTED as unmeasured with their entry counts — never silently
+  * flat apt indexes (the tideforge deb repos) are read natively: Package:
+    and Source: names from Packages.gz;
+  * targets whose repository format this tool cannot read yet (pacman) are
+    REPORTED as unmeasured with their entry counts — never silently
     dropped, per the no-silent-caps rule.
 
 Everything is measured from live indexes; nothing is inferred from names or
@@ -37,6 +39,8 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import gzip
+import hashlib
 import importlib.util
 import json
 import pathlib
@@ -85,6 +89,33 @@ def index_names(baseurl: str, cache: pathlib.Path) -> tuple[set, dict]:
     return names, provenance
 
 
+def apt_index_names(baseurl: str, cache: pathlib.Path) -> tuple[set, dict]:
+    """All names a flat apt repo can answer for: Package: + Source: names.
+
+    The tideforge deb repos are flat apt-ftparchive layouts (Packages.gz at
+    the repo root — publish-tideforge-debs.yml). Source: may carry a
+    ' (version)' suffix, which is stripped so the catalog's source names
+    match.
+    """
+    base = baseurl.rstrip("/") + "/"
+    raw = mhg.fetch(base + "Packages.gz", cache)
+    text = gzip.decompress(raw).decode("utf-8", "replace")
+    names: set = set()
+    packages = 0
+    for line in text.splitlines():
+        if line.startswith("Package:"):
+            names.add(line.split(":", 1)[1].strip())
+            packages += 1
+        elif line.startswith("Source:"):
+            names.add(line.split(":", 1)[1].strip().split(" ", 1)[0])
+    provenance = {
+        "baseurl": base,
+        "packages_gz_sha256": hashlib.sha256(raw).hexdigest(),
+        "package_names": packages,
+    }
+    return names, provenance
+
+
 def measure(catalog, factory, cache: pathlib.Path) -> dict:
     report = {
         "measured_at": datetime.datetime.now(datetime.timezone.utc)
@@ -107,16 +138,18 @@ def measure(catalog, factory, cache: pathlib.Path) -> dict:
                 "reason": "no published_index declared in package-factory.yaml",
             }
             continue
-        if target.get("format") != "rpm":
+        readers = {"rpm": index_names, "deb": apt_index_names}
+        reader = readers.get(target.get("format"))
+        if reader is None:
             report["unmeasured_targets"][target_id] = {
                 "format": target.get("format"),
                 "catalog_entries": len(wanted),
-                "reason": "only rpm-md indexes are readable so far",
+                "reason": "only rpm-md and flat apt indexes are readable so far",
             }
             continue
         arches = {}
         for arch, url in published.items():
-            names, provenance = index_names(url, cache)
+            names, provenance = reader(url, cache)
             built = sorted(n for n in wanted if n in names)
             needed = sorted(n for n in wanted if n not in names)
             arches[arch] = {
@@ -257,7 +290,7 @@ def main() -> None:
                     if spec.get("published_index")]
         for target_id in measured:
             spec = factory["targets"][target_id]
-            if spec.get("format") != "rpm":
+            if spec.get("format") not in ("rpm", "deb"):
                 raise SystemExit(
                     f"{target_id}: published_index declared for a format "
                     "this tool cannot read yet"
