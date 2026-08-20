@@ -38,10 +38,20 @@ dependencies:
   build:
     capabilities: [rust, pam-dev]
     targets:
+      # The deb Build-Depends list `make` explicitly: unlike the el10 mock
+      # buildroot (which carries it), a minimal deb buildroot only installs
+      # what the control file names (same lesson as cosmic-comp, run
+      # 30701973171).
       el10: [cargo, lld, just, patch, systemd-devel, libudev-devel, libinput-devel, wayland-devel, clang-devel, libxkbcommon-devel, pulseaudio-utils, pipewire-devel, openssl-devel]
+      ubuntu: [cargo, lld, just, make, patch, libsystemd-dev, libudev-dev, libinput-dev, libwayland-dev, clang, libxkbcommon-dev, pulseaudio-utils, libpipewire-0.3-dev, libssl-dev]
+      debian: [cargo, lld, just, make, patch, libsystemd-dev, libudev-dev, libinput-dev, libwayland-dev, clang, libxkbcommon-dev, pulseaudio-utils, libpipewire-0.3-dev, libssl-dev]
   runtime:
     targets:
+      # adw-gtk3-theme has no provider on any target (#169); the deb targets
+      # keep the two archive-present halves and drop the orphan.
       el10: [acpid, adw-gtk3-theme, sound-theme-freedesktop]
+      ubuntu: [acpid, sound-theme-freedesktop]
+      debian: [acpid, sound-theme-freedesktop]
 files:
   common:
     - usr/bin/cosmic-settings-daemon
@@ -49,4 +59,6 @@ files:
     - usr/share/polkit-1/rules.d/cosmic-settings-daemon.rules
 install:
   commands: ["make install DESTDIR={destdir} prefix=/usr"]
-targets: [el10]
+verify:
+  smoke: "test -x /usr/bin/cosmic-settings-daemon && test -f /usr/share/polkit-1/rules.d/cosmic-settings-daemon.rules"
+targets: [el10, ubuntu, debian]

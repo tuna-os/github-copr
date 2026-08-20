@@ -257,6 +257,26 @@ def test_rpm_and_deb_preserve_runtime_dependencies(recipe: dict) -> None:
     assert "Depends: ${shlibs:Depends}, ${misc:Depends}, dbus, bluez" in deb
 
 
+def test_provides_renders_in_rpm_deb_and_arch(recipe: dict) -> None:
+    """A declared `provides:` alias lands in every format (#169)."""
+    recipe["provides"] = ["cosmic-icons"]
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "ubuntu")["debian/control"]
+    assert "Provides:       cosmic-icons" in rpm
+    assert "Provides: cosmic-icons" in deb
+    recipe["targets"] = ["arch"]
+    pkgbuild = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "provides=('cosmic-icons')" in pkgbuild
+
+
+def test_recipe_without_provides_renders_no_provides_lines(recipe: dict) -> None:
+    """Recipes without the key keep clean spec/control output."""
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "ubuntu")["debian/control"]
+    assert "Provides:" not in rpm
+    assert "Provides:" not in deb
+
+
 @pytest.mark.parametrize(
     ("recipe_name", "target", "expected"),
     [
