@@ -36,9 +36,19 @@ targets:
     repository: rpm-md
     probe_image: quay.io/centos/centos:stream10
     # CRB is a signed, target-native CentOS repository.  It supplies selected
-    # development headers (for example Qt private API metadata) during builds;
-    # it is never added to a produced TunaOS image.
+    # development headers (for example Qt private API metadata) during builds.
     build_repositories: [crb, epel]
+    # Repos the produced el10 image ENABLES at runtime (tunaOS
+    # build_scripts/10-base-packages.sh runs `crb enable` / `dnf
+    # config-manager --set-enabled crb` and `--set-enabled epel` on every EL
+    # base), so the clean-install verify resolves against the same repo
+    # closure a real install has. Without these the verify is dishonestly
+    # NARROWER than the image: run 32382594650 failed 19 el10 cells on deps
+    # EPEL serves (gnome-icon-theme for pop-icon-theme, libdav1d.so.7 for
+    # cosmic-bg) that every shipped image resolves fine. Distinct from
+    # build_repositories — that is the buildroot's set — even though el10's
+    # two sets happen to match.
+    system_repositories: [crb, epel]
   ubuntu:
     status: supported
     format: deb
