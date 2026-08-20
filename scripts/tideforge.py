@@ -66,6 +66,20 @@ def target_runtime_dependencies(recipe: dict, target: str) -> list[str]:
     return list(runtime.get("common", [])) + resolve_capabilities(list(runtime.get("capabilities", [])), target) + list(runtime.get("targets", {}).get(target, []))
 
 
+def provides_entries(recipe: dict) -> list[str]:
+    """Names this recipe's artifact also provides.
+
+    A recipe may declare `provides:` to alias an upstream name that runtime
+    Requires are written against -- cosmic-icon-theme provides `cosmic-icons`
+    (#169). Rendered into the RPM spec, the deb control file, and the Arch
+    PKGBUILD so the alias holds on every format.
+    """
+    provides = recipe.get("provides") or []
+    if isinstance(provides, str):
+        provides = [provides]
+    return [str(item) for item in provides]
+
+
 def generated_file_content_argument(content: str) -> str:
     """Return a declared file's content as one-line `printf` arguments.
 
@@ -594,6 +608,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         install = custom_commands(recipe, "install", "%{buildroot}")
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
+    provides = "\n".join(f"Provides:       {dep}" for dep in provides_entries(recipe))
     rpm_output = recipe.get("outputs", {}).get("rpm", {})
     files = "\n".join(f"/{path.lstrip('/')}" for path in rpm_output.get("files", recipe["files"]["common"]))
     subpackage_definitions = "\n".join(
@@ -645,6 +660,7 @@ License:        {recipe['license']}
 Source0:        {rpm_source_field(recipe['source'], 0)}
 {auxiliary_sources_str}{requires}
 {runtime_requires}
+{provides}
 
 %description
 {recipe['description']}
@@ -690,11 +706,12 @@ def render_deb(recipe: dict, target: str) -> dict[str, str]:
     deb_output = recipe.get("outputs", {}).get("deb", {})
     binary_packages = deb_output.get("packages", [{"name": recipe["name"], "summary": recipe["summary"], "description": recipe["description"], "files": recipe["files"]["common"]}])
     recipe_runtime_dependencies = target_runtime_dependencies(recipe, target)
+    provides_field = "".join(f"Provides: {provided}\n" for provided in provides_entries(recipe))
     package_stanzas = "\n".join(
         f"""Package: {package['name']}
 Architecture: any
 Depends: {', '.join(['${shlibs:Depends}', '${misc:Depends}', *recipe_runtime_dependencies, *package.get('depends', [])])}
-Description: {package.get('summary', recipe['summary'])}
+{provides_field}Description: {package.get('summary', recipe['summary'])}
  {package.get('description', recipe['description'])}
 """
         for package in binary_packages
@@ -834,6 +851,7 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     source_directory = recipe["source"].get("directory", f"{recipe['name']}-{recipe['version']}")
     makedepends = " ".join(f"'{dependency}'" for dependency in target_dependencies(recipe, target))
     depends = " ".join(f"'{dependency}'" for dependency in target_runtime_dependencies(recipe, target))
+    provides = " ".join(f"'{dependency}'" for dependency in provides_entries(recipe))
     sources = source_entries(recipe)
     source = recipe["source"]["url"]
     if recipe["build_system"] == "cargo":
@@ -903,6 +921,7 @@ url={source!r}
 license=({recipe['license']!r})
 makedepends=({makedepends})
 depends=({depends})
+provides=({provides})
 source=(
 {source_lines}
 )
