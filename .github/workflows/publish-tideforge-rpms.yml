@@ -1,0 +1,260 @@
+# Publish Tideforge-built el10 RPMs to the R2-backed repos (#439).
+#
+# The rpm half of publish-tideforge-debs.yml, and the missing convergence
+# step of the package factory: cells verify cross-cell deps against the
+# target's published_index (#440/#442) and resolve cross-cell BuildRequires
+# from the same repo, but nothing ever PUBLISHED a tideforge rpm cell's
+# output — the only writers of the served el10 repo are the COPR-mirror
+# chains (build.yml, build-distributed.yml). So a green leaf cell
+# (pop-icon-theme, libseat, gtk-layer-shell) stayed invisible to its
+# dependents, and the factory could not converge no matter how many waves
+# ran.
+#
+# Destinations follow the precedents:
+#   * x86_64 → repo/10-stream-x86_64 + repo/10-x86_64, the served
+#     repo.tunaos.org/repo/10/x86_64/ that published_index.x86_64 already
+#     names and every el10 image already consumes (build.yml's paths).
+#   * aarch64 → rpm/el10/aarch64, the target contract's r2_path — this
+#     CREATES the served aarch64 index the contract documents as missing;
+#     flip published_index.aarch64 to it once this has run green.
+#
+# Dispatch-only, like the deb publisher: publishing is a deliberate act,
+# not a side effect of a merge. The gate cells prove PRs; this workflow
+# ships what main has. Widen the default package list in lockstep with the
+# factory run — nothing gets published that a factory cell has not proven.
+name: Publish Tideforge RPMs
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Comma-separated recipe names under packages/ to build and publish
+        # The wave-1 default: every tideforge el10 cell green on BOTH arches
+        # in factory run 32382594650.
+        default: libseat,greetd,gtk-layer-shell,wayland-protocols,ninja-build,libunwind-devel,python3-evdev,evtest,uupd,oversteer-udev,kairpods,dgop,danksearch,xfwm4-themes,cosmic-panel,cosmic-randr
+        required: true
+      arches:
+        description: Comma-separated arches (x86_64, aarch64)
+        default: x86_64,aarch64
+        required: true
+
+concurrency:
+  group: publish-tideforge-rpms
+  cancel-in-progress: false
+
+env:
+  R2_BUCKET: bluefin
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      arches: ${{ steps.plan.outputs.arches }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - id: plan
+        env:
+          PACKAGES: ${{ inputs.packages }}
+          ARCHES: ${{ inputs.arches }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, pathlib, sys, yaml
+
+          runners = {"x86_64": "ubuntu-latest", "aarch64": "ubuntu-24.04-arm"}
+          arches = [a.strip() for a in os.environ["ARCHES"].split(",") if a.strip()]
+          unknown = sorted(set(arches) - set(runners))
+          if unknown:
+              sys.exit(f"unknown arch(es): {unknown}")
+
+          include = []
+          for name in (p.strip() for p in os.environ["PACKAGES"].split(",")):
+              if not name:
+                  continue
+              recipe = pathlib.Path("packages") / name / "package.yaml"
+              if not recipe.is_file():
+                  sys.exit(f"no recipe at {recipe}")
+              data = yaml.safe_load(recipe.read_text()) or {}
+              if "el10" not in (data.get("targets") or []):
+                  sys.exit(f"{name} does not target el10; refusing to publish it there")
+              for arch in arches:
+                  include.append({"package": name, "arch": arch, "runner": runners[arch]})
+
+          if not include:
+              sys.exit("empty publish matrix")
+          print(f"matrix={json.dumps({'include': include})}")
+          print(f"arches={json.dumps(arches)}")
+          PY
+
+  build:
+    name: ${{ matrix.package }} (${{ matrix.arch }})
+    needs: plan
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      CELL_ID: publish-tideforge-${{ matrix.package }}-el10-${{ matrix.arch }}
+      ENGINE: tideforge
+      RECIPE: packages/${{ matrix.package }}/package.yaml
+      TARGET: el10
+      FORMAT: rpm
+      ARCHITECTURE: ${{ matrix.arch }}
+      IMAGE: quay.io/centos/centos:stream10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: ${{ env.RECIPE }}
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh "$IMAGE"
+      - name: Build the cell
+        run: |
+          set -euo pipefail
+          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct -- "$(dirname "$RECIPE")")
+          export SOURCE_DATE_EPOCH
+          bash scripts/run-package-factory-cell.sh
+      - name: Validate package installation and smoke contract
+        run: bash scripts/verify-package-factory-cell.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: publish-rpm-${{ matrix.arch }}-${{ matrix.package }}
+          path: .factory/${{ env.CELL_ID }}/artifacts/*.rpm
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    strategy:
+      # Serial: both arches talk to the same bucket and rclone config; one
+      # at a time keeps the failure story readable (deb publisher precedent).
+      max-parallel: 1
+      matrix:
+        arch: ${{ fromJSON(needs.plan.outputs.arches) }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install tooling
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q createrepo-c rpm gpg gpgconf
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+      - name: Import GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Configure rpmsign and rclone
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          echo "%_signature gpg" > ~/.rpmmacros
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
+          mkdir -p ~/.config/rclone
+          umask 077
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = ${R2_ENDPOINT}
+          EOF
+      - name: Sync down the existing repo
+        run: |
+          set -euo pipefail
+          mkdir -p repo
+          case "${{ matrix.arch }}" in
+            x86_64)  src="repo/10-stream-x86_64" ;;
+            aarch64) src="rpm/el10/aarch64" ;;
+          esac
+          echo "src=$src" >> "$GITHUB_ENV"
+          rclone sync "r2:${R2_BUCKET}/${src}/" repo/ --exclude "repodata/**" || true
+          # The #124 / INCIDENT-repo-wipe-gnome lesson: rclone sync makes the
+          # destination match the source, so an accidentally-partial local
+          # tree would DELETE the served repo. The x86_64 destination is the
+          # live COPR-mirror repo with hundreds of packages — refuse to
+          # continue from a suspiciously small download. aarch64 starts
+          # empty by design (this workflow creates that index).
+          if [ "${{ matrix.arch }}" = x86_64 ]; then
+            count=$(find repo -name '*.rpm' | wc -l)
+            if [ "$count" -lt 100 ]; then
+              echo "ERROR: only $count RPMs synced down from ${src}; refusing to risk a repo wipe" >&2
+              exit 1
+            fi
+          fi
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: publish-rpm-${{ matrix.arch }}-*
+          path: staged
+          merge-multiple: true
+      - name: Sign and index
+        run: |
+          set -euo pipefail
+          count=$(find staged -name '*.rpm' ! -name '*.src.rpm' | wc -l)
+          if [ "$count" -eq 0 ]; then
+            echo "ERROR: no RPMs staged; refusing to publish an empty wave" >&2
+            exit 1
+          fi
+          find staged -name '*.rpm' ! -name '*.src.rpm' -exec rpmsign --addsign {} \;
+          mkdir -p repo/tideforge
+          find staged -name '*.rpm' ! -name '*.src.rpm' -exec cp -t repo/tideforge {} +
+          createrepo_c --update repo 2>/dev/null || createrepo_c repo
+      - name: Sync up
+        run: |
+          set -euo pipefail
+          rclone sync repo/ "r2:${R2_BUCKET}/${src}/"
+          if [ "${{ matrix.arch }}" = x86_64 ]; then
+            rclone sync repo/ "r2:${R2_BUCKET}/repo/10-x86_64/"
+          fi
+
+  # The anti-#179 job, from the FIRST publish: install every published
+  # package from the SERVED URL on a clean image-contract container
+  # (base + crb + epel, the el10 system_repositories), so a repo that was
+  # never actually published can never sit behind a green workflow.
+  verify:
+    needs: [plan, publish]
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJSON(needs.plan.outputs.arches) }}
+    steps:
+      - name: Install the published wave from the served repo
+        env:
+          PACKAGES: ${{ inputs.packages }}
+        run: |
+          set -euo pipefail
+          case "${{ matrix.arch }}" in
+            x86_64)  url="https://repo.tunaos.org/repo/10/x86_64/" ;;
+            aarch64) url="https://repo.tunaos.org/rpm/el10/aarch64/" ;;
+          esac
+          docker run --rm --env PACKAGES --env URL="$url" quay.io/centos/centos:stream10 bash -lc '
+            set -euo pipefail
+            dnf -y install epel-release "dnf-command(config-manager)"
+            dnf config-manager --set-enabled crb
+            dnf -y install --nogpgcheck --repofrompath tunaos,"$URL" --enablerepo=tunaos \
+              $(echo "$PACKAGES" | tr "," " ")
+            rpm -q $(echo "$PACKAGES" | tr "," " ")
+          '
