@@ -267,6 +267,29 @@ def yaml_at_revision(root: pathlib.Path, revision: str, path: str) -> dict[str, 
     return value if isinstance(value, dict) else {}
 
 
+# Contract keys a format's cell pipeline never reads — changing them cannot
+# alter any cell's outcome, so they must not re-prove the whole family.
+# published_index is consumed by the rpm build and verify paths (cross-cell
+# deps, #440/#442/#450), but the deb and arch pipelines never look at it:
+# there it exists solely for scripts/factory-status.py's measurement. Without
+# this, declaring the served apt indexes re-planned every deb cell — a
+# family whose pre-existing breakage (e.g. bazaar's blueprint-compiler
+# floor) then blocked a measurement-only change (run 32397627179).
+PIPELINE_INERT_KEYS: dict[str, set[str]] = {
+    "deb": {"published_index"},
+    "pkg.tar.zst": {"published_index"},
+}
+
+
+def _pipeline_view(spec: Any) -> Any:
+    if not isinstance(spec, dict):
+        return spec
+    inert = PIPELINE_INERT_KEYS.get(spec.get("format"), set())
+    if not inert:
+        return spec
+    return {key: value for key, value in spec.items() if key not in inert}
+
+
 def changed_contracts(
     root: pathlib.Path, base: str
 ) -> tuple[set[str], set[str], set[tuple[str, str]]]:
@@ -281,7 +304,9 @@ def changed_contracts(
     old_targets = old_factory.get("targets") or {}
     target_ids = set(current_targets) | set(old_targets)
     changed_targets = {
-        target for target in target_ids if current_targets.get(target) != old_targets.get(target)
+        target
+        for target in target_ids
+        if _pipeline_view(current_targets.get(target)) != _pipeline_view(old_targets.get(target))
     }
 
     current_catalog = current_factory.get("dependency_catalog") or {}
