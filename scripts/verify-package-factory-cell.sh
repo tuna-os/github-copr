@@ -50,10 +50,24 @@ fi
 
 case ${FORMAT:?} in
   rpm)
+    # Cross-cell dependency resolution (#440): a clean-install verify of a
+    # package whose runtime deps are themselves in the gap (e.g. niri needs
+    # libseat) can only resolve them from the PUBLISHED factory repo, built by
+    # earlier waves. The target contract's `published_index` (served read URL,
+    # distinct from `r2_path`) is added as a lower-priority dnf/zypper repo so
+    # the local cell artifacts win and the published repo only fills in deps.
+    published_index="$(python3 - "$TARGET" "${ARCHITECTURE:-}" <<'PY'
+import pathlib, sys, yaml
+d = yaml.safe_load(pathlib.Path("manifests/package-factory.yaml").read_text()) or {}
+t = d.get("targets", {}).get(sys.argv[1]) or {}
+print((t.get("published_index") or {}).get(sys.argv[2], ""))
+PY
+)"
     docker run --rm --entrypoint /bin/bash --volume "$artifacts:/artifacts:ro" \
       --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" \
       /scripts/lint-generated-rpm.sh /artifacts
     docker run --rm --entrypoint /bin/bash --env INSTALL_NAME="$install_name" \
+      --env PUBLISHED_INDEX="$published_index" \
       --volume "$artifacts:/artifacts:ro" --volume "$out/smoke.sh:/smoke.sh:ro" \
       --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" -lc '
         set -euo pipefail
@@ -63,13 +77,18 @@ case ${FORMAT:?} in
           zypper --non-interactive install createrepo_c
           createrepo_c /factory-repo
           zypper --non-interactive addrepo --no-gpgcheck --priority 1 file:///factory-repo tideforge
-          zypper --non-interactive --gpg-auto-import-keys refresh tideforge
+          if [ -n "$PUBLISHED_INDEX" ]; then
+            zypper --non-interactive addrepo --no-gpgcheck --priority 50 "$PUBLISHED_INDEX" tunaos-published
+          fi
+          zypper --non-interactive --gpg-auto-import-keys refresh
           zypper --non-interactive --no-gpg-checks install "$INSTALL_NAME"
         else
           dnf -y install createrepo_c
           createrepo_c /factory-repo
           dnf -y install --nogpgcheck --repofrompath tideforge,file:///factory-repo \
-            --setopt=tideforge.priority=1 --enablerepo=tideforge "$INSTALL_NAME"
+            --setopt=tideforge.priority=1 --enablerepo=tideforge \
+            ${PUBLISHED_INDEX:+--repofrompath tunaos,"$PUBLISHED_INDEX" --setopt=tunaos.priority=50 --enablerepo=tunaos} \
+            "$INSTALL_NAME"
         fi
         rpm -q "$INSTALL_NAME"
         bash /smoke.sh
