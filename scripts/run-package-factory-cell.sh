@@ -104,6 +104,20 @@ PY
               echo "enabled=1"
               echo "gpgcheck=0"
               echo "priority=999"
+              # priority cannot stop an OBSOLETER: the served repo retains
+              # stale gnome-50 bootstrap builds glib2-2.87.3-1.el10 and
+              # glib2-devel-2.87.3-1.el10 (a 6.4kB stub with no pkgconfig or
+              # gir payload) whose "Obsoletes: glib2 < 2.87.3" REPLACES the
+              # AppStream packages in any transaction regardless of repo
+              # priority — publish run 32405815822 failed on exactly this
+              # with the priority fix (#454) fully in effect. Later builds
+              # (-2, 2.88.0-*) dropped the self-obsolete; only the stale -1
+              # pair hijacks. Exclude the family here: a BUILDROOT must
+              # never take glib2 from the published repo — the system repos
+              # always carry it. Cleaning the stale pair out of the served
+              # repo itself is tracked separately (it affects image
+              # consumers too).
+              echo "excludepkgs=glib2 glib2-devel glib2-static"
             } > /etc/yum.repos.d/tunaos-published.repo
           fi
           dnf -y builddep /work/rpmbuild/SPECS/*.spec
