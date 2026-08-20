@@ -220,6 +220,20 @@ jobs:
           find staged -name '*.rpm' ! -name '*.src.rpm' -exec rpmsign --addsign {} \;
           mkdir -p repo/tideforge
           find staged -name '*.rpm' ! -name '*.src.rpm' -exec cp -t repo/tideforge {} +
+          # librepo percent-encodes '+' when building download URLs, but the
+          # repo.tunaos.org worker looks up R2 keys with the raw request
+          # path, so any filename containing '+' 404s at install time: run
+          # 32411090239's verify failed on oversteer-udev-0.8.3+git74c7484
+          # (the literal-'+' URL serves 200, the %2b one 404s). Rename '+'
+          # to '.' across the whole tree — staged files and files re-synced
+          # from the bucket alike — so the sync below also replaces any
+          # '+'-named object already served. The version INSIDE the rpm
+          # metadata is untouched; only the file name (and therefore the
+          # repodata location href) changes. The worker-side decode fix is
+          # tracked separately.
+          find repo -name '*+*.rpm' -print0 | while IFS= read -r -d '' f; do
+            mv "$f" "$(dirname "$f")/$(basename "$f" | tr '+' '.')"
+          done
           createrepo_c --update repo 2>/dev/null || createrepo_c repo
       - name: Sync up
         run: |
