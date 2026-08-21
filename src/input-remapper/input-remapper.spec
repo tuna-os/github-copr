@@ -14,7 +14,7 @@
 
 Name:           input-remapper
 Version:        2.2.1
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Change the mapping of input device buttons
 
 License:        GPL-3.0-or-later
@@ -24,6 +24,21 @@ Source0:        https://github.com/sezanzeb/input-remapper/archive/refs/tags/%{v
 BuildRequires:  python3-devel
 BuildRequires:  python3-setuptools
 BuildRequires:  gettext
+# The bundled installer shells out to pip and imports gi, even though this
+# spec deliberately avoids pip as the INSTALL METHOD (see above).
+# install/module.py's build_input_remapper_module() runs
+#   python3 -m pip install . --target <buildroot>/.../site-packages --no-deps
+# to place the Python package, and install/__main__.py imports gi while
+# checking dependencies. Neither is in the mock buildroot by default, so
+# %install died at 'No module named pip' after logging 'Missing Python
+# module: No module named gi' (gnome50-el10-x86_64, run 32418295773 — one of
+# that chain's five failed packages).
+#
+# Requiring pip here is not a reversal of the no-pip decision above: pip is
+# an implementation detail of upstream's installer, which is still what
+# places the udev rules, polkit action, systemd unit and D-Bus policy.
+BuildRequires:  python3-pip
+BuildRequires:  python3-gobject
 
 # python3-evdev is built alongside this package in this repository.
 # All other runtime names were verified against CentOS Stream 10 repository
@@ -94,5 +109,9 @@ python3 -m install --root %{buildroot}
 %{python3_sitelib}/input_remapper-*.dist-info/
 
 %changelog
+* Fri Aug 21 2026 TunaOS Bot <bot@tunaos.org> - 2.2.1-2
+- Add python3-pip and python3-gobject BuildRequires: upstream's bundled
+  installer shells out to pip and imports gi, so %install failed in mock
+
 * Tue Aug 12 2025 TunaOS Bot <bot@tunaos.org> - 2.2.1-1
 - Initial package: input-remapper for EL10 (#122, #126)
