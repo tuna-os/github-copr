@@ -92,6 +92,10 @@ def resolve(requested, available):
             "image": cell.get("image", ""),
             "manifest": cell.get("manifest", ""),
             "mock_config": cell.get("mock_config", ""),
+            # Needed to date the build reproducibly: SOURCE_DATE_EPOCH is the
+            # newest commit touching the manifest or any source path, the same
+            # derivation package-factory-cell.yml's identity step uses.
+            "source_paths": cell.get("source_paths", []),
             "r2_path": path,
         })
     return selected, rejections

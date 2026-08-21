@@ -75,16 +75,34 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q createrepo-c podman rpm
+      - id: epoch
+        name: Date the build reproducibly
+        # run-package-factory-cell.sh requires SOURCE_DATE_EPOCH (`${VAR:?}`),
+        # and the first dispatch of this workflow died on its absence:
+        #   run-package-factory-cell.sh: line 14: SOURCE_DATE_EPOCH:
+        #   parameter null or not set
+        # Same derivation as package-factory-cell.yml's identity step for a
+        # build-chain cell: the newest commit touching the manifest or any of
+        # the family's source paths.
+        env:
+          SOURCE_PATHS: ${{ toJSON(matrix.source_paths) }}
+        run: |
+          set -euo pipefail
+          mapfile -t source_paths < <(jq -r '.[]' <<<"$SOURCE_PATHS")
+          epoch=$(git log -1 --format=%ct -- '${{ matrix.manifest }}' "${source_paths[@]}")
+          echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
       - name: Build the cell
         env:
           CELL_ID: ${{ matrix.id }}
           ENGINE: build-chain
+          # No RECIPE or FORMAT: the build-chain branch of the runner exits
+          # before either is read (they belong to the tideforge path).
           TARGET: ${{ matrix.target }}
-          FORMAT: rpm
           ARCHITECTURE: ${{ matrix.architecture }}
           IMAGE: ${{ matrix.image }}
           MANIFEST: ${{ matrix.manifest }}
           MOCK_CONFIG: ${{ matrix.mock_config }}
+          SOURCE_DATE_EPOCH: ${{ steps.epoch.outputs.epoch }}
         run: bash scripts/run-package-factory-cell.sh
       - uses: actions/upload-artifact@v7
         with:
