@@ -13,6 +13,17 @@ build_system: autotools
 build:
   autoreconf: true
   configure_options: [--disable-tests]
+  environment:
+    # aarch64 GCC emits outline-atomics calls (__aarch64_cas8_acq_rel and
+    # friends) that live in libgcc. libunwind's link line does not pull it in,
+    # so the shipped libunwind.so.8 carried four UNDEFINED symbols and every
+    # consumer died at load: "symbol lookup error: /lib64/libunwind.so.8"
+    # (#469, seen on tideforge-quickshell-el10-aarch64).
+    #
+    # LIBS rather than LDFLAGS: LDFLAGS is already set by the distro's
+    # hardened build macros, and replacing it would silently drop relro,
+    # -z now and the annobin specs. LIBS appends to the link line instead.
+    LIBS: -lgcc_s
 dependencies:
   build:
     # No common list: it held RPM names (gcc-c++) that leaked into the deb

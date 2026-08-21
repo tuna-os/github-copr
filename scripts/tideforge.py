@@ -542,7 +542,19 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
         options = meson_options(recipe or {})
         return f"%meson {options}\n%meson_build".rstrip(), "%meson_install"
     if build_system == "autotools":
-        prefix = "autoreconf -fi\n" if autoreconf_enabled(recipe or {}) else ""
+        # build.environment was wired into the cargo and go paths only, so an
+        # autotools recipe had no way to influence its own link line:
+        # configure_options rejects anything not starting with "--", and
+        # nothing prefixed %configure. libunwind needed LIBS=-lgcc_s and could
+        # express it nowhere (#469), shipping an aarch64 library with four
+        # undefined outline-atomics symbols.
+        #
+        # Exported on their own lines rather than prefixed onto %configure:
+        # that macro expands to a multi-line script, so `VAR=x %configure`
+        # would apply the assignment to its first command only.
+        exports = build_environment_exports(recipe or {})
+        prefix = f"{exports}\n" if exports else ""
+        prefix += "autoreconf -fi\n" if autoreconf_enabled(recipe or {}) else ""
         options = configure_options(recipe or {})
         # Delete libtool archives explicitly. EL10's rpm strips them in
         # brp-remove-la-files, so the el10 gate never sees them; openSUSE's
