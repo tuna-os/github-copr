@@ -179,3 +179,46 @@ jobs:
         if: ${{ inputs.dry_run }}
         run: |
           echo "::notice::dry run — built, signed and indexed ${{ matrix.id }} but synced nothing to ${{ matrix.r2_path }}"
+
+  # The #179 job, and the one this publisher shipped without.
+  #
+  # publish-tideforge-rpms.yml has carried a verify job from its first
+  # publish, for the reason its own comment gives: "a repo that was never
+  # actually published can never sit behind a green workflow". Every step
+  # here can succeed -- build, sign, index, rclone sync -- and the packages
+  # still not be reachable, because "the workflow exited 0" and "dnf can
+  # install it" are different claims and only the second one matters.
+  #
+  # It earned its place immediately. Run against the live indexes while being
+  # written, it showed libxfce4ui-devel already served at
+  # xfce/10-stream-x86_64 and entirely absent from repo/10/x86_64 -- the el10
+  # target's published_index, the repo tideforge buildroots actually read. The
+  # package was never unpublished; it was published where nothing looks
+  # (tuna-os/tunaos-packages#466).
+  #
+  # ON THE URL. Derived from r2_path, which is safe for the build-chain
+  # families and NOT in general: manifests/package-factory.yaml records that
+  # the el10 tideforge target writes rpm/el10/x86_64 and serves
+  # repo/10/x86_64. Confirmed by request that xfce/10-stream-x86_64,
+  # xfce/44-x86_64 and hummingbird/20251124-* each serve at their own
+  # r2_path. A family whose read path diverges must gain an explicit key
+  # rather than being quietly mis-verified against a URL that 404s.
+  verify:
+    needs: [plan, publish]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: publish-rpm-${{ matrix.id }}
+          path: staged
+      - name: Assert every published package is in the served index
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-published-wave.py \
+            --served-url "https://repo.tunaos.org/${{ matrix.r2_path }}/" \
+            --staged staged
