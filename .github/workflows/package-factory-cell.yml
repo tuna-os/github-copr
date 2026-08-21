@@ -67,12 +67,28 @@ jobs:
           echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
           echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
           jq . <<<"$payload"
+      # artifacts/ and action-result.json ONLY, not the cell directory (#472).
+      # Those two are everything a hit consumes: the result manifest is
+      # verified against the expected key below, and
+      # verify-package-factory-cell.sh reads `$out/artifacts` and nothing
+      # else. metadata/SHA256SUMS and metadata/sbom.spdx.json are
+      # regenerated every run, hit or miss.
+      #
+      # Caching the whole directory dragged the build tree in with it, and
+      # the tree dwarfs the output: measured on
+      # tideforge-cpptrace-devel-debian-amd64, deb/ was 95.4% of 70.9MB
+      # against 4.6% of actual packages, with each .deb present in three
+      # places. The Actions cache is capped at 10GB per repository with LRU
+      # eviction, and the largest cells ran to 1.35GB, so about ten entries
+      # evicted everything — against ~294 planned cells.
       - id: restore
         uses: ./.github/actions/tideforge-action-cache
         with:
           operation: restore
           action-key: ${{ steps.identity.outputs.key }}
-          path: .factory/${{ matrix.id }}
+          path: |
+            .factory/${{ matrix.id }}/artifacts
+            .factory/${{ matrix.id }}/action-result.json
       - id: verdict
         name: Verify restored output
         run: |
@@ -86,6 +102,14 @@ jobs:
             hit=true
           fi
           echo "hit=$hit" >> "$GITHUB_OUTPUT"
+          # Say so where it can be counted (#472). Nothing in a run's output
+          # used to record whether the cache worked, which left its value an
+          # inference rather than a measurement. A ::notice lands in the run
+          # annotations, so `hit`/`miss` is greppable across a whole run.
+          verdict=miss
+          if [ "$hit" = true ]; then verdict=hit; fi
+          echo "::notice title=action-cache::${verdict} ${{ matrix.id }}"
+          echo "action-cache ${verdict}: \`${{ matrix.id }}\`" >> "$GITHUB_STEP_SUMMARY"
       - name: Install native build tools on an exact miss
         if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true'
         run: |
@@ -167,10 +191,33 @@ jobs:
         with:
           operation: save
           action-key: ${{ steps.identity.outputs.key }}
-          path: .factory/${{ matrix.id }}
+          path: |
+            .factory/${{ matrix.id }}/artifacts
+            .factory/${{ matrix.id }}/action-result.json
+      # Split by outcome (#472). On success the packages and their
+      # supply-chain metadata are the deliverable, and uploading the build
+      # tree alongside them cost multi-hundred-MB transfers per cell for
+      # bytes nothing reads. On failure the build tree is exactly what a
+      # person debugging wants, so it is kept there and only there.
+      #
+      # Both list paths under .factory/<id>, so upload-artifact roots each
+      # zip at that directory either way and the layout a consumer sees is
+      # unchanged.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
+        if: success()
+        with:
+          name: ${{ matrix.id }}
+          path: |
+            .factory/${{ matrix.id }}/artifacts/
+            .factory/${{ matrix.id }}/metadata/
+            .factory/${{ matrix.id }}/action-result.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
         with:
           name: ${{ matrix.id }}
           path: .factory/${{ matrix.id }}/
-          if-no-files-found: error
+          # warn, not error: a cell that died before creating its directory
+          # would otherwise fail HERE, replacing the real failure message
+          # with an upload error.
+          if-no-files-found: warn
