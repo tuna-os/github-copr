@@ -28,7 +28,17 @@ native_builds:
     manifest: build-order.yml
     mock_config: centos-stream-10-ci
     source_paths: [src/gnome-50/, src/deps/]
-    r2_path: repo/10-x86_64
+    # gnome50/..., not repo/10-x86_64. The old value is the one path in this
+    # file that does not follow <family>/<tag> -- gnome49, gnome51, xfce and
+    # fprintd all do -- and it is historical: the March distributed build
+    # wrote the main repo path directly, before there was a tideforge
+    # publisher to collide with. There is now. publish-tideforge-rpms.yml
+    # MIRRORS its x86_64 tree to repo/10-x86_64 with `rclone sync`, and sync
+    # makes the destination match the source: publishing gnome50 there means
+    # the next tideforge run deletes all 55 of its packages, and this one
+    # deletes tideforge's in between. Sharing a concurrency group stops the
+    # two racing; it does not stop them overwriting.
+    r2_path: gnome50/10-stream-x86_64
   - id: gnome51-el10-x86_64
     family: gnome51
     track: next

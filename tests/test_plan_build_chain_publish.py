@@ -140,3 +140,49 @@ def test_every_rejection_is_reported_not_just_the_first() -> None:
     )
     _, rejections = planner.resolve(["a", "b", "c"], available)
     assert len(rejections) == 3
+
+
+# --- the invariant, against the real manifests ------------------------------
+
+
+def test_no_declared_r2_path_collides_with_the_tideforge_publisher() -> None:
+    """The durable half of the gnome50 fix.
+
+    Correcting one manifest entry stops that collision; this stops the next
+    one. A family given a colliding r2_path would be refused at plan time
+    (loudly, which is good) but the refusal is a symptom -- the defect is a
+    catalog that can express "publish here" for a destination another
+    publisher `rclone sync`s into.
+    """
+    offenders = {
+        cell["id"]: cell["r2_path"]
+        for cell in planner.build_chain_cells().values()
+        if (cell.get("r2_path") or "").strip().strip("/")
+        in planner.TIDEFORGE_DESTINATIONS
+    }
+    assert offenders == {}, (
+        f"these cells declare a destination publish-tideforge-rpms.yml syncs "
+        f"into, so the two publishers would delete each other's packages: "
+        f"{offenders}"
+    )
+
+
+def test_gnome50_follows_the_family_prefix_convention() -> None:
+    """gnome49 and gnome51 both use <family>/10-stream-x86_64; 50 was the odd
+    one out, pointing at the shared repo path for historical reasons."""
+    cells = planner.build_chain_cells()
+    assert cells["gnome50-el10-x86_64"]["r2_path"] == "gnome50/10-stream-x86_64"
+
+
+def test_every_build_chain_family_has_a_distinct_destination() -> None:
+    """Two families sharing a prefix is the same overwrite fault, internally."""
+    seen = {}
+    for cell in planner.build_chain_cells().values():
+        path = (cell.get("r2_path") or "").strip().strip("/")
+        if not path:
+            continue
+        assert path not in seen, (
+            f"{cell['id']} and {seen[path]} both publish to '{path}'; "
+            "whichever syncs second deletes the first"
+        )
+        seen[path] = cell["id"]
