@@ -33,6 +33,10 @@ targets:
     # absent — the status page reports what it cannot measure.
     published_index:
       x86_64: https://repo.tunaos.org/repo/10/x86_64/
+      # Created by publish-tideforge-rpms.yml's first green aarch64 publish
+      # (the target contract's r2_path, served by the generic worker) —
+      # declared only once the index actually resolves, per the rule above.
+      aarch64: https://repo.tunaos.org/rpm/el10/aarch64/
     repository: rpm-md
     probe_image: quay.io/centos/centos:stream10
     # CRB is a signed, target-native CentOS repository.  It supplies selected
