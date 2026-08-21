@@ -79,3 +79,29 @@ def test_the_wave_script_is_executable_and_self_documenting() -> None:
     text = WAVE.read_text()
     for rule in ("EMPTY WAVE", "NEVER SHRINK", "'+' IN NAMES", "SRPMS EXCLUDED"):
         assert rule in text, f"the {rule} rule lost its reasoning"
+
+
+# --- the #179 job -----------------------------------------------------------
+
+
+@pytest.mark.parametrize("path", PUBLISHERS, ids=lambda p: p.name)
+def test_the_publisher_verifies_what_it_served(path) -> None:
+    """Neither publisher may trust its own exit code.
+
+    "the workflow exited 0" and "dnf can install it" are different claims and
+    only the second matters. #463 shipped without this; the check found a
+    real wrong assumption on its first use (#466).
+    """
+    jobs = doc(path)["jobs"]
+    assert "verify" in jobs, (
+        f"{path.name} has no verify job -- a repo that was never actually "
+        "published would sit behind a green workflow (#179)"
+    )
+    assert "publish" in jobs["verify"]["needs"]
+
+
+def test_the_build_chain_verify_does_not_run_on_a_dry_run() -> None:
+    """A dry run syncs nothing, so verifying the served index would fail on
+    the previous wave's contents and read as a publish defect."""
+    verify_job = doc(BUILD_CHAIN)["jobs"]["verify"]
+    assert "dry_run" in str(verify_job.get("if", ""))
