@@ -44,10 +44,11 @@ def stubbed(tmp_path):
     return env
 
 
-def run(tmp_path, env, staged="staged", repo="repo", subdir="build-chain"):
+def run(tmp_path, env, staged="staged", repo="repo", subdir="build-chain",
+        repo_suffix=""):
     return subprocess.run(
         ["bash", str(SCRIPT), "--staged", str(tmp_path / staged),
-         "--repo", str(tmp_path / repo), "--subdir", subdir],
+         "--repo", str(tmp_path / repo) + repo_suffix, "--subdir", subdir],
         capture_output=True, text=True, env=env, cwd=tmp_path,
     )
 
@@ -186,3 +187,92 @@ def test_missing_arguments_are_refused(tmp_path, stubbed) -> None:
     )
     assert r.returncode == 2
     assert "usage:" in r.stderr
+
+
+# --- supersede --------------------------------------------------------------
+
+
+def test_an_older_copy_at_the_root_is_superseded(tmp_path, stubbed) -> None:
+    """Measured on xfce/10-stream-x86_64: the first build-chain wave left 107
+    same-NEVRA pairs, root copy vs build-chain/ copy, with 107 DIFFERING
+    checksums. An rpm-md index with two entries for one NEVRA is ambiguous —
+    dnf picks one, and they are not the same bytes. The staged copy is the
+    freshly signed one, so the older file of that name goes."""
+    make(tmp_path / "repo", "xfwl4-4.21.0-1.el10.x86_64.rpm")
+    make(tmp_path / "staged", "xfwl4-4.21.0-1.el10.x86_64.rpm")
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr
+    assert rpms(tmp_path / "repo") == ["xfwl4-4.21.0-1.el10.x86_64.rpm"]
+    assert (tmp_path / "repo" / "build-chain"
+            / "xfwl4-4.21.0-1.el10.x86_64.rpm").exists()
+    assert "superseding older copy" in r.stdout
+
+
+def test_supersession_does_not_trip_the_never_shrink_guard(tmp_path, stubbed) -> None:
+    """The one intended shrink. Two of three staged names already exist at the
+    root, so the tree ends one file LARGER than it started — but a naive
+    baseline compare would see 3 -> 3 and only pass by luck. Make the margin
+    real: four legacy files, three of which are superseded."""
+    make(tmp_path / "repo", "a-1.el10.x86_64.rpm", "b-1.el10.x86_64.rpm",
+         "c-1.el10.x86_64.rpm", "keep-1.el10.x86_64.rpm")
+    make(tmp_path / "staged", "a-1.el10.x86_64.rpm", "b-1.el10.x86_64.rpm",
+         "c-1.el10.x86_64.rpm")
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr + r.stdout
+    assert rpms(tmp_path / "repo") == [
+        "a-1.el10.x86_64.rpm", "b-1.el10.x86_64.rpm",
+        "c-1.el10.x86_64.rpm", "keep-1.el10.x86_64.rpm",
+    ]
+    assert (tmp_path / "repo" / "keep-1.el10.x86_64.rpm").exists()
+
+
+def test_a_different_publishers_subdir_is_superseded_too(tmp_path, stubbed) -> None:
+    """Two publishers on one prefix is the #124 hazard in a different dress:
+    if tideforge/ and build-chain/ both carry one NEVRA the index is still
+    ambiguous. Supersession is by NAME across the whole tree, not by
+    directory."""
+    make(tmp_path / "repo" / "tideforge", "xfconf-4.21.2-6.el10.x86_64.rpm")
+    make(tmp_path / "staged", "xfconf-4.21.2-6.el10.x86_64.rpm")
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr
+    assert rpms(tmp_path / "repo") == ["xfconf-4.21.2-6.el10.x86_64.rpm"]
+    assert (tmp_path / "repo" / "build-chain"
+            / "xfconf-4.21.2-6.el10.x86_64.rpm").exists()
+
+
+def test_a_trailing_slash_on_repo_does_not_delete_the_staged_file(
+        tmp_path, stubbed) -> None:
+    """`find repo/ ...` and `find repo//build-chain ...` print the same file
+    under different path strings. Excluding the staged copy by comparing
+    those strings would make the wave delete exactly what it just placed —
+    and then the NEVER SHRINK guard is the only thing between that and an
+    rclone sync erasing the package from the bucket."""
+    make(tmp_path / "staged", "solo-1.el10.x86_64.rpm")
+    r = run(tmp_path, stubbed, repo_suffix="/")
+    assert r.returncode == 0, r.stderr + r.stdout
+    assert rpms(tmp_path / "repo") == ["solo-1.el10.x86_64.rpm"]
+
+
+def test_supersession_survives_the_plus_rename(tmp_path, stubbed) -> None:
+    """Both copies are renamed '+' -> '.', so they must be compared AFTER the
+    rename or the legacy copy survives under a name that now collides."""
+    make(tmp_path / "repo", "oversteer-udev-0.8.3+git74c7484.el10.noarch.rpm")
+    make(tmp_path / "staged", "oversteer-udev-0.8.3+git74c7484.el10.noarch.rpm")
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr + r.stdout
+    assert rpms(tmp_path / "repo") == [
+        "oversteer-udev-0.8.3.git74c7484.el10.noarch.rpm"
+    ]
+
+
+def test_an_unrelated_older_package_is_never_removed(tmp_path, stubbed) -> None:
+    """Supersession is same-NAME only. A different version of the same
+    package is a different file name and stays — cleaning old versions is a
+    separate decision from resolving a duplicate."""
+    make(tmp_path / "repo", "xfwl4-4.20.0-1.el10.x86_64.rpm")
+    make(tmp_path / "staged", "xfwl4-4.21.0-1.el10.x86_64.rpm")
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr
+    assert rpms(tmp_path / "repo") == [
+        "xfwl4-4.20.0-1.el10.x86_64.rpm", "xfwl4-4.21.0-1.el10.x86_64.rpm"
+    ]
