@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# Sign, place and index one wave of RPMs into a local repo tree.
+#
+# This is the half of publishing that is pure file manipulation: no network,
+# no secrets, no rclone. The caller syncs the destination down first, calls
+# this, then syncs up. Splitting it out is not tidiness -- publish-tideforge
+# -rpms.yml and publish-build-chain-rpms.yml both need it, and every safety
+# rule below was learned once and must not have to be learned again in the
+# second copy. The repo has already paid for that kind of drift twice (the
+# nightly cron stagger documented but never applied; the readiness stamp read
+# from two paths flatpak had stopped using).
+#
+# The rules, each anchored to the incident that produced it:
+#
+#   EMPTY WAVE      A wave with no RPMs means the build produced nothing and
+#                   the publish is a no-op that would still rewrite repodata.
+#                   Refuse, so a silently-empty build cannot look published.
+#
+#   NEVER SHRINK    #124 / INCIDENT-repo-wipe-gnome: `rclone sync` makes the
+#                   destination match the source, so a locally-incomplete
+#                   tree DELETES the served repo. The caller guards the
+#                   sync-down; this guards the processing. Publishing adds
+#                   packages -- if the tree came out smaller than it came in,
+#                   something dropped files and syncing up would erase them
+#                   from the bucket.
+#
+#   '+' IN NAMES    librepo percent-encodes '+' when building download URLs,
+#                   but the repo.tunaos.org worker looks up R2 keys with the
+#                   raw request path, so any filename containing '+' 404s at
+#                   install time (run 32411090239: oversteer-udev-0.8.3+git…
+#                   serves 200 at the literal-'+' URL and 404 at the %2b
+#                   one). Renamed across the WHOLE tree, not just the staged
+#                   files, so the sync also replaces any '+'-named object
+#                   already in the bucket. Only the file name changes; the
+#                   version inside the rpm metadata is untouched.
+#
+#   SRPMS EXCLUDED  Source RPMs are not installable content and bloat the
+#                   index; the tideforge publisher has always excluded them.
+set -euo pipefail
+
+STAGED="" REPO="" SUBDIR=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--staged) STAGED="$2"; shift 2 ;;
+	--repo) REPO="$2"; shift 2 ;;
+	--subdir) SUBDIR="$2"; shift 2 ;;
+	*) echo "unknown argument: $1" >&2; exit 2 ;;
+	esac
+done
+[ -n "$STAGED" ] && [ -n "$REPO" ] && [ -n "$SUBDIR" ] || {
+	echo "usage: $0 --staged DIR --repo DIR --subdir NAME" >&2
+	exit 2
+}
+
+count_rpms() { find "$1" -name '*.rpm' ! -name '*.src.rpm' 2>/dev/null | wc -l; }
+
+staged_count=$(count_rpms "$STAGED")
+if [ "$staged_count" -eq 0 ]; then
+	echo "ERROR: no RPMs staged in ${STAGED}; refusing to publish an empty wave" >&2
+	exit 1
+fi
+
+mkdir -p "$REPO"
+baseline=$(count_rpms "$REPO")
+echo "==> staged ${staged_count} RPM(s); repo already holds ${baseline}"
+
+find "$STAGED" -name '*.rpm' ! -name '*.src.rpm' -exec rpmsign --addsign {} \;
+
+mkdir -p "${REPO}/${SUBDIR}"
+find "$STAGED" -name '*.rpm' ! -name '*.src.rpm' -exec cp -t "${REPO}/${SUBDIR}" {} +
+
+find "$REPO" -name '*+*.rpm' -print0 | while IFS= read -r -d '' f; do
+	mv "$f" "$(dirname "$f")/$(basename "$f" | tr '+' '.')"
+done
+
+final=$(count_rpms "$REPO")
+if [ "$final" -lt "$baseline" ]; then
+	echo "ERROR: repo shrank from ${baseline} to ${final} RPMs; refusing to sync" >&2
+	echo "       a sync from a smaller tree DELETES the difference from the bucket" >&2
+	exit 1
+fi
+echo "==> repo now holds ${final} RPM(s)"
+
+createrepo_c --update "$REPO" 2>/dev/null || createrepo_c "$REPO"
