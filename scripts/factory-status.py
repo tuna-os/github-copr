@@ -8,10 +8,13 @@ package actually published for that target?" was to grep a primary.xml by
 hand. This tool makes the answer a generated artifact with provenance:
 
   * for every target in manifests/package-factory.yaml that declares a
-    `published_index` (the SERVED read URL of its published repository —
-    distinct from `r2_path`, the bucket write path), fetch the live rpm-md
-    index and classify every catalog entry targeting it as BUILT (some
-    binary or source package of that name is in the index) or NEEDED;
+    `published_index` (the SERVED read URL(s) of its published repository —
+    distinct from `r2_path`, the bucket write path), fetch every live
+    rpm-md index it names and classify every catalog entry targeting it as
+    BUILT (some binary or source package of that name is in one of them) or
+    NEEDED. An arch may declare more than one index because a target can
+    have more than one publisher (#467); BUILT is the union, because a
+    buildroot pointed at that target sees all of them;
   * for the hummingbird target, additionally measure each desktop's
     `required_packages` roots against the index — the per-desktop coverage
     table that decides which desktops tunaOS can wire (tunaOS#1755);
@@ -70,6 +73,9 @@ _spec = importlib.util.spec_from_file_location(
 )
 mhg = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(mhg)
+
+sys.path.insert(0, str(ROOT / "scripts"))
+import published_index as pubidx  # noqa: E402  (needs the path above)
 
 
 def load_yaml(path: pathlib.Path):
@@ -148,12 +154,20 @@ def measure(catalog, factory, cache: pathlib.Path) -> dict:
             }
             continue
         arches = {}
-        for arch, url in published.items():
-            names, provenance = reader(url, cache)
+        for arch, declared in published.items():
+            # An arch may declare several indexes (#467). BUILT is a union:
+            # the question is whether a buildroot pointed at this target can
+            # resolve the name, and it is pointed at all of them.
+            names: set = set()
+            provenances = []
+            for url in pubidx.normalise(declared):
+                found, provenance = reader(url, cache)
+                names |= found
+                provenances.append(provenance)
             built = sorted(n for n in wanted if n in names)
             needed = sorted(n for n in wanted if n not in names)
             arches[arch] = {
-                "index": provenance,
+                "indexes": provenances,
                 "catalog_entries": len(wanted),
                 "built": built,
                 "needed": needed,
@@ -168,8 +182,10 @@ def measure_hummingbird_desktops(report: dict, cache: pathlib.Path) -> None:
     hb = report["targets"].get("hummingbird")
     if not hb or "x86_64" not in hb:
         return
-    url = hb["x86_64"]["index"]["baseurl"]
-    names, _ = index_names(url, cache)
+    names: set = set()
+    for provenance in hb["x86_64"]["indexes"]:
+        found, _ = index_names(provenance["baseurl"], cache)
+        names |= found
     desktops = {}
     for desktop, spec in sorted(manifest.get("desktops", {}).items()):
         roots = spec.get("required_packages", [])
@@ -208,7 +224,8 @@ def render(report: dict) -> str:
         for arch, data in sorted(arches.items()):
             lines.append(
                 f"| {arch} | {data['catalog_entries']} | {len(data['built'])} "
-                f"| {len(data['needed'])} | {data['index']['package_names']} |"
+                f"| {len(data['needed'])} | "
+                f"{sum(i['package_names'] for i in data['indexes'])} |"
             )
         lines.append("")
         for arch, data in sorted(arches.items()):
@@ -295,14 +312,20 @@ def main() -> None:
                     f"{target_id}: published_index declared for a format "
                     "this tool cannot read yet"
                 )
-            for arch, url in spec["published_index"].items():
+            for arch, declared in spec["published_index"].items():
                 if arch not in spec.get("architectures", []):
                     raise SystemExit(
                         f"{target_id}: published_index arch {arch} is not in "
                         "the target's declared architectures"
                     )
-                if not str(url).startswith(("https://", "file://")):
-                    raise SystemExit(f"{target_id}/{arch}: unsupported URL {url}")
+                resolved = pubidx.normalise(declared)
+                if not resolved:
+                    raise SystemExit(
+                        f"{target_id}/{arch}: published_index declared but empty"
+                    )
+                for url in resolved:
+                    if not url.startswith(("https://", "file://")):
+                        raise SystemExit(f"{target_id}/{arch}: unsupported URL {url}")
         if not measured:
             raise SystemExit("no target declares a published_index")
         print(f"structure ok: {len(measured)} measurable target(s)")

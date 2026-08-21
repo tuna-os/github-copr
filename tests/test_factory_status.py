@@ -24,6 +24,10 @@ _spec = importlib.util.spec_from_file_location(
 fs = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(fs)
 
+import sys  # noqa: E402
+sys.path.insert(0, str(ROOT / "scripts"))
+import published_index as pubidx  # noqa: E402
+
 PRIMARY = """<?xml version="1.0"?>
 <metadata xmlns="http://linux.duke.edu/metadata/common"
           xmlns:rpm="http://linux.duke.edu/metadata/rpm" packages="2">
@@ -104,7 +108,9 @@ def test_classification_built_needed_and_source_names(tmp_path):
 def test_provenance_rides_with_the_measurement(tmp_path):
     catalog, factory = fixture_inputs(tmp_path)
     report = fs.measure(catalog, factory, tmp_path / "cache")
-    index = report["targets"]["el10"]["x86_64"]["index"]
+    indexes = report["targets"]["el10"]["x86_64"]["indexes"]
+    assert len(indexes) == 1
+    index = indexes[0]
     assert index["revision"] == "1755000000"
     assert len(index["primary_sha256"]) == 64
     assert index["package_names"] == 2
@@ -140,6 +146,9 @@ def test_repo_manifests_pass_check_structure():
     for target_id in measured:
         spec = factory["targets"][target_id]
         assert spec["format"] in ("rpm", "deb")
-        for arch, url in spec["published_index"].items():
+        for arch, declared in spec["published_index"].items():
             assert arch in spec["architectures"], (target_id, arch)
-            assert str(url).startswith("https://"), (target_id, url)
+            resolved = pubidx.normalise(declared)
+            assert resolved, (target_id, arch, "declared but empty")
+            for url in resolved:
+                assert url.startswith("https://"), (target_id, url)

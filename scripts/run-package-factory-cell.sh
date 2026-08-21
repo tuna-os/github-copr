@@ -50,13 +50,11 @@ case ${FORMAT:?} in
     # 32382594650) can only resolve them from the PUBLISHED factory repo,
     # built by earlier waves. Same manifest field the verify reads; empty
     # (e.g. el10/aarch64, which has no served index yet) adds nothing.
-    published_index="$(python3 - "$target" "${ARCHITECTURE:-}" <<'PY'
-import pathlib, sys, yaml
-d = yaml.safe_load(pathlib.Path("manifests/package-factory.yaml").read_text()) or {}
-t = d.get("targets", {}).get(sys.argv[1]) or {}
-print((t.get("published_index") or {}).get(sys.argv[2], ""))
-PY
-)"
+    # Space-separated because an arch may declare several indexes (#467):
+    # el10/x86_64 has both the tideforge mirror and the xfce build-chain
+    # prefix, and xfwl4's BuildRequires only resolve from the second. URLs
+    # never contain whitespace, so word-splitting in the container is safe.
+    published_index="$(python3 scripts/published_index.py "$target" "${ARCHITECTURE:-}" --join)"
     root="$out/rpm"
     python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$root/rpmbuild/SPECS"
     mkdir -p "$root/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS}
@@ -96,11 +94,15 @@ PY
           # glib2 from the repo), so write a real repo file, where
           # priority=999 (worse than the system repos default 99)
           # reliably excludes every name a system repo already carries.
-          if [[ -n "${PUBLISHED_INDEX:-}" ]]; then
+          # One [tunaos-published-N] section per declared index (#467),
+          # each with the same gap-filler settings. Appended rather than
+          # written once: el10/x86_64 declares two.
+          index_n=0
+          for published_url in ${PUBLISHED_INDEX:-}; do
             {
-              echo "[tunaos-published]"
-              echo "name=TunaOS published index (cross-cell gap filler)"
-              echo "baseurl=${PUBLISHED_INDEX}"
+              echo "[tunaos-published-${index_n}]"
+              echo "name=TunaOS published index ${index_n} (cross-cell gap filler)"
+              echo "baseurl=${published_url}"
               echo "enabled=1"
               echo "gpgcheck=0"
               echo "priority=999"
@@ -118,8 +120,9 @@ PY
               # repo itself is tracked separately (it affects image
               # consumers too).
               echo "excludepkgs=glib2 glib2-devel glib2-static"
-            } > /etc/yum.repos.d/tunaos-published.repo
-          fi
+            } >> /etc/yum.repos.d/tunaos-published.repo
+            index_n=$((index_n + 1))
+          done
           dnf -y builddep /work/rpmbuild/SPECS/*.spec
           rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
         '
