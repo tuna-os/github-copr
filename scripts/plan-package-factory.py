@@ -13,6 +13,9 @@ from typing import Any
 
 import yaml
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import factory_contract  # noqa: E402  (needs the path above)
+
 
 RECIPE_CHANGE = re.compile(r"^packages/([^/]+)/")
 COMMON_INPUTS = {
@@ -267,27 +270,15 @@ def yaml_at_revision(root: pathlib.Path, revision: str, path: str) -> dict[str, 
     return value if isinstance(value, dict) else {}
 
 
-# Contract keys a format's cell pipeline never reads — changing them cannot
-# alter any cell's outcome, so they must not re-prove the whole family.
-# published_index is consumed by the rpm build and verify paths (cross-cell
-# deps, #440/#442/#450), but the deb and arch pipelines never look at it:
-# there it exists solely for scripts/factory-status.py's measurement. Without
-# this, declaring the served apt indexes re-planned every deb cell — a
-# family whose pre-existing breakage (e.g. bazaar's blueprint-compiler
-# floor) then blocked a measurement-only change (run 32397627179).
-PIPELINE_INERT_KEYS: dict[str, set[str]] = {
-    "deb": {"published_index"},
-    "pkg.tar.zst": {"published_index"},
-}
-
-
-def _pipeline_view(spec: Any) -> Any:
-    if not isinstance(spec, dict):
-        return spec
-    inert = PIPELINE_INERT_KEYS.get(spec.get("format"), set())
-    if not inert:
-        return spec
-    return {key: value for key, value in spec.items() if key not in inert}
+# Which contract keys can change a cell's outcome is decided in ONE place,
+# scripts/factory_contract.py, because scripts/tideforge-action-cache.py has
+# to answer the same question for its action key (#473). This used to be a
+# local table here covering only published_index for deb and pkg.tar.zst —
+# added after declaring the served apt indexes re-planned every deb cell,
+# a family whose pre-existing breakage then blocked a measurement-only
+# change (run 32397627179). The action key had no equivalent, so a bucket
+# WRITE path rebuilt every cell on its target.
+_pipeline_view = factory_contract.build_view
 
 
 def changed_contracts(

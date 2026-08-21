@@ -8,9 +8,13 @@ import hashlib
 import json
 import pathlib
 import re
+import sys
 from typing import Any, Iterable
 
 import yaml
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import factory_contract  # noqa: E402  (needs the path above)
 
 
 SCHEMA = 1
@@ -97,7 +101,14 @@ def target_inputs(
         if not isinstance(targets, dict) or target_id not in targets:
             raise SystemExit(f"dependency capability {name} has no mapping for {target_id}")
         resolved[name] = targets[target_id]
-    return {"contract": target, "dependency_capabilities": resolved}
+    # The BUILD's view of the contract, not the whole block (#473). Hashing
+    # every field meant a bucket write path or a reporting label rebuilt
+    # every cell on the target from scratch. Same view the planner selects
+    # with, so the two cannot drift.
+    return {
+        "contract": factory_contract.build_view(target),
+        "dependency_capabilities": resolved,
+    }
 
 
 def recipe_capabilities(recipe: dict[str, Any]) -> list[str]:
