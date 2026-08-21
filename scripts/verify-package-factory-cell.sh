@@ -78,13 +78,10 @@ case ${FORMAT:?} in
     # earlier waves. The target contract's `published_index` (served read URL,
     # distinct from `r2_path`) is added as a lower-priority dnf/zypper repo so
     # the local cell artifacts win and the published repo only fills in deps.
-    published_index="$(python3 - "$TARGET" "${ARCHITECTURE:-}" <<'PY'
-import pathlib, sys, yaml
-d = yaml.safe_load(pathlib.Path("manifests/package-factory.yaml").read_text()) or {}
-t = d.get("targets", {}).get(sys.argv[1]) or {}
-print((t.get("published_index") or {}).get(sys.argv[2], ""))
-PY
-)"
+    # Space-separated: an arch may declare several indexes (#467) — el10
+    # x86_64 has the tideforge mirror and the xfce build-chain prefix. URLs
+    # never contain whitespace, so word-splitting in the container is safe.
+    published_index="$(python3 scripts/published_index.py "$TARGET" "${ARCHITECTURE:-}" --join)"
     docker run --rm --entrypoint /bin/bash --volume "$artifacts:/artifacts:ro" \
       --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" \
       /scripts/lint-generated-rpm.sh /artifacts
@@ -99,9 +96,12 @@ PY
           zypper --non-interactive install createrepo_c
           createrepo_c /factory-repo
           zypper --non-interactive addrepo --no-gpgcheck --priority 1 file:///factory-repo tideforge
-          if [ -n "$PUBLISHED_INDEX" ]; then
-            zypper --non-interactive addrepo --no-gpgcheck --priority 50 "$PUBLISHED_INDEX" tunaos-published
-          fi
+          published_n=0
+          for published_url in ${PUBLISHED_INDEX:-}; do
+            zypper --non-interactive addrepo --no-gpgcheck --priority 50 \
+              "$published_url" "tunaos-published-${published_n}"
+            published_n=$((published_n + 1))
+          done
           zypper --non-interactive --gpg-auto-import-keys refresh
           zypper --non-interactive --no-gpg-checks install "$INSTALL_NAME"
         else
@@ -114,9 +114,20 @@ PY
           done
           dnf -y install createrepo_c
           createrepo_c /factory-repo
+          published_args=()
+          published_n=0
+          for published_url in ${PUBLISHED_INDEX:-}; do
+            published_args+=(--repofrompath "tunaos${published_n},${published_url}"
+                             "--setopt=tunaos${published_n}.priority=50"
+                             --enablerepo="tunaos${published_n}")
+            published_n=$((published_n + 1))
+          done
+          # ${a[@]+"${a[@]}"} and not "${a[@]}": under `set -u` an empty
+          # array expansion is an unbound-variable error on bash < 4.4, and
+          # the probe images are not all bash 5.
           dnf -y install --nogpgcheck --repofrompath tideforge,file:///factory-repo \
             --setopt=tideforge.priority=1 --enablerepo=tideforge \
-            ${PUBLISHED_INDEX:+--repofrompath tunaos,"$PUBLISHED_INDEX" --setopt=tunaos.priority=50 --enablerepo=tunaos} \
+            ${published_args[@]+"${published_args[@]}"} \
             "$INSTALL_NAME"
         fi
         rpm -q "$INSTALL_NAME"

@@ -36,6 +36,19 @@
 #
 #   SRPMS EXCLUDED  Source RPMs are not installable content and bloat the
 #                   index; the tideforge publisher has always excluded them.
+#
+#   SUPERSEDE       A publisher writes into REPO/SUBDIR, but the prefixes it
+#                   writes to were served for months by earlier publishers
+#                   that wrote flat at the root. Copying in leaves BOTH, and
+#                   an rpm-md index with two entries for one NEVRA is
+#                   ambiguous: dnf picks one, and the two are not the same
+#                   bytes -- measured on xfce/10-stream-x86_64, which held
+#                   107 same-NEVRA pairs with 107 differing checksums after
+#                   the first build-chain wave. The staged copy is the
+#                   freshly signed one, so it wins and the older file with
+#                   the same name is removed from anywhere else in the tree.
+#                   Subtracted from the NEVER SHRINK baseline, since this is
+#                   the one shrink that is intended.
 set -euo pipefail
 
 STAGED="" REPO="" SUBDIR=""
@@ -73,9 +86,27 @@ find "$REPO" -name '*+*.rpm' -print0 | while IFS= read -r -d '' f; do
 	mv "$f" "$(dirname "$f")/$(basename "$f" | tr '+' '.')"
 done
 
+# Runs AFTER the rename so a legacy 'foo+1.rpm' and a staged 'foo+1.rpm'
+# compare as the same name rather than surviving as a stale duplicate.
+superseded=0
+while IFS= read -r staged_file; do
+	name=$(basename "$staged_file")
+	while IFS= read -r older; do
+		echo "==> superseding older copy: $older"
+		rm -f "$older"
+		superseded=$((superseded + 1))
+		# Excluded by PATH, not by comparing against the staged file's own
+		# path: `find repo/ ...` and `find repo//build-chain ...` print the
+		# same file under different strings, so a string compare would let a
+		# trailing slash in --repo make the wave delete what it just staged.
+	done < <(find "$REPO" -name "$name" ! -name '*.src.rpm' ! -path "*/${SUBDIR}/*")
+done < <(find "${REPO}/${SUBDIR}" -name '*.rpm' ! -name '*.src.rpm')
+[ "$superseded" -eq 0 ] || echo "==> superseded ${superseded} older copy/copies"
+
 final=$(count_rpms "$REPO")
-if [ "$final" -lt "$baseline" ]; then
-	echo "ERROR: repo shrank from ${baseline} to ${final} RPMs; refusing to sync" >&2
+if [ "$final" -lt $((baseline - superseded)) ]; then
+	echo "ERROR: repo shrank from ${baseline} to ${final} RPMs" \
+	     "(${superseded} superseded); refusing to sync" >&2
 	echo "       a sync from a smaller tree DELETES the difference from the bucket" >&2
 	exit 1
 fi

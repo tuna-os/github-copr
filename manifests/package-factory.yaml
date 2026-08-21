@@ -31,8 +31,27 @@ targets:
     # built-vs-needed per target; only declare an index that actually
     # resolves. aarch64 has no served el10 index yet, so it is deliberately
     # absent — the status page reports what it cannot measure.
+    #
+    # An arch may declare MORE THAN ONE index (#467), because el10 has two
+    # publishers writing to two disjoint prefixes: publish-tideforge-rpms.yml
+    # syncs into repo/10-x86_64 (served /repo/10/x86_64/) and
+    # publish-build-chain-rpms.yml into each family's own prefix. Declaring
+    # only the first is what made every build-chain product invisible:
+    # libxfce4ui-devel has been built and SERVED the whole time, at
+    # xfce/10-stream-x86_64, where no buildroot looked. A bare string is
+    # still accepted and means one index (see scripts/published_index.py).
     published_index:
-      x86_64: https://repo.tunaos.org/repo/10/x86_64/
+      x86_64:
+        - https://repo.tunaos.org/repo/10/x86_64/
+        # The xfce build-chain family's r2_path. Added because
+        # tideforge-xfwl4-el10 BuildRequires libxfce4ui-devel/xfconf-devel,
+        # which only this index carries. The sibling gnome49/gnome51
+        # prefixes are deliberately NOT here: they hold GNOME 50/51
+        # bootstrap glib2 builds whose `Obsoletes: glib2 < 2.87.3` hijacks
+        # the AppStream package at any repo priority (publish run
+        # 32405815822). An index is additive to the buildroot's package
+        # universe, so each one is declared on its own evidence.
+        - https://repo.tunaos.org/xfce/10-stream-x86_64/
       # Created by publish-tideforge-rpms.yml's first green aarch64 publish
       # (the target contract's r2_path, served by the generic worker) —
       # declared only once the index actually resolves, per the rule above.
