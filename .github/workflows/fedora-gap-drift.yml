@@ -1,0 +1,63 @@
+# Re-measures the xfce-fedora gap against the LIVE Fedora 44 index via
+# scripts/measure-target-gap.py --target fedora — the second drift detector
+# of RFC 011 Phase 1, cloned from hummingbird-gap-drift.yml's shape.
+#
+# DISPATCH-ONLY, deliberately, until this family's conversion row in
+# docs/rfc011-conversions.md is complete: the regeneration is known not to
+# reproduce build-order-xfce-fedora.yml yet (the engine satisfies
+# requirements by name, and this family exists because of `>= 4.21` version
+# pins — see manifests/xfce-fedora.yaml). A cron that re-measures an
+# unconverted family would open review PRs nobody can act on. Add the cron
+# in the same PR that passes the exact-or-explained gate and deletes the
+# curated file.
+name: Fedora gap drift
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fedora-gap-drift
+  cancel-in-progress: false
+
+jobs:
+  remeasure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install deps
+        run: pip install --quiet pyyaml zstandard
+
+      - name: Measure the xfce-fedora gap from the live indexes
+        run: |
+          set -euo pipefail
+          ./scripts/measure-target-gap.py --target fedora \
+            --report-json fedora-gap.json \
+            --build-order build-order-xfce-fedora.generated.yml
+
+      - name: Diff the generated order against the curated one
+        run: |
+          set -euo pipefail
+          echo "::group::generated vs curated"
+          diff -u build-order-xfce-fedora.yml \
+            build-order-xfce-fedora.generated.yml || true
+          echo "::endgroup::"
+          # The diff is the deliverable while the conversion row is open —
+          # exact-or-explained is judged by a human in the conversion PR,
+          # so this job never fails on a difference; it exhibits it.
+
+      - name: Upload measurement
+        uses: actions/upload-artifact@v7
+        with:
+          name: fedora-gap-measurement
+          path: |
+            fedora-gap.json
+            build-order-xfce-fedora.generated.yml
+          retention-days: 30
