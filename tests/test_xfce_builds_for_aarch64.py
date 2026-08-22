@@ -101,3 +101,39 @@ def test_el10_does_not_yet_claim_an_index_that_does_not_exist():
     declared = factory["targets"]["el10"]["published_index"]["aarch64"]
     declared = [declared] if isinstance(declared, str) else declared
     assert not [u for u in declared if "aarch64" in u and "xfce" in u], declared
+
+
+def test_the_fedora_aarch64_cell_exists_too():
+    """xfce had no aarch64 cell on ANY target. fedora is the cheap one: its
+    chain builds three packages against stock Fedora, because Fedora 44 ships
+    XFCE 4.20 and greetd/gtkgreet/cage are in Fedora proper — so it carries
+    neither of the Requires that cannot resolve on EL10 (#482)."""
+    assert "xfce-fedora-aarch64" in cells()
+
+
+def test_the_fedora_aarch64_cell_uses_its_own_mock_config():
+    c = cells()["xfce-fedora-aarch64"]
+    assert c["mock_config"] == "fedora-44-ci-aarch64"
+    assert c["runner"] == "ubuntu-24.04-arm"
+    assert (ROOT / "mock" / "fedora-44-ci-aarch64.cfg").is_file()
+
+
+def test_the_fedora_mock_config_includes_the_aarch64_base_chroot():
+    """Including fedora-44-x86_64.cfg would build x86_64 packages in a job
+    labelled aarch64 — the failure mode that looks green."""
+    text = (ROOT / "mock" / "fedora-44-ci-aarch64.cfg").read_text(encoding="utf-8")
+    assert "include('/etc/mock/fedora-44-aarch64.cfg')" in text
+    assert "fedora-44-x86_64.cfg" not in text
+
+
+def test_the_two_fedora_configs_keep_the_same_mock_pkgid_workaround():
+    """mock <= 6.7 dies on Fedora 44's rpm 6 at 'unknown tag: pkgid'. If one
+    config carries the workaround and the other does not, one arch builds and
+    the other fails before compiling anything."""
+    for name in ("fedora-44-ci.cfg", "fedora-44-ci-aarch64.cfg"):
+        text = (ROOT / "mock" / name).read_text(encoding="utf-8")
+        assert "package_state_enable" in text, name
+
+
+def test_the_fedora_arches_publish_to_distinct_prefixes():
+    assert cells()["xfce-fedora-aarch64"]["r2_path"] != cells()["xfce-fedora-x86_64"]["r2_path"]

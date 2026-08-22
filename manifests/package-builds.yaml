@@ -100,6 +100,22 @@ native_builds:
     mock_config: fedora-44-ci
     source_paths: [src/xfce-wayland/]
     r2_path: xfce/44-x86_64
+  # The aarch64 counterpart. Cheap here in a way the el10 xfce family is not:
+  # this chain builds three packages against stock Fedora, because Fedora 44
+  # already ships XFCE 4.20 and greetd/gtkgreet/cage are in Fedora proper. So
+  # it carries neither of the two Requires that cannot resolve on EL10 (#482),
+  # and needed only a mock config that did not exist (#480).
+  - id: xfce-fedora-aarch64
+    family: xfce
+    target: fedora
+    architecture: aarch64
+    runner: ubuntu-24.04-arm
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+    verify_image: registry.fedoraproject.org/fedora:44
+    manifest: build-order-xfce-fedora.yml
+    mock_config: fedora-44-ci-aarch64
+    source_paths: [src/xfce-wayland/]
+    r2_path: xfce/44-aarch64
   - id: hummingbird-x86_64
     family: hummingbird-desktops
     target: hummingbird
