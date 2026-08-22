@@ -160,3 +160,49 @@ def test_the_deb_wayland_and_gbm_names_are_debian_spellings():
         names = deps()[target]
         assert "mesa-libgbm-devel" not in names, target
         assert not [n for n in names if n.startswith("pkgconfig(")], target
+
+
+def runtime_deps() -> dict:
+    r = yaml.safe_load(RECIPE.read_text(encoding="utf-8"))
+    return r["dependencies"]["runtime"]["targets"]
+
+
+def test_arch_declares_its_runtime_closure():
+    """makepkg does not populate depends=() -- it only warns -- so an
+    undeclared shared library on Arch produces a package that installs
+    cleanly and then cannot start:
+
+        quickshell: error while loading shared libraries: libcpptrace.so.1
+
+    rpmbuild auto-generates Requires from ELF sonames and dpkg-shlibdeps
+    fills ${shlibs:Depends}, so no other target needs this -- which is why
+    arch was the only one the smoke gate caught."""
+    arch = runtime_deps()["arch"]
+    assert "cpptrace" in arch, arch
+    for lib in ("qt6-base", "qt6-declarative", "qt6-wayland", "pipewire", "libdrm"):
+        assert lib in arch, (lib, arch)
+
+
+def test_the_arch_runtime_names_are_all_known_good_on_arch():
+    """Every runtime name must also appear in the arch BUILD list, which has
+    already resolved against pacman. A runtime-only name would be unverified,
+    and a wrong one turns a passing build into a failing install."""
+    build = set(deps()["arch"])
+    for name in runtime_deps()["arch"]:
+        assert name in build, name
+
+
+def test_header_only_and_disabled_libraries_are_not_runtime_deps():
+    """cli11 is header-only, and jemalloc is not linked at all --
+    build.cmake_options passes -DUSE_JEMALLOC=OFF. Listing either would make
+    the installed package pull in something it never loads."""
+    r = yaml.safe_load(RECIPE.read_text(encoding="utf-8"))
+    assert "-DUSE_JEMALLOC=OFF" in r["build"]["cmake_options"]
+    arch = runtime_deps()["arch"]
+    assert "cli11" not in arch and "jemalloc" not in arch, arch
+
+
+def test_only_arch_declares_runtime_deps():
+    """The other targets derive their closure from the binary. Adding a hand
+    list there would drift from what the linker actually needs."""
+    assert set(runtime_deps()) == {"arch"}, sorted(runtime_deps())

@@ -101,6 +101,32 @@ dependencies:
       debian: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev, wayland-protocols, libgbm-dev]
       opensuse-tumbleweed: [cmake, gcc-c++, qt6-base-private-devel, qt6-declarative-devel, qt6-declarative-private-devel, qt6-wayland-devel, qt6-shadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, jemalloc-devel, cli11-devel, cpptrace-devel, 'pkgconfig(wayland-protocols)', 'pkgconfig(gbm)']
       arch: [cmake, gcc, qt6-base, qt6-declarative, qt6-wayland, qt6-shadertools, pipewire, pam, polkit, libdrm, jemalloc, cli11, cpptrace, ninja, wayland-protocols, vulkan-headers, libunwind]
+  # Arch is the ONLY target that needs this, and the reason is mechanical
+  # rather than a property of quickshell: rpmbuild auto-generates Requires
+  # from ELF sonames and dpkg-shlibdeps fills ${shlibs:Depends}, so el10,
+  # openSUSE and the deb targets derive their runtime closure from the
+  # binary. makepkg does NOT populate depends=() -- it only warns -- so on
+  # Arch an undeclared shared library becomes a package that installs
+  # cleanly and cannot start.
+  #
+  # Which is exactly what happened (run 32553124546): arch compiled, packaged
+  # and installed, then the smoke gate caught it at runtime:
+  #
+  #     assert-arch-runtime-closure: smoke: bash /smoke.sh
+  #     quickshell: error while loading shared libraries: libcpptrace.so.1:
+  #       cannot open shared object file: No such file or directory
+  #
+  # libcpptrace.so.1 is the one the log names, because the loader stops at the
+  # first miss. The rest of this list is the remainder of the BUILD list that
+  # ships shared libraries, so the closure is declared in one step instead of
+  # one loader error per round. Every name here already resolved on this
+  # target during the build, so none of them is a new guess.
+  #
+  # Deliberately absent: cli11 is header-only, and jemalloc is not linked --
+  # build.cmake_options passes -DUSE_JEMALLOC=OFF.
+  runtime:
+    targets:
+      arch: [qt6-base, qt6-declarative, qt6-wayland, qt6-shadertools, pipewire, pam, polkit, libdrm, cpptrace, libunwind]
 files:
   common:
     - usr/bin/quickshell
