@@ -59,6 +59,15 @@ BESPOKE = {
         "aarch64": {
             "src": "rpm/el10/aarch64",
             "served": "https://repo.tunaos.org/rpm/el10/aarch64/",
+            # 30 against the 39 currently served. This was absent -- defaulting
+            # to 0 -- because the prefix started empty and a minimum would have
+            # made the first publish impossible. It has content now, and the
+            # publisher's `Sync down the existing repo` ends in `|| true`, so a
+            # failed download would sync UP only the new packages and delete
+            # the rest: #124 / INCIDENT-repo-wipe-gnome exactly. Headroom for a
+            # few legitimate removals; a count near zero is the failure this
+            # exists to catch.
+            "min_rpms": 30,
         },
     },
 }
