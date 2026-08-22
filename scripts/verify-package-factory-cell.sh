@@ -131,7 +131,7 @@ case ${FORMAT:?} in
               "$published_url" "tunaos-published-${published_n}"
             published_n=$((published_n + 1))
           done
-          zypper --non-interactive --gpg-auto-import-keys refresh
+          bash /scripts/zypper-refresh-with-retry.sh
           zypper --non-interactive --no-gpg-checks install "$INSTALL_NAME"
         else
           for sysrepo in ${SYSTEM_REPOS:-}; do

@@ -34,6 +34,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "zypper-refresh-with-retry.sh"
 CELL = ROOT / "scripts" / "run-package-factory-cell.sh"
+VERIFY = ROOT / "scripts" / "verify-package-factory-cell.sh"
+LINT = ROOT / "scripts" / "lint-generated-rpm.sh"
 
 
 def run_with_fake_zypper(tmp_path: Path, body: str, **env: str) -> subprocess.CompletedProcess:
@@ -137,10 +139,55 @@ def test_the_gpg_auto_import_is_preserved(tmp_path, bash_available):
     assert any("--gpg-auto-import-keys" in call for call in result.log), result.log
 
 
-def test_the_cell_runner_calls_it_instead_of_zypper_refresh_directly():
-    text = CELL.read_text(encoding="utf-8")
-    assert "zypper-refresh-with-retry.sh" in text
-    assert "--gpg-auto-import-keys refresh" not in text, "an un-retried refresh survived"
+def test_no_script_refreshes_zypper_without_retrying():
+    """Swept across every script, not just the one I happened to look at first.
+
+    The first fix patched run-package-factory-cell.sh, reasoning from a log
+    whose failing step I had not identified. The BUILD was a cache hit that
+    run -- `##[notice]hit tideforge-wayland-protocols-opensuse-tumbleweed-x86_64`
+    -- so the patched script never executed, and the identical failure
+    recurred at a3660e9 with the retry nowhere in the log. The failing step was
+    verify-package-factory-cell.sh, in a different file entirely.
+
+    A sweep cannot make that mistake."""
+    offenders = []
+    for script in sorted((ROOT / "scripts").glob("*.sh")):
+        if script.name == "zypper-refresh-with-retry.sh":
+            continue
+        for number, line in enumerate(script.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue  # prose about refreshing is not a refresh
+            if "zypper" in stripped and "refresh" in stripped and "retry" not in stripped:
+                offenders.append(f"{script.name}:{number}: {stripped}")
+    assert not offenders, offenders
+
+
+def test_the_rpmlint_install_refreshes_first():
+    """The step that actually failed. `zypper install` refreshes IMPLICITLY, so
+    a mirror mid-rotation surfaces as the thoroughly misleading
+
+        No provider of 'rpmlint' found
+
+    rather than as a network error -- which is part of why the first diagnosis
+    landed on the wrong file."""
+    text = LINT.read_text(encoding="utf-8")
+    retry = text.index("zypper-refresh-with-retry.sh")
+    install = text.index("zypper --non-interactive install rpmlint")
+    assert retry < install, "the refresh must precede the implicit one"
+
+
+def test_every_container_running_the_linter_mounts_scripts():
+    """The retry lives at /scripts. A caller that does not mount it would skip
+    the guard silently, since the call is conditional on the file existing."""
+    text = VERIFY.read_text(encoding="utf-8")
+    for index, _ in enumerate(text.split("/scripts/lint-generated-rpm.sh")[:-1]):
+        block = text.split("/scripts/lint-generated-rpm.sh")[index]
+        assert '--volume "$PWD/scripts:/scripts:ro"' in block[-400:], index
+
+
+def test_the_verify_path_uses_the_retry():
+    assert "zypper-refresh-with-retry.sh" in VERIFY.read_text(encoding="utf-8")
 
 
 def test_the_scripts_directory_is_mounted_for_the_opensuse_container():
