@@ -18,9 +18,32 @@ on:
         required: false
         type: string
 
+# The scheduled full-family run gets its OWN group and is never cancelled.
+#
+# Both the schedule and a push to main resolve github.ref to refs/heads/main,
+# so they shared one cancel-in-progress group and every merge killed the
+# nightly. Measured, not inferred: all three scheduled runs on record were
+# cancelled, and on 2026-08-21 the push run created at 13:51:50Z cancelled
+# the 13:00:22Z nightly at 13:52:27Z -- 37 seconds later.
+#
+#   12:55:51 push      cancelled
+#   13:00:22 schedule  cancelled 13:52:27
+#   13:51:50 push      cancelled
+#   14:51:12 push      cancelled
+#   17:01:55 push      cancelled
+#
+# On a busy merge day nothing on main finished at all, which is why
+# hummingbird's aarch64 index serves 1358 package names against x86_64's
+# 7986 (#480): the slower arch is further from done when the next merge
+# lands, so it loses more work every time.
+#
+# Pull requests keep cancel-in-progress -- there a new commit genuinely
+# supersedes the old one. Two nightlies cannot overlap either; sharing one
+# group with cancel-in-progress false makes the second QUEUE rather than
+# evict the first.
 concurrency:
-  group: package-factory-${{ github.ref }}
-  cancel-in-progress: true
+  group: package-factory-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 permissions:
   contents: read
