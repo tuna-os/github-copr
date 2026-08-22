@@ -137,9 +137,32 @@ case ${FORMAT:?} in
       --volume "$root:/work" "$image" bash -lc '
         set -euo pipefail
         export DEBIAN_FRONTEND=noninteractive
+        # Ubuntu keeps a large share of Debian-synced packages in `universe`,
+        # and quickshell needs two of them (libcli11-dev, libcpptrace-dev).
+        # Debian has no such component and no ubuntu.sources, so this is a
+        # no-op there. It is also a no-op when universe is already enabled --
+        # the point is that the buildroot must not depend on whichever
+        # components the base image happens to ship with.
+        if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+          sed -i -E "s/^Components:.*/Components: main restricted universe multiverse/" \
+            /etc/apt/sources.list.d/ubuntu.sources
+        fi
         apt-get update -qq
         apt-get install -y --no-install-recommends build-essential ca-certificates
         cd "$(cat /work/source-dir)"
+        # apt-get build-dep reports an unsatisfiable dependency as a cascade:
+        # the one genuinely missing package is buried under a dozen "but it is
+        # not going to be installed" lines for packages that are fine. Printing
+        # the policy for each declared build-dep first names the real one, so a
+        # failure here does not need a second run to interpret.
+        echo "==> build-dependency availability"
+        awk "/^Build-Depends:/{f=1} f{print} /^$/{f=0}" debian/control \
+          | tr "," "\n" | sed -E "s/^Build-Depends: *//; s/\(.*\)//; s/^ +| +$//g" \
+          | grep -vE "^$|^debhelper-compat" \
+          | while read -r dep; do
+              printf "%-28s %s\n" "$dep" \
+                "$(apt-cache policy "$dep" 2>/dev/null | awk "/Candidate:/{print \$2; found=1} END{if(!found) print \"NOT AVAILABLE\"}")"
+            done
         apt-get build-dep -y --no-install-recommends "$PWD"
         dpkg-buildpackage -us -uc -b
         mkdir -p /work/artifacts
