@@ -63,12 +63,26 @@ pacman -Q "$package"
 # dependency and take a transitively-relied-on library with it. That is the
 # trade every distro makes by having a dependency graph at all, and gate 1
 # still catches the result the moment it becomes unresolvable.
+# The implicit compiler/system runtime. libgomp joins glibc and gcc-libs
+# because Arch SPLIT it out of gcc-libs: it is the OpenMP half of the same GCC
+# build, shipped alongside libgcc_s and libstdc++, and it is what the closure
+# walk found still undeclared after everything else resolved --
+#
+#   /usr/lib/libgomp.so.1 is owned by libgomp, which quickshell does not declare
+#
+# -- for a package that otherwise reached 0 undeclared owners.
 declare -A declared_owner
 declared_owner[glibc]=1
 declared_owner[gcc-libs]=1
+declared_owner[libgomp]=1
 declared_owner["$package"]=1
 
-closure_queue=("$package")
+# Seed the walk with the implicit packages too, not just the package under
+# test. They were marked as owners but never queued, so their OWN dependencies
+# were never followed -- which is how a library reachable only through gcc-libs
+# could still read as undeclared. Adding to this queue can only ever grow the
+# accepted set, never shrink it, so it cannot turn a passing cell red.
+closure_queue=("$package" glibc gcc-libs libgomp)
 while [ ${#closure_queue[@]} -gt 0 ]; do
     current="${closure_queue[0]}"
     closure_queue=("${closure_queue[@]:1}")

@@ -128,3 +128,48 @@ STUB
 	run_gate
 	[ "$status" -eq 0 ]
 }
+
+@test "libgomp is implicit — Arch split it out of gcc-libs" {
+	# The OpenMP half of the same GCC build that ships libgcc_s and libstdc++.
+	# It was the LAST undeclared owner on quickshell after the closure walk
+	# resolved the other 68, and declaring it in a recipe would be as odd as
+	# declaring glibc.
+	write_ldd "libgomp.so.1"
+	cat > "${BIN}/pacman" <<STUB
+#!/usr/bin/env bash
+case "\$1" in
+  -Q)  echo "\$2 1.0-1" ;;
+  -Qi) echo "Depends On     : None" ;;
+  -Ql) echo "\$2 ${LIBDIR}/quickshell" ;;
+  -Qo) echo "\$2 is owned by libgomp 15.2.0-1" ;;
+esac
+STUB
+	chmod +x "${BIN}/pacman"
+	run_gate
+	[ "$status" -eq 0 ]
+}
+
+@test "the implicit packages' OWN dependencies are walked too" {
+	# They were marked as owners but never queued, so a library reachable only
+	# through gcc-libs still read as undeclared. Seeding the walk with them
+	# fixes that, and can only ever grow the accepted set.
+	cat > "${BIN}/pacman" <<STUB
+#!/usr/bin/env bash
+case "\$1" in
+  -Q)  echo "\$2 1.0-1" ;;
+  -Qi)
+    case "\$2" in
+      quickshell) echo "Depends On     : None" ;;
+      gcc-libs)   echo "Depends On     : some-gcc-runtime" ;;
+      *)          echo "Depends On     : None" ;;
+    esac
+    ;;
+  -Ql) echo "\$2 ${LIBDIR}/quickshell" ;;
+  -Qo) echo "\$2 is owned by some-gcc-runtime 1.0-1" ;;
+esac
+STUB
+	chmod +x "${BIN}/pacman"
+	write_ldd "libsomething.so.1"
+	run_gate
+	[ "$status" -eq 0 ]
+}
