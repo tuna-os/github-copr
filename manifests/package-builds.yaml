@@ -53,41 +53,6 @@ native_builds:
     mock_config: centos-stream-10-ci
     source_paths: [src/xfce-wayland/]
     r2_path: xfce/10-stream-x86_64
-  # The aarch64 counterpart, added because el10/aarch64 had NO xfce packages
-  # at all: xfce/10-stream-aarch64 404s while the x86_64 prefix serves 110
-  # package names, and 88 of the 91 names el10/x86_64 has that aarch64 lacks
-  # are build-chain products of this family and the gnome ones (#480). XFCE
-  # simply could not be assembled on el10 aarch64.
-  #
-  # Reuses build-order-xfce.yml rather than taking a -aarch64 copy. The
-  # fprintd pair needed two manifests only because that file's own
-  # `target:`/`r2_path:` differ per arch; the CELL supplies mock_config and
-  # r2_path and run-package-factory-cell.sh passes `--mock-config` straight
-  # through, so the manifest's values are not what the build uses.
-  # hummingbird-aarch64 already shares one manifest with its x86_64 twin the
-  # same way.
-  #
-  # Nothing structurally blocked this: centos-stream-10-ci-aarch64.cfg is a
-  # general EL10 aarch64 target ("aarch64 counterpart to
-  # centos-stream-10-ci.cfg — same shape"), already proven by the green
-  # fprintd-el10-aarch64 cell, and none of the 35 specs under
-  # src/xfce-wayland/ carries ExclusiveArch, ExcludeArch or %ifarch.
-  #
-  # el10's published_index.aarch64 deliberately does NOT list
-  # xfce/10-stream-aarch64 yet — that prefix does not exist until a publish
-  # wave writes it, and the target contract's rule is to declare only an
-  # index that actually resolves.
-  - id: xfce-el10-aarch64
-    family: xfce
-    target: el10
-    architecture: aarch64
-    runner: ubuntu-24.04-arm
-    image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
-    verify_image: quay.io/centos/centos:stream10
-    manifest: build-order-xfce.yml
-    mock_config: centos-stream-10-ci-aarch64
-    source_paths: [src/xfce-wayland/]
-    r2_path: xfce/10-stream-aarch64
   - id: xfce-fedora-x86_64
     family: xfce
     target: fedora
