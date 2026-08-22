@@ -22,6 +22,22 @@ dependencies:
       debian: [cmake, g++, libunwind-dev]
       opensuse-tumbleweed: [cmake, gcc-c++, libunwind-devel]
       arch: [cmake, gcc, libunwind]
+  # Arch only. cpptrace links libunwind.so.8 (-DCPPTRACE_UNWIND_WITH_LIBUNWIND=ON
+  # puts `-lunwind` on the link line), and every other format derives that
+  # automatically: rpmbuild generates Requires from ELF sonames and
+  # dpkg-shlibdeps fills ${shlibs:Depends}. makepkg does NEITHER -- it only
+  # warns -- so the Arch package installed cleanly and shipped a library
+  # nothing could load. assert-arch-runtime-closure caught it:
+  #
+  #   unresolved libraries in /usr/lib/libcpptrace.so.1
+  #       libunwind.so.8 => not found
+  #    -> cpptrace-devel's recipe under-declares its runtime depends.
+  #
+  # (run 32566033598, tideforge-cpptrace-devel-arch-x86_64.) Same shape as
+  # quickshell's arch runtime block, and the same reason it is arch-only.
+  runtime:
+    targets:
+      arch: [libunwind]
 files:
   common: [usr/include/cpptrace, usr/include/ctrace]
 outputs:

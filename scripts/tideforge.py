@@ -613,6 +613,57 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
     return f"%cmake {options}\n%cmake_build".rstrip(), "%cmake_install"
 
 
+def ships_a_shared_library(paths: list[str]) -> bool:
+    """Whether a file list installs a versioned shared library.
+
+    Matches `libfoo.so.1`, `libfoo.so.1.0.4` and the globs recipes write for
+    them (`usr/lib64/libcpptrace.so*`), while ignoring a bare `libfoo.so`
+    development symlink on its own -- that alone needs no ldconfig.
+    """
+    for path in paths:
+        name = path.rsplit("/", 1)[-1]
+        if ".so" not in name:
+            continue
+        tail = name.split(".so", 1)[1]
+        if tail.startswith(".") or tail.startswith("*"):
+            return True
+    return False
+
+
+def rpm_ldconfig_scriptlets(recipe: dict) -> str:
+    """`%post`/`%postun` ldconfig for every RPM subpackage shipping a library.
+
+    Fedora and EL do not need these: their glibc carries RPM FILE TRIGGERS
+    that run ldconfig for anything landing in a library directory, so a spec
+    omitting them still ends up with a correct cache. openSUSE has no such
+    trigger. cpptrace-devel installed cleanly on Tumbleweed and then failed
+    its own smoke contract:
+
+        ldconfig -p | grep -F libcpptrace.so.1     -> no match, exit 1
+
+    while both el10 cells passed the identical assertion. rpmlint had been
+    reporting the cause on every openSUSE build all along:
+
+        E: library-without-ldconfig-postin  /usr/lib64/libcpptrace.so.1.0.4
+        E: library-without-ldconfig-postun  /usr/lib64/libcpptrace.so.1.0.4
+
+    Written as `%post -p /sbin/ldconfig` rather than Fedora's
+    `%ldconfig_scriptlets`, because that macro is not defined on openSUSE --
+    using it would leave the literal text in the spec on the one distro that
+    actually needs the scriptlet.
+    """
+    rpm_output = recipe.get("outputs", {}).get("rpm", {})
+    blocks: list[str] = []
+    if ships_a_shared_library(list(rpm_output.get("files", recipe["files"]["common"]))):
+        blocks.append("%post -p /sbin/ldconfig")
+        blocks.append("%postun -p /sbin/ldconfig")
+    for subpackage in rpm_output.get("subpackages", []):
+        if ships_a_shared_library(list(subpackage.get("files", []))):
+            blocks.append(f"%post {subpackage['name']} -p /sbin/ldconfig")
+            blocks.append(f"%postun {subpackage['name']} -p /sbin/ldconfig")
+    return "\n".join(blocks)
+
+
 def rpm_subpackage_block(subpackage: dict) -> str:
     # A -devel (or similarly split-out) subpackage ships only the unversioned
     # .so symlink, headers, and pkg-config metadata; the runtime library and any
@@ -718,6 +769,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     # installed whenever this line is emitted.
     if recipe["build_system"] == "cmake" and cmake_generator(recipe):
         rpm_preamble += "%global __builder %__ninja\n"
+    ldconfig_scriptlets = rpm_ldconfig_scriptlets(recipe)
     auxiliary_sources_str = "".join(f"Source{index}:        {rpm_source_field(source, index)}\n" for index, source in enumerate(auxiliary_sources, start=1))
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
@@ -743,6 +795,8 @@ Source0:        {rpm_source_field(recipe['source'], 0)}
 %install
 {install}
 {extra_install}
+
+{ldconfig_scriptlets}
 
 %files
 {files}
