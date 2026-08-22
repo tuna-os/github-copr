@@ -17,6 +17,9 @@ nothing ever installs is precisely the #179 shape it was added to prevent.
 """
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -25,6 +28,8 @@ yaml = pytest.importorskip("yaml")
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "publish-tideforge-debs.yml"
+PLANNER = ROOT / "scripts" / "plan-deb-publish.py"
+WAVE = "cpptrace-devel,pop-icon-theme,cosmic-randr,cosmic-panel,cosmic-icon-theme"
 
 ARCHES = {"amd64", "arm64"}
 
@@ -34,24 +39,34 @@ def jobs() -> dict:
     return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
 
 
-@pytest.mark.parametrize("job", ["build", "verify"])
-def test_the_job_covers_both_architectures(jobs, job):
-    assert set(jobs[job]["strategy"]["matrix"]["arch"]) == ARCHES, job
+@pytest.fixture(scope="module")
+def planned() -> dict:
+    """The matrix is now DERIVED (#479), so the arch coverage these tests were
+    written to protect lives in the planner's output rather than in a literal
+    `include:` in the workflow. The property being asserted is unchanged --
+    both arches, each on its own native runner -- only where it is read from.
+    """
+    result = subprocess.run(
+        [sys.executable, str(PLANNER), "--packages", WAVE],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)
 
 
-@pytest.mark.parametrize("job", ["build", "verify"])
-def test_each_architecture_runs_on_its_own_native_runner(jobs, job):
-    """No qemu: a cross-built deb is not what these targets install, and an
-    arm64 runner is what makes the build native."""
-    runners = {
-        entry["arch"]: entry["runner"]
-        for entry in jobs[job]["strategy"]["matrix"]["include"]
-        if "arch" in entry
-    }
-    assert set(runners) == ARCHES, (job, runners)
+@pytest.mark.parametrize("stage", ["matrix", "verify_matrix"])
+def test_the_stage_covers_both_architectures(planned, stage):
+    assert {row["arch"] for row in planned[stage]["include"]} == ARCHES, stage
+
+
+@pytest.mark.parametrize("stage", ["matrix", "verify_matrix"])
+def test_each_architecture_runs_on_its_own_native_runner(planned, jobs, stage):
+    runners = {row["arch"]: row["runner"] for row in planned[stage]["include"]}
+    assert set(runners) == ARCHES, (stage, runners)
     assert "arm" in runners["arm64"], runners
     assert "arm" not in runners["amd64"], runners
-    assert jobs[job]["runs-on"] == "${{ matrix.runner }}", job
+    for job in ("build", "verify"):
+        assert jobs[job]["runs-on"] == "${{ matrix.runner }}", job
 
 
 def test_the_uploaded_artifact_name_carries_the_architecture(jobs):

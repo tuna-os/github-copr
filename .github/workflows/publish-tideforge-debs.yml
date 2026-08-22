@@ -13,6 +13,24 @@ name: Publish Tideforge debs
 
 on:
   workflow_dispatch:
+    inputs:
+      packages:
+        description: Comma-separated recipe names under packages/ to build and publish
+        # The curated wave. Deliberately a LIST rather than "every recipe
+        # targeting deb": "nothing gets published that a gate cell has not
+        # exercised" is a judgement a person makes, and deriving it would
+        # silently widen what ships. The planner validates the list; it does
+        # not invent it.
+        default: cpptrace-devel,pop-icon-theme,cosmic-randr,cosmic-panel,cosmic-icon-theme
+        required: true
+      distros:
+        description: Comma-separated distro labels (ubuntu, debian-sid)
+        default: ubuntu,debian-sid
+        required: true
+      arches:
+        description: Comma-separated arches; empty means every arch the target declares
+        default: ''
+        required: false
 
 env:
   R2_BUCKET: bluefin
@@ -21,54 +39,41 @@ permissions:
   contents: read
 
 jobs:
+  # Derive the matrix instead of hand-listing it (#479). A literal `include:`
+  # cannot report a MISSING row -- a row nobody wrote looks exactly like a row
+  # nobody wanted, which is how every deb ever published turned out to be
+  # amd64: the matrix had no `arch` key at all. Architectures now come from
+  # the target's own `architectures` in manifests/package-factory.yaml, the
+  # same list the gate builds, so the two cannot drift apart again.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      verify_matrix: ${{ steps.plan.outputs.verify_matrix }}
+      distros: ${{ steps.plan.outputs.distros }}
+      arches: ${{ steps.plan.outputs.arches }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - id: plan
+        run: |
+          set -euo pipefail
+          python3 scripts/plan-deb-publish.py \
+            --packages '${{ inputs.packages }}' \
+            --distros '${{ inputs.distros }}' \
+            --arches '${{ inputs.arches }}' \
+            --github-output "$GITHUB_OUTPUT"
+
   build:
+    needs: plan
     name: ${{ matrix.package }} (${{ matrix.distro }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
-      matrix:
-        # Widen `package` in lockstep with the deb gate as recipes prove out --
-        # nothing gets published that a gate cell has not exercised.
-        #
-        # cpptrace-devel is here for a different reason than the COSMIC
-        # entries, which exist so grouper and flounder-sid can install them.
-        # It is a BUILD dependency: quickshell's ubuntu cell fails on
-        # `libcpptrace-dev NOT AVAILABLE` because Ubuntu does not ship
-        # cpptrace at all (Debian sid does). Publishing it here is what makes
-        # it resolvable, now that the deb buildroot reads the published index
-        # at all -- before #476 it was passed PUBLISHED_INDEX only on the rpm
-        # path, so publishing this would have changed nothing.
-        #
-        # ARCH is a real dimension, not a formality. This matrix was
-        # `runs-on: ubuntu-latest` with no arch key, so every deb ever
-        # published was amd64 -- confirmed against the served indexes, where
-        # all 5 ubuntu and 8 debian-sid entries read `Architecture: amd64`.
-        # The factory gates BOTH arches, so tideforge-quickshell-ubuntu-arm64
-        # could never resolve libcpptrace-dev and died at build-dep resolution
-        # while the amd64 cell compiled. debian-arm64 was unaffected only
-        # because Debian sid ships libcpptrace-dev for arm64 itself.
-        #
-        # Both arches build NATIVELY on their own runner; there is no qemu
-        # here, and a cross-built deb is not what these targets install.
-        package:
-          - cpptrace-devel
-          - pop-icon-theme
-          - cosmic-randr
-          - cosmic-panel
-          - cosmic-icon-theme
-        distro: [ubuntu, debian-sid]
-        arch: [amd64, arm64]
-        include:
-          - distro: ubuntu
-            target: ubuntu
-            image: docker.io/library/ubuntu:26.04
-          - distro: debian-sid
-            target: debian
-            image: docker.io/library/debian:sid
-          - arch: amd64
-            runner: ubuntu-latest
-          - arch: arm64
-            runner: ubuntu-24.04-arm
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -124,15 +129,18 @@ jobs:
           retention-days: 1
 
   publish:
-    needs: build
+    needs: [plan, build]
     runs-on: ubuntu-latest
     strategy:
-      # Serial, not parallel: both iterations sync against the same bucket
+      # Serial, not parallel: the iterations sync against the same bucket
       # prefix family and rclone config; one at a time keeps the failure
       # story readable.
       max-parallel: 1
+      # Only the distros this wave actually built. Hard-coding both meant a
+      # narrowed wave would rclone sync an EMPTY tree over the other one's
+      # live repository -- the #124 repo-wipe shape.
       matrix:
-        distro: [ubuntu, debian-sid]
+        distro: ${{ fromJSON(needs.plan.outputs.distros) }}
     steps:
       - uses: actions/checkout@v7
       - name: Install tooling
@@ -198,7 +206,7 @@ jobs:
   # package level. Today it asserts the two published packages; it graduates
   # to cosmic-session (the closure root) when the widening reaches it.
   verify:
-    needs: publish
+    needs: [plan, publish]
     # Both arches, for the reason this job exists at all: publishing an
     # architecture nothing ever installs is exactly the #179 shape -- a repo
     # sitting behind a green workflow that no one has actually resolved
@@ -207,18 +215,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
-      matrix:
-        distro: [ubuntu, debian-sid]
-        arch: [amd64, arm64]
-        include:
-          - distro: ubuntu
-            image: docker.io/library/ubuntu:26.04
-          - distro: debian-sid
-            image: docker.io/library/debian:sid
-          - arch: amd64
-            runner: ubuntu-latest
-          - arch: arm64
-            runner: ubuntu-24.04-arm
+      matrix: ${{ fromJSON(needs.plan.outputs.verify_matrix) }}
     steps:
       - name: Install from the published repo with no third-party sources
         run: |
