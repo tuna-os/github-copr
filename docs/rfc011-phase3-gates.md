@@ -24,7 +24,7 @@ Two different claims live near each other and must not be conflated:
 | rpm-md-stage-install | 7 | partial | `Clean-install` jobs; per-family coverage not yet universal |
 | apt-stage-install | 7 | partial | same |
 | pacman-stage-install | 3 | partial | same |
-| greetd-login | 7 | ❌ | **first to implement** — most-declared runtime gate, gates COSMIC and niri both; model on `build-gnome50-verify.yml`'s Lima+VNC approach (the worked example the readiness doc names). Skeleton: `.github/workflows/runtime-gate-greetd-login.yml` |
+| greetd-login | 7 | ❌ | **first to implement** — most-declared runtime gate, gates COSMIC and niri both; model on `build-gnome50-verify.yml`'s Lima+VNC approach (the worked example the readiness doc names). No skeleton is committed: an unimplemented workflow in `.github/workflows/` reads as a gate that exists, and this ledger's whole point is the difference between declared and implemented. The workflow lands with its Lima boot-and-judge steps, in the same change that flips this row. |
 | cosmic-session-smoke | 3 | ❌ | after greetd-login (shares the boot harness) |
 | niri-session-smoke | 5 | ❌ | after greetd-login (same) |
 | xfce-wayland-session-smoke | 4 | ❌ | same harness, xfce session target |
