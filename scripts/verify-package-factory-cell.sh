@@ -21,6 +21,19 @@ print(" ".join(t.get("system_repositories") or []))
 PY
 )"
 
+# The target contract's `published_index` (served read URL, distinct from
+# `r2_path`) is added as a lower-priority repo so the local cell artifacts win
+# and the published repo only fills in deps. Space-separated: an arch may
+# declare several indexes (#467). URLs never contain whitespace, so
+# word-splitting in the container is safe.
+#
+# Resolved ONCE above BOTH the engine branch and the format case. It was
+# assigned below the build-chain branch, so build-chain cells got no published
+# repo at all -- which is why xfce-el10 could not resolve the greetd that this
+# factory builds and serves at rpm/el10/{arch} (#482). It had already been
+# hoisted once, past the rpm branch, for the same reason on deb.
+published_index="$(python3 scripts/published_index.py "$TARGET" "${ARCHITECTURE:-}" --join)"
+
 if [[ ${ENGINE:?} == build-chain ]]; then
   mapfile -d '' rpms < <(find "$artifacts" -type f -name '*.rpm' ! -name '*.src.rpm' -print0)
   ((${#rpms[@]} > 0)) || { echo "native queue produced no RPMs" >&2; exit 1; }
@@ -29,6 +42,7 @@ if [[ ${ENGINE:?} == build-chain ]]; then
     /scripts/lint-generated-rpm.sh /artifacts
   docker run --rm --entrypoint /bin/bash \
     --env TARGET="${TARGET:?}" --env SYSTEM_REPOS="$system_repos" \
+    --env PUBLISHED_INDEX="$published_index" \
     --volume "$artifacts:/artifacts:ro" "${IMAGE:?}" -lc '
     set -euo pipefail
     for sysrepo in ${SYSTEM_REPOS:-}; do
@@ -42,8 +56,23 @@ if [[ ${ENGINE:?} == build-chain ]]; then
     mkdir /factory-repo
     find /artifacts -maxdepth 1 -type f -name "*.rpm" ! -name "*.src.rpm" -exec cp -t /factory-repo {} +
     createrepo_c /factory-repo
+    # Same shape as the tideforge branch: priority 50 so the local cell
+    # artifacts (priority 1) always win and the published repo only fills in
+    # dependencies this chain does not build itself.
+    published_args=()
+    published_n=0
+    for published_url in ${PUBLISHED_INDEX:-}; do
+      published_args+=(--repofrompath "tunaos${published_n},${published_url}"
+                       "--setopt=tunaos${published_n}.priority=50"
+                       --enablerepo="tunaos${published_n}")
+      published_n=$((published_n + 1))
+    done
+    # ${a[@]+"${a[@]}"} and not "${a[@]}": under `set -u` an empty array
+    # expansion is an unbound-variable error on bash < 4.4.
     dnf -y install --nogpgcheck --repofrompath factory,file:///factory-repo \
-      --setopt=factory.priority=1 --enablerepo=factory /factory-repo/*.rpm
+      --setopt=factory.priority=1 --enablerepo=factory \
+      ${published_args[@]+"${published_args[@]}"} \
+      /factory-repo/*.rpm
     mapfile -t names < <(rpm -qp --qf "%{NAME}\n" /factory-repo/*.rpm | sort -u)
     rpm -q "${names[@]}"
     rpm -V "${names[@]}"
@@ -80,10 +109,6 @@ fi
 # xfce build-chain prefix. URLs never contain whitespace, so word-splitting in
 # the container is safe.
 #
-# Resolved ONCE for every format, above the case. It used to be assigned inside
-# the rpm branch, which is why the deb branch had no published repo at all.
-published_index="$(python3 scripts/published_index.py "$TARGET" "${ARCHITECTURE:-}" --join)"
-
 case ${FORMAT:?} in
   rpm)
     docker run --rm --entrypoint /bin/bash --volume "$artifacts:/artifacts:ro" \
