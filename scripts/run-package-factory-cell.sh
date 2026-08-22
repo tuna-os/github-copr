@@ -184,7 +184,7 @@ case ${FORMAT:?} in
         # the policy for each declared build-dep first names the real one, so a
         # failure here does not need a second run to interpret.
         echo "==> build-dependency availability"
-        awk "/^Build-Depends:/{f=1} f{print} /^$/{f=0}" debian/control \
+        awk "/^Build-Depends:/{f=1; print; next} f && /^[[:space:]]/{print; next} f{exit}" debian/control \
           | tr "," "\n" | sed -E "s/^Build-Depends: *//; s/\(.*\)//; s/^ +| +$//g" \
           | grep -vE "^$|^debhelper-compat" \
           | while read -r dep; do
