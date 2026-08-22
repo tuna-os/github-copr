@@ -90,15 +90,20 @@ def test_the_rpm_path_is_not_changed_by_this():
     assert "-G Ninja" in build, build
 
 
-def test_every_ninja_recipe_in_the_repo_declares_a_ninja_build_dep_on_deb():
-    """cmake+ninja invokes ninja, so the buildroot must actually have it. A
-    recipe adding cmake_generator without the dependency would fail at build
-    time rather than at rendering."""
-    for path in (ROOT / "packages").glob("*/package.yaml"):
+def test_every_ninja_recipe_in_the_repo_gets_a_ninja_on_every_target_it_declares():
+    """cmake+ninja invokes ninja, so the buildroot must actually have it.
+
+    Widened from deb to EVERY declared target. Restricting it to ubuntu and
+    debian is what let openSUSE ship a Ninja recipe with no ninja installed
+    (#478): its %cmake_build then drove a Ninja tree with make. A recipe
+    adding cmake_generator now gets ninja on every target automatically, and
+    this asserts the resolution actually produced one rather than trusting
+    that it did.
+    """
+    for path in sorted((ROOT / "packages").glob("*/package.yaml")):
         r = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         if not (r.get("build") or {}).get("cmake_generator"):
             continue
-        targets = ((r.get("dependencies") or {}).get("build") or {}).get("targets") or {}
-        for name in ("ubuntu", "debian"):
-            if name in targets:
-                assert any("ninja" in d for d in targets[name]), (path.name, name)
+        for target in r.get("targets") or []:
+            resolved = tideforge.target_dependencies(r, target)
+            assert any(d in ("ninja", "ninja-build") for d in resolved), (path.parent.name, target, resolved)

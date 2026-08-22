@@ -56,9 +56,43 @@ def resolve_capabilities(capabilities: list[str], target: str) -> list[str]:
     return packages
 
 
+def implied_capabilities(recipe: dict) -> list[str]:
+    """Capabilities a recipe's build settings require without naming them.
+
+    `build.cmake_generator: Ninja` makes ninja a build-time requirement on
+    every target, but nothing made that automatic: each target list had to
+    remember it by hand, and openSUSE's did not (#478). Its cells installed
+    no ninja, configured a Ninja tree anyway, and died in %cmake_build.
+    Deriving the dependency from the setting that causes it stops the two
+    drifting apart again -- and the catalog supplies the per-distro spelling
+    (`ninja-build` on EL and Debian, `ninja` on openSUSE and Arch), which is
+    the other half of what each list had to get right by hand.
+    """
+    if recipe.get("build_system") != "cmake":
+        return []
+    return ["ninja"] if recipe.get("build", {}).get("cmake_generator") == "Ninja" else []
+
+
+def deduplicate(names: list[str]) -> list[str]:
+    """Drop repeats, keeping first occurrence.
+
+    An implied capability can name a package a target list already carries
+    explicitly. Emitting it twice is harmless to every package manager here
+    but noisy in the rendered spec/control/PKGBUILD, and a duplicated
+    Build-Depends reads like a mistake to anyone auditing one.
+    """
+    seen: set[str] = set()
+    return [name for name in names if not (name in seen or seen.add(name))]
+
+
 def target_dependencies(recipe: dict, target: str) -> list[str]:
     build = recipe.get("dependencies", {}).get("build", {})
-    return list(build.get("common", [])) + resolve_capabilities(list(build.get("capabilities", [])), target) + list(build.get("targets", {}).get(target, []))
+    capabilities = list(build.get("capabilities", [])) + implied_capabilities(recipe)
+    return deduplicate(
+        list(build.get("common", []))
+        + resolve_capabilities(capabilities, target)
+        + list(build.get("targets", {}).get(target, []))
+    )
 
 
 def target_runtime_dependencies(recipe: dict, target: str) -> list[str]:
@@ -663,6 +697,27 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     rpm_preamble = ""
     if recipe["build_system"] in {"go", "data", "custom", "python"} or not debug_package_enabled(recipe):
         rpm_preamble = "%global debug_package %{nil}\n"
+    # openSUSE derives the CMake generator FROM %__builder rather than from
+    # anything the spec passes: its %cmake emits -G"Unix Makefiles" unless
+    # %__builder differs from %__make, and its %cmake_build expands to plain
+    # `%__builder ... %{?_smp_mflags}`. A recipe asking for Ninja therefore
+    # got a Ninja tree (our -G wins, being last) that %cmake_build then drove
+    # with make -- "No targets specified and no makefile found. Stop." (#478).
+    #
+    # Setting %__builder fixes the whole chain at once: %cmake emits -GNinja
+    # itself, %__builder_verbose becomes -v, %cmake_build runs `ninja -v`, and
+    # %cmake_install runs `ninja install -C build`.
+    #
+    # Emitted for every RPM target rather than gated on the target name.
+    # Fedora and EL never read %__builder -- zero references in both
+    # cmake's macros.cmake.in and redhat-rpm-config/macros, checked against
+    # rawhide -- so it is inert there, and a mechanism-driven emit cannot
+    # regress the way a name list would when the next openSUSE-family target
+    # is added. %__ninja is the sanctioned spelling and both distributions'
+    # ninja packages define it; implied_capabilities guarantees one is
+    # installed whenever this line is emitted.
+    if recipe["build_system"] == "cmake" and cmake_generator(recipe):
+        rpm_preamble += "%global __builder %__ninja\n"
     auxiliary_sources_str = "".join(f"Source{index}:        {rpm_source_field(source, index)}\n" for index, source in enumerate(auxiliary_sources, start=1))
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}

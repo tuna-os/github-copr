@@ -221,6 +221,7 @@ dependency_catalog:
   cpp-compiler: {el10: [gcc-c++], ubuntu: [g++], debian: [g++], opensuse-tumbleweed: [gcc-c++], arch: [base-devel]}
   pkg-config: {el10: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], arch: [pkgconf]}
   cmake: {el10: [cmake], ubuntu: [cmake], debian: [cmake], opensuse-tumbleweed: [cmake], arch: [cmake]}
+  ninja: {el10: [ninja-build], ubuntu: [ninja-build], debian: [ninja-build], opensuse-tumbleweed: [ninja], arch: [ninja]}
   # Wayland-desktop build capabilities (#169). Nothing COSMIC links against
   # had a catalog entry, which made every deb widening a hand-curated name
   # hunt; these eight unblock all 14 cosmic recipes at once. Arch dev headers

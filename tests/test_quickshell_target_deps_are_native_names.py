@@ -37,9 +37,30 @@ def deps() -> dict:
     return r["dependencies"]["build"]["targets"]
 
 
+def resolved(target: str) -> list[str]:
+    """What actually reaches the buildroot: hand-written names, capabilities,
+    and the capabilities a build setting implies.
+
+    The spelling tests below deliberately keep reading the raw target lists --
+    their whole point is that the HAND-WRITTEN name is right for the distro.
+    The ninja assertions cannot: quickshell no longer names ninja anywhere,
+    it derives it from build.cmake_generator (#478), so only the resolved
+    view can see it.
+    """
+    import sys
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import tideforge
+
+    return tideforge.target_dependencies(yaml.safe_load(RECIPE.read_text(encoding="utf-8")), target)
+
+
 def test_arch_uses_arch_package_names():
     arch = deps()["arch"]
-    assert "cli11" in arch and "cpptrace" in arch and "ninja" in arch
+    assert "cli11" in arch and "cpptrace" in arch
+    # ninja is no longer hand-listed on any target; the catalog supplies the
+    # Arch spelling from the implied capability.
+    assert "ninja" in resolved("arch")
 
 
 def test_arch_has_the_vulkan_headers_el10_gets_transitively():
@@ -86,11 +107,31 @@ def test_opensuse_has_the_declarative_private_headers():
     assert "qt6-declarative-private-devel" in suse
 
 
-def test_deb_targets_have_a_ninja_since_the_generator_is_ninja():
+def test_every_target_gets_a_ninja_since_the_generator_is_ninja():
+    """Stated over ALL five targets, not the two that were fixed by hand.
+
+    openSUSE was the target whose list forgot ninja, and it was the last one
+    still red: it configured a Ninja tree with no ninja installed (#478).
+    A per-target assertion would have passed on the four that remembered.
+    """
     r = yaml.safe_load(RECIPE.read_text(encoding="utf-8"))
     assert r["build"]["cmake_generator"] == "Ninja"
-    for target in ("ubuntu", "debian"):
-        assert "ninja-build" in deps()[target], target
+    spellings = {
+        "el10": "ninja-build",
+        "ubuntu": "ninja-build",
+        "debian": "ninja-build",
+        "opensuse-tumbleweed": "ninja",
+        "arch": "ninja",
+    }
+    for target, spelling in spellings.items():
+        assert spelling in resolved(target), (target, spelling)
+
+
+def test_no_target_hand_lists_ninja_any_more():
+    """The hand-written lists are what drifted. If one starts naming ninja
+    again the two sources can disagree, which is the bug this replaced."""
+    for target, names in deps().items():
+        assert not [n for n in names if n in ("ninja", "ninja-build")], target
 
 
 def test_deb_targets_keep_the_debian_spellings():
