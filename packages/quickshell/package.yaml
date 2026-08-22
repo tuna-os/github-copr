@@ -15,7 +15,22 @@ build:
   # optional upstream; use its standard allocator path until a native package
   # becomes available.
   cmake_generator: Ninja
-  cmake_options: [-DUSE_JEMALLOC=OFF]
+  # CMAKE_SKIP_INSTALL_RPATH: quickshell's CMake stamps
+  # `RUNPATH: $ORIGIN:$ORIGIN/../lib64` onto /usr/bin/quickshell. For an
+  # FHS install that is redundant -- from /usr/bin those resolve to /usr/bin
+  # (no libraries) and /usr/lib64 (already on the default loader path) --
+  # and rpmlint's `binary-or-shlib-defines-rpath` is in this factory's
+  # curated fatal set, so the cell dies AFTER a clean 12-minute compile:
+  #
+  #   quickshell.aarch64: E: binary-or-shlib-defines-rpath /usr/bin/quickshell
+  #   lint-generated-rpm: FATAL finding 'binary-or-shlib-defines-rpath'
+  #
+  # (tideforge-quickshell-el10-aarch64, run 32534325163.) An $ORIGIN RUNPATH
+  # in a distro package is a genuine packaging defect rather than a lint
+  # false positive, so this drops it at the source instead of exempting the
+  # check. The cell's own `quickshell --help` smoke test is the backstop if
+  # anything did depend on it.
+  cmake_options: [-DUSE_JEMALLOC=OFF, -DCMAKE_SKIP_INSTALL_RPATH=ON]
 dependencies:
   build:
     # Toolchain and Qt build-time deps are listed per-target: a common list
