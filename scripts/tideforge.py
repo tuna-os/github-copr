@@ -739,6 +739,21 @@ Rules-Requires-Root: no
 {package_stanzas}
 """
     buildsystem = {"meson": "meson", "autotools": "autoconf", "cmake": "cmake", "python": "pybuild"}.get(recipe["build_system"])
+    # debhelper's `cmake` buildsystem runs `make` in dh_auto_build regardless of
+    # the generator. Passing -G Ninja through dh_auto_configure therefore wrote
+    # build.ninja and then ran make against it, for every deb cell of a recipe
+    # that asked for Ninja (run 32556308211):
+    #
+    #     cd obj-x86_64-linux-gnu && make -j4 ...
+    #     make[1]: *** No targets specified and no makefile found.  Stop.
+    #
+    # cmake+ninja is debhelper's own generator-aware variant: it passes -GNinja
+    # at configure time AND builds with ninja. The generator must then NOT be
+    # passed by hand as well -- the configure line already carried debhelper's
+    # "-GUnix Makefiles" plus our "-G Ninja", and two -G flags is exactly the
+    # ambiguity that produced this.
+    if recipe["build_system"] == "cmake" and cmake_generator(recipe):
+        buildsystem = "cmake+ninja"
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
@@ -772,7 +787,8 @@ Rules-Requires-Root: no
         # the same recipe built on el10 and failed on debian/ubuntu.
         rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem=none\n\noverride_dh_auto_build:\n\t:\n\noverride_dh_auto_install:\n\t:\n"
     else:
-        options = " ".join(filter(None, [cmake_generator(recipe), cmake_options(recipe)])) if recipe["build_system"] == "cmake" else meson_options(recipe) if recipe["build_system"] == "meson" else ""
+        cmake_configure_options = [cmake_options(recipe)] if buildsystem == "cmake+ninja" else [cmake_generator(recipe), cmake_options(recipe)]
+        options = " ".join(filter(None, cmake_configure_options)) if recipe["build_system"] == "cmake" else meson_options(recipe) if recipe["build_system"] == "meson" else ""
         if options:
             configure = f"\noverride_dh_auto_configure:\n\tdh_auto_configure -- {options}\n"
         elif recipe["build_system"] == "autotools" and autoreconf_enabled(recipe):
