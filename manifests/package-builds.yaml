@@ -43,6 +43,60 @@ native_builds:
     mock_config: centos-stream-10-ci-gnome51
     source_paths: [src/gnome-51/, src/deps/]
     r2_path: gnome51/10-stream-x86_64
+  # gnome50 on aarch64. Reuses build-order.yml unchanged: the manifest's
+  # `target:` feeds only the %{dist} derivation, which is .el10 for
+  # centos-stream-10-* on either arch, and its `r2_path:` is overridden by the
+  # cell's. That is the pattern xfce-el10-aarch64 and hummingbird-aarch64
+  # already use -- neither has an arch-specific manifest.
+  #
+  # A FRESH r2 prefix, not the x86_64 one. gnome50's x86_64 leg publishes into
+  # repo/10-x86_64, the shared pre-existing COPR-mirror prefix that el10
+  # tideforge packages also merge into; there is no aarch64 equivalent and
+  # inventing one would mean a new leg writing into a prefix it does not own.
+  # gnome50/10-stream-aarch64 matches how gnome51 already names its own.
+  #
+  # Not yet in el10's published_index.aarch64: manifests/package-factory.yaml
+  # says a prefix goes in only once it actually resolves, and this one 404s
+  # until the first wave publishes.
+  - id: gnome50-el10-aarch64
+    family: gnome50
+    track: stable
+    series: '50'
+    dependency_tree: manifests/dependency-trees/gnome.yaml
+    target_queue: manifests/target-queues/gnome.yaml
+    target: el10
+    architecture: aarch64
+    runner: ubuntu-24.04-arm
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+    verify_image: quay.io/centos/centos:stream10
+    manifest: build-order.yml
+    mock_config: centos-stream-10-ci-aarch64
+    source_paths:
+      - src/gnome-50/
+      - src/deps/
+    r2_path: gnome50/10-stream-aarch64
+
+  # gnome51 on aarch64. Same reasoning as gnome50 above; its r2 prefix is the
+  # straight arch swap of the x86_64 one, which was already a clean
+  # family-owned path.
+  - id: gnome51-el10-aarch64
+    family: gnome51
+    track: next
+    series: '51'
+    dependency_tree: manifests/dependency-trees/gnome.yaml
+    target_queue: manifests/target-queues/gnome.yaml
+    target: el10
+    architecture: aarch64
+    runner: ubuntu-24.04-arm
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+    verify_image: quay.io/centos/centos:stream10
+    manifest: build-order-gnome51.yml
+    mock_config: centos-stream-10-ci-gnome51-aarch64
+    source_paths:
+      - src/gnome-51/
+      - src/deps/
+    r2_path: gnome51/10-stream-aarch64
+
   - id: xfce-el10-x86_64
     family: xfce
     target: el10
