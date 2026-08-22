@@ -63,9 +63,13 @@ case ${FORMAT:?} in
     if [[ $target == opensuse-tumbleweed ]]; then
       docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
         --env TARGET="$target" \
+        --volume "$PWD/scripts:/scripts:ro" \
         --volume "$root:/work" "$image" bash -lc '
           set -euo pipefail
-          zypper --non-interactive --gpg-auto-import-keys refresh
+          # Retried, because download.opensuse.org is a redirector to mirrors
+          # that sync at different speeds and one caught mid-snapshot-rotation
+          # serves a repomd naming files it does not have yet. See the script.
+          bash /scripts/zypper-refresh-with-retry.sh
           zypper --non-interactive install rpm-build
           mapfile -t requirements < <(rpmspec -q --buildrequires /work/rpmbuild/SPECS/*.spec)
           ((${#requirements[@]} == 0)) || zypper --non-interactive install "${requirements[@]}"
