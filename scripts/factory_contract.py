@@ -58,6 +58,14 @@ BUILD_INERT_KEYS = frozenset({
     "r2_path_aarch64",
     "gap_measurement",
     "status",
+    # published_index_pending  names arches deliberately without an index yet.
+    #                          published_index.py reads published_index and
+    #                          nothing else, so no buildroot and no verify can
+    #                          see this; it exists to tell the manifest's own
+    #                          tests that an absence is a decision rather than
+    #                          an omission. Checked by grep, per the rule
+    #                          below, not by reading the name.
+    "published_index_pending",
 })
 
 # Inert for these formats only.

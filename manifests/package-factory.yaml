@@ -113,13 +113,33 @@ targets:
     status: supported
     format: rpm
     buildroot: fedora-44
-    architectures: [x86_64]
+    # aarch64 was declared when xfce-fedora-aarch64 was defined.
+    # scripts/tideforge-action-cache.py validates a cell's arch against this
+    # list before it can compute an action key, so the cell failed instantly
+    # with "aarch64 is not declared for target fedora". The contract is the
+    # authority: adding a cell without amending it defines work the factory
+    # refuses to key.
+    architectures: [x86_64, aarch64]
     r2_path: xfce/44-x86_64
     # The served rpm-md index for the Fedora XFCE family (repomd.xml HTTP 200
     # measured 2026-08-20) — declaring it makes the target measured with the
     # existing rpm reader.
     published_index:
       x86_64: https://repo.tunaos.org/xfce/44-x86_64/
+    # aarch64 has no index yet: xfce/44-aarch64 does not exist until a wave
+    # writes it, and declaring a URL that 404s is worse than declaring none.
+    #
+    # Stated rather than simply omitted, because an omission is exactly the
+    # defect the published_index tests exist to catch: ubuntu and debian each
+    # declared two arches with an amd64-only index, so arm64 got an EMPTY
+    # PUBLISHED_INDEX and every factory-built dependency read as NOT
+    # AVAILABLE against packages that were built and served. That looked like
+    # a recipe problem for several rounds.
+    #
+    # An arch listed here is asserting "no index BY DESIGN, not yet". An arch
+    # that is neither indexed nor listed here still fails, which keeps the
+    # original guard intact.
+    published_index_pending: [aarch64]
     repository: rpm-md
     probe_image: registry.fedoraproject.org/fedora:44
     build_repositories: [fedora-44]

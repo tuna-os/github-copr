@@ -40,13 +40,58 @@ def targets() -> dict:
 def test_every_declared_arch_has_an_index_where_one_is_declared(targets):
     """Only applies to targets that HAVE a published index: arch and
     opensuse-tumbleweed legitimately have none, and requiring one there would
-    invent a repo that does not exist."""
+    invent a repo that does not exist.
+
+    `published_index_pending` exempts an arch that has no index BY DESIGN --
+    a new arch whose prefix does not exist until the first wave writes it, and
+    for which a declared URL would 404. That is a different state from the
+    omission this test was written for, and the manifest could not previously
+    express the difference: fedora gained an aarch64 cell, so it had to declare
+    the arch, and declaring xfce/44-aarch64 before anything published there
+    would have been a lie. An arch that is neither indexed nor listed pending
+    still fails."""
     for name, target in targets.items():
         index = target.get("published_index")
         if not index:
             continue
-        missing = [a for a in target.get("architectures", []) if a not in index]
+        pending = set(target.get("published_index_pending") or [])
+        missing = [
+            a for a in target.get("architectures", [])
+            if a not in index and a not in pending
+        ]
         assert not missing, (name, missing, sorted(index))
+
+
+def test_a_pending_arch_is_one_the_target_actually_builds(targets):
+    """Dead configuration otherwise -- the same drift the converse test below
+    guards against."""
+    for name, target in targets.items():
+        pending = target.get("published_index_pending") or []
+        unknown = [a for a in pending if a not in (target.get("architectures") or [])]
+        assert not unknown, (name, unknown)
+
+
+def test_nothing_is_both_pending_and_indexed(targets):
+    """Pending means "no index yet". Once the URL is declared the entry must
+    go, or the exemption outlives the reason for it and silently covers a
+    later omission."""
+    for name, target in targets.items():
+        pending = set(target.get("published_index_pending") or [])
+        indexed = set(target.get("published_index") or {})
+        assert not (pending & indexed), (name, sorted(pending & indexed))
+
+
+def test_pending_is_inert_for_builds(targets):
+    """It must not re-key every cell on the target. Nothing in any build or
+    verify path reads it -- published_index.py reads published_index only."""
+    import sys
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import factory_contract
+
+    assert "published_index_pending" in factory_contract.BUILD_INERT_KEYS
+    for target in targets.values():
+        assert "published_index_pending" not in factory_contract.build_view(target)
 
 
 def test_the_index_declares_no_arch_the_target_does_not_build(targets):
