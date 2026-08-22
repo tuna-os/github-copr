@@ -6,7 +6,23 @@ on:
   push:
     branches: [main]
   schedule:
+    # Nightly: the flagship family, ~570 packages, the one whose drift against
+    # upstream is tracked.
     - cron: '0 12 * * *'
+    # Weekly: every build-chain family, so the desktops have a periodic proof
+    # they still build.
+    #
+    # Without this the nightly's hard-coded family=hummingbird-desktops was
+    # the ONLY unattended run, and it overrode any selector. So xfce (el10 and
+    # fedora, both arches), gnome49, gnome50, gnome51 and fprintd were built
+    # only when someone happened to touch their sources -- a desktop could
+    # have been broken by a CentOS Stream rebase for weeks with every check on
+    # main still green, because nothing asked. `engine=build-chain` is the
+    # whole set, hummingbird included.
+    #
+    # Sunday 03:00 UTC: off the nightly by nine hours, and off the working
+    # week, since this is the long one.
+    - cron: '0 3 * * 0'
   workflow_dispatch:
     inputs:
       cell:
@@ -41,8 +57,15 @@ on:
 # supersedes the old one. Two nightlies cannot overlap either; sharing one
 # group with cancel-in-progress false makes the second QUEUE rather than
 # evict the first.
+#
+# Each schedule gets its own group, keyed on the cron that fired it. The two
+# are nine hours apart, but a nightly that overran into the weekly's slot would
+# otherwise make the weekly queue behind it and then be superseded -- the same
+# starvation this block exists to prevent, one level up.
 concurrency:
-  group: package-factory-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
+  group: >-
+    package-factory-${{ github.event_name == 'schedule'
+      && format('schedule-{0}', github.event.schedule) || github.ref }}
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 permissions:
@@ -81,6 +104,7 @@ jobs:
           REQUESTED_CELL: ${{ inputs.cell || '' }}
           REQUESTED_SELECTOR: ${{ inputs.selector || '' }}
           EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule || '' }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           set -euo pipefail
@@ -88,8 +112,13 @@ jobs:
           [ ! -f changed-files.txt ] || args+=(--changed-files changed-files.txt)
           [ -z "${BASE_SHA:-}" ] || args+=(--base "$BASE_SHA")
           [ -z "$REQUESTED_CELL" ] || args+=(--cell "$REQUESTED_CELL")
+          # A schedule carries no inputs, so the selector comes from WHICH cron
+          # fired -- github.event.schedule is the cron expression verbatim.
           if [ "$EVENT_NAME" = schedule ]; then
-            REQUESTED_SELECTOR=family=hummingbird-desktops
+            case "$SCHEDULE" in
+              '0 3 * * 0') REQUESTED_SELECTOR=engine=build-chain ;;
+              *)           REQUESTED_SELECTOR=family=hummingbird-desktops ;;
+            esac
           fi
           case "$EVENT_NAME" in
             pull_request|merge_group) args+=(--canary-common) ;;
