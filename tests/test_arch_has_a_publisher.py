@@ -129,3 +129,74 @@ def test_the_curated_default_wave_is_an_explicit_list():
     assert default and "," in default
     for name in default.split(","):
         assert (ROOT / "packages" / name.strip() / "package.yaml").is_file(), name
+
+
+def steps_invoking(script: str) -> list[dict]:
+    """Every step in the workflow whose run block mentions `script`."""
+    spec = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    return [
+        step
+        for job in spec["jobs"].values()
+        for step in job.get("steps", [])
+        if script in (step.get("run") or "")
+    ]
+
+
+def test_indexing_happens_inside_the_arch_container():
+    """repo-add ships in Arch's `pacman` package and does NOT exist on
+    ubuntu-latest. A host-side invocation fails on the first dispatch — which
+    is exactly what the first draft of this workflow did, installing only
+    libarchive-tools/zstd/gpg and then calling repo-add.
+
+    Asserted per-step rather than by scanning a window of the file: a window
+    wide enough to hold the step also holds its neighbours, so a host-side
+    invocation sitting next to any other `docker run` reads as containerised.
+    """
+    invocations = steps_invoking("publish-arch-wave.sh")
+    assert invocations, "nothing runs the wave script"
+    for step in invocations:
+        run = step["run"]
+        where = step.get("name", "<unnamed>")
+        assert "docker run" in run, f"{where}: wave script must run in the Arch container"
+        assert "needs.plan.outputs.image" in run, f"{where}: must use the planned Arch image"
+        # The container path proves the mount, and a host-relative path would
+        # not resolve inside the image.
+        assert "/scripts/publish-arch-wave.sh" in run, f"{where}: must use the mounted path"
+        assert "bash scripts/publish-arch-wave.sh" not in run, f"{where}: host-side invocation"
+        assert run.index("docker run") < run.index("publish-arch-wave.sh"), (
+            f"{where}: the script is invoked before any container is started"
+        )
+
+
+def test_no_host_step_reaches_for_pacman_tooling():
+    """The counterpart guard: repo-add/repo-remove must not appear in a step
+    that has not entered the container."""
+    spec = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    for job in spec["jobs"].values():
+        for step in job.get("steps", []):
+            run = step.get("run") or ""
+            if "repo-add" in run:
+                assert "docker run" in run, step.get("name", "<unnamed>")
+
+
+def test_the_wave_script_refuses_to_run_without_repo_add():
+    """Belt and braces: if someone moves the step back onto the host, the
+    script says why rather than dying on 'repo-add: command not found'."""
+    text = WAVE.read_text(encoding="utf-8")
+    assert "command -v repo-add" in text
+    assert "must run inside an Arch container" in text
+
+
+def test_the_host_does_not_pretend_to_install_repo_add():
+    """apt has no package providing repo-add; installing libarchive-tools and
+    zstd looks like it addresses this and does not."""
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "apt-get install" not in text
+
+
+def test_the_signing_key_is_imported_where_it_is_used():
+    """Mounting the runner's ~/.gnupg into the container brings permission and
+    uid-mapping problems; importing inside avoids both."""
+    text = WAVE.read_text(encoding="utf-8")
+    assert "GPG_PRIVATE_KEY" in text and "gpg --batch --import" in text
+    assert "$HOME/.gnupg" not in WORKFLOW.read_text(encoding="utf-8")

@@ -6,6 +6,12 @@
 # pacman resolves a repository over HTTP.
 set -euo pipefail
 
+# Runs INSIDE the Arch container, not on the runner host. repo-add ships in
+# Arch's `pacman` package and does not exist on ubuntu-latest, so a host-side
+# invocation would fail on the first dispatch -- caught before that happened,
+# but only just. gnupg is in the same base image, so signing happens here too
+# rather than mounting the runner's ~/.gnupg (which brings permission and
+# uid-mapping problems of its own).
 staged="" repo="" name="" key=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -19,6 +25,19 @@ done
 : "${staged:?--staged is required}"
 : "${repo:?--repo is required}"
 : "${name:?--name is required}"
+
+command -v repo-add >/dev/null || {
+  echo "ERROR: repo-add not found. This script must run inside an Arch container;" >&2
+  echo "       repo-add ships in pacman and is not available on the runner host." >&2
+  exit 1
+}
+
+# Import the signing key here rather than relying on an inherited keyring.
+if [ -z "$key" ] && [ -n "${GPG_PRIVATE_KEY:-}" ]; then
+  printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+  key=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/{print $5; exit}')
+  [ -n "$key" ] || { echo "ERROR: imported a GPG key but could not read its id" >&2; exit 1; }
+fi
 
 shopt -s nullglob
 incoming=("$staged"/*.pkg.tar.*)
@@ -50,7 +69,8 @@ if [ -n "$key" ]; then
   for pkg in "$repo"/*.pkg.tar.*; do
     case "$pkg" in *.sig) continue ;; esac
     rm -f "$pkg.sig"
-    gpg --batch --yes --detach-sign --no-armor --local-user "$key" "$pkg"
+    gpg --batch --yes --pinentry-mode loopback ${GPG_PASSPHRASE:+--passphrase "$GPG_PASSPHRASE"} \
+      --detach-sign --no-armor --local-user "$key" "$pkg"
   done
 fi
 
