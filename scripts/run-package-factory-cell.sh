@@ -166,6 +166,21 @@ case ${FORMAT:?} in
         # trusted=yes because the flat repo is signed with the publisher key,
         # which a stock buildroot has no reason to carry; the same idiom the
         # deb verify path already uses.
+        # ca-certificates FIRST, and this ordering is the whole point.
+        #
+        # The published indexes are served over HTTPS. Adding them before the
+        # buildroot has a CA bundle makes apt skip them with a WARNING and
+        # exit 0:
+        #
+        #   W: Failed to fetch https://repo.tunaos.org/tideforge/ubuntu/./InRelease
+        #      SSL connection failed: certificate verify failed
+        #
+        # The cell then failed a hundred lines later at `libcpptrace-dev
+        # NOT AVAILABLE`, pointing at the recipe instead of at the buildroot.
+        # The Ubuntu archive itself is plain HTTP, which is why everything else
+        # resolved and hid this.
+        apt-get update -qq
+        apt-get install -y --no-install-recommends build-essential ca-certificates
         published_n=0
         for published_url in ${PUBLISHED_INDEX:-}; do
           printf "deb [trusted=yes] %s ./\n" "$published_url" \
@@ -175,8 +190,20 @@ case ${FORMAT:?} in
             > "/etc/apt/preferences.d/tunaos-published-${published_n}.pref"
           published_n=$((published_n + 1))
         done
-        apt-get update -qq
-        apt-get install -y --no-install-recommends build-essential ca-certificates
+        if [ "$published_n" -gt 0 ]; then
+          # Not -qq, and the output is inspected: apt treats an unreachable
+          # source as a warning and still exits 0, so the only way to notice
+          # is to read it. A declared index that cannot be fetched is a
+          # buildroot fault and must say so here, not as a missing package.
+          apt-get update > /tmp/apt-update.log 2>&1 || { cat /tmp/apt-update.log >&2; exit 1; }
+          cat /tmp/apt-update.log
+          if grep -q "Failed to fetch" /tmp/apt-update.log; then
+            echo "ERROR: a declared published index could not be fetched (see above)." >&2
+            echo "       The buildroot cannot see factory-built packages; failing here" >&2
+            echo "       rather than later as an unexplained missing dependency." >&2
+            exit 1
+          fi
+        fi
         cd "$(cat /work/source-dir)"
         # apt-get build-dep reports an unsatisfiable dependency as a cascade:
         # the one genuinely missing package is buried under a dozen "but it is
@@ -184,13 +211,26 @@ case ${FORMAT:?} in
         # the policy for each declared build-dep first names the real one, so a
         # failure here does not need a second run to interpret.
         echo "==> build-dependency availability"
-        awk "/^Build-Depends:/{f=1; print; next} f && /^[[:space:]]/{print; next} f{exit}" debian/control \
-          | tr "," "\n" | sed -E "s/^Build-Depends: *//; s/\(.*\)//; s/^ +| +$//g" \
-          | grep -vE "^$|^debhelper-compat" \
-          | while read -r dep; do
-              printf "%-28s %s\n" "$dep" \
-                "$(apt-cache policy "$dep" 2>/dev/null | awk "/Candidate:/{print \$2; found=1} END{if(!found) print \"NOT AVAILABLE\"}")"
-            done
+        # `|| true` is load-bearing: a recipe whose only Build-Depends is
+        # debhelper-compat (every build_system: data package, wayland-protocols
+        # included) leaves grep with nothing to print, and grep exits 1 on no
+        # match. Under `set -o pipefail` that failed the whole cell right after
+        # printing this header. Not hypothetical -- it took out all four
+        # wayland-protocols deb cells, and wayland-protocols is a planner
+        # canary, so it rides along on every infra change.
+        declared_deps=$(
+          awk "/^Build-Depends:/{f=1; print; next} f && /^[[:space:]]/{print; next} f{exit}" debian/control \
+            | tr "," "\n" | sed -E "s/^Build-Depends: *//; s/\(.*\)//; s/^ +| +$//g" \
+            | grep -vE "^$|^debhelper-compat" || true
+        )
+        if [ -z "$declared_deps" ]; then
+          echo "(none declared beyond debhelper-compat)"
+        else
+          printf "%s\n" "$declared_deps" | while read -r dep; do
+            printf "%-28s %s\n" "$dep" \
+              "$(apt-cache policy "$dep" 2>/dev/null | awk "/Candidate:/{print \$2; found=1} END{if(!found) print \"NOT AVAILABLE\"}")"
+          done
+        fi
         apt-get build-dep -y --no-install-recommends "$PWD"
         dpkg-buildpackage -us -uc -b
         mkdir -p /work/artifacts
