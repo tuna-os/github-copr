@@ -156,3 +156,29 @@ def test_the_curated_default_wave_is_still_an_explicit_list():
     triggers = spec[True] if True in spec else spec["on"]
     default = triggers["workflow_dispatch"]["inputs"]["packages"]["default"]
     assert default == WAVE
+
+
+def test_the_exact_invocation_the_workflow_emits_works():
+    """The workflow always passes --arches, and its default input is the EMPTY
+    STRING. If empty meant "no arches" rather than "every arch the target
+    declares", every dispatch would plan an empty matrix -- and the failure
+    would land on a production publish, not in CI."""
+    d = planned("--packages", WAVE, "--distros", "ubuntu,debian-sid", "--arches", "")
+    assert d["count"] == 20
+    assert d["arches"] == ["amd64", "arm64"]
+
+
+def test_inputs_tolerate_the_whitespace_a_human_types():
+    """These arrive from a dispatch form. ` ubuntu , ` must not become a
+    distro named ' ubuntu ' that fails the label lookup."""
+    d = planned("--packages", " pop-icon-theme , cosmic-randr ,", "--distros", " ubuntu , ", "--arches", " amd64 , ")
+    rows = {(r["package"], r["distro"], r["arch"]) for r in d["matrix"]["include"]}
+    assert rows == {("pop-icon-theme", "ubuntu", "amd64"), ("cosmic-randr", "ubuntu", "amd64")}
+
+
+def test_an_empty_package_list_is_refused_rather_than_planned_empty():
+    """An empty matrix would make build and publish no-ops, and the publish
+    job would then rclone sync an empty tree over the live repository."""
+    result = run("--packages", "")
+    assert result.returncode != 0
+    assert "no packages requested" in result.stderr
