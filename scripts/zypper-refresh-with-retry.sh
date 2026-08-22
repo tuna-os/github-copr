@@ -21,14 +21,21 @@
 # wrong with the repository or with us — the mirror simply did not have the
 # file yet at that second.
 #
-# Two things make a retry the right answer rather than a papering-over:
+# What a retry does and does not buy — corrected after watching it fail:
 #
-#   the redirector   a second attempt can land on a different mirror, so this
-#                    is not merely waiting for one host to catch up.
 #   clean --metadata zypper caches the repomd it already fetched. Retrying
 #                    without clearing it re-reads the same index naming the
 #                    same absent file, forever. The clean is what makes the
-#                    next attempt genuinely new.
+#                    next attempt genuinely new, and it is why a short retry
+#                    recovers a BRIEF skew.
+#   the redirector   a second attempt CAN land on a different mirror, but the
+#                    routing is sticky enough that it usually does not. All
+#                    four attempts failed identically in run 32593296994.
+#
+# So this handles the brief case and honestly fails the persistent one, which
+# is the correct behaviour: a repository whose index names files no reachable
+# mirror serves is broken, and pretending otherwise would publish against a
+# package universe we could not actually read.
 #
 # The same posture scripts/pull-container-image.sh takes for transient
 # registry failures. A real breakage still fails: the attempts are bounded
@@ -46,8 +53,17 @@ for attempt in $(seq 1 "$attempts"); do
   if [ "$attempt" -eq "$attempts" ]; then
     echo "ERROR: zypper refresh failed ${attempts} times." >&2
     echo "       If the log says a repodata file was 'not found on medium'," >&2
-    echo "       the mirror was mid-rotation and this is transient; any other" >&2
-    echo "       error is a real one." >&2
+    echo "       this is upstream MIRROR SKEW, not a fault in this build:" >&2
+    echo "       download.opensuse.org serves repomd.xml from one source and" >&2
+    echo "       redirects the DATA FILE request to a mirror that may be on a" >&2
+    echo "       different snapshot and has deleted the file repomd names." >&2
+    echo "       Retrying cannot fix that — it re-lands on the same pair." >&2
+    echo "       Measured on 2026-08-22 for one appdata-icons.tar.gz:" >&2
+    echo "         download.opensuse.org  rev 1787317599  names it  404" >&2
+    echo "         cdn.opensuse.org       rev 1787317599  names it  404" >&2
+    echo "         mirror.umd.edu         rev 1787377763  moved on  404" >&2
+    echo "         ftp.halifax.rwth-...   rev 1787317599  names it  200" >&2
+    echo "       It resolves when the mirrors converge. Re-run then." >&2
     exit 1
   fi
   echo "zypper refresh failed (attempt ${attempt}/${attempts});" \
