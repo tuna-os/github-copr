@@ -131,9 +131,19 @@ case ${FORMAT:?} in
     ;;
   deb)
     root="$out/deb"
+    # The deb buildroot resolves the published factory index for the same
+    # reason the rpm one does: a recipe whose BuildRequires are themselves
+    # factory-built (quickshell needs libcpptrace-dev, which Ubuntu does not
+    # ship at all -- Debian sid does) can only get them from an earlier
+    # wave's published repo. This was missing until #476: PUBLISHED_INDEX was
+    # passed to the rpm container only, so every deb cell built with just its
+    # distro's archive and a cross-cell BuildRequires was unsatisfiable by
+    # construction.
+    published_index="$(python3 scripts/published_index.py "$target" "${ARCHITECTURE:-}" --join)"
     python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$root/rendered"
     python3 scripts/assemble-deb-source-tree.py "$recipe" "$root"
     docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
+      --env PUBLISHED_INDEX="$published_index" \
       --volume "$root:/work" "$image" bash -lc '
         set -euo pipefail
         export DEBIAN_FRONTEND=noninteractive
@@ -147,6 +157,24 @@ case ${FORMAT:?} in
           sed -i -E "s/^Components:.*/Components: main restricted universe multiverse/" \
             /etc/apt/sources.list.d/ubuntu.sources
         fi
+        # One flat apt source per declared index, pinned BELOW the distro
+        # default of 500 so the published repo can only ever fill a gap. The
+        # rpm path learned this the hard way -- priority=999 there exists
+        # because a served repo package outranked and replaced a base one
+        # (the glib2 Obsoletes incident, publish run 32405815822). A
+        # buildroot must take every package it can from its own archive.
+        # trusted=yes because the flat repo is signed with the publisher key,
+        # which a stock buildroot has no reason to carry; the same idiom the
+        # deb verify path already uses.
+        published_n=0
+        for published_url in ${PUBLISHED_INDEX:-}; do
+          printf "deb [trusted=yes] %s ./\n" "$published_url" \
+            > "/etc/apt/sources.list.d/tunaos-published-${published_n}.list"
+          published_host=$(printf "%s" "$published_url" | sed -E "s#^[a-z]+://([^/]+).*#\\1#")
+          printf "Package: *\nPin: origin \"%s\"\nPin-Priority: 100\n" "$published_host" \
+            > "/etc/apt/preferences.d/tunaos-published-${published_n}.pref"
+          published_n=$((published_n + 1))
+        done
         apt-get update -qq
         apt-get install -y --no-install-recommends build-essential ca-certificates
         cd "$(cat /work/source-dir)"

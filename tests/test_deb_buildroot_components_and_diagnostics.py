@@ -66,3 +66,42 @@ def test_debhelper_compat_is_excluded_from_the_probe():
     """It is a build-profile token, not an installable package; probing it
     would always print NOT AVAILABLE and train readers to ignore the column."""
     assert "debhelper-compat" in deb_block()
+
+
+def test_the_deb_container_receives_the_published_index():
+    """It did not, and that was the whole bug. PUBLISHED_INDEX was passed to
+    the rpm container only, so any deb recipe whose BuildRequires are
+    themselves factory-built was unsatisfiable by construction -- quickshell
+    needs libcpptrace-dev, which Ubuntu does not ship at all."""
+    assert '--env PUBLISHED_INDEX' in deb_block()
+
+
+def test_each_index_becomes_an_apt_source():
+    block = deb_block()
+    assert "sources.list.d/tunaos-published-" in block
+    assert "deb [trusted=yes]" in block
+
+
+def test_the_published_repo_is_pinned_below_the_distro_default():
+    """A buildroot must take every package it can from its own archive. The
+    rpm path carries priority=999 for this reason after a served-repo package
+    outranked and replaced a base one. apt's default is 500, so the pin has to
+    be strictly lower to be a gap-filler rather than an override."""
+    import re
+    block = deb_block()
+    priorities = [int(m) for m in re.findall(r"Pin-Priority: (\d+)", block)]
+    assert priorities, block
+    assert all(p < 500 for p in priorities), priorities
+
+
+def test_the_sources_are_written_before_apt_update():
+    """An apt source added after `apt-get update` is invisible for this
+    build -- the index is never fetched."""
+    block = deb_block()
+    assert block.index("sources.list.d/tunaos-published-") < block.index("apt-get update")
+
+
+def test_the_pin_targets_the_index_host_not_a_hardcoded_one():
+    """published_index is per-target and may move; a literal hostname would
+    silently stop pinning and let the repo outrank the distro archive."""
+    assert "published_host" in deb_block()
