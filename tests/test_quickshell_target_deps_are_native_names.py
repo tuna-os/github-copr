@@ -206,3 +206,53 @@ def test_only_arch_declares_runtime_deps():
     """The other targets derive their closure from the binary. Adding a hand
     list there would drift from what the linker actually needs."""
     assert set(runtime_deps()) == {"arch"}, sorted(runtime_deps())
+
+
+# The complete set of modules quickshell asks pkg-config for, read off the
+# openSUSE cell in run 32553771431 -- the one that got far enough to run every
+# check before failing for an unrelated reason. Kept as data so the deb lists
+# are validated against what upstream actually requires, instead of against
+# whichever single module the current round happens to stop at.
+PKG_CONFIG_MODULES = (
+    "libdrm", "gbm", "egl",
+    "wayland-client", "wayland-protocols",
+    "libpipewire-0.3", "glib-2.0", "gobject-2.0",
+    "polkit-agent-1", "polkit-gobject-1",
+)
+
+# module -> the deb package that ships its .pc, or None when it arrives
+# transitively. Every "None" here was checked, not assumed.
+DEB_PROVIDERS = {
+    "libdrm": "libdrm-dev",
+    "gbm": "libgbm-dev",
+    "egl": "libegl-dev",
+    "wayland-client": None,        # pulled in by qt6-wayland-dev; log shows it Found
+    "wayland-protocols": "wayland-protocols",
+    "libpipewire-0.3": "libpipewire-0.3-dev",
+    "glib-2.0": None,              # libpolkit-gobject-1-dev depends on libglib2.0-dev
+    "gobject-2.0": None,           # same
+    "polkit-agent-1": "libpolkit-agent-1-dev",
+    "polkit-gobject-1": "libpolkit-gobject-1-dev",
+}
+
+
+def test_the_provider_table_covers_every_module_upstream_checks():
+    """Guards the table itself: a module added to PKG_CONFIG_MODULES without a
+    provider decision is a gap, not a pass."""
+    assert set(DEB_PROVIDERS) == set(PKG_CONFIG_MODULES)
+
+
+def test_both_deb_targets_provide_every_pkg_config_module():
+    """CMake stops at the FIRST failing pkg_check_modules, so a per-round fix
+    finds exactly one gap per run -- four rounds for four modules. Asserting
+    the whole closure at once is what stops that.
+
+    polkit-agent-1 is the one this caught ahead of a run: on deb its .pc lives
+    in libpolkit-agent-1-dev, a different package from the already-listed
+    libpolkit-gobject-1-dev, while on the RPM targets a single polkit-devel
+    carries both."""
+    for target in ("ubuntu", "debian"):
+        names = deps()[target]
+        for module, provider in DEB_PROVIDERS.items():
+            if provider is not None:
+                assert provider in names, (target, module, provider)

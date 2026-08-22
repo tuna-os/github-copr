@@ -96,9 +96,47 @@ dependencies:
       # in both archives first (sid 26.1.6-1, resolute present), because a
       # name that does not resolve would make this cell fail EARLIER than it
       # does now.
+      #
+      # Round 4 (run 32553771431). Both round-3 additions landed and were
+      # needed. The deb probe read back `wayland-protocols 1.47-1` and
+      # `libgbm-dev 26.0.8-1ubuntu0.3`, and CMake then cleared the first
+      # group and got INTO the next before stopping:
+      #
+      #     Found wayland-client ... Found wayland-protocols, version 1.47
+      #     Checking for modules 'libdrm;gbm;egl'
+      #       Found libdrm ... Found gbm ...
+      #     Package 'egl' not found
+      #     src/wayland/buffer/CMakeLists.txt:2 (pkg_check_modules)
+      #
+      # egl.pc is in libegl-dev (libglvnd) on both archives, verified before
+      # adding: sid 1.7.0-3+b1, present in resolute.
+      #
+      # No egl entry for el10 or openSUSE. openSUSE's own log for this exact
+      # group reads "Found egl, version 1.5", so both RPM targets get it
+      # transitively and naming it there would be an unneeded dependency --
+      # the same reasoning that kept vulkan off openSUSE in round 2.
+      #
+      # polkit-agent-1 is added in the same step, from the same log rather
+      # than from a guess: openSUSE got far enough to run every remaining
+      # check, and the full set quickshell asks pkg-config for is
+      #
+      #     libdrm | libdrm;gbm;egl | wayland-client;wayland-protocols>=1.41
+      #     libpipewire-0.3 | glib-2.0>=2.36 | gobject-2.0
+      #     polkit-agent-1 | polkit-gobject-1
+      #
+      # On deb, polkit-agent-1.pc is in libpolkit-agent-1-dev -- a DIFFERENT
+      # package from the libpolkit-gobject-1-dev already listed (confirmed
+      # from its file list, sid 127-3, present in resolute). On the RPM
+      # targets one polkit-devel carries both, which is why this gap only
+      # exists here.
+      #
+      # glib-2.0 and gobject-2.0 need nothing added: libpolkit-gobject-1-dev
+      # depends on libglib2.0-dev, checked rather than assumed. That accounts
+      # for every module in the list above, so this round is intended to be
+      # the last dependency round for deb.
       el10: [cmake, gcc-c++, qt6-qtbase-devel, qt6-qtbase-private-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, mesa-libgbm-devel, ninja-build, cli11-devel, cpptrace-devel, wayland-protocols]
-      ubuntu: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev, wayland-protocols, libgbm-dev]
-      debian: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev, wayland-protocols, libgbm-dev]
+      ubuntu: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev, wayland-protocols, libgbm-dev, libegl-dev, libpolkit-agent-1-dev]
+      debian: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev, wayland-protocols, libgbm-dev, libegl-dev, libpolkit-agent-1-dev]
       opensuse-tumbleweed: [cmake, gcc-c++, qt6-base-private-devel, qt6-declarative-devel, qt6-declarative-private-devel, qt6-wayland-devel, qt6-shadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, jemalloc-devel, cli11-devel, cpptrace-devel, 'pkgconfig(wayland-protocols)', 'pkgconfig(gbm)']
       arch: [cmake, gcc, qt6-base, qt6-declarative, qt6-wayland, qt6-shadertools, pipewire, pam, polkit, libdrm, jemalloc, cli11, cpptrace, ninja, wayland-protocols, vulkan-headers, libunwind]
   # Arch is the ONLY target that needs this, and the reason is mechanical
