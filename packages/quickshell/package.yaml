@@ -73,9 +73,32 @@ dependencies:
       #
       # Quickshell uses Qt's private API.  EL10 supplies the corresponding
       # metadata in CRB as qt6-qtbase-private-devel.
+      #
+      # Round 3 (run 32552737391). deb resolved every build-dep this time,
+      # including libcpptrace-dev 1.0.4-2 from Debian's own archive, reached
+      # CMake, and hit the SAME wall openSUSE did:
+      #
+      #     Checking for modules 'wayland-client;wayland-protocols>=1.41'
+      #     Package 'wayland-protocols' not found
+      #     src/wayland/CMakeLists.txt:3 (pkg_check_modules)
+      #
+      # Versions checked rather than assumed, because ">=1.41" is the part
+      # that can silently not hold: Debian sid ships wayland-protocols 1.49-1
+      # (sources.debian.org) and Ubuntu resolute 1.47-1 (Launchpad). Both
+      # clear it, so the distro package is enough and nothing needs
+      # publishing here.
+      #
+      # libgbm-dev is added on EVIDENCE rather than on a log line, and the
+      # difference is worth stating: el10 carries mesa-libgbm-devel and
+      # openSUSE pkgconfig(gbm), so quickshell does need an explicit gbm
+      # provider somewhere -- CMake just stops at the first failing
+      # pkg_check_modules, so deb has not reached it. Existence was verified
+      # in both archives first (sid 26.1.6-1, resolute present), because a
+      # name that does not resolve would make this cell fail EARLIER than it
+      # does now.
       el10: [cmake, gcc-c++, qt6-qtbase-devel, qt6-qtbase-private-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, mesa-libgbm-devel, ninja-build, cli11-devel, cpptrace-devel, wayland-protocols]
-      ubuntu: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev]
-      debian: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev]
+      ubuntu: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev, wayland-protocols, libgbm-dev]
+      debian: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev, wayland-protocols, libgbm-dev]
       opensuse-tumbleweed: [cmake, gcc-c++, qt6-base-private-devel, qt6-declarative-devel, qt6-declarative-private-devel, qt6-wayland-devel, qt6-shadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, jemalloc-devel, cli11-devel, cpptrace-devel, 'pkgconfig(wayland-protocols)', 'pkgconfig(gbm)']
       arch: [cmake, gcc, qt6-base, qt6-declarative, qt6-wayland, qt6-shadertools, pipewire, pam, polkit, libdrm, jemalloc, cli11, cpptrace, ninja, wayland-protocols, vulkan-headers, libunwind]
 files:

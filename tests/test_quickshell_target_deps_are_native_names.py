@@ -106,3 +106,57 @@ def test_deb_targets_keep_the_debian_spellings():
 def test_every_target_in_the_recipe_has_a_dependency_list():
     r = yaml.safe_load(RECIPE.read_text(encoding="utf-8"))
     assert set(r["targets"]) == set(deps()), (r["targets"], sorted(deps()))
+
+
+def test_every_target_declares_a_wayland_protocols_provider():
+    """src/wayland/CMakeLists.txt does an unconditional
+
+        pkg_check_modules(... wayland-client;wayland-protocols>=1.41)
+
+    so this is not optional on any target. It was missing on deb, which is
+    where openSUSE had already failed one round earlier -- the same wall,
+    found separately on each target because CMake stops at the first failing
+    pkg_check_modules and each list was fixed in isolation.
+
+    Stated over ALL targets rather than just the two that were fixed: that is
+    the only form that would have caught deb from the openSUSE round.
+    """
+    providers = {
+        "el10": "wayland-protocols",
+        "ubuntu": "wayland-protocols",
+        "debian": "wayland-protocols",
+        "arch": "wayland-protocols",
+        # openSUSE gets the virtual provide: the package search is
+        # unreachable from CI, and pkgconfig() is name-independent anyway.
+        "opensuse-tumbleweed": "pkgconfig(wayland-protocols)",
+    }
+    for target, provider in providers.items():
+        assert provider in deps()[target], (target, provider)
+
+
+def test_every_target_declares_a_gbm_provider():
+    """el10 carries mesa-libgbm-devel and openSUSE pkgconfig(gbm), so
+    quickshell genuinely needs a gbm provider -- deb simply had not reached
+    that check yet, because CMake stops at wayland-protocols first.
+
+    Arch is the exception on purpose: gbm ships inside `mesa` there, which is
+    pulled in by the Qt/wayland stack, and there is no separate -dev package
+    to name."""
+    providers = {
+        "el10": "mesa-libgbm-devel",
+        "ubuntu": "libgbm-dev",
+        "debian": "libgbm-dev",
+        "opensuse-tumbleweed": "pkgconfig(gbm)",
+    }
+    for target, provider in providers.items():
+        assert provider in deps()[target], (target, provider)
+
+
+def test_the_deb_wayland_and_gbm_names_are_debian_spellings():
+    """The EL and openSUSE spellings do not exist in the Debian archives; a
+    name that does not resolve makes the cell fail EARLIER than the missing
+    dependency it was meant to fix."""
+    for target in ("ubuntu", "debian"):
+        names = deps()[target]
+        assert "mesa-libgbm-devel" not in names, target
+        assert not [n for n in names if n.startswith("pkgconfig(")], target
