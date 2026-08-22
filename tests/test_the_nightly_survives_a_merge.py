@@ -81,3 +81,24 @@ def test_the_workflow_still_parses_and_keeps_its_triggers():
     assert "schedule" in triggers
     assert "pull_request" in triggers
     assert "workflow_dispatch" in triggers
+
+
+def test_two_dispatches_of_different_cells_do_not_cancel_each_other():
+    """Dispatches keep cancel-in-progress, so before the group distinguished
+    them, dispatching one cell killed an unrelated cell dispatched minutes
+    earlier on the same branch -- up to an hour of aarch64 build time
+    discarded for nothing. Two different cells are independent work.
+
+    Re-dispatching the SAME cell still cancels, because the key is identical;
+    that one IS a supersede."""
+    group = concurrency()["group"]
+    assert "github.event_name == 'workflow_dispatch'" in group
+    assert "github.event.inputs.cell" in group
+    assert "github.event.inputs.selector" in group
+
+
+def test_the_dispatch_key_still_separates_branches():
+    """Two branches dispatching the same cell are still different work."""
+    group = concurrency()["group"]
+    dispatch = group.split("workflow_dispatch'", 1)[1].split("|| github.ref")[0]
+    assert "github.ref" in dispatch

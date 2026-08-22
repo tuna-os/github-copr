@@ -62,10 +62,25 @@ on:
 # are nine hours apart, but a nightly that overran into the weekly's slot would
 # otherwise make the weekly queue behind it and then be superseded -- the same
 # starvation this block exists to prevent, one level up.
+#
+# Each DISPATCH likewise gets a group keyed on what it was asked to build.
+# Dispatches keep cancel-in-progress, and every dispatch on a branch used to
+# resolve to that branch's ref -- so dispatching one cell killed an unrelated
+# cell dispatched minutes earlier on the same branch, up to an hour of aarch64
+# build time discarded for no reason. Two dispatches of DIFFERENT cells are
+# independent work and must both run; re-dispatching the SAME cell is a genuine
+# supersede and still cancels, because the key is identical.
+#
+# github.event.inputs rather than the inputs context: it is readable from any
+# expression that can read github, including this workflow-level block.
 concurrency:
   group: >-
     package-factory-${{ github.event_name == 'schedule'
-      && format('schedule-{0}', github.event.schedule) || github.ref }}
+      && format('schedule-{0}', github.event.schedule)
+      || github.event_name == 'workflow_dispatch'
+      && format('dispatch-{0}-{1}-{2}', github.ref,
+                github.event.inputs.cell, github.event.inputs.selector)
+      || github.ref }}
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 permissions:
