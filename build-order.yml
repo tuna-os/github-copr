@@ -116,6 +116,7 @@ tiers:
   # Tier 11: GTK Core.
   - name: gtk-core
     packages:
+      - path: src/deps/libnotify
       - path: src/gnome-50/gsettings-desktop-schemas
       - path: src/gnome-50/gnome-desktop3
       - path: src/deps/gtk4

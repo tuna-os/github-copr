@@ -7,8 +7,20 @@ License:        LGPL-2.1-only AND CC-BY-3.0
 URL:            https://gitlab.freedesktop.org/pwithnall/%{name}/
 Source0:        https://tecnocode.co.uk/downloads/%{name}/%{name}-%{version}.tar.xz
 Source1:        https://gitlab.gnome.org/pwithnall/libgsystemservice/-/archive/0.3.0/libgsystemservice-0.3.0.tar.bz2
-Source2:        gvdb.tar.xz
-Source3:        tinycdb-0.81.tar.gz
+# tinycdb's canonical upstream, taken from malcontent's own
+# subprojects/tinycdb.wrap, which declares this exact source_url and a
+# source_hash of 469de2d4…ebc2 — verified to match the tarball this URL
+# serves. It was previously a bare filename with no URL, so spectool could
+# not fetch it and the SRPM build died before any compilation:
+#
+#   error: Bad file: /builddir/SOURCES/tinycdb-0.81.tar.gz: No such file
+#
+# gvdb was a second bare filename here and is now gone entirely: malcontent's
+# release tarball already ships subprojects/gvdb populated (15 files,
+# including its meson.build), so the extra source and its `tar -xf` were
+# redundant. `Provides: bundled(gvdb)` stays true — it is still bundled, just
+# by upstream rather than by us.
+Source2:        https://www.corpit.ru/mjt/tinycdb/tinycdb-0.81.tar.gz
 
 BuildRequires:  gettext
 BuildRequires:  gi-docgen
@@ -103,7 +115,9 @@ Documentation for libmalcontent.
 tar -xf %{SOURCE1} -C subprojects
 mv subprojects/libgsystemservice-0.3.0 subprojects/libgsystemservice
 tar -xf %{SOURCE2} -C subprojects
-tar -xf %{SOURCE3} -C subprojects
+# tinycdb.wrap declares patch_directory = tinycdb, which is meson's way of
+# saying "overlay subprojects/packagefiles/tinycdb/ onto the extracted tree".
+# rpmbuild is not running meson's wrap resolver, so the overlay is done here.
 cp subprojects/packagefiles/tinycdb/meson.build subprojects/tinycdb-0.81
 
 %build
