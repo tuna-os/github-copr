@@ -22,64 +22,53 @@ permissions:
 
 jobs:
   build:
-    name: ${{ matrix.package }} (${{ matrix.distro }})
-    runs-on: ubuntu-latest
+    name: ${{ matrix.package }} (${{ matrix.distro }}, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
+        # Widen `package` in lockstep with the deb gate as recipes prove out --
+        # nothing gets published that a gate cell has not exercised.
+        #
+        # cpptrace-devel is here for a different reason than the COSMIC
+        # entries, which exist so grouper and flounder-sid can install them.
+        # It is a BUILD dependency: quickshell's ubuntu cell fails on
+        # `libcpptrace-dev NOT AVAILABLE` because Ubuntu does not ship
+        # cpptrace at all (Debian sid does). Publishing it here is what makes
+        # it resolvable, now that the deb buildroot reads the published index
+        # at all -- before #476 it was passed PUBLISHED_INDEX only on the rpm
+        # path, so publishing this would have changed nothing.
+        #
+        # ARCH is a real dimension, not a formality. This matrix was
+        # `runs-on: ubuntu-latest` with no arch key, so every deb ever
+        # published was amd64 -- confirmed against the served indexes, where
+        # all 5 ubuntu and 8 debian-sid entries read `Architecture: amd64`.
+        # The factory gates BOTH arches, so tideforge-quickshell-ubuntu-arm64
+        # could never resolve libcpptrace-dev and died at build-dep resolution
+        # while the amd64 cell compiled. debian-arm64 was unaffected only
+        # because Debian sid ships libcpptrace-dev for arm64 itself.
+        #
+        # Both arches build NATIVELY on their own runner; there is no qemu
+        # here, and a cross-built deb is not what these targets install.
+        package:
+          - cpptrace-devel
+          - pop-icon-theme
+          - cosmic-randr
+          - cosmic-panel
+          - cosmic-icon-theme
+        distro: [ubuntu, debian-sid]
+        arch: [amd64, arm64]
         include:
-          # Widen this matrix in lockstep with the deb gate as recipes prove
-          # out — nothing gets published that a gate cell has not exercised.
-          #
-          # cpptrace-devel is here for a different reason than the COSMIC
-          # entries, which exist so grouper and flounder-sid can install them.
-          # It is a BUILD dependency: quickshell's ubuntu cell fails on
-          # `libcpptrace-dev NOT AVAILABLE` because Ubuntu does not ship
-          # cpptrace at all (Debian sid does). Publishing it here is what
-          # makes it resolvable, now that the deb buildroot reads the
-          # published index at all — before #476 it was passed PUBLISHED_INDEX
-          # only on the rpm path, so publishing this would have changed
-          # nothing.
-          - package: cpptrace-devel
-            distro: ubuntu
+          - distro: ubuntu
             target: ubuntu
             image: docker.io/library/ubuntu:26.04
-          - package: cpptrace-devel
-            distro: debian-sid
+          - distro: debian-sid
             target: debian
             image: docker.io/library/debian:sid
-          - package: pop-icon-theme
-            distro: ubuntu
-            target: ubuntu
-            image: docker.io/library/ubuntu:26.04
-          - package: pop-icon-theme
-            distro: debian-sid
-            target: debian
-            image: docker.io/library/debian:sid
-          - package: cosmic-randr
-            distro: ubuntu
-            target: ubuntu
-            image: docker.io/library/ubuntu:26.04
-          - package: cosmic-randr
-            distro: debian-sid
-            target: debian
-            image: docker.io/library/debian:sid
-          - package: cosmic-panel
-            distro: ubuntu
-            target: ubuntu
-            image: docker.io/library/ubuntu:26.04
-          - package: cosmic-panel
-            distro: debian-sid
-            target: debian
-            image: docker.io/library/debian:sid
-          - package: cosmic-icon-theme
-            distro: ubuntu
-            target: ubuntu
-            image: docker.io/library/ubuntu:26.04
-          - package: cosmic-icon-theme
-            distro: debian-sid
-            target: debian
-            image: docker.io/library/debian:sid
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -124,7 +113,13 @@ jobs:
             bash /scripts/lint-generated-deb.sh /work/artifacts
       - uses: actions/upload-artifact@v7
         with:
-          name: publish-deb-${{ matrix.distro }}-${{ matrix.package }}
+          # The arch is part of the NAME, not just the contents: without it the
+          # two arches collide on one artifact. The publish job globs
+          # `publish-deb-<distro>-*` with merge-multiple, so both land in the
+          # same pool and apt-ftparchive indexes them into one flat Packages
+          # -- which is what a flat repo wants, since apt selects on the
+          # Architecture field.
+          name: publish-deb-${{ matrix.distro }}-${{ matrix.package }}-${{ matrix.arch }}
           path: .tideforge/deb/${{ matrix.target }}-${{ matrix.package }}/artifacts/*.deb
           retention-days: 1
 
@@ -204,15 +199,26 @@ jobs:
   # to cosmic-session (the closure root) when the widening reaches it.
   verify:
     needs: publish
-    runs-on: ubuntu-latest
+    # Both arches, for the reason this job exists at all: publishing an
+    # architecture nothing ever installs is exactly the #179 shape -- a repo
+    # sitting behind a green workflow that no one has actually resolved
+    # against. The build matrix now produces arm64, so the verification has to
+    # cover it, natively, on an arm64 runner.
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
+        distro: [ubuntu, debian-sid]
+        arch: [amd64, arm64]
         include:
           - distro: ubuntu
             image: docker.io/library/ubuntu:26.04
           - distro: debian-sid
             image: docker.io/library/debian:sid
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - name: Install from the published repo with no third-party sources
         run: |
