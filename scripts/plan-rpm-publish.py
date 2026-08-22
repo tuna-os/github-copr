@@ -38,6 +38,9 @@ import sys
 
 import yaml
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import factory_contract  # noqa: E402  (needs the path above)
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FACTORY = ROOT / "manifests" / "package-factory.yaml"
 SERVED_ROOT = "https://repo.tunaos.org/"
@@ -112,6 +115,7 @@ def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dic
                 "runner": RUNNERS[arch],
                 "target": target_name,
                 "image": image,
+                "cell_id": factory_contract.tideforge_cell_id(package, target_name, arch),
             })
 
     publish = []

@@ -89,12 +89,10 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
-      CELL_ID: publish-tideforge-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.arch }}
-      ENGINE: tideforge
+      # The GATE's cell id, so a restore lands where the build would have
+      # written. See .github/actions/tideforge-cached-cell (#481).
+      CELL_ID: ${{ matrix.cell_id }}
       RECIPE: packages/${{ matrix.package }}/package.yaml
-      TARGET: ${{ matrix.target }}
-      FORMAT: rpm
-      ARCHITECTURE: ${{ matrix.arch }}
       IMAGE: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v7
@@ -110,14 +108,16 @@ jobs:
           recipe: ${{ env.RECIPE }}
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh "$IMAGE"
-      - name: Build the cell
-        run: |
-          set -euo pipefail
-          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct -- "$(dirname "$RECIPE")")
-          export SOURCE_DATE_EPOCH
-          bash scripts/run-package-factory-cell.sh
-      - name: Validate package installation and smoke contract
-        run: bash scripts/verify-package-factory-cell.sh
+      - name: Restore the gated build, or build it if there is none
+        uses: ./.github/actions/tideforge-cached-cell
+        with:
+          cell-id: ${{ matrix.cell_id }}
+          package: ${{ matrix.package }}
+          recipe: packages/${{ matrix.package }}/package.yaml
+          target: ${{ matrix.target }}
+          format: rpm
+          architecture: ${{ matrix.arch }}
+          image: ${{ matrix.image }}
       - uses: actions/upload-artifact@v7
         with:
           name: publish-rpm-${{ matrix.target }}-${{ matrix.arch }}-${{ matrix.package }}

@@ -93,3 +93,21 @@ def build_view(spec: Any) -> Any:
         return spec
     drop = inert_keys(spec)
     return {key: value for key, value in spec.items() if key not in drop}
+
+
+def tideforge_cell_id(package: str, target: str, architecture: str) -> str:
+    """The identity a tideforge cell works under.
+
+    Both a name and a location: `.factory/<cell_id>/` is where the build
+    writes and where the action cache restores to. actions/cache extracts a
+    hit to the paths the SAVE recorded, so two workflows that want to share a
+    cache entry must agree on this string exactly -- a publisher that invented
+    its own `publish-...` prefix would restore a hit into the gate's directory
+    and then build in its own, reporting a hit while rebuilding everything
+    (#481).
+
+    That makes it the same class of fact as the inert-key table above: two
+    readers, and a divergence between them is silent. So it is imported, not
+    re-spelled.
+    """
+    return f"tideforge-{package}-{target}-{architecture}"

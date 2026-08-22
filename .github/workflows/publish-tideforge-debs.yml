@@ -76,6 +76,10 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The action key derives SOURCE_DATE_EPOCH from the recipe
+          # directory's last author date, which a shallow clone cannot answer.
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: '3.14'
@@ -84,38 +88,36 @@ jobs:
         uses: ./.github/actions/tideforge-source-cache
         with:
           recipe: packages/${{ matrix.package }}/package.yaml
-      - name: Render and assemble the Debian source tree
-        run: |
-          set -euo pipefail
-          recipe="packages/${{ matrix.package }}/package.yaml"
-          root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
-          python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
-          python3 scripts/tideforge.py render "$recipe" --target "${{ matrix.target }}" --output "$root/rendered"
-          python3 scripts/assemble-deb-source-tree.py "$recipe" "$root"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh "${{ matrix.image }}"
-      - name: Build the deb with only declared Build-Depends
-        run: |
-          set -euo pipefail
-          root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
-          docker run --rm --volume "$root:/work" "${{ matrix.image }}" bash -lc '
-            set -euo pipefail
-            export DEBIAN_FRONTEND=noninteractive
-            apt-get update -qq
-            apt-get install -y --no-install-recommends build-essential ca-certificates devscripts equivs
-            cd "$(cat /work/source-dir)"
-            mk-build-deps --install --remove --tool "apt-get -y --no-install-recommends" debian/control
-            dpkg-buildpackage -us -uc -b
-            mkdir -p /work/artifacts
-            cp ../*.deb /work/artifacts/
-          '
-      - name: Lint the built deb
-        run: |
-          set -euo pipefail
-          root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
-          docker run --rm --volume "$root:/work:ro" --volume "$PWD/scripts:/scripts:ro" "${{ matrix.image }}" \
-            bash /scripts/lint-generated-deb.sh /work/artifacts
+      - name: Restore the gated build, or build it if there is none
+        # Replaces an inline render/assemble/dpkg-buildpackage/lint sequence
+        # that diverged from the gate in three ways at once (#481):
+        #
+        #   different bytes   it rebuilt rather than restoring the ActionResult
+        #                     the gate produced, and used %ct for
+        #                     SOURCE_DATE_EPOCH where the gate uses %at, so the
+        #                     two could not agree even in principle.
+        #   no clean-install  it ran lint-generated-deb.sh and stopped. The rpm
+        #                     and arch publishers both run
+        #                     verify-package-factory-cell.sh; the deb one never
+        #                     did, so debs shipped without the #179 check on
+        #                     the publish path.
+        #   no factory index  its `mk-build-deps` container had only the
+        #                     distro's own archive. run-package-factory-cell.sh
+        #                     adds each published_index as a pinned apt source
+        #                     (#476), so a deb whose Build-Depends name another
+        #                     factory package builds in the gate and could not
+        #                     build here.
+        uses: ./.github/actions/tideforge-cached-cell
+        with:
+          cell-id: ${{ matrix.cell_id }}
+          package: ${{ matrix.package }}
+          recipe: packages/${{ matrix.package }}/package.yaml
+          target: ${{ matrix.target }}
+          format: deb
+          architecture: ${{ matrix.arch }}
+          image: ${{ matrix.image }}
       - uses: actions/upload-artifact@v7
         with:
           # The arch is part of the NAME, not just the contents: without it the
@@ -125,7 +127,11 @@ jobs:
           # -- which is what a flat repo wants, since apt selects on the
           # Architecture field.
           name: publish-deb-${{ matrix.distro }}-${{ matrix.package }}-${{ matrix.arch }}
-          path: .tideforge/deb/${{ matrix.target }}-${{ matrix.package }}/artifacts/*.deb
+          path: .factory/${{ matrix.cell_id }}/artifacts/*.deb
+          # A build that produced nothing must fail here rather than upload an
+          # empty artifact: the publish job downloads the pool and `rclone
+          # sync`s it, and sync makes the destination match the source (#124).
+          if-no-files-found: error
           retention-days: 1
 
   publish:
