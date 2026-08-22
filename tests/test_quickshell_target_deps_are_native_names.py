@@ -42,6 +42,35 @@ def test_arch_uses_arch_package_names():
     assert "cli11" in arch and "cpptrace" in arch and "ninja" in arch
 
 
+def test_arch_has_the_vulkan_headers_el10_gets_transitively():
+    """Round 2: with the names fixed, arch reached CMake and then failed on
+    find_package(VulkanHeaders). el10 lists no vulkan package and passes, so
+    it arrives transitively there and not on Arch."""
+    assert "vulkan-headers" in deps()["arch"]
+
+
+def test_opensuse_asks_for_capabilities_not_guessed_package_names():
+    """This environment cannot reach the openSUSE package search (401/403), so
+    a literal name would be a guess. Every RPM distro exposes pkgconfig(foo)
+    as a virtual provide, so the capability resolves without knowing what
+    openSUSE calls the package."""
+    suse = deps()["opensuse-tumbleweed"]
+    assert "pkgconfig(wayland-protocols)" in suse
+    assert "pkgconfig(gbm)" in suse
+
+
+def test_the_capabilities_render_as_rpm_buildrequires():
+    """A capability that the renderer mangles would fail at spec-parse time
+    rather than resolving."""
+    import sys
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import tideforge
+
+    recipe = yaml.safe_load(RECIPE.read_text(encoding="utf-8"))
+    rendered = tideforge.target_dependencies(recipe, "opensuse-tumbleweed")
+    assert "pkgconfig(wayland-protocols)" in rendered
+
+
 def test_arch_carries_no_el_or_deb_spellings():
     """The exact three names pacman rejected, plus any other -devel leak."""
     arch = deps()["arch"]

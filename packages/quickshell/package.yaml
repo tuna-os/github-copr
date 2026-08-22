@@ -52,13 +52,32 @@ dependencies:
       #           its own archive; its only gap was ninja-build, since
       #           build.cmake_generator is Ninja.
       #
+      # Round 2 (run 32548094304). Fixing the above uncovered the NEXT layer
+      # on each, which is why these lists keep growing rather than being
+      # wrong once:
+      #
+      #   arch  - reaches CMake now, then: find_package(VulkanHeaders) fails.
+      #           el10 lists no vulkan package and still passes, so it comes
+      #           in transitively there and not on Arch. vulkan-headers is in
+      #           Arch `extra` (verified).
+      #   suse  - QuickPrivate is gone; now `wayland-protocols>=1.41` is not
+      #           found. el10 carries wayland-protocols and mesa-libgbm-devel;
+      #           the openSUSE list carried neither.
+      #
+      # The openSUSE additions are pkgconfig() CAPABILITIES, not package
+      # names, and that is deliberate: this environment cannot reach the
+      # openSUSE package search (401/403), so a literal name would be a
+      # guess. Every RPM distro exposes pkgconfig(foo) as a virtual provide,
+      # so the capability resolves without knowing what openSUSE calls the
+      # package — and it keeps resolving if the package is ever renamed.
+      #
       # Quickshell uses Qt's private API.  EL10 supplies the corresponding
       # metadata in CRB as qt6-qtbase-private-devel.
       el10: [cmake, gcc-c++, qt6-qtbase-devel, qt6-qtbase-private-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, mesa-libgbm-devel, ninja-build, cli11-devel, cpptrace-devel, wayland-protocols]
       ubuntu: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev]
       debian: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev]
-      opensuse-tumbleweed: [cmake, gcc-c++, qt6-base-private-devel, qt6-declarative-devel, qt6-declarative-private-devel, qt6-wayland-devel, qt6-shadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, jemalloc-devel, cli11-devel, cpptrace-devel]
-      arch: [cmake, gcc, qt6-base, qt6-declarative, qt6-wayland, qt6-shadertools, pipewire, pam, polkit, libdrm, jemalloc, cli11, cpptrace, ninja, wayland-protocols, libunwind]
+      opensuse-tumbleweed: [cmake, gcc-c++, qt6-base-private-devel, qt6-declarative-devel, qt6-declarative-private-devel, qt6-wayland-devel, qt6-shadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, jemalloc-devel, cli11-devel, cpptrace-devel, 'pkgconfig(wayland-protocols)', 'pkgconfig(gbm)']
+      arch: [cmake, gcc, qt6-base, qt6-declarative, qt6-wayland, qt6-shadertools, pipewire, pam, polkit, libdrm, jemalloc, cli11, cpptrace, ninja, wayland-protocols, vulkan-headers, libunwind]
 files:
   common:
     - usr/bin/quickshell
