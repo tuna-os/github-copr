@@ -44,15 +44,24 @@ jobs:
         run: |
           set -euo pipefail
           image=$(docker image inspect --format '{{json .RepoDigests}}' '${{ matrix.image }}' | jq -r 'sort | .[0]')
+          # %at (AUTHOR date), not %ct (committer date). This epoch is an
+          # input to the action key, and a commit object's COMMITTER time
+          # changes on every history rewrite even when the tree does not --
+          # rebase, cherry-pick, amend, and squash-merge, which is this
+          # repo's merge convention. With %ct, a rebased branch rebuilt every
+          # cell from scratch despite a byte-identical recipe (runs
+          # 32540188656 and 32541649752, ~15 min per cell, twice). Author date
+          # survives all of those, so an unchanged recipe keeps its key.
+          # See #477.
           if [ '${{ matrix.engine }}' = tideforge ]; then
-            epoch=$(git log -1 --format=%ct -- "$(dirname '${{ matrix.recipe }}')")
+            epoch=$(git log -1 --format=%at -- "$(dirname '${{ matrix.recipe }}')")
             payload=$(python3 scripts/tideforge-action-cache.py key \
               --recipe '${{ matrix.recipe }}' --target '${{ matrix.target }}' \
               --arch '${{ matrix.architecture }}' --image "$image" \
               --source-date-epoch "$epoch")
           else
             mapfile -t source_paths < <(jq -r '.source_paths[]' <<<"$CELL")
-            epoch=$(git log -1 --format=%ct -- '${{ matrix.manifest }}' "${source_paths[@]}")
+            epoch=$(git log -1 --format=%at -- '${{ matrix.manifest }}' "${source_paths[@]}")
             args=()
             for path in "${source_paths[@]}"; do args+=(--input "$path"); done
             payload=$(python3 scripts/tideforge-action-cache.py native-key \
