@@ -28,9 +28,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # First wave: the two recipes with proven deb gate cells. Widen this
-          # matrix in lockstep with the deb gate as recipes prove out —
-          # nothing gets published that a gate cell has not exercised.
+          # Widen this matrix in lockstep with the deb gate as recipes prove
+          # out — nothing gets published that a gate cell has not exercised.
+          #
+          # cpptrace-devel is here for a different reason than the COSMIC
+          # entries, which exist so grouper and flounder-sid can install them.
+          # It is a BUILD dependency: quickshell's ubuntu cell fails on
+          # `libcpptrace-dev NOT AVAILABLE` because Ubuntu does not ship
+          # cpptrace at all (Debian sid does). Publishing it here is what
+          # makes it resolvable, now that the deb buildroot reads the
+          # published index at all — before #476 it was passed PUBLISHED_INDEX
+          # only on the rpm path, so publishing this would have changed
+          # nothing.
+          - package: cpptrace-devel
+            distro: ubuntu
+            target: ubuntu
+            image: docker.io/library/ubuntu:26.04
+          - package: cpptrace-devel
+            distro: debian-sid
+            target: debian
+            image: docker.io/library/debian:sid
           - package: pop-icon-theme
             distro: ubuntu
             target: ubuntu
