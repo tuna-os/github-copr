@@ -67,7 +67,50 @@ if [[ ${ENGINE:?} == build-chain ]]; then
                        --enablerepo="tunaos${published_n}")
       published_n=$((published_n + 1))
     done
-    mapfile -t names < <(rpm -qp --qf "%{NAME}\n" /factory-repo/*.rpm | sort -u)
+    # Only the NEWEST BUILD OF EACH SOURCE. Installing by name alone was not
+    # enough, and the residue is instructive: a subpackage that exists ONLY in
+    # the superseded bootstrap build has its own newest version in that older
+    # build, and drags in an exact `= EVR` dependency on a sibling whose
+    # newest is the newer one:
+    #
+    #   cannot install both gobject-introspection-debuginfo-1.86.0-2 and
+    #   -1 from factory
+    #     - gobject-introspection-devel-debuginfo-1.86.0-1 requires
+    #       gobject-introspection-debuginfo(aarch-64) = 1.86.0-1.el10
+    #
+    # gobject-introspection-devel-debuginfo is produced by the bootstrap pass
+    # and not by the full one, so "newest by name" picks a package the chain
+    # never meant to ship. "Newest by SOURCE" is the right unit: it is exactly
+    # what the chain intends to ship, and the bootstrap pass drops out whole
+    # rather than leaving orphan subpackages behind.
+    #
+    # sort -V rather than the rpm library comparison, because the container is
+    # the target image and may carry dnf5 without python3-rpm. Adequate HERE
+    # and not in general: the two builds come from one chain run of one recipe
+    # and differ only in RELEASE (2.88.0-1 vs 2.88.0-4, 1.86.0-1 vs -2), which
+    # sort -V orders correctly. It implements neither epochs nor the rpm tilde
+    # rule, so this must not be lifted somewhere those can occur.
+    #
+    # No apostrophes anywhere in this block: it lives inside a single-quoted
+    # bash -lc string, and one would end the string mid-script.
+    declare -A newest_srpm
+    while IFS="|" read -r srpm pkgname; do
+      [ -n "$srpm" ] || continue
+      base=${srpm%-*-*.src.rpm}
+      cur=${newest_srpm[$base]:-}
+      if [ -z "$cur" ] || [ "$(printf "%s\n%s\n" "$cur" "$srpm" | sort -V | tail -1)" = "$srpm" ]; then
+        newest_srpm[$base]=$srpm
+      fi
+    done < <(rpm -qp --qf "%{SOURCERPM}|%{NAME}\n" /factory-repo/*.rpm 2>/dev/null)
+    mapfile -t names < <(
+      rpm -qp --qf "%{SOURCERPM}|%{NAME}\n" /factory-repo/*.rpm 2>/dev/null |
+        while IFS="|" read -r srpm pkgname; do
+          [ -n "$srpm" ] || continue
+          base=${srpm%-*-*.src.rpm}
+          [ "${newest_srpm[$base]:-}" = "$srpm" ] && printf "%s\n" "$pkgname"
+        done | sort -u
+    )
+    echo "==> verifying ${#names[@]} package name(s) from the newest build of each source"
     # Install by NAME, not by file path. A build-chain tier list may build the
     # same recipe twice on purpose -- gnome51 has glib2-bootstrap at tier 2 and
     # glib2-full at tier 6, both src/gnome-51/glib2, and the same for
