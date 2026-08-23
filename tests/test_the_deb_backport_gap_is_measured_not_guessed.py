@@ -217,3 +217,198 @@ def test_the_ubuntu_donor_includes_proposed_and_debian_does_not_need_it():
                for url in manifest["targets"]["ubuntu"]["donor_index"])
     # Debian stages in experimental and falls back to sid; no -proposed pocket.
     assert manifest["targets"]["debian"]["donor_suites"] == ["experimental", "sid"]
+
+
+# ---------------------------------------------------------------- Provides
+#
+# A Sources index lists a source's REAL binaries and never its `Provides:`,
+# so every virtual package looks absent from it -- and "absent from the map"
+# is indistinguishable there from "genuinely missing". The first real tier-0
+# run (32651265182) built 7 of 10 packages and lost all three of the rest to
+# that one blind spot:
+#
+#   builddeps:.../gexiv2-0.16.2 : Depends: debhelper-compat (= 14)
+#   builddeps:.../gnome-desktop-51~alpha : Depends: debhelper-compat (= 14)
+#   builddeps:.../gsettings-desktop-schemas-51~beta : Depends: debhelper-compat (= 14)
+#   ...
+#   E: Unable to satisfy dependencies. [no choices]
+#
+# Everything else apt printed underneath was the usual cascade of "but it is
+# not going to be installed" for packages that were fine.
+#
+# Measured against the live archives: resolute's debhelper is 13.31ubuntu1
+# and provides debhelper-compat 9 through 13. stonking's is 14.x. Reading the
+# binary Packages indexes makes that decidable, and `debhelper` now enters
+# the closure at tier-0 with the three failures ordered after it.
+
+
+def test_an_unversioned_provides_cannot_satisfy_a_versioned_dependency():
+    """Debian policy 7.5, and the whole answer for debhelper-compat.
+
+    If a provider counted regardless of version, resolute's debhelper would
+    look adequate for `debhelper-compat (= 14)` and the closure would stay
+    wrong -- in the other direction, and just as silently.
+    """
+    module = gap
+    provides = {"dh-sequence-python3": [None], "debhelper-compat": ["13"]}
+    # Unversioned dep, unversioned Provides: satisfied.
+    assert module.clause_satisfied("dh-sequence-python3", "", "", {}, provides)
+    # Versioned dep against the version resolute actually provides.
+    assert module.clause_satisfied("debhelper-compat", "=", "13", {}, provides)
+    assert not module.clause_satisfied("debhelper-compat", "=", "14", {}, provides)
+    # An unversioned Provides against a versioned dep: never.
+    assert not module.clause_satisfied("dh-sequence-python3", ">=", "1", {}, provides)
+
+
+def test_a_virtual_the_target_cannot_supply_pulls_in_the_source_that_can():
+    """The fix, end to end, on the shape that broke.
+
+    gexiv2 build-depends `debhelper-compat (= 14)`; the target's debhelper
+    provides 13. The measurement has to reach `debhelper` -- a source no root
+    names and no Sources index connects to that clause.
+    """
+    module = gap
+    donor = {
+        "gexiv2": {"Package": "gexiv2", "Version": "0.16.2-1", "Binary": "libgexiv2-2",
+                   "Build-Depends": "debhelper-compat (= 14)"},
+        "debhelper": {"Package": "debhelper", "Version": "14.1", "Binary": "debhelper"},
+    }
+    target = {"gexiv2": {"Package": "gexiv2", "Version": "0.14.0-1", "Binary": "libgexiv2-2"},
+              "debhelper": {"Package": "debhelper", "Version": "13.31", "Binary": "debhelper"}}
+    result = module.measure(
+        ["gexiv2"], donor, target, module.binary_to_source(donor),
+        {"libgexiv2-2": "0.14.0-1", "debhelper": "13.31"},
+        target_provides={"debhelper-compat": ["9", "10", "11", "12", "13"]},
+        donor_virtual_source={"debhelper-compat": "debhelper"},
+    )
+    assert set(result["needed"]) == {"gexiv2", "debhelper"}
+    assert not result["unattributable"]
+
+
+def test_a_virtual_the_target_already_supplies_stays_out_of_the_closure():
+    """`dh-sequence-python3` is provided unversioned by the target's dh-python.
+
+    Apt listed it under the same failure, which made it look like a second
+    missing package. It was cascade noise: once one member of a builddeps
+    group has no candidate, apt reports the whole group. Pulling dh-python
+    into a backport it does not need would be its own kind of wrong.
+    """
+    module = gap
+    donor = {
+        "gexiv2": {"Package": "gexiv2", "Version": "0.16.2-1", "Binary": "libgexiv2-2",
+                   "Build-Depends": "dh-sequence-python3"},
+        "dh-python": {"Package": "dh-python", "Version": "9", "Binary": "dh-python"},
+    }
+    target = {"gexiv2": {"Package": "gexiv2", "Version": "0.14.0-1", "Binary": "libgexiv2-2"}}
+    result = module.measure(
+        ["gexiv2"], donor, target, module.binary_to_source(donor),
+        {"libgexiv2-2": "0.14.0-1"},
+        target_provides={"dh-sequence-python3": [None]},
+        donor_virtual_source={"dh-sequence-python3": "dh-python"},
+    )
+    assert set(result["needed"]) == {"gexiv2"}
+
+
+def test_an_unsatisfiable_clause_nobody_can_supply_is_reported_not_dropped():
+    """This is the guard, and it is the part that generalises.
+
+    Before, a clause that no alternative satisfied and that mapped to no
+    source was simply skipped -- so the measurement reported a closure that
+    could not build, and said nothing. Whatever the next unmappable name
+    turns out to be, it has to come out as a finding rather than as three
+    failed builds in a dispatched chain.
+    """
+    module = gap
+    donor = {"gexiv2": {"Package": "gexiv2", "Version": "0.16.2-1", "Binary": "libgexiv2-2",
+                        "Build-Depends": "dh-sequence-invented (>= 3)"}}
+    target = {"gexiv2": {"Package": "gexiv2", "Version": "0.14.0-1", "Binary": "libgexiv2-2"}}
+    result = module.measure(
+        ["gexiv2"], donor, target, module.binary_to_source(donor),
+        {"libgexiv2-2": "0.14.0-1"}, target_provides={}, donor_virtual_source={})
+    assert result["unattributable"] == {"gexiv2": ["dh-sequence-invented (>= 3)"]}
+
+
+def test_the_ordering_resolves_virtuals_the_same_way_the_closure_does():
+    """If the two disagreed, a package would enter the closure through a
+    virtual clause and then be ordered as though that clause did not exist.
+
+    That is worse than the bug this fixes: a chain that builds things in the
+    wrong order goes red somewhere unrelated, rather than reporting a gap.
+    """
+    module = gap
+    donor = {
+        "gexiv2": {"Package": "gexiv2", "Version": "0.16.2-1", "Binary": "libgexiv2-2",
+                   "Build-Depends": "debhelper-compat (= 14)"},
+        "debhelper": {"Package": "debhelper", "Version": "14.1", "Binary": "debhelper"},
+    }
+    needed = {"gexiv2": {}, "debhelper": {}}
+    edges = module.build_edges(
+        needed, donor, module.binary_to_source(donor), {"debhelper": "13.31"},
+        target_provides={"debhelper-compat": ["13"]},
+        donor_virtual_source={"debhelper-compat": "debhelper"})
+    assert edges["gexiv2"] == {"debhelper"}
+    assert module.tiers(edges) == [["debhelper"], ["gexiv2"]]
+
+
+def test_the_binary_index_is_derived_from_the_declared_source_index():
+    """Not a second hand-maintained list of the same suite/component pairings.
+
+    Two lists can disagree, and a disagreement here is invisible: a wrong
+    binary URL reads as "that virtual package does not exist", which is
+    exactly the failure mode being fixed.
+    """
+    module = gap
+    assert module.packages_url(
+        "https://archive.ubuntu.com/ubuntu/dists/resolute/universe/source/Sources.xz"
+    ) == "https://archive.ubuntu.com/ubuntu/dists/resolute/universe/binary-amd64/Packages.xz"
+    import yaml
+    manifest = yaml.safe_load((ROOT / "manifests" / "gnome51-deb.yaml").read_text())
+    for spec in manifest["targets"].values():
+        for url in spec["target_index"] + spec["donor_index"]:
+            derived = module.packages_url(url)
+            assert derived != url, f"the transform did not fire on {url}"
+            assert derived.endswith("/binary-amd64/Packages.xz")
+
+
+def test_provides_and_source_are_read_the_way_deb822_writes_them():
+    module = gap
+    assert module.parse_provides("foo, bar (= 1.2), baz:any") == [
+        ("foo", None), ("bar", "1.2"), ("baz", None)]
+    text = (
+        "Package: debhelper\n"
+        "Version: 14.1\n"
+        "Provides: debhelper-compat (= 14)\n"
+        "\n"
+        "Package: dh-python\n"
+        "Source: dh-python-src (9.0)\n"
+        "Version: 9\n"
+        "Provides: dh-sequence-python3,\n"
+        " dh-sequence-python2\n"
+    )
+    packages = module.parse_packages(text)
+    assert packages["debhelper"]["Version"] == "14.1"
+    assert module.provides_map(packages)["debhelper-compat"] == ["14"]
+    # `Source:` is omitted when it equals the binary name, and may carry a
+    # version in parentheses.
+    virtual = module.virtual_to_source(packages)
+    assert virtual["debhelper-compat"] == "debhelper"
+    assert virtual["dh-sequence-python3"] == "dh-python-src"
+    assert virtual["dh-sequence-python2"] == "dh-python-src"
+
+
+def test_the_measured_report_records_the_debhelper_finding():
+    """The committed report is the evidence, so it has to carry the answer.
+
+    `debhelper` at tier-0 with gexiv2, gnome-desktop and
+    gsettings-desktop-schemas after it IS the fix for run 32651265182.
+    """
+    import json
+    report = json.loads(
+        (ROOT / "docs" / "gnome51-deb-gap.json").read_text())["targets"]["ubuntu"]
+    assert "debhelper" in report["tiers"][0]
+    later = {name for tier in report["tiers"][1:] for name in tier}
+    for source in ("gexiv2", "gnome-desktop", "gsettings-desktop-schemas"):
+        assert source in later, f"{source} must be ordered after debhelper"
+    assert report["unattributable"] == {}, (
+        "a measured gap with unattributable clauses is a gap that cannot build"
+    )

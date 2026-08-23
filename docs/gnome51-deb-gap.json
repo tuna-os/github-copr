@@ -36,7 +36,8 @@
         [
           "mutter"
         ]
-      ]
+      ],
+      "unattributable": {}
     },
     "ubuntu": {
       "donor_cannot_build": {},
@@ -46,8 +47,15 @@
         "stonking-proposed"
       ],
       "missing_roots": [],
-      "needed_count": 17,
+      "needed_count": 18,
       "packages": [
+        {
+          "depth": 2,
+          "donor_version": "14.3ubuntu1",
+          "reason": "target is older",
+          "source": "debhelper",
+          "target_version": "13.31ubuntu1"
+        },
         {
           "depth": 2,
           "donor_version": "1.58.0-1",
@@ -172,31 +180,33 @@
       "target_suite": "resolute",
       "tiers": [
         [
+          "debhelper",
           "gdm3",
-          "gexiv2",
-          "gnome-desktop",
           "gnome-initial-setup",
           "gnome-session",
-          "gsettings-desktop-schemas",
           "pango1.0",
           "ubuntu-insights",
           "wayland",
           "xdg-desktop-portal-gnome"
         ],
         [
+          "gexiv2",
+          "gnome-desktop",
           "gnome-settings-daemon",
-          "nautilus",
+          "gsettings-desktop-schemas",
           "wayland-protocols"
         ],
         [
           "gtk4",
-          "mutter"
+          "mutter",
+          "nautilus"
         ],
         [
           "gnome-control-center",
           "gnome-shell"
         ]
-      ]
+      ],
+      "unattributable": {}
     }
   }
 }
