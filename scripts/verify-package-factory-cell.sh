@@ -67,13 +67,28 @@ if [[ ${ENGINE:?} == build-chain ]]; then
                        --enablerepo="tunaos${published_n}")
       published_n=$((published_n + 1))
     done
+    mapfile -t names < <(rpm -qp --qf "%{NAME}\n" /factory-repo/*.rpm | sort -u)
+    # Install by NAME, not by file path. A build-chain tier list may build the
+    # same recipe twice on purpose -- gnome51 has glib2-bootstrap at tier 2 and
+    # glib2-full at tier 6, both src/gnome-51/glib2, and the same for
+    # gobject-introspection at tiers 5 and 7 -- so /artifacts holds two EVRs of
+    # those names. Passing every FILE asked dnf to install both at once, which
+    # is unsatisfiable by construction:
+    #
+    #   cannot install both glib2-2.88.0-4.el10.aarch64 from @commandline
+    #   and glib2-2.88.0-1.el10.aarch64 from @commandline
+    #
+    # By name, dnf resolves each to the newest EVR in the factory repo, which
+    # is the build the chain means to ship; the superseded bootstrap pass is
+    # scaffolding. rpm -q and rpm -V below still cover every name, so nothing
+    # goes unchecked. factory.priority=1 keeps these ahead of the published
+    # repo at priority 50.
     # ${a[@]+"${a[@]}"} and not "${a[@]}": under `set -u` an empty array
     # expansion is an unbound-variable error on bash < 4.4.
     dnf -y install --nogpgcheck --repofrompath factory,file:///factory-repo \
       --setopt=factory.priority=1 --enablerepo=factory \
       ${published_args[@]+"${published_args[@]}"} \
-      /factory-repo/*.rpm
-    mapfile -t names < <(rpm -qp --qf "%{NAME}\n" /factory-repo/*.rpm | sort -u)
+      "${names[@]}"
     rpm -q "${names[@]}"
     rpm -V "${names[@]}"
   '
