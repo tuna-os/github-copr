@@ -1,0 +1,56 @@
+# What a deb suite would have to rebuild to carry GNOME 51.
+#
+# GNOME 51.0 ships 2026-09-12 (issue #107), so today's donor suites carry
+# alpha/beta. That is the point of measuring now rather than in September:
+# the closure shape is already visible, and re-running this after 51.0 lands
+# changes versions, not structure.
+#
+# Only the ROOTS are declared. Everything else is computed by closing over
+# Build-Depends and keeping only what the target suite cannot already
+# satisfy, so this file does not rot the way a hand-curated build order does
+# (RFC 011's "system-repos-first becomes computed, not remembered").
+#
+# openSUSE Tumbleweed is deliberately absent: it is rpm-md, not deb, so it
+# belongs to the rpm gap engine (measure-target-gap.py), not this one.
+stack: gnome-51
+
+roots:
+  - gnome-shell
+  - mutter
+  - gnome-session
+  - gnome-settings-daemon
+  - gnome-control-center
+  - gnome-initial-setup
+  - gdm3
+  - nautilus
+  - xdg-desktop-portal-gnome
+
+targets:
+  # The only PERMANENT gap of the three deb/rpm targets. resolute is 26.04
+  # LTS: frozen at GNOME 50 for its support life, exactly the situation that
+  # justifies the EL10 backport. stonking (26.10) already carries the whole
+  # 51 stack, so this is a rebuild of existing packaging, not an authoring job.
+  ubuntu:
+    target_suite: resolute
+    donor_suite: stonking
+    target_index:
+      - https://archive.ubuntu.com/ubuntu/dists/resolute/main/source/Sources.xz
+      - https://archive.ubuntu.com/ubuntu/dists/resolute/universe/source/Sources.xz
+    donor_index:
+      - https://archive.ubuntu.com/ubuntu/dists/stonking/main/source/Sources.xz
+      - https://archive.ubuntu.com/ubuntu/dists/stonking/universe/source/Sources.xz
+
+  # sid is unstable and will take GNOME 51 on its own within weeks of release,
+  # so this measurement is early-access only. Kept because the engine's own
+  # rule retires it automatically: once sid carries 51, every root drops out
+  # and the answer becomes zero packages without anyone editing this file.
+  # Debian stages GNOME in experimental, which today holds mutter 51~beta but
+  # not yet gnome-shell -- expect roots to be reported absent from the donor.
+  debian:
+    target_suite: sid
+    donor_suite: experimental
+    target_index:
+      - https://deb.debian.org/debian/dists/sid/main/source/Sources.xz
+    donor_index:
+      - https://deb.debian.org/debian/dists/experimental/main/source/Sources.xz
+      - https://deb.debian.org/debian/dists/sid/main/source/Sources.xz
