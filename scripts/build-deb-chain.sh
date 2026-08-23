@@ -48,6 +48,17 @@ done
 }
 
 mkdir -p "$out"/{artifacts,logs,repo}
+# Absolute, because docker reads a RELATIVE --volume source as a NAMED VOLUME
+# rather than a host path, and then blames the characters in the name rather
+# than the relativeness:
+#
+#   docker: Error response from daemon: create .factory/backport-ubuntu:
+#   ".factory/backport-ubuntu" includes invalid characters for a local volume
+#   name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed.
+#
+# Resolved here rather than at the call site so every caller is safe, not just
+# the workflow that happened to hit it (run 32641183871).
+out=$(cd "$out" && pwd)
 
 # The order is parsed on the HOST. The target image is a stock distro
 # container: it has python3 but no pyyaml, and installing one to read our own
