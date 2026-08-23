@@ -124,16 +124,6 @@ export SOURCE_DATE_EPOCH
     #
     # It must come first: dpkg applies the exclusions at unpack time, so a
     # package installed before this runs keeps its files stripped.
-    # Every exclusion file, not one guessed name. The image may ship it as
-    # excludes, docker, or something else entirely, and removing the wrong
-    # filename silently leaves the stripping in place -- which is precisely
-    # what happened in run 32671248141.
-    grep -rl "path-exclude" /etc/dpkg/dpkg.cfg /etc/dpkg/dpkg.cfg.d/ 2>/dev/null \
-      | while read -r exclusion; do
-          echo "==> lifting dpkg exclusions in $exclusion"
-          sed -i "/^path-exclude/d; /^path-include/d" "$exclusion"
-        done
-
     apt-get update -qq
     apt-get install -y --no-install-recommends \
       build-essential devscripts dpkg-dev ca-certificates locales
@@ -197,8 +187,13 @@ export SOURCE_DATE_EPOCH
     # And that translations survived. A locale with no message catalogue is
     # exactly what gnome-desktop discards, so checking only the charmap would
     # pass on the buildroot that produced the Bail out above.
-    if ! find /usr/share/locale /usr/share/locale-langpack -name "*.mo" 2>/dev/null \
-         | head -1 | grep -q . ; then
+    # -print -quit, NOT a pipe into head. See the note above the loop below:
+    # under `set -o pipefail` a pipeline whose head closes early reports the
+    # SIGPIPE, and this assertion spent a run claiming the buildroot had no
+    # catalogues while standing next to them.
+    catalogue=$(find /usr/share/locale /usr/share/locale-langpack \
+                     -name "*.mo" -print -quit 2>/dev/null || true)
+    if [ -z "$catalogue" ]; then
       echo "ERROR: the buildroot has no translation catalogues." >&2
       echo "       A package that enumerates locales will discard every one." >&2
       # Print the evidence rather than leave the next person to guess. Three
@@ -269,7 +264,7 @@ export SOURCE_DATE_EPOCH
         failed="$failed $source"
         continue
       fi
-      tree=$(find . -maxdepth 1 -mindepth 1 -type d | head -1)
+      tree=$(find . -maxdepth 1 -mindepth 1 -type d -print -quit)
       cd "$tree"
       if ! apt-get build-dep -y --no-install-recommends "$PWD" \
             > "/work/logs/$source.builddep.log" 2>&1; then
@@ -292,9 +287,19 @@ export SOURCE_DATE_EPOCH
         # not confirm. The evidence exists inside the build tree, which is not
         # uploaded, so copy it out and print it. autotools writes the same
         # thing to test-suite.log.
+        # THE PIPEFAIL / SIGPIPE TRAP, and this script is run with
+        # `set -euo pipefail`. `find | head -N` makes head close the pipe once
+        # it has N lines; find then dies of SIGPIPE (141), and pipefail
+        # reports the whole pipeline as failed. Under `set -e` that aborts the
+        # chain -- here it would abort exactly when a package has just failed
+        # and the logs matter most. It stays hidden while fewer than N lines
+        # are produced, which is why it survived the run that added it.
+        # Collect first, then take the head of a FILE, which has no upstream
+        # process to kill.
         find "/work/build/$source" \
              \( -name "testlog*.txt" -o -name "test-suite.log" \) \
-             -type f 2>/dev/null | head -4 | while read -r testlog; do
+             -type f > /tmp/testlogs.txt 2>/dev/null || true
+        head -4 /tmp/testlogs.txt | while read -r testlog; do
           echo "    ---- $testlog" >&2
           tail -100 "$testlog" >&2 || true
           cp "$testlog" "/work/logs/$source.$(basename "$testlog")" 2>/dev/null || true

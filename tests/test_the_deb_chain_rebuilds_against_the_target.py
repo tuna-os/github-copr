@@ -345,41 +345,29 @@ def test_the_chain_body_carries_no_apostrophes():
     )
 
 
-def test_the_container_image_file_exclusions_are_lifted_first():
-    """A container image is not a chroot, and the difference is measurable.
+def test_the_catalogue_check_does_not_pipe_find_into_head():
+    """The check was the bug, not the buildroot.
 
-    Ubuntu images ship /etc/dpkg/dpkg.cfg.d/excludes to drop translation
-    catalogues and manpages. Correct for a runtime image, wrong for a
-    buildroot -- the Ubuntu builders use sbuild chroots, which are full
-    installs.
+        find /usr/share/locale ... -name "*.mo" | head -1 | grep -q .
 
-    What it cost, from run 32665378407 once the chain surfaced the meson
-    testlog:
+    `head -1` closes the pipe as soon as it has a line, `find` dies of
+    SIGPIPE, and under `set -o pipefail` the pipeline reports 141 -- so the
+    assertion fired while standing in a directory full of .mo files. Run
+    32671483629 printed its own diagnostics proving them present:
 
-        # Ignoring `C.UTF-8` as a locale, since it lacks translations
-        # Ignoring `en_US.UTF-8` as a locale, since it lacks translations
-        not ok /languages/using-null-locale - GnomeDesktop-FATAL-WARNING:
-          Could not read list of available locales from libc ...
-        Bail out!
+        /usr/share/locale-langpack/en/LC_MESSAGES/coreutils.mo
+        /usr/share/locale-langpack/en/LC_MESSAGES/dpkg.mo
 
-    The locales were there. Every one was discarded for having no
-    translations, the list came out empty, and glib made the warning fatal.
+    Those same diagnostics printed NOTHING for the dpkg configuration, which
+    is why the path-exclude removal this test used to assert is gone: the
+    image has no such directives, and the theory that it did was wrong.
 
-    ORDER IS THE PROPERTY. dpkg applies exclusions at unpack time, so
-    anything installed before the file is removed keeps its files stripped.
+    `-print -quit` stops find itself after the first hit, with no pipe and
+    nothing to kill.
     """
     text = chain_text()
-    # Every exclusion file, not one guessed filename. Run 32671248141 removed
-    # `excludes` and the stripping stayed in place, so the image ships it
-    # under some other name.
-    assert 'grep -rl "path-exclude"' in text
-    assert "/etc/dpkg/dpkg.cfg.d/" in text
-    lift = text.index('grep -rl "path-exclude"')
-    install = text.index("build-essential devscripts dpkg-dev ca-certificates")
-    assert lift < install, (
-        "exclusions must be lifted before any package is installed, or dpkg "
-        "strips that package regardless"
-    )
+    assert '-name "*.mo" -print -quit' in text
+    assert '-name "*.mo" 2>/dev/null \\\n         | head' not in text
 
 
 def test_the_buildroot_proves_it_has_translations_not_just_a_charmap():
@@ -422,3 +410,30 @@ def test_the_missing_catalogue_failure_prints_the_evidence():
     assert "dpkg configuration" in tail
     assert "cat /etc/dpkg/dpkg.cfg" in tail
     assert "dpkg -L language-pack-en-base" in tail
+
+
+def test_no_find_is_piped_into_head_anywhere_in_the_chain():
+    """The class, not the instance.
+
+    This script runs under `set -euo pipefail`. Any `find ... | head -N`
+    reports SIGPIPE once find produces more than N lines, and pipefail turns
+    that into a failed pipeline -- which `set -e` then turns into an aborted
+    run. It stays invisible while output is short, so it ships green and
+    fires later on a bigger input.
+
+    Two of these existed at once: the catalogue assertion (fired immediately)
+    and the testlog collector (latent until four logs exist, which is exactly
+    when a package has failed and the logs matter). A pipeline ending in
+    `|| true` is fine -- that absorbs the status deliberately.
+    """
+    offenders = []
+    for line_number, line in enumerate(chain_text().splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        if re.search(r"find[^|]*\|\s*head\b", stripped) and "|| true" not in stripped:
+            offenders.append(f"{line_number}: {stripped}")
+    assert not offenders, (
+        "find piped into head dies of SIGPIPE under pipefail; use -print -quit "
+        "or collect to a file first:\n" + "\n".join(offenders)
+    )
