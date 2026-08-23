@@ -92,3 +92,73 @@ def test_avahi_does_not_hard_require_something_el10_lacks():
     assert not re.search(r"^Requires:\s+tigervnc\s*$", text, re.M), (
         "a hard Requires on tigervnc makes avahi-ui-tools uninstallable on EL10"
     )
+
+
+def _newest_by_source_block() -> str:
+    """The real selection code, lifted out of the container script."""
+    text = VERIFY.read_text(encoding="utf-8")
+    start = text.index("    declare -A newest_srpm")
+    end = text.index("verifying ${#names[@]} package name(s)")
+    end = text.index("\n", end) + 1
+    return text[start:end]
+
+
+def test_only_the_newest_build_of_each_source_is_installed():
+    """Installing the newest by NAME was not enough.
+
+    A subpackage produced ONLY by the superseded bootstrap pass has its own
+    newest version in that older build, and carries an exact `= EVR` dep on a
+    sibling whose newest is the newer build:
+
+        cannot install both gobject-introspection-debuginfo-1.86.0-2 and -1
+          - gobject-introspection-devel-debuginfo-1.86.0-1 requires
+            gobject-introspection-debuginfo(aarch-64) = 1.86.0-1.el10
+
+    Newest by SOURCE drops the bootstrap pass whole, so no orphan subpackage
+    survives to demand a sibling that is no longer the newest.
+
+    This runs the script's own code with a stubbed rpm, so it tests the
+    shipped algorithm rather than a copy of it.
+    """
+    import subprocess, textwrap
+
+    fixture = textwrap.dedent("""\
+        glib2-2.88.0-1.el10.src.rpm|glib2
+        glib2-2.88.0-1.el10.src.rpm|glib2-devel
+        glib2-2.88.0-4.el10.src.rpm|glib2
+        glib2-2.88.0-4.el10.src.rpm|glib2-devel
+        gobject-introspection-1.86.0-1.el10.src.rpm|gobject-introspection
+        gobject-introspection-1.86.0-1.el10.src.rpm|gobject-introspection-devel-debuginfo
+        gobject-introspection-1.86.0-2.el10.src.rpm|gobject-introspection
+        pango-1.55.0-1.el10.src.rpm|pango
+        """)
+    script = (
+        "set -euo pipefail\n"
+        f"rpm() {{ cat <<'FIXTURE'\n{fixture}FIXTURE\n}}\n"
+        + _newest_by_source_block()
+        + 'printf "%s\\n" "${names[@]}"\n'
+    )
+    out = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+    assert out.returncode == 0, out.stderr
+    names = [line for line in out.stdout.splitlines() if line and not line.startswith("==>")]
+
+    assert "gobject-introspection" in names
+    assert "glib2" in names and "glib2-devel" in names and "pango" in names
+    # The whole point: the bootstrap-only subpackage must not be installed.
+    assert "gobject-introspection-devel-debuginfo" not in names, names
+
+
+def test_the_container_block_carries_no_apostrophe():
+    """The verify body is a single-quoted `bash -lc` string, so one apostrophe
+    anywhere inside ends the string and the shell fails on a later line that
+    looks innocent. Adding a comment containing "rpm's" broke it exactly that
+    way, and the reported syntax error pointed at an unrelated comment 40
+    lines further down.
+    """
+    text = VERIFY.read_text(encoding="utf-8")
+    start = text.index('"${IMAGE:?}" -lc \'')
+    end = text.index("\n  '\n", start)
+    body = text[start:end]
+    assert "'" not in body[len('"${IMAGE:?}" -lc \''):], (
+        "an apostrophe inside the single-quoted container body ends it early"
+    )
