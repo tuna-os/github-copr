@@ -175,13 +175,13 @@ fi
   Fixes gnome-initial-setup failure on preserved /var/home (#17).
 
 * Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.7-2
-- %post: drop ineffective restorecon -RF /var/home (see #22). The
-  compose-time %post cannot fix preserved-/var scenarios on deployed
+- %%post: drop ineffective restorecon -RF /var/home (see #22). The
+  compose-time %%post cannot fix preserved-/var scenarios on deployed
   systems; the actual fix for useradd exit 12 belongs at the runtime
   or shadow-utils level (#17).
 
 * Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.7-1
-- %post: add restorecon -RF /var/home to fix default_t/unlabeled_t labeling
+- %%post: add restorecon -RF /var/home to fix default_t/unlabeled_t labeling
   in reinstall/upgrade scenarios where /var is not wiped. Fixes useradd
   exit 12 (E_HOMEDIR) during gnome-initial-setup (issues #16, #17).
 
@@ -196,7 +196,7 @@ fi
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.2.5-1
 - Add PyGObject GLib→GLibUnix compat shim: GLib 2.87+ moved g_unix_signal_add
   to the GLibUnix-2.0 GI namespace; EL10's python3-gobject 3.46 does not know
-  this mapping. Patch gi/overrides/GLib.py via %post and %filetriggerin so
+  this mapping. Patch gi/overrides/GLib.py via %%post and %filetriggerin so
   GLib.unix_signal_add works again, fixing firewalld startup crash and any
   other Python GI consumer using GLib.unix_signal_add or unix_signal_add_full.
 
@@ -212,11 +212,11 @@ fi
 * Mon Mar 23 2026 James <james@example.com> - 1.2.2-1
 - Add %filetriggerin on orca-autostart.desktop to reliably write Hidden=true
   regardless of package install order. Fixes race in image builds where orca
-  installs in a later transaction after our %post already ran.
+  installs in a later transaction after our %%post already ran.
 
 * Sun Mar 23 2026 James <james@example.com> - 1.2.1-1
 - Fix orca-autostart.desktop file conflict with orca package: write the
-  Hidden=true override via %post scriptlet instead of shipping the file,
+  Hidden=true override via %%post scriptlet instead of shipping the file,
   since orca owns /etc/xdg/autostart/orca-autostart.desktop.
 
 * Sun Mar 22 2026 James <james@example.com> - 1.2.0-1
