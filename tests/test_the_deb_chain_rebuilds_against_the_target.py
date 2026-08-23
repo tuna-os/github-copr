@@ -155,3 +155,24 @@ def test_the_rendered_order_names_sources_and_exact_versions():
     # Deepest build-dependency first: gtk4 must build before mutter.
     assert parsed["tiers"][1]["packages"][0]["source"] == "mutter"
     assert text.startswith("# GENERATED"), "a generated file must say so"
+
+
+def test_the_mounted_output_path_is_absolute():
+    """docker reads a RELATIVE --volume source as a NAMED VOLUME.
+
+    The first real dispatch (run 32641183871) died on exactly this, and the
+    error blames the wrong thing -- it complains about invalid characters in a
+    volume name rather than saying the path was relative:
+
+        docker: Error response from daemon: create .factory/backport-ubuntu:
+        ".factory/backport-ubuntu" includes invalid characters for a local
+        volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed.
+
+    Everything before it worked: the measurement ran, --tier narrowed the order
+    to 2 source packages, and the image pulled. Resolved inside the script so
+    every caller is covered rather than only the workflow that hit it.
+    """
+    text = chain_text()
+    resolve = text.index('out=$(cd "$out" && pwd)')
+    mount = text.index('--volume "$out:/work"')
+    assert resolve < mount, "the output path must be absolute before it is mounted"
