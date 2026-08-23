@@ -141,6 +141,7 @@ tiers:
   # Tier 13: Compositor & Shell.
   - name: shell-foundations
     packages:
+      - path: src/deps/tecla
       - path: src/gnome-50/gnome-settings-daemon
       - path: src/gnome-50/mutter
 
