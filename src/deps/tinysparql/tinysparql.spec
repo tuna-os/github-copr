@@ -12,7 +12,7 @@
 
 Name:           tinysparql
 Version:        3.11~rc
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Desktop-neutral metadata database and search tool
 
 License:        GPL-2.0-or-later
@@ -100,7 +100,7 @@ developing applications that use %{name}.
 Summary:        Documentation for %{name}
 BuildArch:      noarch
 # docs/reference/COPYING
-License:        LicenceRef-Fedora-Public-Domain AND LGPL-2.1-or-later AND GPL-2.0-or-later
+License:        LicenseRef-Fedora-Public-Domain AND LGPL-2.1-or-later AND GPL-2.0-or-later
 
 %description doc
 This package contains the documentation for %{name}.
@@ -196,6 +196,11 @@ DESTDIR=%{buildroot} ninja -C _build install
 
 
 %changelog
+* Sun Aug 23 2026 TunaOS Package Factory <packages@tunaos.org> - 3.11~rc-4
+- Spell the -doc subpackage's license LicenseRef-Fedora-Public-Domain. It read
+  "LicenceRef-", which is not a LicenseRef at all, and rpmlint failed the cell
+  on it (#480)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 3.11~rc-3
 - Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
   to avoid "fg: no job control" on COPR builders (non-interactive bash).

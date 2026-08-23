@@ -104,6 +104,7 @@ tiers:
   # Tier 11: GTK Core.
   - name: gtk-core
     packages:
+      - path: src/deps/libnotify
       - path: src/gnome-51/gsettings-desktop-schemas
       - path: src/gnome-51/gnome-desktop3
       - path: src/deps/gtk4
@@ -128,6 +129,7 @@ tiers:
   # Tier 13: Compositor & Shell.
   - name: shell-foundations
     packages:
+      - path: src/deps/tecla
       - path: src/gnome-51/gnome-settings-daemon
       - path: src/gnome-51/mutter
 

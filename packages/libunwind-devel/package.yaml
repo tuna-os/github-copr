@@ -1,7 +1,14 @@
 schema: 1
 name: libunwind-devel
 version: "1.8.1"
-release: 1
+# release 2, not 1. The BROKEN build is published as libunwind-devel-1.8.1-1
+# at rpm/el10/aarch64 — the one whose libunwind.so.8 carries four undefined
+# __aarch64_* symbols and no libgcc_s in NEEDED (#469). The LIBS: -lgcc_s fix
+# below changes the bytes but not the version, so republishing at release 1
+# would ship a different artifact under an identical NVR: dnf would see no
+# upgrade, consumers holding the broken one would keep it, and two distinct
+# builds would claim the same name-version-release.
+release: 2
 summary: Portable stack-unwinding library development files
 description: Headers and shared libraries required to build cpptrace with signal-safe stack unwinding.
 license: MIT

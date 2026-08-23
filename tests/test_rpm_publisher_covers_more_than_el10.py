@@ -64,13 +64,25 @@ def test_el10_x86_64_keeps_the_repo_wipe_guard():
     assert rows["x86_64"]["min_rpms"] == 100
 
 
-def test_a_prefix_this_workflow_creates_has_no_such_guard():
-    """el10 aarch64 and every new target start empty by design; a minimum
-    would make the first publish impossible."""
-    rows = publish_rows(planned("--target", "el10", "--packages", "libunwind-devel"))
-    assert rows["aarch64"]["min_rpms"] == 0
+def test_a_prefix_that_is_still_empty_has_no_such_guard():
+    """A minimum would make the FIRST publish impossible, so a prefix nothing
+    has written to yet carries none.
+
+    This originally asserted the same of el10 aarch64. That was right when it
+    was written and is now wrong: that prefix serves 39 packages, so it has a
+    floor of its own (see the test below). The rule was never "new targets have
+    no guard" — it is "an empty prefix has no guard", and the two only looked
+    identical while el10 aarch64 happened to be empty."""
     suse = publish_rows(planned("--target", "opensuse-tumbleweed", "--packages", "quickshell"))
     assert all(row["min_rpms"] == 0 for row in suse.values())
+
+
+def test_el10_aarch64_gained_a_guard_once_it_had_content():
+    """It serves 39 packages measured on 2026-08-22, and the publisher's
+    sync-down ends in `|| true` — so an unguarded failed download would sync up
+    only the new packages and delete the other 39 (#124)."""
+    rows = publish_rows(planned("--target", "el10", "--packages", "libunwind-devel"))
+    assert 0 < rows["aarch64"]["min_rpms"] < 39
 
 
 def test_opensuse_can_be_planned_at_all():
