@@ -101,7 +101,8 @@ def test_a_failed_version_floor_does_force_a_rebuild():
     result = gap.measure(["app"], donor, target, gap.binary_to_source(donor), target_binary)
     assert set(result["needed"]) == {"app", "tool"}, result["needed"]
     # tool must build BEFORE app, so it sits in an earlier tier.
-    order = gap.tiers(result["needed"])
+    edges = gap.build_edges(result["needed"], donor, gap.binary_to_source(donor), target_binary)
+    order = gap.tiers(edges)
     assert order[0] == ["tool"] and order[-1] == ["app"], order
 
 
@@ -172,3 +173,47 @@ def test_a_satisfied_constraint_is_not_reported():
     }
     donor_binary = {"app": "2.0-1", "libfoo-dev": "1.0-1"}
     assert gap.donor_cannot_build({"app": {}}, donor, donor_binary) == {}
+
+
+def test_tiers_are_topological_not_breadth_first():
+    """A cross-edge must still push a dependency into an earlier tier.
+
+    BFS depth was the first implementation and is only correct on a tree.
+    Measured failure: with -proposed in the donor, `wayland` and
+    `wayland-protocols` both came out at depth 2 and shared a tier, even
+    though wayland-protocols build-depends on libwayland-dev from wayland.
+    Depth is assigned by first reach, so the later cross-edge never pushed
+    wayland deeper, and the chain only worked because "wayland" sorts before
+    "wayland-protocols" within a tier.
+
+    Here `dep` is reachable at distance 1 from root AND at distance 2 via
+    mid, which is exactly the shape that collapsed.
+    """
+    edges = {
+        "root": {"mid", "dep"},
+        "mid": {"dep"},
+        "dep": set(),
+    }
+    order = gap.tiers(edges)
+    assert order == [["dep"], ["mid"], ["root"]], order
+
+
+def test_a_dependency_cycle_is_reported_rather_than_mis_ordered():
+    """An order that silently cannot work is worse than a refusal."""
+    import pytest
+    with pytest.raises(SystemExit) as excinfo:
+        gap.tiers({"a": {"b"}, "b": {"a"}})
+    assert "cycle" in str(excinfo.value)
+    assert "a" in str(excinfo.value) and "b" in str(excinfo.value)
+
+
+def test_the_ubuntu_donor_includes_proposed_and_debian_does_not_need_it():
+    """-proposed is a deliberate trade, recorded so it can be revisited after
+    GNOME 51.0 ships: without it wayland-protocols cannot be rebuilt at all."""
+    import yaml
+    manifest = yaml.safe_load((ROOT / "manifests" / "gnome51-deb.yaml").read_text())
+    assert manifest["targets"]["ubuntu"]["donor_suites"] == ["stonking", "stonking-proposed"]
+    assert any("stonking-proposed" in url
+               for url in manifest["targets"]["ubuntu"]["donor_index"])
+    # Debian stages in experimental and falls back to sid; no -proposed pocket.
+    assert manifest["targets"]["debian"]["donor_suites"] == ["experimental", "sid"]

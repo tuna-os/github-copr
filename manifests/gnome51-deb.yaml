@@ -32,13 +32,34 @@ targets:
   # 51 stack, so this is a rebuild of existing packaging, not an authoring job.
   ubuntu:
     target_suite: resolute
-    donor_suite: stonking
+    # -proposed is included DELIBERATELY, and it is a trade rather than an
+    # obvious win.
+    #
+    # Without it the chain is blocked: wayland-protocols 1.49-1 in stonking
+    # build-depends libwayland-dev (>= 1.25.0), and `wayland` is 1.24.0-2 in
+    # BOTH stonking and resolute -- 1.26.0-1 is sitting in stonking-proposed,
+    # unmigrated. So stonking's own wayland-protocols cannot be rebuilt from
+    # stonking, by us or by anyone (run 32643256826).
+    #
+    # What it costs: -proposed is a staging area. Packages there can be
+    # removed or superseded, so a measured order can name a version that is
+    # gone by the time the chain runs, and the closure will churn more than
+    # one computed from a released suite would. That is acceptable HERE
+    # because GNOME 51.0 has not shipped yet (2026-09-12, #107) -- this whole
+    # target is preparatory, and -proposed is precisely where the 51 work
+    # lands first. Revisit after release: once 51 is in stonking proper,
+    # dropping these two URLs should change versions and nothing else.
+    donor_suites:
+      - stonking
+      - stonking-proposed
     target_index:
       - https://archive.ubuntu.com/ubuntu/dists/resolute/main/source/Sources.xz
       - https://archive.ubuntu.com/ubuntu/dists/resolute/universe/source/Sources.xz
     donor_index:
       - https://archive.ubuntu.com/ubuntu/dists/stonking/main/source/Sources.xz
       - https://archive.ubuntu.com/ubuntu/dists/stonking/universe/source/Sources.xz
+      - https://archive.ubuntu.com/ubuntu/dists/stonking-proposed/main/source/Sources.xz
+      - https://archive.ubuntu.com/ubuntu/dists/stonking-proposed/universe/source/Sources.xz
 
   # sid is unstable and will take GNOME 51 on its own within weeks of release,
   # so this measurement is early-access only. Kept because the engine's own
@@ -48,7 +69,9 @@ targets:
   # not yet gnome-shell -- expect roots to be reported absent from the donor.
   debian:
     target_suite: sid
-    donor_suite: experimental
+    donor_suites:
+      - experimental
+      - sid
     target_index:
       - https://deb.debian.org/debian/dists/sid/main/source/Sources.xz
     donor_index:

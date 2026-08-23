@@ -75,16 +75,16 @@ for tier in order.get("tiers", []):
         print(f"{tier['name']}\t{pkg['source']}\t{pkg['version']}")
 PY
 
-donor_suite=$(python3 -c "import yaml,sys;print(yaml.safe_load(open(sys.argv[1]))['donor_suite'])" "$order")
+donor_suites=$(python3 -c "import yaml,sys;print(' '.join(yaml.safe_load(open(sys.argv[1]))['donor_suites']))" "$order")
 target_suite=$(python3 -c "import yaml,sys;print(yaml.safe_load(open(sys.argv[1]))['target_suite'])" "$order")
 count=$(wc -l < "$out/worklist")
-echo "==> $target_suite <- $donor_suite: $count source packages to rebuild"
+echo "==> $target_suite <- $donor_suites: $count source packages to rebuild"
 
 : "${SOURCE_DATE_EPOCH:=$(date -u +%s)}"
 export SOURCE_DATE_EPOCH
 
 "$backend" run --rm \
-  --env SOURCE_DATE_EPOCH --env DONOR_SUITE="$donor_suite" \
+  --env SOURCE_DATE_EPOCH --env DONOR_SUITES="$donor_suites" \
   --env TZ=UTC --env LANG=C.UTF-8 --env LC_ALL=C.UTF-8 \
   --volume "$out:/work" "$image" bash -lc '
     set -euo pipefail
@@ -111,13 +111,20 @@ export SOURCE_DATE_EPOCH
     else
       donor_url="http://deb.debian.org/debian"
     fi
-    printf "deb-src %s %s main universe\n" "$donor_url" "$DONOR_SUITE" \
-      > /etc/apt/sources.list.d/donor-src.list
-    # Debian has no `universe`; asking for it is a hard error there.
-    if [ "${ID:-}" != "ubuntu" ]; then
-      printf "deb-src %s %s main\n" "$donor_url" "$DONOR_SUITE" \
-        > /etc/apt/sources.list.d/donor-src.list
-    fi
+    # One deb-src line per donor suite. Ubuntu needs -proposed alongside the
+    # release pocket because an in-flight transition can leave a source
+    # unbuildable from the release pocket alone: wayland-protocols 1.49-1
+    # needs libwayland-dev >= 1.25.0 and wayland is 1.24.0-2 in both stonking
+    # and resolute, with 1.26.0-1 waiting in stonking-proposed.
+    #
+    # Debian has no `universe`; asking for it there is a hard error.
+    if [ "${ID:-}" = "ubuntu" ]; then components="main universe"; else components="main"; fi
+    : > /etc/apt/sources.list.d/donor-src.list
+    for donor_suite in $DONOR_SUITES; do
+      printf "deb-src %s %s %s\n" "$donor_url" "$donor_suite" "$components" \
+        >> /etc/apt/sources.list.d/donor-src.list
+    done
+    echo "==> donor sources:"; cat /etc/apt/sources.list.d/donor-src.list
 
     # The accumulating local repo. Empty on the first pass, which apt accepts
     # only if the Packages file exists.

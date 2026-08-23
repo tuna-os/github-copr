@@ -140,7 +140,7 @@ def test_the_generated_order_stays_out_of_the_build_order_namespace():
 def test_the_rendered_order_names_sources_and_exact_versions():
     entry = {
         "target_suite": "resolute",
-        "donor_suite": "stonking",
+        "donor_suites": ["stonking", "stonking-proposed"],
         "tiers": [["gtk4"], ["mutter"]],
         "packages": [
             {"source": "gtk4", "donor_version": "4.23.2+ds-1", "depth": 1},
@@ -150,7 +150,7 @@ def test_the_rendered_order_names_sources_and_exact_versions():
     text = gap.render_build_order("ubuntu", entry, ["mutter"])
     parsed = yaml.safe_load(text)
     assert parsed["target_suite"] == "resolute"
-    assert parsed["donor_suite"] == "stonking"
+    assert parsed["donor_suites"] == ["stonking", "stonking-proposed"]
     assert parsed["tiers"][0]["packages"][0] == {"source": "gtk4", "version": "4.23.2+ds-1"}
     # Deepest build-dependency first: gtk4 must build before mutter.
     assert parsed["tiers"][1]["packages"][0]["source"] == "mutter"
@@ -176,3 +176,13 @@ def test_the_mounted_output_path_is_absolute():
     resolve = text.index('out=$(cd "$out" && pwd)')
     mount = text.index('--volume "$out:/work"')
     assert resolve < mount, "the output path must be absolute before it is mounted"
+
+
+def test_every_donor_suite_gets_its_own_deb_src_line():
+    """Ubuntu needs the release pocket AND -proposed: an in-flight transition
+    can leave a source unbuildable from the release pocket alone."""
+    text = chain_text()
+    assert "for donor_suite in $DONOR_SUITES" in text
+    assert "DONOR_SUITES=" in text
+    # Still sources only, per suite.
+    assert 'printf "deb-src %s %s %s\\n"' in text
