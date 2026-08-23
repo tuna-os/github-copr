@@ -186,3 +186,58 @@ def test_every_donor_suite_gets_its_own_deb_src_line():
     assert "DONOR_SUITES=" in text
     # Still sources only, per suite.
     assert 'printf "deb-src %s %s %s\\n"' in text
+
+
+def _report_entry_keys() -> set[str]:
+    """The keys measure-deb-backport-gap.py actually writes per target.
+
+    Read out of the source rather than by running a measurement, because a
+    measurement needs the network. The assignment is
+    `report["targets"][name] = { ... }`, a dict of literal string keys.
+    """
+    import ast
+
+    tree = ast.parse((ROOT / "scripts" / "measure-deb-backport-gap.py").read_text())
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Dict):
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Subscript):
+            continue
+        inner = target.value
+        if not (isinstance(inner, ast.Subscript) and isinstance(inner.value, ast.Name)
+                and inner.value.id == "report"):
+            continue
+        return {
+            key.value for key in node.value.keys
+            if isinstance(key, ast.Constant) and isinstance(key.value, str)
+        }
+    raise AssertionError("could not find the `report['targets'][name] = {...}` assignment")
+
+
+def test_the_workflow_summary_only_reads_keys_the_report_emits():
+    """A field rename in the script must not leave the workflow reading a
+    key that no longer exists.
+
+    This is not hypothetical. `donor_suite` became `donor_suites` when Ubuntu
+    gained a second donor pocket; the script, manifest and tests were all
+    renamed together, and the workflow's inline step-summary snippet was not.
+    Run 32650470179 measured the gap correctly -- the log carries
+    `resolute <- stonking + stonking-proposed: 17 source packages, 4 tiers` --
+    and then died 16 seconds in with `KeyError: 'donor_suite'` while printing
+    that same sentence to the summary.
+
+    The measurement is the expensive part and it had already succeeded. Losing
+    a run to a typo'd key in the cosmetic step after it is the kind of failure
+    a test costs nothing to prevent, so: whatever the workflow reads off an
+    entry must be something the script puts there.
+    """
+    emitted = _report_entry_keys()
+    assert "donor_suites" in emitted, "sanity: the renamed key is the one in use"
+    read = set(re.findall(r"entry\[['\"]([A-Za-z_]+)['\"]\]", WORKFLOW.read_text()))
+    assert read, "the workflow is expected to read fields off the report entry"
+    unknown = read - emitted
+    assert not unknown, (
+        f"the workflow reads report fields the script does not emit: {sorted(unknown)}; "
+        f"emitted keys are {sorted(emitted)}"
+    )
