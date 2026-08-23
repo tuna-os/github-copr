@@ -343,3 +343,49 @@ def test_the_chain_body_carries_no_apostrophes():
         "an apostrophe inside the single-quoted bash -lc body ends it early; "
         "bash will report the error at the end of the file, not here"
     )
+
+
+def test_the_container_image_file_exclusions_are_lifted_first():
+    """A container image is not a chroot, and the difference is measurable.
+
+    Ubuntu images ship /etc/dpkg/dpkg.cfg.d/excludes to drop translation
+    catalogues and manpages. Correct for a runtime image, wrong for a
+    buildroot -- the Ubuntu builders use sbuild chroots, which are full
+    installs.
+
+    What it cost, from run 32665378407 once the chain surfaced the meson
+    testlog:
+
+        # Ignoring `C.UTF-8` as a locale, since it lacks translations
+        # Ignoring `en_US.UTF-8` as a locale, since it lacks translations
+        not ok /languages/using-null-locale - GnomeDesktop-FATAL-WARNING:
+          Could not read list of available locales from libc ...
+        Bail out!
+
+    The locales were there. Every one was discarded for having no
+    translations, the list came out empty, and glib made the warning fatal.
+
+    ORDER IS THE PROPERTY. dpkg applies exclusions at unpack time, so
+    anything installed before the file is removed keeps its files stripped.
+    """
+    text = chain_text()
+    assert "rm -f /etc/dpkg/dpkg.cfg.d/excludes" in text
+    lift = text.index("rm -f /etc/dpkg/dpkg.cfg.d/excludes")
+    install = text.index("build-essential devscripts dpkg-dev ca-certificates")
+    assert lift < install, (
+        "exclusions must be lifted before any package is installed, or dpkg "
+        "strips that package regardless"
+    )
+
+
+def test_the_buildroot_proves_it_has_translations_not_just_a_charmap():
+    """Checking the charmap alone would pass on the broken buildroot.
+
+    en_US.UTF-8 resolved fine in run 32665378407 -- `locale charmap` said
+    UTF-8 -- and gnome-desktop still discarded it, because a locale with no
+    message catalogue is not a locale as far as that code is concerned. The
+    assertion has to look for the catalogues.
+    """
+    text = chain_text()
+    assert "no translation catalogues" in text
+    assert "*.mo" in text

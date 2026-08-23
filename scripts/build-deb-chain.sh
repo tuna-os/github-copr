@@ -98,9 +98,40 @@ export SOURCE_DATE_EPOCH
         /etc/apt/sources.list.d/ubuntu.sources
     fi
 
+    # Lift the container image dpkg exclusions BEFORE installing anything.
+    #
+    # Ubuntu container images ship /etc/dpkg/dpkg.cfg.d/excludes, which drops
+    # translation catalogues and manpages to keep the image small. That is
+    # correct for a runtime image and wrong for a buildroot: an sbuild chroot,
+    # which is what the Ubuntu builders use and what this is imitating, is a
+    # full install.
+    #
+    # Measured consequence, run 32665378407, once the chain was made to surface
+    # the meson testlog:
+    #
+    #   # Ignoring `C.UTF-8` as a locale, since it lacks translations
+    #   # Ignoring `en_US.UTF-8` as a locale, since it lacks translations
+    #   not ok /languages/using-null-locale - GnomeDesktop-FATAL-WARNING:
+    #     Could not read list of available locales from libc, guessing possible
+    #     locales from available translations, but list may be incomplete!
+    #   Bail out!
+    #
+    # The locales existed -- locale-gen had run. Every one was discarded for
+    # having no translation files, the list came out empty, and glib turns that
+    # warning into a fatal. Two earlier guesses at this failure were wrong
+    # because the log showed only a summary line; this is what the log said
+    # once it showed anything.
+    #
+    # It must come first: dpkg applies the exclusions at unpack time, so a
+    # package installed before this runs keeps its files stripped.
+    rm -f /etc/dpkg/dpkg.cfg.d/excludes
+
     apt-get update -qq
     apt-get install -y --no-install-recommends \
       build-essential devscripts dpkg-dev ca-certificates locales
+    # Translations for a real language, not just the C locale. gnome-desktop
+    # enumerates locales and keeps only those that have them.
+    apt-get install -y --no-install-recommends language-pack-en || true
 
     # A UTF-8 locale. Correct on its own terms -- a buildroot should have one,
     # and a minimal Ubuntu image ships almost no locale data -- but READ THE
@@ -147,6 +178,16 @@ export SOURCE_DATE_EPOCH
       echo "ERROR: locale-gen did not produce a usable UTF-8 locale." >&2
       echo "       LC_ALL=en_US.UTF-8 locale charmap reported: ${charmap:-nothing}" >&2
       echo "       Failing here rather than later inside a package test suite." >&2
+      exit 1
+    fi
+    # And that translations survived. A locale with no message catalogue is
+    # exactly what gnome-desktop discards, so checking only the charmap would
+    # pass on the buildroot that produced the Bail out above.
+    if ! find /usr/share/locale /usr/share/locale-langpack -name "*.mo" 2>/dev/null \
+         | head -1 | grep -q . ; then
+      echo "ERROR: the buildroot has no translation catalogues." >&2
+      echo "       Something is still excluding /usr/share/locale content;" >&2
+      echo "       a package that enumerates locales will discard every one." >&2
       exit 1
     fi
 
