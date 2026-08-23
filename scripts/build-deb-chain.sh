@@ -124,14 +124,28 @@ export SOURCE_DATE_EPOCH
     #
     # It must come first: dpkg applies the exclusions at unpack time, so a
     # package installed before this runs keeps its files stripped.
-    rm -f /etc/dpkg/dpkg.cfg.d/excludes
+    # Every exclusion file, not one guessed name. The image may ship it as
+    # excludes, docker, or something else entirely, and removing the wrong
+    # filename silently leaves the stripping in place -- which is precisely
+    # what happened in run 32671248141.
+    grep -rl "path-exclude" /etc/dpkg/dpkg.cfg /etc/dpkg/dpkg.cfg.d/ 2>/dev/null \
+      | while read -r exclusion; do
+          echo "==> lifting dpkg exclusions in $exclusion"
+          sed -i "/^path-exclude/d; /^path-include/d" "$exclusion"
+        done
 
     apt-get update -qq
     apt-get install -y --no-install-recommends \
       build-essential devscripts dpkg-dev ca-certificates locales
     # Translations for a real language, not just the C locale. gnome-desktop
     # enumerates locales and keeps only those that have them.
+    #
+    # --reinstall matters: dpkg applies path-exclude at UNPACK time, so a
+    # package already on the image kept its files stripped, and a plain
+    # install of something already present is a no-op that changes nothing.
     apt-get install -y --no-install-recommends language-pack-en || true
+    apt-get install -y --reinstall --no-install-recommends \
+      language-pack-en-base || true
 
     # A UTF-8 locale. Correct on its own terms -- a buildroot should have one,
     # and a minimal Ubuntu image ships almost no locale data -- but READ THE
@@ -186,8 +200,19 @@ export SOURCE_DATE_EPOCH
     if ! find /usr/share/locale /usr/share/locale-langpack -name "*.mo" 2>/dev/null \
          | head -1 | grep -q . ; then
       echo "ERROR: the buildroot has no translation catalogues." >&2
-      echo "       Something is still excluding /usr/share/locale content;" >&2
-      echo "       a package that enumerates locales will discard every one." >&2
+      echo "       A package that enumerates locales will discard every one." >&2
+      # Print the evidence rather than leave the next person to guess. Three
+      # guesses at the gnome-desktop:languages failure were wrong before the
+      # chain was made to show what the test actually said; the same rule
+      # applies to the buildroot itself.
+      echo "---- dpkg configuration" >&2
+      cat /etc/dpkg/dpkg.cfg /etc/dpkg/dpkg.cfg.d/* 2>/dev/null >&2 || true
+      echo "---- locale trees" >&2
+      ls -d /usr/share/locale* /usr/lib/locale* 2>/dev/null >&2 || true
+      find /usr/share/locale /usr/share/locale-langpack -maxdepth 2 2>/dev/null \
+        | head -20 >&2 || true
+      echo "---- what the language pack shipped" >&2
+      dpkg -L language-pack-en-base 2>/dev/null | head -20 >&2 || true
       exit 1
     fi
 

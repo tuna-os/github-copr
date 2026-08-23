@@ -369,8 +369,12 @@ def test_the_container_image_file_exclusions_are_lifted_first():
     anything installed before the file is removed keeps its files stripped.
     """
     text = chain_text()
-    assert "rm -f /etc/dpkg/dpkg.cfg.d/excludes" in text
-    lift = text.index("rm -f /etc/dpkg/dpkg.cfg.d/excludes")
+    # Every exclusion file, not one guessed filename. Run 32671248141 removed
+    # `excludes` and the stripping stayed in place, so the image ships it
+    # under some other name.
+    assert 'grep -rl "path-exclude"' in text
+    assert "/etc/dpkg/dpkg.cfg.d/" in text
+    lift = text.index('grep -rl "path-exclude"')
     install = text.index("build-essential devscripts dpkg-dev ca-certificates")
     assert lift < install, (
         "exclusions must be lifted before any package is installed, or dpkg "
@@ -389,3 +393,32 @@ def test_the_buildroot_proves_it_has_translations_not_just_a_charmap():
     text = chain_text()
     assert "no translation catalogues" in text
     assert "*.mo" in text
+
+
+def test_the_language_pack_is_reinstalled_not_merely_installed():
+    """dpkg applies path-exclude at UNPACK time.
+
+    A package already present on the image kept its files stripped, and
+    `apt-get install` on something already installed is a no-op. Lifting the
+    exclusions only affects packages unpacked afterwards, so anything that was
+    already there has to be unpacked again.
+    """
+    text = chain_text()
+    assert "--reinstall" in text
+    assert "language-pack-en-base" in text
+
+
+def test_the_missing_catalogue_failure_prints_the_evidence():
+    """The rule that has actually worked today.
+
+    Three guesses at gnome-desktop:languages were wrong while the log showed
+    a summary line; the fix came from making it print the test output. A
+    buildroot assertion that says only "no catalogues" repeats that mistake
+    one level down, and each round trip costs a run.
+    """
+    text = chain_text()
+    failure = text.index("the buildroot has no translation catalogues")
+    tail = text[failure:failure + 1200]
+    assert "dpkg configuration" in tail
+    assert "cat /etc/dpkg/dpkg.cfg" in tail
+    assert "dpkg -L language-pack-en-base" in tail
