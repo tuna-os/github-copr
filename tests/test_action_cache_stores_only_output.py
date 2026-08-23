@@ -129,7 +129,18 @@ def test_the_metadata_the_cache_drops_is_regenerated_every_run():
 
 
 def _uploads() -> list[dict]:
-    return [s for s in _steps() if str(s.get("uses", "")).startswith("actions/upload-artifact")]
+    """The two OUTCOME-SPLIT uploads: the deliverable and the debugging tree.
+
+    A third upload exists and is deliberately excluded here. It carries the
+    `-partial` artifact a timed-out build-chain cell resumes from -- see
+    test_a_timed_out_chain_cell_can_resume.py, which pins its own shape. It
+    is neither of the two this file is about: it is not a deliverable and it
+    is not for a human to read, so folding it into the assertions below would
+    only blur what they say.
+    """
+    return [s for s in _steps()
+            if str(s.get("uses", "")).startswith("actions/upload-artifact")
+            and "-partial" not in str((s.get("with") or {}).get("name", ""))]
 
 
 def test_success_uploads_the_output_and_failure_uploads_the_build_tree():
@@ -160,7 +171,13 @@ def test_the_failure_upload_cannot_mask_the_real_failure():
 
 def test_both_uploads_keep_the_same_artifact_name_and_root():
     """Consumers see one artifact per cell either way, rooted at the cell
-    directory, so the layout does not change with the outcome."""
+    directory, so the layout does not change with the outcome.
+
+    The resume `-partial` upload is excluded by _uploads() and must stay
+    excluded: its whole purpose depends on carrying a DIFFERENT name, so an
+    API lookup by exact name cannot return a validated deliverable and an
+    interrupted attempt interchangeably.
+    """
     for step in _uploads():
         assert step["with"]["name"] == "${{ matrix.id }}"
         for line in step["with"]["path"].splitlines():

@@ -67,7 +67,51 @@ def test_every_name_is_still_queried_and_verified():
     """Installing by name must not quietly shrink what gets checked."""
     text = VERIFY.read_text(encoding="utf-8")
     assert 'rpm -q "${names[@]}"' in text
-    assert 'rpm -V "${names[@]}"' in text
+    assert 'rpm -V --nouser --nogroup "${names[@]}"' in text
+
+
+def test_rpm_verify_excludes_only_what_a_container_cannot_judge():
+    """Two classes, and each is excluded for a reason, not for convenience.
+
+    Both took all four gnome cells red in run 32646102181 -- after a clean
+    build, a clean lint and a clean install:
+
+        .....UG..    /var/lib/avahi-autoipd
+        .M.......  g /var/lib/selinux/minimum/active/policy.linked
+
+    A %ghost path (the `g`) is one rpm knows the name of but ships no content
+    for; a scriptlet creates it and the header attributes are placeholders.
+    An account like avahi-autoipd is created by sysusers, which a container
+    without systemd never runs, so rpm chowns to root and reports U and G.
+
+    Neither is a statement about the package. What IS still checked -- digest,
+    size, mode, link target, capabilities -- is what catches a corrupt or
+    mis-packaged payload, and that is what this step exists for.
+    """
+    text = VERIFY.read_text(encoding="utf-8")
+    assert "--nouser --nogroup" in text
+    # Ghosts are dropped by their marker column, not by path.
+    assert 'grep -vE "^[.?SM5DLUGTPa]{8,9} +g "' in text
+    for kept in ("--nofiledigest", "--nosize", "--nomode", "--nolinkto", "--nocaps"):
+        assert kept not in text, (
+            f"{kept} would disable a check that detects a real payload defect"
+        )
+
+
+def test_a_surviving_rpm_verify_difference_still_fails_the_cell():
+    """Filtering must not become ignoring.
+
+    A grep that drops ghost lines and then discards the rest would turn this
+    step into a no-op that reports success -- the worst outcome, because the
+    step would keep looking like a gate.
+    """
+    text = VERIFY.read_text(encoding="utf-8")
+    filtered = text.index("rpm-verify.real")
+    fail = text.index('if [ -s /tmp/rpm-verify.real ]; then')
+    assert filtered < fail
+    tail = text[fail:fail + 400]
+    assert "exit 1" in tail, "surviving differences must fail the cell"
+    assert "cat /tmp/rpm-verify.real" in tail, "and must be printed, not swallowed"
 
 
 def test_a_recipe_really_is_built_twice_in_the_gnome_chains():

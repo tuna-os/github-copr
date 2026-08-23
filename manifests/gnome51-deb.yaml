@@ -65,8 +65,13 @@ targets:
   # so this measurement is early-access only. Kept because the engine's own
   # rule retires it automatically: once sid carries 51, every root drops out
   # and the answer becomes zero packages without anyone editing this file.
-  # Debian stages GNOME in experimental, which today holds mutter 51~beta but
-  # not yet gnome-shell -- expect roots to be reported absent from the donor.
+  #
+  # It is most of the way there already. Measured 2026-08-23: every root
+  # resolves, nothing is unattributable, and the whole gap is ONE package --
+  # mutter, 51~beta-1 in experimental against 50.4-1 in sid. It was a much
+  # larger and messier answer when this target was added; nobody changed
+  # this file, sid caught up. Ubuntu resolute needs 18 because it is an LTS
+  # and cannot.
   debian:
     target_suite: sid
     donor_suites:

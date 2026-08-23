@@ -111,7 +111,7 @@ python3 -m install --root %{buildroot}
 %changelog
 * Fri Aug 21 2026 TunaOS Bot <bot@tunaos.org> - 2.2.1-2
 - Add python3-pip and python3-gobject BuildRequires: upstream's bundled
-  installer shells out to pip and imports gi, so %install failed in mock
+  installer shells out to pip and imports gi, so %%install failed in mock
 
 * Tue Aug 12 2025 TunaOS Bot <bot@tunaos.org> - 2.2.1-1
 - Initial package: input-remapper for EL10 (#122, #126)

@@ -241,3 +241,199 @@ def test_the_workflow_summary_only_reads_keys_the_report_emits():
         f"the workflow reads report fields the script does not emit: {sorted(unknown)}; "
         f"emitted keys are {sorted(emitted)}"
     )
+
+
+def test_the_tier_input_is_documented_as_narrowing_not_resuming():
+    """`--tier` selects a subset of ONE run; it cannot continue a previous one.
+
+    The local apt repo that carries a tier's output to the next tier lives on
+    the runner and dies with the job. So dispatching tier-1 after a tier-0 run
+    resolves tier-1's build-deps against the target archive alone -- and that
+    does not fail loudly. It builds, and produces packages linked against the
+    versions the backport exists to replace.
+
+    The workflow used to advise exactly that ("re-dispatch with --tier") as
+    the remedy for hitting the timeout, which is the most likely moment for
+    someone to follow it.
+    """
+    text = WORKFLOW.read_text()
+    assert "it cannot resume one" in text
+    assert "RE-DISPATCH FROM tier-0 OR WITH NO TIER" in text
+    # The input's own description already says empty builds everything.
+    workflow = yaml.safe_load(text)
+    # PyYAML reads a bare `on:` key as the boolean True.
+    triggers = workflow.get("on", workflow.get(True))
+    assert "empty builds all" in triggers["workflow_dispatch"]["inputs"]["tier"]["description"]
+
+
+def test_the_buildroot_has_a_usable_utf8_locale():
+    """A buildroot should have locale data; a minimal Ubuntu image has none.
+
+    That is worth doing on its own terms. It is NOT, on the evidence, the
+    cause of the gnome-desktop:languages SIGABRT it was added to explain:
+    run 32659338235 generated the locales and the failure is unchanged, with
+    `is_utf8: FALSE` still printed by the same suite. The diagnosis was wrong;
+    the change is kept because the buildroot is better with it, not because it
+    fixed the thing it was aimed at.
+
+    Exporting the variable is not the same as having the locale, which is why
+    the assertion below is the load-bearing half.
+    """
+    text = chain_text()
+    assert "locales" in text, "the locales package must be installed"
+    assert "locale-gen C.UTF-8" in text
+    install = text.index("build-essential devscripts dpkg-dev ca-certificates")
+    generate = text.index("locale-gen C.UTF-8")
+    build = text.index("apt-get build-dep")
+    assert install < generate < build, (
+        "the locale must exist before any package is built against it"
+    )
+
+
+def test_the_locale_assertion_checks_a_locale_that_had_to_be_generated():
+    """The first version of this check could not fail.
+
+    It asked `LC_ALL=C.UTF-8 locale charmap`, and C.UTF-8 is built into glibc
+    -- it resolves with zero generated locales, so the assertion would have
+    passed on the very image it was written to catch. en_US.UTF-8 exists only
+    if locale-gen actually ran.
+
+    An assertion that cannot fail is worse than no assertion: it reports a
+    property nobody has checked.
+    """
+    text = chain_text()
+    # The assignment, not the prose: the comment above it legitimately quotes
+    # the old form to explain why it was wrong.
+    assert "charmap=$(LC_ALL=en_US.UTF-8 locale charmap" in text
+    assert "charmap=$(LC_ALL=C.UTF-8 locale charmap" not in text
+    assert "locale-gen did not produce a usable UTF-8 locale" in text
+
+
+def test_a_failing_test_suite_surfaces_its_own_log():
+    """meson prints a summary line and buffers the output elsewhere.
+
+        4/6 gnome-desktop:languages  FAIL  (exit status 134 or signal 6 SIGABRT)
+
+    That names the test and says nothing about why. The real output goes to
+    meson-logs/testlog*.txt inside the build tree, which is not uploaded --
+    so two full chain runs, 1h47m each, were spent guessing at a cause the log
+    could not confirm. Copy it out and print it.
+    """
+    text = chain_text()
+    assert "testlog*.txt" in text
+    assert "test-suite.log" in text, "autotools buffers the same way"
+    assert "/work/logs/$source.$(basename" in text, "and it must survive the run"
+
+
+def test_the_chain_body_carries_no_apostrophes():
+    """The docker body is a single-quoted `bash -lc` string.
+
+    ONE apostrophe ends it early, and bash then reports `unexpected EOF while
+    looking for matching '` at the LAST line of the script -- nowhere near the
+    comment that broke it. The word that did it while writing the locale fix
+    above was "Ubuntu's".
+
+    verify-package-factory-cell.sh has the same shape and the same guard.
+    """
+    text = chain_text()
+    start = text.index("bash -lc '")
+    body = text[start + len("bash -lc '"):]
+    end = body.index("\n  '")
+    assert "'" not in body[:end], (
+        "an apostrophe inside the single-quoted bash -lc body ends it early; "
+        "bash will report the error at the end of the file, not here"
+    )
+
+
+def test_the_catalogue_check_does_not_pipe_find_into_head():
+    """The check was the bug, not the buildroot.
+
+        find /usr/share/locale ... -name "*.mo" | head -1 | grep -q .
+
+    `head -1` closes the pipe as soon as it has a line, `find` dies of
+    SIGPIPE, and under `set -o pipefail` the pipeline reports 141 -- so the
+    assertion fired while standing in a directory full of .mo files. Run
+    32671483629 printed its own diagnostics proving them present:
+
+        /usr/share/locale-langpack/en/LC_MESSAGES/coreutils.mo
+        /usr/share/locale-langpack/en/LC_MESSAGES/dpkg.mo
+
+    Those same diagnostics printed NOTHING for the dpkg configuration, which
+    is why the path-exclude removal this test used to assert is gone: the
+    image has no such directives, and the theory that it did was wrong.
+
+    `-print -quit` stops find itself after the first hit, with no pipe and
+    nothing to kill.
+    """
+    text = chain_text()
+    assert '-name "*.mo" -print -quit' in text
+    assert '-name "*.mo" 2>/dev/null \\\n         | head' not in text
+
+
+def test_the_buildroot_proves_it_has_translations_not_just_a_charmap():
+    """Checking the charmap alone would pass on the broken buildroot.
+
+    en_US.UTF-8 resolved fine in run 32665378407 -- `locale charmap` said
+    UTF-8 -- and gnome-desktop still discarded it, because a locale with no
+    message catalogue is not a locale as far as that code is concerned. The
+    assertion has to look for the catalogues.
+    """
+    text = chain_text()
+    assert "no translation catalogues" in text
+    assert "*.mo" in text
+
+
+def test_the_language_pack_is_reinstalled_not_merely_installed():
+    """dpkg applies path-exclude at UNPACK time.
+
+    A package already present on the image kept its files stripped, and
+    `apt-get install` on something already installed is a no-op. Lifting the
+    exclusions only affects packages unpacked afterwards, so anything that was
+    already there has to be unpacked again.
+    """
+    text = chain_text()
+    assert "--reinstall" in text
+    assert "language-pack-en-base" in text
+
+
+def test_the_missing_catalogue_failure_prints_the_evidence():
+    """The rule that has actually worked today.
+
+    Three guesses at gnome-desktop:languages were wrong while the log showed
+    a summary line; the fix came from making it print the test output. A
+    buildroot assertion that says only "no catalogues" repeats that mistake
+    one level down, and each round trip costs a run.
+    """
+    text = chain_text()
+    failure = text.index("the buildroot has no translation catalogues")
+    tail = text[failure:failure + 1200]
+    assert "dpkg configuration" in tail
+    assert "cat /etc/dpkg/dpkg.cfg" in tail
+    assert "dpkg -L language-pack-en-base" in tail
+
+
+def test_no_find_is_piped_into_head_anywhere_in_the_chain():
+    """The class, not the instance.
+
+    This script runs under `set -euo pipefail`. Any `find ... | head -N`
+    reports SIGPIPE once find produces more than N lines, and pipefail turns
+    that into a failed pipeline -- which `set -e` then turns into an aborted
+    run. It stays invisible while output is short, so it ships green and
+    fires later on a bigger input.
+
+    Two of these existed at once: the catalogue assertion (fired immediately)
+    and the testlog collector (latent until four logs exist, which is exactly
+    when a package has failed and the logs matter). A pipeline ending in
+    `|| true` is fine -- that absorbs the status deliberately.
+    """
+    offenders = []
+    for line_number, line in enumerate(chain_text().splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        if re.search(r"find[^|]*\|\s*head\b", stripped) and "|| true" not in stripped:
+            offenders.append(f"{line_number}: {stripped}")
+    assert not offenders, (
+        "find piped into head dies of SIGPIPE under pipefail; use -print -quit "
+        "or collect to a file first:\n" + "\n".join(offenders)
+    )

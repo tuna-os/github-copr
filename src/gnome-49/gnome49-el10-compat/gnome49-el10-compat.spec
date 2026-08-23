@@ -122,8 +122,8 @@ fi
   as fatal (exit 12, E_HOMEDIR); the wrapper strips -m/--create-home
   when the target directory already exists and chowns it instead.
   Fixes gnome-initial-setup failure on preserved /var/home (#17).
-- %post: drop ineffective restorecon -RF /var/home (see #22). The
-  compose-time %post cannot fix preserved-/var scenarios on deployed
+- %%post: drop ineffective restorecon -RF /var/home (see #22). The
+  compose-time %%post cannot fix preserved-/var scenarios on deployed
   systems.
 
 * Tue Mar 25 2026 James <james@example.com> - 1.2.4-1
@@ -138,11 +138,11 @@ fi
 * Mon Mar 23 2026 James <james@example.com> - 1.2.2-1
 - Add %filetriggerin on orca-autostart.desktop to reliably write Hidden=true
   regardless of package install order. Fixes race in image builds where orca
-  installs in a later transaction after our %post already ran.
+  installs in a later transaction after our %%post already ran.
 
 * Sun Mar 23 2026 James <james@example.com> - 1.2.1-1
 - Fix orca-autostart.desktop file conflict with orca package: write the
-  Hidden=true override via %post scriptlet instead of shipping the file,
+  Hidden=true override via %%post scriptlet instead of shipping the file,
   since orca-48.9 owns /etc/xdg/autostart/orca-autostart.desktop.
 
 * Sun Mar 23 2026 James <james@example.com> - 1.2.0-1
