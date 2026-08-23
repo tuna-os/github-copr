@@ -123,3 +123,52 @@ def test_the_manifest_only_names_declared_targets():
         assert name in contract["targets"], name
         assert contract["targets"][name]["format"] == "deb", name
     assert manifest["roots"], "a gap over no roots measures nothing"
+
+
+def test_a_package_the_donor_cannot_build_is_reported():
+    """The donor suite is not static, and a source in it can be temporarily
+    unbuildable from that suite alone.
+
+    Measured: wayland-protocols 1.49-1 in Ubuntu stonking build-depends on
+    libwayland-dev (>= 1.25.0), while `wayland` is 1.24.0-2 in BOTH stonking
+    and resolute -- 1.26.0-1 sits in stonking-proposed and has not migrated.
+    The closure was right to leave `wayland` out (the donor has nothing newer
+    to offer), so the order lists a package nobody can rebuild from stonking.
+    Run 32643256826 discovered that two minutes in, after paying for a
+    container and a buildroot; this turns it into a line of the report.
+    """
+    donor = {
+        "app": {"Package": "app", "Version": "2.0-1", "Binary": "app",
+                "Build-Depends": "libfoo-dev (>= 9.0)"},
+        "foo": {"Package": "foo", "Version": "1.0-1", "Binary": "libfoo-dev"},
+    }
+    donor_binary = {"app": "2.0-1", "libfoo-dev": "1.0-1"}
+    blocked = gap.donor_cannot_build({"app": {}}, donor, donor_binary)
+    assert blocked == {"app": ["libfoo-dev (>= 9.0)"]}, blocked
+
+
+def test_virtual_build_deps_are_not_reported_as_unbuildable():
+    """A Sources index lists a source's REAL binaries and says nothing about
+    Provides, so every virtual package looks absent.
+
+    The first version of this check reported all of debhelper-compat,
+    dh-sequence-gir, dh-sequence-gnome and the gir1.2-*-dev virtuals, flagging
+    16 of 16 packages and burying the single true finding. "Present but too
+    old" is decidable from this data; "not in the map" is not.
+    """
+    donor = {
+        "app": {"Package": "app", "Version": "2.0-1", "Binary": "app",
+                "Build-Depends": "debhelper-compat (= 13), dh-sequence-gir, gir1.2-gio-2.0-dev"},
+    }
+    donor_binary = {"app": "2.0-1"}
+    assert gap.donor_cannot_build({"app": {}}, donor, donor_binary) == {}
+
+
+def test_a_satisfied_constraint_is_not_reported():
+    donor = {
+        "app": {"Package": "app", "Version": "2.0-1", "Binary": "app",
+                "Build-Depends": "libfoo-dev (>= 1.0)"},
+        "foo": {"Package": "foo", "Version": "1.0-1", "Binary": "libfoo-dev"},
+    }
+    donor_binary = {"app": "2.0-1", "libfoo-dev": "1.0-1"}
+    assert gap.donor_cannot_build({"app": {}}, donor, donor_binary) == {}
