@@ -241,3 +241,26 @@ def test_the_workflow_summary_only_reads_keys_the_report_emits():
         f"the workflow reads report fields the script does not emit: {sorted(unknown)}; "
         f"emitted keys are {sorted(emitted)}"
     )
+
+
+def test_the_tier_input_is_documented_as_narrowing_not_resuming():
+    """`--tier` selects a subset of ONE run; it cannot continue a previous one.
+
+    The local apt repo that carries a tier's output to the next tier lives on
+    the runner and dies with the job. So dispatching tier-1 after a tier-0 run
+    resolves tier-1's build-deps against the target archive alone -- and that
+    does not fail loudly. It builds, and produces packages linked against the
+    versions the backport exists to replace.
+
+    The workflow used to advise exactly that ("re-dispatch with --tier") as
+    the remedy for hitting the timeout, which is the most likely moment for
+    someone to follow it.
+    """
+    text = WORKFLOW.read_text()
+    assert "it cannot resume one" in text
+    assert "RE-DISPATCH FROM tier-0 OR WITH NO TIER" in text
+    # The input's own description already says empty builds everything.
+    workflow = yaml.safe_load(text)
+    # PyYAML reads a bare `on:` key as the boolean True.
+    triggers = workflow.get("on", workflow.get(True))
+    assert "empty builds all" in triggers["workflow_dispatch"]["inputs"]["tier"]["description"]
