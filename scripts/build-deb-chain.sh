@@ -102,21 +102,27 @@ export SOURCE_DATE_EPOCH
     apt-get install -y --no-install-recommends \
       build-essential devscripts dpkg-dev ca-certificates locales
 
-    # A UTF-8 locale, and this is not housekeeping.
+    # A UTF-8 locale. Correct on its own terms -- a buildroot should have one,
+    # and a minimal Ubuntu image ships almost no locale data -- but READ THE
+    # NEXT PARAGRAPH before treating it as the fix for anything.
     #
-    # The container sets LANG/LC_ALL to C.UTF-8, but a minimal Ubuntu image
-    # carries no locale DATA, so setlocale falls back and glib reports the
-    # charset as non-UTF-8. Test suites that ask the system what language it
-    # is in then abort:
+    # It was added to explain this, in run 32653189343:
     #
     #   4/6 gnome-desktop:languages  FAIL  (exit status 134 or signal 6 SIGABRT)
     #
-    # in run 32653189343, with `is_utf8: FALSE` visible in the PASSING
-    # wall-clock tests of the same suite -- the environment was already wrong
-    # where it happened not to matter. gnome-desktop failing took
-    # gnome-control-center down with it, because libgnome-desktop-4-dev never
-    # reached the local repo, so one absent locale cost two of eighteen
-    # packages.
+    # on the theory that `is_utf8: FALSE`, visible in the same suite, meant the
+    # process had no UTF-8 locale. Run 32659338235 DISPROVED that as a
+    # sufficient cause: locale-gen ran, and both the SIGABRT and `is_utf8:
+    # FALSE` are unchanged. So the cause is still unknown, and the honest
+    # record is that this did not fix gnome-desktop. What it may have fixed is
+    # nothing -- gnome-shell passed in the second run having failed in the
+    # first, but its failure was a compositor integration test complaining
+    # about a session bus, which is not obviously locale-related and is exactly
+    # the shape that flakes.
+    #
+    # gnome-desktop failing takes gnome-control-center with it, because
+    # libgnome-desktop-4-dev never reaches the local repo, so this one package
+    # costs two of eighteen.
     #
     # The Ubuntu builders do not hit this: an sbuild chroot is a full
     # install, not a container image with the locale data stripped out. Same
@@ -130,13 +136,16 @@ export SOURCE_DATE_EPOCH
     # comment cost that lesson twice.
     locale-gen C.UTF-8 en_US.UTF-8
 
-    # Assert it, rather than trust it. An unusable locale does not fail here;
-    # it fails forty minutes later inside a test suite, as a SIGABRT that
-    # names the package rather than the buildroot.
-    charmap=$(LC_ALL=C.UTF-8 locale charmap 2>/dev/null || true)
+    # Assert it against a GENERATED locale, not against C.UTF-8.
+    #
+    # The first version of this check asked `LC_ALL=C.UTF-8 locale charmap`,
+    # which cannot fail: C.UTF-8 is built into glibc and resolves with zero
+    # generated locales. It would have passed on the unmodified image it was
+    # written to catch. en_US.UTF-8 exists only if locale-gen actually ran.
+    charmap=$(LC_ALL=en_US.UTF-8 locale charmap 2>/dev/null || true)
     if [ "$charmap" != "UTF-8" ]; then
-      echo "ERROR: the buildroot has no usable UTF-8 locale." >&2
-      echo "       LC_ALL=C.UTF-8 locale charmap reported: ${charmap:-nothing}" >&2
+      echo "ERROR: locale-gen did not produce a usable UTF-8 locale." >&2
+      echo "       LC_ALL=en_US.UTF-8 locale charmap reported: ${charmap:-nothing}" >&2
       echo "       Failing here rather than later inside a package test suite." >&2
       exit 1
     fi
@@ -206,6 +215,24 @@ export SOURCE_DATE_EPOCH
       if ! dpkg-buildpackage -us -uc -b > "/work/logs/$source.build.log" 2>&1; then
         echo "    FAILED build" >&2
         tail -40 "/work/logs/$source.build.log" >&2 || true
+        # A failing TEST SUITE prints a summary line here and buffers its own
+        # output somewhere else. meson writes it to meson-logs/testlog*.txt and
+        # the build log carries only:
+        #
+        #   4/6 gnome-desktop:languages  FAIL  (exit status 134 or signal 6 SIGABRT)
+        #
+        # which names the test and says nothing about why. Two full chain runs
+        # were spent on that -- 1h47m each -- guessing at a cause the log could
+        # not confirm. The evidence exists inside the build tree, which is not
+        # uploaded, so copy it out and print it. autotools writes the same
+        # thing to test-suite.log.
+        find "/work/build/$source" \
+             \( -name "testlog*.txt" -o -name "test-suite.log" \) \
+             -type f 2>/dev/null | head -4 | while read -r testlog; do
+          echo "    ---- $testlog" >&2
+          tail -100 "$testlog" >&2 || true
+          cp "$testlog" "/work/logs/$source.$(basename "$testlog")" 2>/dev/null || true
+        done
         failed="$failed $source"
         continue
       fi

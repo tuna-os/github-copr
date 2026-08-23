@@ -267,18 +267,14 @@ def test_the_tier_input_is_documented_as_narrowing_not_resuming():
 
 
 def test_the_buildroot_has_a_usable_utf8_locale():
-    """The container exports LANG=C.UTF-8; a minimal image has no locale DATA.
+    """A buildroot should have locale data; a minimal Ubuntu image has none.
 
-    So setlocale falls back and glib reports a non-UTF-8 charset. Suites that
-    ask the system what language it is in then abort:
-
-        4/6 gnome-desktop:languages  FAIL  (exit status 134 or signal 6 SIGABRT)
-
-    Run 32653189343, where `is_utf8: FALSE` is visible in the PASSING
-    wall-clock tests of the same suite -- the environment was already wrong
-    where it happened not to matter. gnome-desktop failing took
-    gnome-control-center down with it, because libgnome-desktop-4-dev never
-    reached the local repo. One absent locale cost two of eighteen packages.
+    That is worth doing on its own terms. It is NOT, on the evidence, the
+    cause of the gnome-desktop:languages SIGABRT it was added to explain:
+    run 32659338235 generated the locales and the failure is unchanged, with
+    `is_utf8: FALSE` still printed by the same suite. The diagnosis was wrong;
+    the change is kept because the buildroot is better with it, not because it
+    fixed the thing it was aimed at.
 
     Exporting the variable is not the same as having the locale, which is why
     the assertion below is the load-bearing half.
@@ -294,16 +290,39 @@ def test_the_buildroot_has_a_usable_utf8_locale():
     )
 
 
-def test_an_unusable_locale_fails_the_buildroot_not_a_package():
-    """Assert it rather than trust it.
+def test_the_locale_assertion_checks_a_locale_that_had_to_be_generated():
+    """The first version of this check could not fail.
 
-    A broken locale does not announce itself. It surfaces forty minutes later
-    as a SIGABRT inside someone else's test suite, naming the package rather
-    than the buildroot -- which is how it cost a whole run to diagnose.
+    It asked `LC_ALL=C.UTF-8 locale charmap`, and C.UTF-8 is built into glibc
+    -- it resolves with zero generated locales, so the assertion would have
+    passed on the very image it was written to catch. en_US.UTF-8 exists only
+    if locale-gen actually ran.
+
+    An assertion that cannot fail is worse than no assertion: it reports a
+    property nobody has checked.
     """
     text = chain_text()
-    assert "locale charmap" in text
-    assert "the buildroot has no usable UTF-8 locale" in text
+    # The assignment, not the prose: the comment above it legitimately quotes
+    # the old form to explain why it was wrong.
+    assert "charmap=$(LC_ALL=en_US.UTF-8 locale charmap" in text
+    assert "charmap=$(LC_ALL=C.UTF-8 locale charmap" not in text
+    assert "locale-gen did not produce a usable UTF-8 locale" in text
+
+
+def test_a_failing_test_suite_surfaces_its_own_log():
+    """meson prints a summary line and buffers the output elsewhere.
+
+        4/6 gnome-desktop:languages  FAIL  (exit status 134 or signal 6 SIGABRT)
+
+    That names the test and says nothing about why. The real output goes to
+    meson-logs/testlog*.txt inside the build tree, which is not uploaded --
+    so two full chain runs, 1h47m each, were spent guessing at a cause the log
+    could not confirm. Copy it out and print it.
+    """
+    text = chain_text()
+    assert "testlog*.txt" in text
+    assert "test-suite.log" in text, "autotools buffers the same way"
+    assert "/work/logs/$source.$(basename" in text, "and it must survive the run"
 
 
 def test_the_chain_body_carries_no_apostrophes():
