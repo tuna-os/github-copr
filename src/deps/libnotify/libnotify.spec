@@ -43,8 +43,30 @@ BuildRequires:  pkgconfig(gio-2.0)
 BuildRequires:  pkgconfig(gio-unix-2.0)
 BuildRequires:  gobject-introspection-devel
 # xsltproc plus the DocBook stylesheets, for the notify-send man page.
+#
+# docbook5-style-xsl, NOT docbook-style-xsl. meson.build:78 probes the
+# NAMESPACED stylesheet through the local XML catalog:
+#
+#   run_command(xsltproc, '--nonet',
+#     'http://docbook.sourceforge.net/release/xsl-ns/current/manpages/docbook.xsl')
+#
+# --nonet means that URI has to resolve offline, so the buildroot needs a
+# package whose %%post registers a rewrite rule for it. On EL10:
+#
+#   docbook-style-xsl    xsl-stylesheets-1.79.2      non-namespaced, no xsl-ns rule
+#   docbook5-style-xsl   xsl-ns-stylesheets-1.79.2   registers rewriteURI for
+#                                                    .../release/xsl-ns/current
+#
+# EL10 has no docbook-style-xsl-ns (the Fedora name) and no docbook-xsl-ns
+# (the Debian name the error message suggests) at all; docbook5-style-xsl is
+# the namespaced set under a different name. Building with docbook-style-xsl
+# fails at configure time with:
+#
+#   meson.build:78:4: ERROR: Problem encountered: DocBook stylesheet for
+#   generating man pages not found, you need to install docbook-xsl-ns or
+#   similar package.
 BuildRequires:  libxslt
-BuildRequires:  docbook-style-xsl
+BuildRequires:  docbook5-style-xsl
 
 %description
 libnotify sends desktop notifications to a notification daemon, as defined in
@@ -108,3 +130,5 @@ DESTDIR=%{buildroot} ninja -C _build install
 %changelog
 * Sat Aug 22 2026 TunaOS Package Factory <packages@tunaos.org> - 0.8.7-1
 - Build libnotify 0.8.7 for EL10, which ships only 0.8.6 (#480)
+- Require docbook5-style-xsl; docbook-style-xsl is the non-namespaced set and
+  does not register the xsl-ns catalog rewrite meson.build:78 probes for
