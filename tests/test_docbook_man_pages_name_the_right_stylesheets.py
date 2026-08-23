@@ -123,6 +123,56 @@ def test_libnotify_requires_the_namespaced_stylesheets():
     assert "%{_mandir}/man1/notify-send.1*" in text
 
 
+def test_libnotify_turns_off_the_documentation_it_does_not_ship():
+    """Two upstream defaults that fail this build, neither of them obvious.
+
+    libnotify's meson_options.txt:
+
+        option('gtk_doc',       type: 'boolean', value: true)
+        option('docbook_docs',  type: 'feature', value: 'auto')
+
+    gtk_doc DEFAULTS TO TRUE, and docs/reference/meson.build then does
+
+        dependency('gi-docgen', ..., required: get_option('gtk_doc'))
+        gidocgen = find_program('gi-docgen')
+
+    so gi-docgen becomes a hard configure-time requirement -- and it is not in
+    this spec's BuildRequires, because libnotify is here to satisfy
+    gnome-settings-daemon's `libnotify >= 0.8.7`, not to ship documentation.
+    Satisfying it instead would not help: the target installs into
+    %{_datadir}/doc/libnotify-0, which no %files section lists, and an
+    unpackaged directory fails the build at %install.
+
+    This is easy to miss from a failing log. The configure error that was
+    actually observed came from meson.build:78, which runs BEFORE
+    subdir('docs') -- so the gtk_doc requirement had never been reached, let
+    alone reported, at the point the docbook fix was written.
+
+    docbook_docs is `auto`, so today it resolves to off only because xmlto
+    happens not to be in the buildroot. Pinning it means another package's
+    dependencies pulling xmlto in cannot silently start installing
+    %{_datadir}/doc/libnotify/spec/notification-spec.html and break the build.
+    """
+    text = (ROOT / "src" / "deps" / "libnotify" / "libnotify.spec").read_text(
+        encoding="utf-8"
+    )
+    assert "-Dgtk_doc=false" in text, (
+        "gtk_doc defaults to true and makes gi-docgen a hard requirement"
+    )
+    assert "-Ddocbook_docs=disabled" in text, (
+        "docbook_docs is auto upstream; an xmlto that arrives by accident "
+        "would install an unpackaged html file"
+    )
+    # Neither doc tree is packaged, so neither may be built. Comments are
+    # excluded: the spec explains this in prose, with the macro escaped.
+    packaged = [
+        line
+        for line in text.splitlines()
+        if not line.lstrip().startswith("#") and "%{_datadir}/doc" in line
+    ]
+    assert not packaged, packaged
+
+
 def test_colord_gtk_shows_the_same_choice():
     """Not a second pin so much as evidence the name is right: colord-gtk
     already builds on EL10 asking for the namespaced set."""

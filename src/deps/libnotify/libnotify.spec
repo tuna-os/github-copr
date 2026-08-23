@@ -95,6 +95,23 @@ introspection data for %{name}.
 # make a tier-10 package build-depend on a tier-10 sibling, which the tier
 # model cannot express and which would either deadlock the order or resolve
 # against whatever stale gtk4 happened to be installed.
+#
+# -Dgtk_doc=false is load-bearing for the same reason, and is easy to miss
+# because it DEFAULTS TO TRUE. With it on, docs/reference/meson.build runs:
+#
+#   dependency('gi-docgen', ..., required: get_option('gtk_doc'))
+#   gidocgen = find_program('gi-docgen')
+#
+# so gi-docgen becomes a hard configure-time requirement, and the target it
+# then builds installs into %%{_datadir}/doc/libnotify-0 -- an unpackaged
+# directory, which would fail the build a second time at %%install. libnotify
+# is here as a build dependency for gnome-settings-daemon, not as a docs
+# deliverable, so neither cost is worth paying.
+#
+# -Ddocbook_docs is `auto` upstream and resolves to off only because xmlto is
+# not in this buildroot. Pinning it to disabled means a stray xmlto arriving
+# through some other package's dependencies cannot silently start installing
+# %%{_datadir}/doc/libnotify/spec/notification-spec.html and break the build.
 meson setup _build \
     --buildtype=plain \
     --prefix=%{_prefix} \
@@ -106,7 +123,9 @@ meson setup _build \
     --wrap-mode=nodownload \
     -Dtests=false \
     -Dintrospection=enabled \
-    -Dman=true
+    -Dman=true \
+    -Dgtk_doc=false \
+    -Ddocbook_docs=disabled
 ninja -C _build -j%{_smp_build_ncpus}
 
 %install
@@ -132,3 +151,5 @@ DESTDIR=%{buildroot} ninja -C _build install
 - Build libnotify 0.8.7 for EL10, which ships only 0.8.6 (#480)
 - Require docbook5-style-xsl; docbook-style-xsl is the non-namespaced set and
   does not register the xsl-ns catalog rewrite meson.build:78 probes for
+- Pin -Dgtk_doc=false (it defaults to true, making gi-docgen a hard configure
+  requirement) and -Ddocbook_docs=disabled
