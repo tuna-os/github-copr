@@ -331,12 +331,57 @@ def donor_cannot_build(needed, donor, donor_binary) -> dict[str, list[str]]:
     return blocked
 
 
-def tiers(needed: dict[str, dict]) -> list[list[str]]:
-    by_depth: dict[int, list[str]] = collections.defaultdict(list)
-    for name, record in needed.items():
-        by_depth[record["depth"]].append(name)
-    # Deepest build-dependency first: a tier must build before what needs it.
-    return [sorted(by_depth[d]) for d in sorted(by_depth, reverse=True)]
+def build_edges(needed, donor, bin2src, target_binary) -> dict[str, set[str]]:
+    """For each needed package, the needed packages it must be built AFTER."""
+    edges: dict[str, set[str]] = {name: set() for name in needed}
+    for name in needed:
+        stanza = donor.get(name)
+        if stanza is None:
+            continue
+        for alternatives in build_dep_clauses(stanza):
+            if any(
+                satisfies(target_binary.get(binary), op, version)
+                for binary, op, version in alternatives
+            ):
+                continue
+            binary, _, _ = alternatives[0]
+            source = bin2src.get(binary)
+            if source and source != name and source in needed:
+                edges[name].add(source)
+    return edges
+
+
+def tiers(edges: dict[str, set[str]]) -> list[list[str]]:
+    """Topological layers: everything a package needs is in an EARLIER tier.
+
+    Not BFS depth, which was the first implementation and is only correct on a
+    tree. Measured failure: with -proposed in the donor, `wayland` and
+    `wayland-protocols` both came out at depth 2 and so shared a tier, even
+    though wayland-protocols build-depends on libwayland-dev from wayland.
+    Depth is assigned by first reach, so a cross-edge discovered later does
+    not push the dependency deeper, and the chain then only worked because
+    "wayland" happens to sort before "wayland-protocols" inside the tier.
+
+    Layering by actual edges removes the luck: a package is only ready once
+    every needed package it depends on has been placed.
+    """
+    remaining = {name: set(deps) for name, deps in edges.items()}
+    layers: list[list[str]] = []
+    while remaining:
+        ready = sorted(
+            name for name, deps in remaining.items() if not (deps & remaining.keys())
+        )
+        if not ready:
+            # A cycle means the stack cannot be built in one pass from this
+            # donor -- it needs a bootstrap split, which is a human decision.
+            # Saying so beats emitting an order that silently cannot work.
+            raise SystemExit(
+                "build-dependency cycle among: " + ", ".join(sorted(remaining))
+            )
+        layers.append(ready)
+        for name in ready:
+            del remaining[name]
+    return layers
 
 
 def render_build_order(target: str, entry: dict, roots: list[str]) -> str:
@@ -359,9 +404,10 @@ def render_build_order(target: str, entry: dict, roots: list[str]) -> str:
         "# either suite moves, which is the failure this file exists to avoid.",
         f"target: {target}",
         f"target_suite: {entry['target_suite']}",
-        f"donor_suite: {entry['donor_suite']}",
-        "roots:",
+        "donor_suites:",
     ]
+    lines += [f"  - {suite}" for suite in entry["donor_suites"]]
+    lines.append("roots:")
     lines += [f"  - {root}" for root in roots]
     lines.append("tiers:")
     for index, tier in enumerate(entry["tiers"]):
@@ -369,7 +415,7 @@ def render_build_order(target: str, entry: dict, roots: list[str]) -> str:
         lines.append("    packages:")
         for source in tier:
             lines.append(f"      - source: {source}")
-            lines.append(f"        version: \"{versions[source]}\"")
+            lines.append(f'        version: "{versions[source]}"')
     return "\n".join(lines) + "\n"
 
 
@@ -416,9 +462,10 @@ def main() -> None:
             if binary
         }
         blocked = donor_cannot_build(result["needed"], donor, donor_binary)
-        order = tiers(result["needed"])
+        edges = build_edges(result["needed"], donor, binary_to_source(donor), target_binary)
+        order = tiers(edges)
         report["targets"][name] = {
-            "donor_suite": spec["donor_suite"],
+            "donor_suites": spec["donor_suites"],
             "target_suite": spec["target_suite"],
             "donor_sources": len(donor),
             "target_sources": len(target),
@@ -428,13 +475,14 @@ def main() -> None:
             "tiers": order,
             "packages": sorted(result["needed"].values(), key=lambda r: (-r["depth"], r["source"])),
         }
-        print(f"{name}: {spec['target_suite']} <- {spec['donor_suite']}: "
+        donor_label = " + ".join(spec["donor_suites"])
+        print(f"{name}: {spec['target_suite']} <- {donor_label}: "
               f"{len(result['needed'])} source packages need rebuilding, "
               f"{len(order)} tiers", file=sys.stderr)
         if result["missing_roots"]:
             print(f"  roots absent from donor: {result['missing_roots']}", file=sys.stderr)
         if blocked:
-            print(f"  NOT BUILDABLE FROM {spec['donor_suite']} ({len(blocked)}):", file=sys.stderr)
+            print(f"  NOT BUILDABLE FROM {donor_label} ({len(blocked)}):", file=sys.stderr)
             for source, unmet in sorted(blocked.items()):
                 print(f"    {source}: {'; '.join(unmet)}", file=sys.stderr)
 

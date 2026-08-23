@@ -15,7 +15,10 @@
     "debian": {
       "donor_cannot_build": {},
       "donor_sources": 41343,
-      "donor_suite": "experimental",
+      "donor_suites": [
+        "experimental",
+        "sid"
+      ],
       "missing_roots": [],
       "needed_count": 1,
       "packages": [
@@ -24,7 +27,7 @@
           "donor_version": "51~beta-1",
           "reason": "target is older",
           "source": "mutter",
-          "target_version": "50.3-1"
+          "target_version": "50.4-1"
         }
       ],
       "target_sources": 41195,
@@ -36,15 +39,14 @@
       ]
     },
     "ubuntu": {
-      "donor_cannot_build": {
-        "wayland-protocols": [
-          "libwayland-dev (>= 1.25.0)"
-        ]
-      },
-      "donor_sources": 41630,
-      "donor_suite": "stonking",
+      "donor_cannot_build": {},
+      "donor_sources": 41957,
+      "donor_suites": [
+        "stonking",
+        "stonking-proposed"
+      ],
       "missing_roots": [],
-      "needed_count": 16,
+      "needed_count": 17,
       "packages": [
         {
           "depth": 2,
@@ -52,6 +54,13 @@
           "reason": "target is older",
           "source": "pango1.0",
           "target_version": "1.57.0-1"
+        },
+        {
+          "depth": 2,
+          "donor_version": "1.26.0-1",
+          "reason": "target is older",
+          "source": "wayland",
+          "target_version": "1.24.0-2"
         },
         {
           "depth": 2,
@@ -97,7 +106,7 @@
         },
         {
           "depth": 1,
-          "donor_version": "51~alpha-0ubuntu2",
+          "donor_version": "51~beta-1ubuntu2",
           "reason": "target is older",
           "source": "mutter",
           "target_version": "50.1-0ubuntu2"
@@ -139,7 +148,7 @@
         },
         {
           "depth": 0,
-          "donor_version": "51~alpha-0ubuntu4",
+          "donor_version": "51~beta-0ubuntu1",
           "reason": "target is older",
           "source": "gnome-shell",
           "target_version": "50.1-0ubuntu1"
@@ -163,26 +172,29 @@
       "target_suite": "resolute",
       "tiers": [
         [
+          "gdm3",
+          "gexiv2",
+          "gnome-desktop",
+          "gnome-initial-setup",
+          "gnome-session",
+          "gsettings-desktop-schemas",
           "pango1.0",
+          "ubuntu-insights",
+          "wayland",
+          "xdg-desktop-portal-gnome"
+        ],
+        [
+          "gnome-settings-daemon",
+          "nautilus",
           "wayland-protocols"
         ],
         [
-          "gexiv2",
-          "gnome-desktop",
-          "gnome-session",
-          "gsettings-desktop-schemas",
           "gtk4",
-          "mutter",
-          "ubuntu-insights"
+          "mutter"
         ],
         [
-          "gdm3",
           "gnome-control-center",
-          "gnome-initial-setup",
-          "gnome-settings-daemon",
-          "gnome-shell",
-          "nautilus",
-          "xdg-desktop-portal-gnome"
+          "gnome-shell"
         ]
       ]
     }
