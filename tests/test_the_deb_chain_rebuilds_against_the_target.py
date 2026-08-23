@@ -264,3 +264,63 @@ def test_the_tier_input_is_documented_as_narrowing_not_resuming():
     # PyYAML reads a bare `on:` key as the boolean True.
     triggers = workflow.get("on", workflow.get(True))
     assert "empty builds all" in triggers["workflow_dispatch"]["inputs"]["tier"]["description"]
+
+
+def test_the_buildroot_has_a_usable_utf8_locale():
+    """The container exports LANG=C.UTF-8; a minimal image has no locale DATA.
+
+    So setlocale falls back and glib reports a non-UTF-8 charset. Suites that
+    ask the system what language it is in then abort:
+
+        4/6 gnome-desktop:languages  FAIL  (exit status 134 or signal 6 SIGABRT)
+
+    Run 32653189343, where `is_utf8: FALSE` is visible in the PASSING
+    wall-clock tests of the same suite -- the environment was already wrong
+    where it happened not to matter. gnome-desktop failing took
+    gnome-control-center down with it, because libgnome-desktop-4-dev never
+    reached the local repo. One absent locale cost two of eighteen packages.
+
+    Exporting the variable is not the same as having the locale, which is why
+    the assertion below is the load-bearing half.
+    """
+    text = chain_text()
+    assert "locales" in text, "the locales package must be installed"
+    assert "locale-gen C.UTF-8" in text
+    install = text.index("build-essential devscripts dpkg-dev ca-certificates")
+    generate = text.index("locale-gen C.UTF-8")
+    build = text.index("apt-get build-dep")
+    assert install < generate < build, (
+        "the locale must exist before any package is built against it"
+    )
+
+
+def test_an_unusable_locale_fails_the_buildroot_not_a_package():
+    """Assert it rather than trust it.
+
+    A broken locale does not announce itself. It surfaces forty minutes later
+    as a SIGABRT inside someone else's test suite, naming the package rather
+    than the buildroot -- which is how it cost a whole run to diagnose.
+    """
+    text = chain_text()
+    assert "locale charmap" in text
+    assert "the buildroot has no usable UTF-8 locale" in text
+
+
+def test_the_chain_body_carries_no_apostrophes():
+    """The docker body is a single-quoted `bash -lc` string.
+
+    ONE apostrophe ends it early, and bash then reports `unexpected EOF while
+    looking for matching '` at the LAST line of the script -- nowhere near the
+    comment that broke it. The word that did it while writing the locale fix
+    above was "Ubuntu's".
+
+    verify-package-factory-cell.sh has the same shape and the same guard.
+    """
+    text = chain_text()
+    start = text.index("bash -lc '")
+    body = text[start + len("bash -lc '"):]
+    end = body.index("\n  '")
+    assert "'" not in body[:end], (
+        "an apostrophe inside the single-quoted bash -lc body ends it early; "
+        "bash will report the error at the end of the file, not here"
+    )

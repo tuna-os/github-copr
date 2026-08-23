@@ -100,7 +100,46 @@ export SOURCE_DATE_EPOCH
 
     apt-get update -qq
     apt-get install -y --no-install-recommends \
-      build-essential devscripts dpkg-dev ca-certificates
+      build-essential devscripts dpkg-dev ca-certificates locales
+
+    # A UTF-8 locale, and this is not housekeeping.
+    #
+    # The container sets LANG/LC_ALL to C.UTF-8, but a minimal Ubuntu image
+    # carries no locale DATA, so setlocale falls back and glib reports the
+    # charset as non-UTF-8. Test suites that ask the system what language it
+    # is in then abort:
+    #
+    #   4/6 gnome-desktop:languages  FAIL  (exit status 134 or signal 6 SIGABRT)
+    #
+    # in run 32653189343, with `is_utf8: FALSE` visible in the PASSING
+    # wall-clock tests of the same suite -- the environment was already wrong
+    # where it happened not to matter. gnome-desktop failing took
+    # gnome-control-center down with it, because libgnome-desktop-4-dev never
+    # reached the local repo, so one absent locale cost two of eighteen
+    # packages.
+    #
+    # The Ubuntu builders do not hit this: an sbuild chroot is a full
+    # install, not a container image with the locale data stripped out. Same
+    # class as the ca-certificates ordering in run-package-factory-cell.sh --
+    # a buildroot that is not the chroot upstream assumed.
+    #
+    # NO APOSTROPHES BELOW THIS POINT, and none above it either: this whole
+    # body is a single-quoted `bash -lc` string, so one apostrophe ends it
+    # early and bash then reports `unexpected EOF` at the last line of the
+    # script rather than at the comment that broke it. Writing this very
+    # comment cost that lesson twice.
+    locale-gen C.UTF-8 en_US.UTF-8
+
+    # Assert it, rather than trust it. An unusable locale does not fail here;
+    # it fails forty minutes later inside a test suite, as a SIGABRT that
+    # names the package rather than the buildroot.
+    charmap=$(LC_ALL=C.UTF-8 locale charmap 2>/dev/null || true)
+    if [ "$charmap" != "UTF-8" ]; then
+      echo "ERROR: the buildroot has no usable UTF-8 locale." >&2
+      echo "       LC_ALL=C.UTF-8 locale charmap reported: ${charmap:-nothing}" >&2
+      echo "       Failing here rather than later inside a package test suite." >&2
+      exit 1
+    fi
 
     # SOURCES ONLY from the donor. See the header: a `deb` line here would
     # silently build the whole chain against the donor suite and produce
