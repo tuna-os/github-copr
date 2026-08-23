@@ -13,6 +13,7 @@
   "stack": "gnome-51",
   "targets": {
     "debian": {
+      "donor_cannot_build": {},
       "donor_sources": 41343,
       "donor_suite": "experimental",
       "missing_roots": [],
@@ -35,7 +36,12 @@
       ]
     },
     "ubuntu": {
-      "donor_sources": 41629,
+      "donor_cannot_build": {
+        "wayland-protocols": [
+          "libwayland-dev (>= 1.25.0)"
+        ]
+      },
+      "donor_sources": 41630,
       "donor_suite": "stonking",
       "missing_roots": [],
       "needed_count": 16,

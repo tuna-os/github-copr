@@ -277,6 +277,60 @@ def measure(roots, donor, target, bin2src, target_binary) -> dict:
     return {"needed": needed, "missing_roots": missing_roots}
 
 
+def donor_cannot_build(needed, donor, donor_binary) -> dict[str, list[str]]:
+    """Packages the DONOR itself cannot satisfy the build dependencies of.
+
+    A donor suite is not a static thing: it is mid-transition much of the
+    time, and a source package in it may have been built against a version
+    that has since moved on -- or has not yet migrated out of -proposed.
+
+    Measured, not hypothetical. wayland-protocols 1.49-1 in Ubuntu stonking
+    build-depends on libwayland-dev (>= 1.25.0), and `wayland` is 1.24.0-2 in
+    BOTH stonking and resolute; 1.26.0-1 sits in stonking-proposed and has not
+    migrated. So that package cannot be rebuilt from stonking at all, by us or
+    by anyone, and the closure was right to leave `wayland` out -- the donor
+    has nothing newer to offer.
+
+    Without this check the order looks fine and the chain discovers it two
+    minutes in, per package, after paying for a container and a buildroot
+    (run 32643256826). Checking against the donor's own versions up front
+    turns that into one line of the report.
+    """
+    blocked: dict[str, list[str]] = {}
+    for name in needed:
+        stanza = donor.get(name)
+        if stanza is None:
+            continue
+        unmet = []
+        for alternatives in build_dep_clauses(stanza):
+            if any(
+                satisfies(donor_binary.get(binary), op, version)
+                for binary, op, version in alternatives
+            ):
+                continue
+            # Only report what this view can actually decide. A Sources index
+            # lists a source's REAL binaries; it says nothing about Provides,
+            # so every virtual package looks absent. Reporting those made the
+            # first version of this check flag 16 of 16 packages on
+            # debhelper-compat, dh-sequence-gir, dh-sequence-gnome and the
+            # gir1.2-*-dev virtuals -- all of them satisfied in reality, and
+            # noise that would bury the one true finding.
+            #
+            # "Present but too old" is decidable. "Not in the map" is not, so
+            # it stays silent.
+            if not any(binary in donor_binary for binary, _, _ in alternatives):
+                continue
+            unmet.append(
+                " | ".join(
+                    f"{binary} ({op} {version})" if op else binary
+                    for binary, op, version in alternatives
+                )
+            )
+        if unmet:
+            blocked[name] = unmet
+    return blocked
+
+
 def tiers(needed: dict[str, dict]) -> list[list[str]]:
     by_depth: dict[int, list[str]] = collections.defaultdict(list)
     for name, record in needed.items():
@@ -355,6 +409,13 @@ def main() -> None:
             if binary
         }
         result = measure(roots, donor, target, binary_to_source(donor), target_binary)
+        donor_binary = {
+            binary: stanza["Version"]
+            for stanza in donor.values()
+            for binary in (b.strip() for b in stanza.get("Binary", "").split(","))
+            if binary
+        }
+        blocked = donor_cannot_build(result["needed"], donor, donor_binary)
         order = tiers(result["needed"])
         report["targets"][name] = {
             "donor_suite": spec["donor_suite"],
@@ -363,6 +424,7 @@ def main() -> None:
             "target_sources": len(target),
             "needed_count": len(result["needed"]),
             "missing_roots": result["missing_roots"],
+            "donor_cannot_build": blocked,
             "tiers": order,
             "packages": sorted(result["needed"].values(), key=lambda r: (-r["depth"], r["source"])),
         }
@@ -371,6 +433,10 @@ def main() -> None:
               f"{len(order)} tiers", file=sys.stderr)
         if result["missing_roots"]:
             print(f"  roots absent from donor: {result['missing_roots']}", file=sys.stderr)
+        if blocked:
+            print(f"  NOT BUILDABLE FROM {spec['donor_suite']} ({len(blocked)}):", file=sys.stderr)
+            for source, unmet in sorted(blocked.items()):
+                print(f"    {source}: {'; '.join(unmet)}", file=sys.stderr)
 
     if args.build_order:
         entry = report["targets"][args.target]
