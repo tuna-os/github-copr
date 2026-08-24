@@ -35,6 +35,7 @@ fail the RFC 011 catalog builder rather than be ignored.
 """
 from __future__ import annotations
 
+import json
 import importlib.util
 import pathlib
 import re
@@ -477,3 +478,137 @@ def test_the_buildroot_reports_the_predicate_it_is_trying_to_satisfy():
     report = text.index("locales that gnome-desktop would accept")
     failure = text.index("the buildroot has no translation catalogues")
     assert report < failure, "the count must print before, and independently of, any failure"
+
+
+# ── The requirement debian/control never declared ───────────────────────────
+#
+# gnome-control-center 1:51~beta-1ubuntu1 build-depends on
+# `libaccountsservice-dev (>= 23.11.69)`. resolute ships 23.13.9-8ubuntu5, so
+# that constraint is SATISFIED and no edge enters the closure. Its meson.build
+# wants `accountsservice >= 26.27.3`, and says so 1h47m into the chain.
+#
+# The engine is not wrong -- closing over declared Build-Depends is the rule
+# that keeps the closure finite -- so the fix is two-part and both parts are
+# tested here:
+#
+#   * the manifest NAMES accountsservice as a root, with the evidence, and the
+#     measured order therefore places it before its consumer;
+#   * the chain PRINTS which source to add the next time this happens, so the
+#     class costs a log line instead of a two-hour chain.
+#
+# The classifier is a shell fragment, so it is tested by RUNNING it against
+# the exact meson message from run 32678956022 with dpkg shimmed, not by
+# matching its source text. A regex assertion over the script would pass just
+# as happily if the block were unreachable or its sed expressions inverted --
+# which is the specific way three earlier checks in this repository were wrong.
+
+HINT_START = '        q=$(printf "\\047")'
+MESON_MISMATCH = (
+    "../meson.build:228:15: ERROR: Dependency lookup for accountsservice with "
+    "method 'pkgconfig' failed: Invalid version, need 'accountsservice' "
+    "['>= 26.27.3'] found '23.13.9'.\n"
+)
+
+
+def _hint_block() -> str:
+    """The classifier, lifted out of the bash -lc body verbatim."""
+    text = chain_text()
+    start = text.index(HINT_START)
+    end = text.index("\n        fi\n", start) + len("\n        fi\n")
+    return text[start:end]
+
+
+def _run_hint(tmp_path, build_log: str, *, pc_found: bool = True) -> str:
+    """Run the classifier over `build_log` with find/dpkg/dpkg-query shimmed."""
+    import subprocess
+
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "gnome-control-center.build.log").write_text(build_log, encoding="utf-8")
+
+    binbin = tmp_path / "bin"
+    binbin.mkdir()
+    pc = "/usr/lib/x86_64-linux-gnu/pkgconfig/accountsservice.pc"
+    (binbin / "find").write_text(
+        "#!/bin/sh\n" + (f"echo {pc}\n" if pc_found else "exit 0\n"), encoding="utf-8"
+    )
+    # dpkg -S prints `pkg:arch: path`; the block cuts field 1 off that.
+    (binbin / "dpkg").write_text(
+        '#!/bin/sh\necho "libaccountsservice-dev:amd64: $2"\n', encoding="utf-8"
+    )
+    (binbin / "dpkg-query").write_text("#!/bin/sh\necho accountsservice\n", encoding="utf-8")
+    for f in binbin.iterdir():
+        f.chmod(0o755)
+
+    script = tmp_path / "blk.sh"
+    script.write_text(
+        "set -uo pipefail\nsource=gnome-control-center\n"
+        + _hint_block().replace("/work/logs", str(logs)),
+        encoding="utf-8",
+    )
+    import os
+
+    env = dict(os.environ, PATH=f"{binbin}:{os.environ['PATH']}")
+    return subprocess.run(
+        ["bash", str(script)], capture_output=True, text=True, env=env
+    ).stderr
+
+
+def test_the_hint_names_the_source_package_to_add(tmp_path):
+    """The whole point: turn the meson message into a manifest edit."""
+    out = _run_hint(tmp_path, MESON_MISMATCH)
+    assert "HINT: undeclared build-dependency version" in out
+    # It must report BOTH numbers -- "needs a newer accountsservice" without
+    # saying which version is present is the report that sent four earlier
+    # investigations guessing.
+    assert ">= 26.27.3" in out, out
+    assert "23.13.9" in out, out
+    # And the actionable half: the SOURCE name, not the pkgconfig module.
+    assert "source package: accountsservice" in out, out
+    assert "Add accountsservice to the roots list" in out, out
+
+
+def test_the_hint_stays_silent_when_nothing_matches(tmp_path):
+    """It must be able to NOT fire, or it says `accountsservice` about everything."""
+    out = _run_hint(tmp_path, "dh_auto_build: error: make returned exit code 2\n")
+    assert "HINT" not in out, out
+
+
+def test_the_hint_admits_when_it_cannot_map_the_module(tmp_path):
+    """No .pc on disk means no source name -- say so rather than invent one."""
+    out = _run_hint(tmp_path, MESON_MISMATCH, pc_found=False)
+    assert "HINT: undeclared build-dependency version" in out, out
+    assert "Could not map accountsservice back to a source package" in out, out
+    # It must not claim a source it did not resolve.
+    assert "source package: " not in out, out
+
+
+def test_the_classifier_runs_on_the_build_failure_path():
+    """A block that is never reached explains nothing. It must sit inside the
+    `FAILED build` branch, after the testlog surfacing and before `continue`."""
+    text = chain_text()
+    failed_build = text.index('echo "    FAILED build" >&2')
+    hint = text.index(HINT_START)
+    # `continue` ends the branch; the classifier must precede the one that
+    # follows the failure.
+    nxt = text.index('failed="$failed $source"', hint)
+    assert failed_build < hint < nxt
+
+
+def test_accountsservice_is_a_declared_root_with_its_evidence():
+    """Named by hand, so the reason must be written down next to it."""
+    manifest = (ROOT / "manifests" / "gnome51-deb.yaml").read_text(encoding="utf-8")
+    assert "- accountsservice" in manifest
+    assert "26.27.3" in manifest, "the version meson demands is the evidence"
+    assert "32678956022" in manifest, "cite the run that measured it"
+
+
+def test_the_measured_order_builds_accountsservice_before_its_consumer():
+    """A root that lands in the same tier as gnome-control-center fixes nothing."""
+    report = json.loads(
+        (ROOT / "docs" / "gnome51-deb-gap.json").read_text(encoding="utf-8")
+    )
+    tiers = report["targets"]["ubuntu"]["tiers"]
+    where = {pkg: i for i, tier in enumerate(tiers) for pkg in tier}
+    assert "accountsservice" in where, "the root did not survive measurement"
+    assert where["accountsservice"] < where["gnome-control-center"], where

@@ -346,6 +346,59 @@ export SOURCE_DATE_EPOCH
           tail -100 "$testlog" >&2 || true
           cp "$testlog" "/work/logs/$source.$(basename "$testlog")" 2>/dev/null || true
         done
+
+        # A build-dependency version that debian/control never declared.
+        #
+        # gnome-control-center 1:51~beta-1ubuntu1 build-depends on
+        # libaccountsservice-dev (>= 23.11.69). resolute ships 23.13.9, so the
+        # declared constraint is satisfied and no edge enters the closure --
+        # the gap engine is right to leave it out. Its meson.build asks for a
+        # different number, and only says so 1h47m into the chain:
+        #
+        #   ERROR: Dependency lookup for accountsservice with method
+        #   pkgconfig failed: Invalid version, need accountsservice
+        #   [>= 26.27.3] found 23.13.9.
+        #
+        # (run 32678956022, the sole failure in an otherwise 17/18 chain.)
+        # Closing over declared Build-Depends is still the correct rule --
+        # widening it to "rebuild every build-dep the donor has newer" drags in
+        # the toolchain -- so the answer is to NAME the missing root, and the
+        # only cheap way to know which one is to read it off the failure.
+        #
+        # The .pc file is on disk right now, installed by build-dep, so dpkg
+        # can map module -> binary -> SOURCE exactly instead of guessing. That
+        # source name is what goes in the manifest roots list.
+        #
+        # apostrophes cannot appear in this body (it is a single-quoted
+        # bash -lc argument), and the meson message is built out of them, so
+        # the quote character is produced with printf and matched through $q.
+        q=$(printf "\047")
+        vmiss=$(grep -oE "Invalid version, need ${q}[^${q}]+${q} \[${q}[^${q}]+${q}\] found ${q}[^${q}]+${q}" \
+                  "/work/logs/$source.build.log" | head -1 || true)
+        if [ -n "$vmiss" ]; then
+          mod=$(echo "$vmiss" | sed "s/.*need ${q}\([^${q}]*\)${q}.*/\1/")
+          want=$(echo "$vmiss" | sed "s/.*\[${q}\([^${q}]*\)${q}\].*/\1/")
+          have=$(echo "$vmiss" | sed "s/.*found ${q}\([^${q}]*\)${q}.*/\1/")
+          pc=$(find /usr/lib /usr/share -name "$mod.pc" -type f -print -quit 2>/dev/null || true)
+          binpkg=""
+          srcpkg=""
+          if [ -n "$pc" ]; then
+            binpkg=$(dpkg -S "$pc" 2>/dev/null | cut -d: -f1 | head -1 || true)
+          fi
+          if [ -n "$binpkg" ]; then
+            srcpkg=$(dpkg-query -W -f "\${source:Package}" "$binpkg" 2>/dev/null || true)
+          fi
+          echo "    ---- HINT: undeclared build-dependency version" >&2
+          echo "    $source needs $mod $want; the buildroot has $have." >&2
+          if [ -n "$srcpkg" ]; then
+            echo "    $mod comes from source package: $srcpkg" >&2
+            echo "    Add $srcpkg to the roots list in the manifest and re-measure;" >&2
+            echo "    debian/control did not declare this, so the closure cannot infer it." >&2
+          else
+            echo "    Could not map $mod back to a source package (no .pc on disk)." >&2
+            echo "    Find the source that ships $mod.pc and add it to the manifest roots." >&2
+          fi
+        fi
         failed="$failed $source"
         continue
       fi
