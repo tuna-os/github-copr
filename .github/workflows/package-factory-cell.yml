@@ -329,11 +329,29 @@ jobs:
       # as still running its steps when that happens -- guessing which of
       # failure()/cancelled() a timeout satisfies is exactly the kind of
       # assumption that left this uploading nothing for six-hour cells in
-      # the first place. `steps.build.outcome != 'success'` then keeps a
-      # clean run from uploading a redundant copy of output the action cache
-      # already holds.
+      # the first place.
+      #
+      # The OUTCOME TEST IS AN ALLOWLIST, and it has to be. It was written as
+      # `steps.build.outcome != 'success'`, with a comment claiming that kept
+      # a clean run from uploading a redundant copy. Run 32674169357 disproved
+      # the claim: on an EXACT CACHE HIT the build step does not run, so its
+      # outcome is `skipped`, which is `!= 'success'`, so the partial uploaded
+      # anyway -- beside the real artifact and within a few KB of its size:
+      #
+      #   fprintd-el10-x86_64            2,152,816 bytes
+      #   fprintd-el10-x86_64-partial    2,148,746 bytes   <- pure waste
+      #
+      # for every green cell whose build was cached (4 of 8 in that run;
+      # gnome51, which actually built, correctly skipped it). Harmless to
+      # correctness -- a hit means the key matches -- but a gnome-sized cell
+      # is ~500MB, cache hits are the COMMON case, and the redundant copy is
+      # exactly what the comment promised would not happen.
+      #
+      # So name the two outcomes that mean "the build ran and did not
+      # finish". A denylist silently admits every future outcome value GitHub
+      # adds, which is how `skipped` got in.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always() && matrix.engine == 'build-chain' && steps.build.outcome != 'success'
+        if: always() && matrix.engine == 'build-chain' && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled')
         with:
           name: ${{ matrix.id }}-partial
           path: |
