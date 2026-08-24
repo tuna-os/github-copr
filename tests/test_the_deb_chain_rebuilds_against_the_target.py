@@ -437,3 +437,43 @@ def test_no_find_is_piped_into_head_anywhere_in_the_chain():
         "find piped into head dies of SIGPIPE under pipefail; use -print -quit "
         "or collect to a file first:\n" + "\n".join(offenders)
     )
+
+
+def test_translations_are_presented_where_gnome_desktop_looks_for_them():
+    """Read out of gnome-desktop 51~alpha, not guessed.
+
+    libgnome-desktop/gnome-languages.c, collect_locales(), warns only when
+    BOTH collectors fail:
+
+      collect_locales_from_localebin() runs `locale -a` and keeps a locale
+        only if add_locale() accepts it. add_locale rejects any locale with
+        no .mo under GNOMELOCALEDIR/<code>/LC_MESSAGES -- trying the full
+        name, the id, and the bare language code in turn.
+      collect_locales_from_directory() scandirs LIBLOCALEDIR for DIRECTORIES,
+        and locale-gen writes a single locale-archive FILE, so it matches
+        nothing.
+
+    Both false -> the fatal warning -> the test aborts. So the locales were
+    never the problem, and `language-pack-en` was the wrong package: Ubuntu
+    puts catalogues in /usr/share/locale-langpack, which gettext finds via a
+    distro patch and GNOMELOCALEDIR does not name.
+    """
+    text = chain_text()
+    assert "/usr/share/locale-langpack/*/" in text
+    assert "/usr/share/locale/$lang/LC_MESSAGES" in text
+
+
+def test_the_buildroot_reports_the_predicate_it_is_trying_to_satisfy():
+    """A count, every run, pass or fail.
+
+    Four guesses at gnome-desktop:languages were wrong while the log showed a
+    summary line and nothing else. The condition is decidable in one loop, so
+    the buildroot states it rather than leaving the next reader to infer it
+    from a SIGABRT an hour later.
+    """
+    text = chain_text()
+    assert "locales that gnome-desktop would accept" in text
+    # Reported unconditionally -- not inside the failure branch.
+    report = text.index("locales that gnome-desktop would accept")
+    failure = text.index("the buildroot has no translation catalogues")
+    assert report < failure, "the count must print before, and independently of, any failure"

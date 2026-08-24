@@ -184,6 +184,48 @@ export SOURCE_DATE_EPOCH
       echo "       Failing here rather than later inside a package test suite." >&2
       exit 1
     fi
+    # Ubuntu ships package translations in /usr/share/locale-langpack, not in
+    # /usr/share/locale. gettext finds them there via an Ubuntu patch; code
+    # that looks in its own GNOMELOCALEDIR does not.
+    #
+    # Read out of gnome-desktop 51~alpha, libgnome-desktop/gnome-languages.c,
+    # rather than guessed. collect_locales() warns only when BOTH collectors
+    # fail:
+    #
+    #   collect_locales_from_localebin()  runs `locale -a` and keeps a locale
+    #     only if add_locale() accepts it -- and add_locale rejects any locale
+    #     with no .mo under GNOMELOCALEDIR/<code>/LC_MESSAGES, trying in turn
+    #     the full name, the id, and the bare language code.
+    #   collect_locales_from_directory()  scandirs LIBLOCALEDIR for
+    #     DIRECTORIES -- and locale-gen writes a single locale-archive FILE,
+    #     so it matches nothing.
+    #
+    # Both false, so it emits the fatal warning and the test aborts. The
+    # locales were never the problem; where the catalogues live is.
+    #
+    # Presenting the langpack tree at the path the default localedir names is
+    # what an sbuild chroot effectively has and this container did not.
+    for langdir in /usr/share/locale-langpack/*/; do
+      [ -d "$langdir" ] || continue
+      lang=$(basename "$langdir")
+      mkdir -p "/usr/share/locale/$lang/LC_MESSAGES"
+      cp -n "$langdir"/LC_MESSAGES/*.mo "/usr/share/locale/$lang/LC_MESSAGES/" \
+        2>/dev/null || true
+    done
+
+    # Report the predicate gnome-desktop actually evaluates, every run, pass
+    # or fail. Four guesses at this failure were wrong while the log showed
+    # only a summary; a number here costs one line and settles it.
+    usable=0
+    for loc in $(locale -a 2>/dev/null); do
+      lang=${loc%%_*}; lang=${lang%%.*}
+      if find "/usr/share/locale/$lang/LC_MESSAGES" -name "*.mo" -print -quit \
+           2>/dev/null | grep -q . ; then
+        usable=$((usable + 1))
+      fi
+    done
+    echo "==> locales that gnome-desktop would accept: $usable"
+
     # And that translations survived. A locale with no message catalogue is
     # exactly what gnome-desktop discards, so checking only the charmap would
     # pass on the buildroot that produced the Bail out above.
