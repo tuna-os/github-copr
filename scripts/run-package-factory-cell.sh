@@ -32,6 +32,12 @@ if [[ $engine == build-chain ]]; then
     # have been kept. createrepo_c indexes *.rpm only and the publishers
     # glob *.rpm, so the subdirectory is invisible to both.
     export BUILDROOT_MANIFESTS="$out/artifacts/buildroots"
+    # Same reasoning for the failing side: mock already writes the answer into
+    # build.log/root.log, and printing a tail into the job log threw it away
+    # (the 51.beta chain failed 25 packages whose errors were then only
+    # reachable by tailing a 590KB log). Kept beside the manifests so the
+    # cell artifact carries them.
+    export FAILURE_LOGS="$out/artifacts/failure-logs"
     args=(--manifest "${MANIFEST:?}" --backend podman --image "$image"
           --mock-config "${MOCK_CONFIG:?}" --local-repo "$out/artifacts"
           --with-checks)
