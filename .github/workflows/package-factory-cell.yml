@@ -194,8 +194,15 @@ jobs:
           TIERS: ${{ matrix.tiers }}
           SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
         run: bash scripts/run-package-factory-cell.sh
+      # `chain_deferred` (set by run-package-factory-cell.sh when the chain
+      # stopped at its soft deadline) keeps a PARTIAL out of the action
+      # cache. An ActionResult recorded for a deferred chain would make every
+      # later run cache-hit on the partial and freeze the chain at it
+      # forever -- the packages never built would read as "already built".
+      # Validation, checksums, SBOM, attestation and the publish artifact all
+      # still run: shipping what built is the point of stopping cleanly.
       - name: Record a new ActionResult
-        if: steps.verdict.outputs.hit != 'true'
+        if: steps.verdict.outputs.hit != 'true' && steps.build.outputs.chain_deferred != 'true'
         run: |
           set -euo pipefail
           artifacts=()
@@ -248,7 +255,9 @@ jobs:
           subject-path: .factory/${{ matrix.id }}/artifacts/*
           sbom-path: .factory/${{ matrix.id }}/metadata/sbom.spdx.json
       - name: Save validated output
-        if: steps.verdict.outputs.hit != 'true'
+        # Same deferred-partial guard as Record above; the cache must only
+        # ever hold COMPLETE outputs for a key.
+        if: steps.verdict.outputs.hit != 'true' && steps.build.outputs.chain_deferred != 'true'
         continue-on-error: true
         uses: ./.github/actions/tideforge-action-cache
         with:

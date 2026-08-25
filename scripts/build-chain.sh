@@ -143,6 +143,31 @@ FORCE=false
 WITH_CHECKS=false
 STREAM=false
 
+# --- Soft deadline -----------------------------------------------------------
+# CHAIN_BUDGET_SECONDS, when set, is a clean stopping point INSIDE the job's
+# hard ceiling. The nightly hummingbird-desktops cells die at
+# `timeout-minutes: 360` -- reported as CANCELLED -- with every step after the
+# build skipped, so six hours of mock output reaches only the resume partial
+# and the SERVED repo never gains a package (every scheduled run 08-19..08-24,
+# e.g. job 97441135486: killed at 5h59m29s still inside the python bootstrap
+# tiers). A chain that stops itself BEFORE the ceiling finishes its current
+# packages, drains, and exits normally -- so validation, checksums, SBOM,
+# attestation and the publish artifact all run on what DID build.
+#
+# Deferring is not failing: remaining packages are counted and named in the
+# summary, and the caller learns about it through CHAIN_DEFERRED_MARKER (a
+# file written on deadline, carrying the count) -- which the workflow uses to
+# keep a partial OUT of the action cache. Recording a deferred chain as a
+# completed ActionResult would make every later run cache-hit on the partial
+# and freeze the chain at it forever.
+CHAIN_START_EPOCH=$(date +%s)
+DEADLINE_HIT=false
+DEFERRED_COUNT=0
+_past_deadline() {
+    [[ -n "${CHAIN_BUDGET_SECONDS:-}" ]] || return 1
+    (( $(date +%s) - CHAIN_START_EPOCH >= CHAIN_BUDGET_SECONDS ))
+}
+
 usage() {
     echo "Usage: $0 [options]"
     echo ""
@@ -1220,6 +1245,18 @@ build_tier() {
             continue
         fi
 
+        # Past the soft deadline: stop DISPATCHING, keep draining. Checked at
+        # the package boundary so a package in flight always completes; only
+        # work that has not started is deferred.
+        if $DEADLINE_HIT || _past_deadline; then
+            if ! $DEADLINE_HIT; then
+                DEADLINE_HIT=true
+                log "  CHAIN_BUDGET_SECONDS=${CHAIN_BUDGET_SECONDS:-} reached; deferring the rest of the chain"
+            fi
+            DEFERRED_COUNT=$(( DEFERRED_COUNT + 1 ))
+            continue
+        fi
+
         _tier_pkg_total=$(( _tier_pkg_total + 1 ))
 
         if $DRY_RUN; then
@@ -1269,7 +1306,7 @@ build_tier() {
     # a retry could need has appeared, so retrying is just a second identical
     # failure at twice the cost. That gate is what keeps this from being a
     # blanket "try everything twice".
-    if ((${#_tier_failed[@]})) && [[ "$(_repo_rpm_count)" -gt "$_tier_start_rpms" ]]; then
+    if ((${#_tier_failed[@]})) && ! $DEADLINE_HIT && [[ "$(_repo_rpm_count)" -gt "$_tier_start_rpms" ]]; then
         local retry=("${_tier_failed[@]}")
         _tier_failed=()
         log "  ${#retry[@]} package(s) failed but the repo grew during this tier;"
@@ -1354,6 +1391,16 @@ build_stream() {
             continue
         fi
 
+        # Same soft deadline as build_tier: stop dispatching, keep draining.
+        if $DEADLINE_HIT || _past_deadline; then
+            if ! $DEADLINE_HIT; then
+                DEADLINE_HIT=true
+                log "  CHAIN_BUDGET_SECONDS=${CHAIN_BUDGET_SECONDS:-} reached; deferring the rest of the stream"
+            fi
+            DEFERRED_COUNT=$(( DEFERRED_COUNT + 1 ))
+            continue
+        fi
+
         _pkg_total=$(( _pkg_total + 1 ))
 
         if $DRY_RUN; then
@@ -1387,7 +1434,7 @@ build_stream() {
     # Retry failures once, if anything was built during this stream.
     # Same gate as build_tier: if the repo grew, a failed package may
     # have been missing a dependency that has since landed.
-    if ((${#_failed[@]})) && [[ "$(_repo_rpm_count)" -gt "$_stream_start_rpms" ]]; then
+    if ((${#_failed[@]})) && ! $DEADLINE_HIT && [[ "$(_repo_rpm_count)" -gt "$_stream_start_rpms" ]]; then
         local retry=("${_failed[@]}")
         _failed=()
         log "  ${#retry[@]} package(s) failed but the repo grew during the stream;"
@@ -1471,6 +1518,19 @@ main() {
     log "===== Summary ====="
     log "Tiers processed: ${tier_count}"
     log "Packages built:  ${pkg_total}"
+    if $DEADLINE_HIT; then
+        log "Deferred (deadline): ${DEFERRED_COUNT}"
+        # The marker is how the CALLER learns this run is partial. It must be
+        # written before the failure exit below: a deferred run with failures
+        # is still partial, and a consumer that only checks the exit code
+        # would otherwise record it as a complete red rather than a truncated
+        # one.
+        if [[ -n "${CHAIN_DEFERRED_MARKER:-}" ]]; then
+            printf 'deferred=%s\nbudget_seconds=%s\n' \
+                "${DEFERRED_COUNT}" "${CHAIN_BUDGET_SECONDS:-}" \
+                > "${CHAIN_DEFERRED_MARKER}"
+        fi
+    fi
 
     if [[ ${#failed[@]} -gt 0 ]]; then
         err "Failed packages (${#failed[@]}):"
@@ -1478,6 +1538,15 @@ main() {
             err "  - ${f}"
         done
         exit 1
+    fi
+
+    if $DEADLINE_HIT; then
+        # NOT "all packages built". Exit 0 on purpose: the point of stopping
+        # cleanly is that validation, checksums, SBOM, attestation and the
+        # publish artifact all run on what DID build. The marker above is what
+        # keeps this partial out of the action cache.
+        log "Chain stopped at the soft deadline with ${DEFERRED_COUNT} package(s) deferred; partial output is complete and valid as far as it goes."
+        return 0
     fi
 
     log "All packages built successfully!"
