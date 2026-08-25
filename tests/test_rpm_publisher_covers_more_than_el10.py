@@ -196,6 +196,25 @@ def test_the_artifact_name_carries_the_target():
     assert "pattern: publish-rpm-${{ needs.plan.outputs.target }}-${{ matrix.arch }}-*" in text
 
 
+def test_the_verify_job_speaks_each_targets_package_manager():
+    """Wave 2's verify died on 'dnf: command not found' inside the
+    tumbleweed image (run 32826702068): the anti-#179 install check was
+    written in el10's package manager and never branched. The zypper
+    branch must exist, must key on the plan's target, and must carry the
+    same inverted-priority gap-filler semantics as the cell runner."""
+    verify = str(workflow()["jobs"]["verify"]["steps"][0]["run"])
+    assert "--env TARGET" in verify, "the container must see the plan's target"
+    assert 'TARGET" == opensuse-tumbleweed' in verify.replace("$", "")
+    zypper, _, dnf = verify.partition("else")
+    assert "zypper --non-interactive addrepo --no-gpgcheck --priority 200" in zypper
+    assert "zypper --non-interactive install" in zypper
+    assert "dnf" not in zypper
+    assert "dnf -y install" in dnf
+    assert "zypper" not in dnf
+    assert 'rpm -q $(echo "$PACKAGES"' in dnf, (
+        "the rpm -q proof sits after the branch, common to both managers")
+
+
 def test_the_target_is_a_dispatch_input_defaulting_to_el10():
     spec = workflow()
     triggers = spec[True] if True in spec else spec["on"]
