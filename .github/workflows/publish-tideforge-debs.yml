@@ -215,7 +215,16 @@ jobs:
             echo "ERROR: no debs staged; refusing to publish an empty repo" >&2
             exit 1
           fi
+          # NEVER BREAK RDEPS, the deb leg: the synced-down Packages IS the
+          # served dependency state. Keep it, regenerate, and refuse the
+          # publish if anything the old index resolved no longer resolves
+          # (scripts/check-index-regression.py; differential, so deps
+          # satisfied by Ubuntu/Debian's own archives are never noise).
+          if [ -f Packages ]; then cp Packages Packages.old; fi
           apt-ftparchive packages pool > Packages
+          python3 ../scripts/check-index-regression.py --format deb \
+            --old Packages.old --new Packages
+          rm -f Packages.old
           gzip -9kf Packages
           apt-ftparchive release . > Release
           gpg --batch --yes -u "${{ steps.import-gpg.outputs.keyid }}" --clearsign -o InRelease Release

@@ -148,6 +148,17 @@ targets:
       target_index: https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Everything/x86_64/os/
       reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/
       source_reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/source/tree/
+      # How gap-drift.yml treats this target. `exhibit`: dispatch-only —
+      # regenerate NEXT TO the curated order and show the diff, because the
+      # conversion row (docs/rfc011-conversions.md) is not passed yet: the
+      # engine satisfies requirements by name and this family exists because
+      # of `>= 4.21` version pins. Becomes `propose` in the PR that passes
+      # exact-or-explained and deletes the curated file.
+      drift:
+        mode: exhibit
+        build_order: build-order-xfce-fedora.generated.yml
+        compare_to: build-order-xfce-fedora.yml
+        report_json: fedora-gap.json
 
   hummingbird:
     # Hummingbird is a target of a different shape from the rest, and the
@@ -209,6 +220,12 @@ targets:
       target_index: https://packages.redhat.com/api/pulp-content/public-hummingbird/$arch/
       reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/
       source_reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/source/tree/
+      # `propose`: scheduled, revision-gated, opens a review PR with the
+      # regenerated build order when the live target index moves.
+      drift:
+        mode: propose
+        build_order: build-order-hummingbird-desktops.yml
+        report_json: docs/hummingbird-desktop-gap.json
     # Buildroot inputs only, never repositories on a produced image. Fedora
     # Rawhide supplies -devel headers and build backends Hummingbird has no
     # build of yet; Fedora 44 supplies the Python namespace at the target's

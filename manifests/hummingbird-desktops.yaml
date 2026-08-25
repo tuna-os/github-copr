@@ -15,6 +15,13 @@
 # not gtk4, not cairo, not wayland, not mesa, not pipewire.  See
 # docs/hummingbird-desktop-gap.md for the full method and numbers.
 schema: 1
+
+# Where this target's reviewed spec directories live, in lookup order, and
+# where dist-git imports land for packages that have none. Declared here —
+# a property of the target's source tree — so the gap engine stays free of
+# any one family's layout (it used to hard-code exactly these four).
+source_paths: [src/gnome-50, src/deps, src/hummingbird, src/xfce-wayland]
+distgit_prefix: src/hummingbird
 # What the generated build order contains.  `runtime` builds only what images
 # ship; BuildRequires-only tools (bison, transfig, gtk-doc, the Java stack the
 # documentation toolchains drag in) come from the buildroot's inherited

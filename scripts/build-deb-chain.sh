@@ -315,6 +315,20 @@ export SOURCE_DATE_EPOCH
         failed="$failed $source"
         continue
       fi
+      # The buildroot manifest, deb leg: what dpkg holds when this source
+      # builds, diffable across runs with scripts/diff-buildroots.py --
+      # the same record the rpm chain keeps from mock root.log output, so
+      # a red deb run has a green one to diff against instead of the
+      # #480-style archaeology. The container accumulates build deps
+      # across a tier, which the manifest records honestly: it is the
+      # state this build actually saw. Never fatal. NOTE this whole
+      # container script is single-quoted, so no apostrophes, and the
+      # dpkg-query format string uses escaped dollars inside double
+      # quotes to reach dpkg-query literally.
+      mkdir -p /work/buildroots
+      dpkg-query -W -f "\${Package}_\${Version}_\${Architecture}\n" \
+        > "/work/buildroots/$source.buildroot.txt" 2>/dev/null \
+        || echo "    buildroot manifest not recorded (non-fatal)"
       if ! dpkg-buildpackage -us -uc -b > "/work/logs/$source.build.log" 2>&1; then
         echo "    FAILED build" >&2
         tail -40 "/work/logs/$source.build.log" >&2 || true
