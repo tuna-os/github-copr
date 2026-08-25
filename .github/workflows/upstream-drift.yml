@@ -166,3 +166,39 @@ jobs:
 
             Opened automatically by
             [`upstream-drift.yml`](.github/workflows/upstream-drift.yml).
+
+      # Deliberately AFTER the pull request is opened, and deliberately able
+      # to fail the job.
+      #
+      # Dropping a package from the build order is only half of reacting to
+      # upstream adopting it. The other half is withdrawing the copy we
+      # already published: the build set shrinks, the served index does not,
+      # and our stale rebuild stays indexed forever. That is not dead weight
+      # -- the desktop manifests add our repository at `priority: 5`, and dnf
+      # priority is ABSOLUTE, so for any name in both indexes ours installs
+      # even when upstream's is newer. On a distribution whose premise is a
+      # zero-CVE catalogue shipped as soon as it is published, that is the
+      # drift direction that matters most.
+      #
+      # Measured when this landed: 16 shadowed, `sudo` fifteen releases
+      # behind upstream's build.
+      #
+      # After the PR step so a red check cannot swallow the re-measurement
+      # the run exists to propose; failing the job is the visible signal, and
+      # the remedy is a withdrawal from the published repository, which is a
+      # publish-side action this does not take on its own.
+      - name: Are we shadowing anything upstream has since fixed
+        run: |
+          set -euo pipefail
+          python3 scripts/check-upstream-shadowing.py \
+            --target '${{ matrix.target }}' \
+            --report-json "shadowing-${{ matrix.target }}.json"
+
+      - name: Keep the shadowing report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: upstream-shadowing-${{ matrix.target }}
+          path: shadowing-${{ matrix.target }}.json
+          if-no-files-found: ignore
+          retention-days: 30
