@@ -14,11 +14,11 @@
 # Membership is `runtime`: only what images ship is built here.
 # BuildRequires-only tools (bison, transfig, gtk-doc, ...) come
 # from the buildroot's inherited Rawhide fallback at priority 99
-# (mock/hummingbird-ci.cfg), never from this build order.
+# (the target's mock config), never from this build order.
 #
-# Measured 2026-08-18T09:48:11.831748+00:00
-# target primary.xml   sha256 b6610e8dfaa28eef3c2639de50e1a2cb7e9a3c6d37a3547f6a41cc3bda71e795
-# reference primary.xml sha256 5e324190028d308360ae94926af5c8824840e9bb1f2fe0124ba25903d269f763
+# Measured 2026-08-25T09:50:59.047270+00:00
+# target primary.xml   sha256 d012786592d8f3edb0b72d57152b0be21eceba49a5579a9a14518fc0efa7bd61
+# reference primary.xml sha256 ac614fdf4a05fcd7a398e122a0f587027986cd331cddf1adc28eb3389b847f37
 #
 # `distgit:` means the packaging is imported from Fedora Rawhide
 # dist-git at build time (scripts/import-fedora-distgit.py).  A package
@@ -136,8 +136,8 @@ tiers:
         distgit: gnome-shell-extensions
       - path: src/hummingbird/gnome-user-docs
         distgit: gnome-user-docs
-      - path: src/hummingbird/google-noto-emoji-fonts
-        distgit: google-noto-emoji-fonts
+      - path: src/hummingbird/google-noto-color-emoji-fonts
+        distgit: google-noto-color-emoji-fonts
       - path: src/hummingbird/greetd
       - path: src/hummingbird/gsm
         distgit: gsm
@@ -167,14 +167,10 @@ tiers:
         distgit: iniparser
       - path: src/hummingbird/iso-codes
         distgit: iso-codes
-      - path: src/hummingbird/jsoncpp
-        distgit: jsoncpp
       - path: src/hummingbird/kde-filesystem
         distgit: kde-filesystem
       - path: src/hummingbird/kf6
         distgit: kf6
-      - path: src/hummingbird/lame
-        distgit: lame
       - path: src/hummingbird/lcms2
         distgit: lcms2
       - path: src/hummingbird/libICE
@@ -879,6 +875,9 @@ tiers:
         distgit: kf6-ksvg
       - path: src/hummingbird/knighttime
         distgit: knighttime
+      - path: src/hummingbird/lame
+        distgit: lame
+        bootstrap: true
       - path: src/gnome-50/libadwaita
         bootstrap: true
       - path: src/hummingbird/libbs2b
@@ -923,8 +922,7 @@ tiers:
       - path: src/hummingbird/libnice
         distgit: libnice
         bootstrap: true
-      - path: src/hummingbird/libnotify
-        distgit: libnotify
+      - path: src/deps/libnotify
         bootstrap: true
       - path: src/hummingbird/libopenmpt
         distgit: libopenmpt
@@ -1119,8 +1117,6 @@ tiers:
       - path: src/xfce-wayland/libxfce4util
       - path: src/hummingbird/libxklavier
         distgit: libxklavier
-      - path: src/hummingbird/mako
-        distgit: mako
       - path: src/hummingbird/nanosvg
         distgit: nanosvg
       - path: src/hummingbird/niri
