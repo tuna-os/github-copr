@@ -360,7 +360,14 @@ jobs:
       # finish". A denylist silently admits every future outcome value GitHub
       # adds, which is how `skipped` got in.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always() && matrix.engine == 'build-chain' && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled')
+        # A DEFERRED chain also belongs on this allowlist: the soft deadline
+        # exits 0, so its outcome is `success` -- but "ran and did not
+        # finish" is exactly its state, and it is the upload the next
+        # continuation shard resumes from. Without it a deferred shard
+        # publishes no partial, the next shard restores the previous DAY's
+        # artifact, and the whole continuation design silently loses the
+        # hours it exists to bank.
+        if: always() && matrix.engine == 'build-chain' && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled' || steps.build.outputs.chain_deferred == 'true')
         with:
           # Named by base_id so every continuation shard shares ONE partial
           # per family cell: shard N+1's resume finds shard N's upload as

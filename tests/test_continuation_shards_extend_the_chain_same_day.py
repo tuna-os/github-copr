@@ -183,3 +183,24 @@ def test_the_gate_ignores_empty_shards(tmp_path):
     proc = subprocess.run(["bash", "-c", script], env=env,
                           capture_output=True, text=True, timeout=30)
     assert proc.returncode == 0, proc.stderr
+
+
+def test_a_deferred_build_still_uploads_its_partial():
+    """The linchpin. A deferred chain exits 0, so its outcome is `success` —
+    which the partial upload's allowlist (failure/cancelled) did not cover.
+    Without this clause a deferred shard uploads nothing, the next shard
+    restores the previous DAY's partial, and the continuation design loses
+    exactly the hours it exists to bank. Caught by reading the seam before
+    the first live run, the same class as SOURCE_DATE_EPOCH in #464: the
+    units were right and the seam was wrong."""
+    steps = yaml.safe_load(CELL.read_text())["jobs"]["build"]["steps"]
+    partial = next(s for s in steps
+                   if "-partial" in str((s.get("with") or {}).get("name", "")))
+    cond = partial.get("if", "")
+    assert "chain_deferred" in cond, (
+        "the partial upload ignores deferral; continuation shards will "
+        "resume stale work"
+    )
+    # Still an allowlist: a cache-hit (outcome `skipped`) must not upload —
+    # that regression cost a redundant ~500MB copy per green cell once.
+    assert "outcome == 'failure'" in cond and "!=" not in cond
