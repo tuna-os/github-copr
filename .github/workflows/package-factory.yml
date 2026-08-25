@@ -151,8 +151,28 @@ jobs:
               *)           REQUESTED_SELECTOR=family=hummingbird-desktops ;;
             esac
           fi
+          # push is here with pull_request and merge_group, and that is the
+          # point rather than an oversight: a push to main IS the merge of a
+          # PR that already ran this exact selection through the merge queue,
+          # so rebuilding the full chains proves nothing the required check
+          # did not already prove.
+          #
+          # What it does cost is measurable. Merging #512 started a push run
+          # whose build-0 included the FULL hummingbird chain at 11:26:51;
+          # the nightly cron then fired at 12:58:54 and planned the same
+          # cell. Their concurrency groups differ by construction (schedule
+          # gets `schedule-<cron>`, push gets `<ref>`), so neither cancels
+          # the other -- both build the same 673-package chain for 4.5 h, and
+          # both upload `hummingbird-x86_64-partial` with overwrite: true.
+          # Whichever finishes last wins the artifact name the OTHER one's
+          # continuation shards resume from. That is up to 13.5 h of runner
+          # time spent to arrive back where one run alone would have left us.
+          #
+          # Canary form keeps a push to main honest -- build-chain cells
+          # still build, bounded to their canary tiers -- while leaving the
+          # long chains to the schedule that is designed to carry them.
           case "$EVENT_NAME" in
-            pull_request|merge_group) args+=(--canary-common) ;;
+            pull_request|merge_group|push) args+=(--canary-common) ;;
           esac
           [ -z "$REQUESTED_SELECTOR" ] || args+=(--selector "$REQUESTED_SELECTOR")
           python3 scripts/plan-package-factory.py "${args[@]}"
