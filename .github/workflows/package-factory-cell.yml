@@ -169,7 +169,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           python3 scripts/restore-partial-chain-output.py \
-            --cell-id '${{ matrix.id }}' \
+            --cell-id '${{ matrix.base_id || matrix.id }}' \
             --action-key '${{ steps.identity.outputs.key }}' \
             --out-dir '.factory/${{ matrix.id }}'
       - name: Install native build tools on an exact miss
@@ -362,7 +362,13 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && matrix.engine == 'build-chain' && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled')
         with:
-          name: ${{ matrix.id }}-partial
+          # Named by base_id so every continuation shard shares ONE partial
+          # per family cell: shard N+1's resume finds shard N's upload as
+          # the newest artifact under this name. overwrite lets each shard
+          # replace the previous shard's copy instead of failing on the
+          # duplicate name.
+          name: ${{ matrix.base_id || matrix.id }}-partial
+          overwrite: true
           path: |
             .factory/${{ matrix.id }}/artifacts/
             .factory/${{ matrix.id }}/action-key.txt

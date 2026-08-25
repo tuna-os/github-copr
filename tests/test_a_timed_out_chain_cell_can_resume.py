@@ -114,7 +114,11 @@ def test_the_partial_cannot_be_confused_with_the_success_artifact():
     interchangeably.
     """
     names = {(step.get("with") or {}).get("name") for step in steps()}
-    assert "${{ matrix.id }}-partial" in names
+    # Named by base_id so continuation shards share one partial per family
+    # cell (test_continuation_shards_extend_the_chain_same_day.py owns that
+    # behaviour); the property THIS test guards is unchanged -- the partial's
+    # name can never collide with the success artifact's.
+    assert "${{ matrix.base_id || matrix.id }}-partial" in names
     assert "${{ matrix.id }}" in names
     module = load_module()
     assert module.newest_partial.__doc__, "the lookup is by exact name; say so"
