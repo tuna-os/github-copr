@@ -109,7 +109,8 @@ def test_the_partial_cannot_be_confused_with_the_success_artifact():
     assert "${{ matrix.id }}-partial" in names
     assert "${{ matrix.id }}" in names
     module = load_module()
-    assert module.newest_partial.__doc__, "the lookup is by exact name; say so"
+    assert module.unexpired_partials.__doc__, (
+        "the lookup is by exact name; say so")
 
 
 def test_the_action_key_is_written_where_the_partial_can_carry_it():
@@ -378,4 +379,98 @@ def test_an_expired_artifact_is_skipped(tmp_path, monkeypatch):
     ]}, b"")
     monkeypatch.setenv("GITHUB_TOKEN", "t")
     monkeypatch.setenv("GITHUB_REPOSITORY", "tuna-os/tunaos-packages")
-    assert module.newest_partial("tuna-os/tunaos-packages", "x-partial", "t") is None
+    assert module.unexpired_partials(
+        "tuna-os/tunaos-packages", "x-partial", "t") == []
+
+
+def _fake_api_by_url(module, listing, blobs):
+    """Like _fake_api, but each candidate download returns its own bytes."""
+    module.api_get = lambda url, token: listing
+    module.download_artifact = lambda url, token: blobs[url]
+
+
+def test_an_empty_newer_partial_does_not_shadow_the_banked_one(
+        tmp_path, monkeypatch):
+    """The 2026-08-25 loss: newest is not the same as usable.
+
+    An upstream mirror served a bad repomd.xml, the gnome51 x86_64 cell died
+    at its first buildroot having built nothing, and still uploaded a
+    partial. That 6KB artifact was NEWER than the 247MB one banked by the
+    run before it, so the next resume would have restored nothing and thrown
+    away hours of packages -- the exact loss resume exists to prevent.
+    """
+    module = load_module()
+    empty = tmp_path / "empty.zip"
+    with zipfile.ZipFile(empty, "w") as archive:
+        archive.writestr("action-key.txt", "matching-key\n")
+
+    banked = tmp_path / "banked.zip"
+    with zipfile.ZipFile(banked, "w") as archive:
+        archive.writestr("action-key.txt", "matching-key\n")
+        archive.writestr("artifacts/glib2-2.89.4-2.el10.x86_64.rpm", "rpm")
+        archive.writestr("artifacts/pango-1.57.0-1.el10.x86_64.rpm", "rpm")
+
+    _fake_api_by_url(module, {"artifacts": [
+        {"expired": False, "created_at": "2026-08-25T21:52:27Z",
+         "size_in_bytes": 6028,
+         "archive_download_url": "https://example.invalid/empty"},
+        {"expired": False, "created_at": "2026-08-25T21:26:09Z",
+         "size_in_bytes": 247522035,
+         "archive_download_url": "https://example.invalid/banked"},
+    ]}, {"https://example.invalid/empty": empty.read_bytes(),
+         "https://example.invalid/banked": banked.read_bytes()})
+
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "tuna-os/tunaos-packages")
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    out = tmp_path / "cell"
+    monkeypatch.setattr(sys, "argv", [
+        "restore", "--cell-id", "gnome51-el10-x86_64",
+        "--action-key", "matching-key", "--out-dir", str(out)])
+    assert module.main() == 0
+
+    landed = sorted(p.name for p in (out / "artifacts").iterdir())
+    assert landed == ["glib2-2.89.4-2.el10.x86_64.rpm",
+                      "pango-1.57.0-1.el10.x86_64.rpm"], (
+        "the empty newer partial shadowed the banked one; a run that built "
+        "nothing must not be able to discard a run that built everything")
+
+
+def test_the_walk_stops_rather_than_restoring_another_cells_key(
+        tmp_path, monkeypatch):
+    """Walking past an empty partial must not relax the key check.
+
+    The key is what makes a restore sound: it says these RPMs came from
+    exactly these inputs. Skipping empties is a search for a USABLE partial,
+    not a search for any partial.
+    """
+    module = load_module()
+    empty = tmp_path / "empty.zip"
+    with zipfile.ZipFile(empty, "w") as archive:
+        archive.writestr("action-key.txt", "matching-key\n")
+    foreign = tmp_path / "foreign.zip"
+    with zipfile.ZipFile(foreign, "w") as archive:
+        archive.writestr("action-key.txt", "some-other-key\n")
+        archive.writestr("artifacts/glib2-2.88.0-4.el10.x86_64.rpm", "rpm")
+
+    _fake_api_by_url(module, {"artifacts": [
+        {"expired": False, "created_at": "2026-08-25T21:52:27Z",
+         "size_in_bytes": 6028,
+         "archive_download_url": "https://example.invalid/empty"},
+        {"expired": False, "created_at": "2026-08-25T20:00:00Z",
+         "size_in_bytes": 999,
+         "archive_download_url": "https://example.invalid/foreign"},
+    ]}, {"https://example.invalid/empty": empty.read_bytes(),
+         "https://example.invalid/foreign": foreign.read_bytes()})
+
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "tuna-os/tunaos-packages")
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    out = tmp_path / "cell"
+    monkeypatch.setattr(sys, "argv", [
+        "restore", "--cell-id", "gnome51-el10-x86_64",
+        "--action-key", "matching-key", "--out-dir", str(out)])
+    assert module.main() == 0
+    assert not (out / "artifacts").exists(), (
+        "a partial built from different inputs was restored anyway")
+    assert not list(tmp_path.glob(".*-partial-staging")), "staging left behind"
