@@ -180,3 +180,72 @@ def test_force_all_selects_every_declared_target(tmp_path, monkeypatch):
     text = gho.read_text()
     assert 'matrix=["t"]' in text, f"force-all selected nothing: {text!r}"
     assert "any=true" in text, "force-all must also flip the gate that runs the job"
+
+
+def test_a_mode_nothing_implements_is_reported_not_silently_proposed(tmp_path):
+    """`mode` was read into the output and acted on nowhere.
+
+    upstream-drift.yml always PROPOSES -- it opens a pull request with the
+    regenerated measurement -- so a target declaring `mode: apply` would read
+    as "commit straight to main" and silently get a pull request instead. The
+    manifest would describe behaviour the factory does not have.
+
+    Found live: the real manifest declares `mode: exhibit` for fedora, which
+    nothing implements.
+    """
+    report = tmp_path / "r.json"
+    report.write_text(json.dumps({"target_index": {"revision": "111"}}))
+    out = cud.evaluate(_manifest(report_json=str(report), mode="apply"),
+                       opener=lambda url: REPOMD.format(rev="222").encode())
+    assert [r["state"] for r in out] == ["unimplemented-mode"], (
+        "a mode the driver does not implement was accepted; the target would "
+        "be re-measured and the manifest would keep describing behaviour that "
+        "does not exist"
+    )
+
+
+def test_one_misdeclared_target_does_not_blind_the_others(tmp_path):
+    """The whole point of a reactive detector is that it keeps reacting.
+
+    Aborting the run because one target is misdeclared would stop every other
+    target from being measured -- the same shape as the unreadable-index case
+    this script already handles by degrading that target alone.
+    """
+    report = tmp_path / "r.json"
+    report.write_text(json.dumps({"target_index": {"revision": "111"}}))
+    manifest = {"targets": {
+        "bad": {"gap_measurement": {
+            "target_index": "https://example.invalid/x/$arch/",
+            "drift": {"mode": "exhibit", "build_order": "bo.yml",
+                      "report_json": str(report)}}},
+        "good": {"gap_measurement": {
+            "target_index": "https://example.invalid/y/$arch/",
+            "drift": {"mode": "propose", "build_order": "bo.yml",
+                      "report_json": str(report)}}},
+    }}
+    out = cud.evaluate(manifest,
+                       opener=lambda url: REPOMD.format(rev="222").encode())
+    states = {r["target"]: r["state"] for r in out}
+    assert states == {"bad": "unimplemented-mode", "good": "drifted"}, (
+        "a misdeclared target changed the verdict for a correctly declared "
+        f"one: {states}"
+    )
+
+
+def test_the_implemented_mode_set_matches_what_the_workflow_does() -> None:
+    """A guard on the guard.
+
+    If someone implements `apply` in the workflow, this set must grow with
+    it; if the set grows without the workflow changing, the check goes back
+    to rubber-stamping. Pinning `propose` against the workflow's actual
+    create-pull-request step keeps the two honest.
+    """
+    assert cud.IMPLEMENTED_MODES == {"propose"}
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "upstream-drift.yml").read_text())
+    uses = [str(s.get("uses", ""))
+            for s in workflow["jobs"]["remeasure"]["steps"]]
+    assert any("create-pull-request" in u for u in uses), (
+        "upstream-drift.yml no longer opens a pull request, so `propose` is "
+        "no longer what it implements"
+    )

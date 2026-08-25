@@ -56,6 +56,12 @@ from pathlib import Path
 import yaml
 
 MANIFEST = Path("manifests/package-factory.yaml")
+
+# The modes upstream-drift.yml actually implements. `propose` opens a pull
+# request with the regenerated measurement; there is deliberately no
+# `apply`, because committing a machine-regenerated build order straight
+# to main is a policy call rather than a missing feature.
+IMPLEMENTED_MODES = {"propose"}
 REPOMD_NS = "{http://linux.duke.edu/metadata/repo}"
 TIMEOUT = 45
 UA = {"User-Agent": "tunaos-upstream-drift (+https://github.com/tuna-os/tunaos-packages)"}
@@ -129,13 +135,29 @@ def evaluate(manifest: dict, opener=None, arch: str = PROBE_ARCH) -> list[dict]:
             state = "drifted"
         else:
             state = "current"
+        # A declared mode nothing implements is worse than no declaration.
+        # upstream-drift.yml always PROPOSES -- it opens a pull request with
+        # the regenerated measurement -- so `mode: apply` would read as
+        # "commit it straight to main" and silently do the opposite. That is
+        # the third inert declaration found in this factory in one day (the
+        # drift driver itself, and MOCK_CACHE_DIR), and all three were silent
+        # for the same reason: nothing failed.
+        mode = gap["drift"].get("mode")
+        if mode not in IMPLEMENTED_MODES:
+            # Reported per target, NOT raised. One target declaring a mode
+            # nothing implements must not stop the others from being
+            # measured -- that is the same shape as the unreadable-index
+            # case this workflow already handles, and swallowing every
+            # target because one is misdeclared is how a reactive detector
+            # stops reacting.
+            state = "unimplemented-mode"
         results.append({
             "target": name,
             "state": state,
             "live": live,
             "recorded": seen,
             "index": index,
-            "mode": gap["drift"].get("mode"),
+            "mode": mode,
             "build_order": gap["drift"].get("build_order"),
             "report_json": report,
         })
@@ -169,6 +191,7 @@ def main() -> int:
               "nothing is watching upstream")
 
     unknown = 0
+    misdeclared = 0
     for r in results:
         if r["state"] == "drifted":
             print(f"DRIFTED  {r['target']:22s} upstream={r['live']} "
@@ -178,6 +201,15 @@ def main() -> int:
         elif r["state"] == "unmeasured":
             print(f"unmeasured {r['target']:20s} upstream={r['live']} — "
                   f"no committed measurement at {r['report_json']} yet")
+        elif r["state"] == "unimplemented-mode":
+            misdeclared += 1
+            print(f"MISDECLARED {r['target']:19s} mode={r['mode']!r}")
+            print(f"::error::{r['target']} declares "
+                  f"gap_measurement.drift.mode={r['mode']!r}, which nothing "
+                  f"implements (implemented: "
+                  f"{', '.join(sorted(IMPLEMENTED_MODES))}). The manifest "
+                  "describes behaviour the factory does not have, so this "
+                  "target is not re-measured.")
         else:
             unknown += 1
             print(f"UNKNOWN  {r['target']:22s} live={r['live']} "
@@ -193,7 +225,12 @@ def main() -> int:
     # for having no cells, and the run goes green having measured no target.
     # Forcing means "measure regardless of the revision gate", so the matrix
     # has to be every declared target, not the drifted subset.
-    selected = [r["target"] for r in results] if args.force_all else drifted
+    # A misdeclared target is excluded even under --force-all: the driver
+    # cannot honour the mode it asks for, so re-measuring it would
+    # produce an outcome the manifest does not describe.
+    forced = [r["target"] for r in results
+              if r["state"] != "unimplemented-mode"]
+    selected = forced if args.force_all else drifted
     if args.github_output and (path := os.environ.get("GITHUB_OUTPUT")):
         with open(path, "a", encoding="utf-8") as f:
             f.write(f"drifted={','.join(drifted)}\n")
@@ -208,8 +245,12 @@ def main() -> int:
     unmeasured = sum(1 for r in results if r["state"] == "unmeasured")
     print(f"\n{len(results)} target(s) with a drift declaration; "
           f"{len(drifted)} drifted, {unmeasured} never measured, "
-          f"{unknown} unreadable")
-    return 2 if unknown else 0
+          f"{unknown} unreadable, {misdeclared} with an unimplemented mode")
+    # 2, the same status an unreadable index returns: the workflow treats it
+    # as "warn and carry on with the targets that DID answer" rather than
+    # aborting the run, which is what keeps one bad declaration from
+    # stopping every other target from being measured.
+    return 2 if (unknown or misdeclared) else 0
 
 
 if __name__ == "__main__":
