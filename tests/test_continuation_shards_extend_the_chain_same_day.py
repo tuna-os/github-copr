@@ -204,3 +204,18 @@ def test_a_deferred_build_still_uploads_its_partial():
     # Still an allowlist: a cache-hit (outcome `skipped`) must not upload —
     # that regression cost a redundant ~500MB copy per green cell once.
     assert "outcome == 'failure'" in cond and "!=" not in cond
+
+
+def test_the_overwrite_has_the_permission_it_needs():
+    """upload-artifact implements overwrite by DELETING the existing artifact
+    first, and the delete API requires `actions: write`. Both the cell
+    workflow and its caller declared `actions: read` — the second shard's
+    partial upload would have 403'd at exactly the hand-off the whole design
+    depends on, at runtime, tonight. A called workflow cannot request more
+    than its caller grants, so BOTH files must say write."""
+    for path in (CELL, FACTORY):
+        perms = yaml.safe_load(path.read_text()).get("permissions", {})
+        assert perms.get("actions") == "write", (
+            f"{path.name}: actions permission is {perms.get('actions')!r}; "
+            "the shared-partial overwrite will be rejected"
+        )

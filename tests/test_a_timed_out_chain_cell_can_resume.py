@@ -230,11 +230,14 @@ def test_the_resume_runs_before_the_build():
 
 
 def test_the_job_may_read_its_own_workflow_artifacts():
-    """`actions: read`. Without it the API listing 404s and every resume
+    """At least read. Without it the API listing 404s and every resume
     silently degrades to a full rebuild -- the exact failure this fixes,
-    reintroduced as a permissions omission."""
+    reintroduced as a permissions omission. `write` satisfies this too, and
+    is what the continuation shards' shared-partial overwrite now requires
+    (test_continuation_shards_extend_the_chain_same_day.py pins that side).
+    `none`/absent is the regression this test exists to stop."""
     permissions = yaml.safe_load(CELL.read_text())["permissions"]
-    assert permissions.get("actions") == "read"
+    assert permissions.get("actions") in ("read", "write")
 
 
 def _fake_api(module, listing, blob):

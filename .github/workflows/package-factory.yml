@@ -87,15 +87,18 @@ permissions:
   contents: read
   # A CALLED workflow cannot request more than its caller grants, so this has
   # to mirror package-factory-cell.yml. The cell reads this repository's own
-  # workflow artifacts to resume a timed-out build chain (#480); without the
-  # grant here, GitHub rejects the whole file:
+  # workflow artifacts to resume a timed-out build chain (#480), and WRITES
+  # them: continuation shards share one partial artifact per family cell
+  # (`<base_id>-partial`, overwrite: true), and upload-artifact implements
+  # overwrite by deleting the existing artifact first, which needs
+  # actions: write. Without the grant here, GitHub rejects the whole file:
   #
   #   Error calling workflow '.../package-factory-cell.yml@...'. The workflow
-  #   is requesting 'actions: read', but is only allowed 'actions: none'.
+  #   is requesting 'actions: write', but is only allowed 'actions: none'.
   #
   # An invalid workflow file is not a failed run -- nothing plans, and the
   # merge queue has no required workflow to evaluate.
-  actions: read
+  actions: write
   id-token: write
   attestations: write
 
