@@ -26,6 +26,12 @@ if [[ $engine == build-chain ]]; then
         --branch rawhide --state "$out/import-state.json" \
         --release-bump --jobs 4
     fi
+    # Buildroot manifests ride inside artifacts/ so the action cache and
+    # the success artifact both carry them: diffing a red run against the
+    # last green one (scripts/diff-buildroots.py) needs the green side to
+    # have been kept. createrepo_c indexes *.rpm only and the publishers
+    # glob *.rpm, so the subdirectory is invisible to both.
+    export BUILDROOT_MANIFESTS="$out/artifacts/buildroots"
     args=(--manifest "${MANIFEST:?}" --backend podman --image "$image"
           --mock-config "${MOCK_CONFIG:?}" --local-repo "$out/artifacts"
           --with-checks)

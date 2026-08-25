@@ -95,7 +95,13 @@ def fetch(url: str, cache: pathlib.Path) -> bytes:
     blob = cache / key
     if blob.exists():
         return blob.read_bytes()
-    with urllib.request.urlopen(url, timeout=300) as response:
+    # A named User-Agent, because the served indexes sit behind Cloudflare
+    # and some egress paths get the default Python-urllib agent answered
+    # with 403 while curl from the same host gets 200. Measured, not
+    # assumed. Same agent string bump-github-release-recipe.py sends.
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "tunaos-package-factory"})
+    with urllib.request.urlopen(request, timeout=300) as response:
         data = response.read()
     cache.mkdir(parents=True, exist_ok=True)
     blob.write_bytes(data)
@@ -145,10 +151,32 @@ def primary_of(baseurl: str, cache: pathlib.Path) -> tuple[bytes, dict]:
     return decompress(href, raw), provenance
 
 
+# primary.xml dependency-entry flags -> RPM comparison operators.
+FLAG_OPS = {"EQ": "=", "GE": ">=", "LE": "<=", "GT": ">", "LT": "<"}
+
+
+def entry_evr(entry) -> str | None:
+    """The epoch:version[-release] a versioned dependency entry names."""
+    ver = entry.get("ver")
+    if not ver:
+        return None
+    evr = f"{entry.get('epoch') or '0'}:{ver}"
+    rel = entry.get("rel")
+    return f"{evr}-{rel}" if rel else evr
+
+
 def parse_primary(blob: bytes) -> dict:
-    """Index a primary.xml into packages / provides / files."""
+    """Index a primary.xml into packages / provides / files.
+
+    `provides_evr` records, per capability, the set of EVRs it is
+    provided at — only for entries that carry a version. A capability
+    provided without a version cannot be judged against a constraint
+    and is deliberately absent, so version checks treat it as
+    satisfiable rather than inventing a verdict.
+    """
     packages: dict[str, dict] = {}
     provides: dict[str, set] = {}
+    provides_evr: dict[str, set] = {}
     files: set[str] = set()
     for _, element in ET.iterparse(io.BytesIO(blob), events=("end",)):
         if element.tag != f"{COMMON}package":
@@ -168,14 +196,27 @@ def parse_primary(blob: bytes) -> dict:
                         f"{COMMON}format/{RPM}requires/{RPM}entry"
                     )
                 ],
+                "requires_versioned": [
+                    (entry.get("name"), FLAG_OPS[entry.get("flags")],
+                     entry_evr(entry))
+                    for entry in element.findall(
+                        f"{COMMON}format/{RPM}requires/{RPM}entry"
+                    )
+                    if entry.get("flags") in FLAG_OPS
+                    and entry_evr(entry) is not None
+                ],
             }
         for entry in element.findall(f"{COMMON}format/{RPM}provides/{RPM}entry"):
             provides.setdefault(entry.get("name"), set()).add(name)
+            evr = entry_evr(entry)
+            if evr is not None:
+                provides_evr.setdefault(entry.get("name"), set()).add(evr)
         for shipped in element.findall(f"{COMMON}format/{COMMON}file"):
             files.add(shipped.text)
             provides.setdefault(shipped.text, set()).add(name)
         element.clear()
-    return {"packages": packages, "provides": provides, "files": files}
+    return {"packages": packages, "provides": provides,
+            "provides_evr": provides_evr, "files": files}
 
 
 def parse_source_primary(blob: bytes) -> dict:
@@ -191,6 +232,31 @@ def parse_source_primary(blob: bytes) -> dict:
                 f"{COMMON}format/{RPM}requires/{RPM}entry"
             )
         ]
+        element.clear()
+    return result
+
+
+def parse_source_primary_versioned(blob: bytes) -> dict:
+    """srpm name -> [(capability, op, required EVR)], versioned BRs only.
+
+    The name-level index above answers "does anything provide this at
+    all"; this one carries the constraints, so a preflight can also
+    answer "at a version that satisfies" — the libnotify >= 0.8.7 class
+    (#480), where the capability exists everywhere and satisfies
+    nothing.
+    """
+    result: dict[str, list[tuple[str, str, str]]] = {}
+    for _, element in ET.iterparse(io.BytesIO(blob), events=("end",)):
+        if element.tag != f"{COMMON}package":
+            continue
+        name = element.findtext(f"{COMMON}name")
+        versioned = []
+        for entry in element.findall(f"{COMMON}format/{RPM}requires/{RPM}entry"):
+            op = FLAG_OPS.get(entry.get("flags") or "")
+            evr = entry_evr(entry)
+            if op and evr:
+                versioned.append((entry.get("name"), op, evr))
+        result[name] = versioned
         element.clear()
     return result
 

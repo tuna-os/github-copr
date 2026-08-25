@@ -82,6 +82,19 @@ across runs rather than in one:
 and per architecture, from the live published indexes — into
 `docs/FACTORY-STATUS.md` on a daily schedule.
 
+Around the build loop sit four preventive checks adapted from the
+sandogasa toolset (provenance and incident history in
+`SANDOGASA-ADAPTATIONS.md`): `scripts/preflight-buildrequires.py`
+answers before dispatch whether a build order can build (name-level and
+version-level) and whether its binaries will install;
+`scripts/check-published-hygiene.py` audits the served prefix
+combination for duplicate entries, name fights, and file conflicts;
+`publish-rpm-wave.sh` refuses a wave that leaves any served package
+unresolvable (`scripts/check-reverse-deps.py`); and every build-chain
+cell records per-package buildroot manifests into
+`artifacts/buildroots/` so a red run diffs against the last green one
+(`scripts/diff-buildroots.py`).
+
 ### What the gate does not cover
 
 Recorded here on purpose. A gate whose exceptions are implicit reads as full
