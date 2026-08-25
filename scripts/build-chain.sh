@@ -787,6 +787,26 @@ build_package_podman() {
         # this is an ephemeral single-tenant runner directory, not a shared
         # host path.
         chmod 0777 "${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache"
+        # A TRUNCATED tarball is worse than no tarball: every later package in
+        # the job fails to unpack it, so one bad write would cost the whole
+        # chain rather than one package. It can happen -- the timeout(1) around
+        # this container SIGKILLs a wedged build, and a kill landing in the
+        # seconds mock spends tarring the buildroot leaves a partial file
+        # behind, with the fcntl lock released by the dead process.
+        #
+        # Age-gated, and that gate is the load-bearing part. Testing a file
+        # another worker is writing RIGHT NOW would read it as corrupt and
+        # delete it, and with several workers that ping-pongs forever: the
+        # cache would never survive long enough to be used and the whole
+        # optimisation would silently do nothing. Tarring a minimal buildroot
+        # takes under a minute; ten minutes cannot be an in-flight write.
+        _root_cache_tarball="${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache/cache.tar.gz"
+        if [[ -f "$_root_cache_tarball" ]] \
+           && [[ -z "$(find "$_root_cache_tarball" -mmin -10 2>/dev/null)" ]] \
+           && ! gzip -t "$_root_cache_tarball" 2>/dev/null; then
+            log "  discarding a corrupt mock root cache: ${_root_cache_tarball}"
+            rm -f "$_root_cache_tarball"
+        fi
         MOCK_CACHE_ARGS=(-v "${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache:/var/cache/mock/${MOCK_CONFIG}/root_cache:Z")
     fi
 
@@ -934,6 +954,17 @@ build_package_podman() {
                 # So the exclusive lock protected nothing, while serialising
                 # the single most expensive step in the run: --jobs N started N
                 # workers that then took turns compiling one at a time.
+                # Both directories, and both matter. Only the LEAF is
+                # bind-mounted, so podman creates the <config> parent itself,
+                # root-owned and 0755 -- and mock runs as builder:mock two
+                # lines below, so without this it cannot create its siblings
+                # (yum_cache) under a directory it does not own. In the image
+                # /var/cache/mock is root:mock 2775 and mock makes the whole
+                # subtree itself; introducing a mount point is what changes
+                # that. || true because a missing cache must never be worse
+                # than a slow build, which is the whole point of the mount.
+                chmod 0777 /var/cache/mock/${MOCK_CONFIG} \
+                           /var/cache/mock/${MOCK_CONFIG}/root_cache 2>/dev/null || true
                 flock -s /local-repo/repo.lock -c \"
                     setpriv --reuid=builder --regid=mock --init-groups \\
                     mock --configdir /tmp/mock-configdir -r '${MOCK_CONFIG}' \\
