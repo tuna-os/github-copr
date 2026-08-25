@@ -5,8 +5,8 @@
 %bcond_with tests
 
 Name:           gjs
-Version:        1.88.0
-Release:        3%{?dist}
+Version:        1.89.2
+Release:        1%{?dist}
 Summary:        Javascript Bindings for GNOME
 
 # The following files contain code from Mozilla which
@@ -17,7 +17,7 @@ Summary:        Javascript Bindings for GNOME
 # modules/script/tweener/equations.js is BSD-3-Clause
 License:        MIT AND BSD-3-Clause AND (MIT OR LGPL-2.0-or-later) AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later)
 URL:            https://wiki.gnome.org/Projects/Gjs
-Source0:        https://download.gnome.org/sources/%{name}/1.88/%{name}-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/1.89/%{name}-%{version}.tar.xz
 
 BuildRequires:  gcc-c++
 BuildRequires:  meson
@@ -126,6 +126,9 @@ DESTDIR=%{buildroot} ninja -C _build install
 %endif
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 1.89.2-1
+- Update to 1.89.2 (GNOME 51 beta cycle)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.88.0-3
 - Move /usr/bin/dbus-run-session BR outside %%if %%{with tests}: GJS 1.88
   meson.build:319 checks for it unconditionally at configure time regardless

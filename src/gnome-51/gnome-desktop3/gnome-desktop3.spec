@@ -9,13 +9,13 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:    gnome-desktop3
-Version: 44.5
+Version: 51~alpha
 Release: %autorelease
 Summary: Library with common API for various GNOME modules
 
 License: GPL-2.0-or-later AND LGPL-2.0-or-later AND GFDL-1.1-or-later
 URL:     https://gitlab.gnome.org/GNOME/gnome-desktop
-Source:  https://download.gnome.org/sources/gnome-desktop/44/gnome-desktop-%{tarball_version}.tar.xz
+Source:  https://download.gnome.org/sources/gnome-desktop/51/gnome-desktop-%{tarball_version}.tar.xz
 
 BuildRequires: gcc
 BuildRequires: gettext
@@ -157,4 +157,7 @@ DESTDIR=%{buildroot} ninja -C redhat-linux-build install
 %{_datadir}/installed-tests
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~alpha-1
+- Update to 51.alpha (GNOME 51 beta cycle)
+
 %autochangelog

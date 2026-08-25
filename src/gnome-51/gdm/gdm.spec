@@ -15,8 +15,8 @@
 
 Name:           gdm
 Epoch:          1
-Version:        50.0
-Release:        3%{?dist}
+Version:        51~beta
+Release:        1%{?dist}
 Summary:        The GNOME Display Manager
 
 License:        GPL-2.0-or-later
@@ -69,8 +69,8 @@ Requires: dbus-common
 Requires: dconf
 # since we use it, and pam spams the log if the module is missing
 Requires: gnome-keyring-pam
-Requires: gnome-session >= 50~alpha
-Requires: gnome-session-wayland-session >= 50~alpha
+Requires: gnome-session >= 51~beta
+Requires: gnome-session-wayland-session >= 51~beta
 Requires: gnome-settings-daemon >= 3.27.90
 Requires: gnome-shell
 Requires:       gnome50-el10-compat
@@ -248,6 +248,9 @@ ln -sf ../X11/xinit/Xsession %{buildroot}%{_sysconfdir}/gdm/
 %{_libdir}/pkgconfig/gdm-pam-extensions.pc
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
+- Update to 51.beta (GNOME 51 beta cycle)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
 - Add explicit BuildRequires: gcc (COPR EL10 minimal buildroot does not
   pre-install gcc unlike Fedora; meson compiler detection fails without it)

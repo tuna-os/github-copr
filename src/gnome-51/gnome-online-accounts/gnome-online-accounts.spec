@@ -5,14 +5,14 @@
 %global libsoup_version 3.0
 
 Name:		gnome-online-accounts
-Version:	3.56.4
+Version:	3.58.1
 Release:	1%{?dist}
 Summary:	Single sign-on framework for GNOME
 
 # Sources are LGPL-2.0-or-later, icons are CC-BY-SA-4.0.
 License:	LGPL-2.0-or-later AND CC-BY-SA-4.0
 URL:		https://wiki.gnome.org/Projects/GnomeOnlineAccounts
-Source0:	https://download.gnome.org/sources/%{name}/3.56/%{name}-%{version}.tar.xz
+Source0:	https://download.gnome.org/sources/%{name}/3.58/%{name}-%{version}.tar.xz
 
 BuildRequires:	gcc
 BuildRequires:	pkgconfig(dbus-1)
@@ -139,5 +139,8 @@ desktop-file-validate %{buildroot}/%{_datadir}/applications/org.gnome.OnlineAcco
 %{_datadir}/vala/
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 3.58.1-1
+- Update to 3.58.1 (GNOME 51 beta cycle)
+
 * Sun Mar 15 2026 Conductor <james@conductor.local> - 3.56.4-1
 - Add gcc BuildRequires for EL10 buildroot compatibility

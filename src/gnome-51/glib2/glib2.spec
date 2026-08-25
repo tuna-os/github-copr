@@ -1,11 +1,11 @@
 Name:           glib2
-Version:        2.88.0
-Release:        4%{?dist}
+Version:        2.89.4
+Release:        1%{?dist}
 Summary:        A library of handy utility functions
 
 License:        LGPL-2.1-or-later
 URL:            https://www.gtk.org
-Source0:        https://download.gnome.org/sources/glib/2.88/glib-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/glib/2.89/glib-%{version}.tar.xz
 
 Patch0:         gnutls-hmac.patch
 Patch1:         default-terminal.patch
@@ -202,6 +202,9 @@ gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 %{_libdir}/*.a
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 2.89.4-1
+- Update to 2.89.4 (GNOME 51 beta cycle)
+
 * Mon Apr 07 2026 James Reilly <jreilly1821@gmail.com> - 2.88.0-4
 - Add Requires: glibc-devel to glib2-devel; without it downstream BuildRequires
   on glib2-devel no longer pulled in glibc-devel transitively, causing

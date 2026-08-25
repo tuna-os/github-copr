@@ -26,8 +26,8 @@
 %endif
 
 Name:           gtk4
-Version:        4.22.1
-Release:        2%{?dist}
+Version:        4.23.3
+Release:        1%{?dist}
 Summary:        GTK graphical user interface library
 
 # Most files are either LGPL-2.0-or-later or LGPL-2.1-or-later.
@@ -71,7 +71,7 @@ Summary:        GTK graphical user interface library
 # The license was last checked for GTK 4.19.3.
 License:        LGPL-2.0-or-later AND LGPL-2.1-or-later AND Apache-2.0 AND CC0-1.0 AND MIT AND MIT-open-group AND HPND-sell-variant AND GPL-2.0-or-later AND GPL-3.0-or-later AND OFL-1.1
 URL:            https://www.gtk.org
-Source0:        https://download.gnome.org/sources/gtk/4.22/gtk-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/gtk/4.23/gtk-%{version}.tar.xz
 Patch: 0001-gtkapplication-wayland-null-check.patch
 
 BuildRequires:  cups-devel
@@ -332,6 +332,9 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_mandir}/man1/gtk4-widget-factory.1*
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 4.23.3-1
+- Update to 4.23.3 (GNOME 51 beta cycle)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 4.22.1-2
 - Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
   to avoid non-deterministic "fg: no job control" on COPR builders.
