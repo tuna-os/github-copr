@@ -9,7 +9,7 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 _spec = importlib.util.spec_from_file_location(
-    "gap", ROOT / "scripts" / "measure-hummingbird-gap.py"
+    "gap", ROOT / "scripts" / "gap_engine.py"
 )
 gap = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gap)
@@ -44,7 +44,7 @@ def test_the_emitter_works_when_the_catalog_is_defaulted() -> None:
     already written -- so the drift PR carried a fresh JSON and a stale
     build order.
     """
-    body = (ROOT / "scripts" / "measure-hummingbird-gap.py").read_text(
+    body = (ROOT / "scripts" / "gap_engine.py").read_text(
         encoding="utf-8"
     )
     after_default = body[body.index("catalog_path = args.catalog or "):]
@@ -63,6 +63,6 @@ def test_the_emitter_works_when_the_catalog_is_defaulted() -> None:
 def test_generic_entrypoint_is_checked_in() -> None:
     entrypoint = ROOT / "scripts" / "measure-target-gap.py"
     body = entrypoint.read_text(encoding="utf-8")
-    assert "measure-hummingbird-gap.py" in body
+    assert "gap_engine.py" in body
     assert "_engine.main()" in body
     assert "requires --target" in body

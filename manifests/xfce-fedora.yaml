@@ -20,6 +20,12 @@
 # Phase 1 gate ("generated == curated, exact-or-explained").
 schema: 1
 
+# The xfce family builds from reviewed specs only; a package the engine
+# cannot locate would be a manifest error, and the distgit prefix names
+# where an import WOULD land if one were ever added.
+source_paths: [src/xfce-wayland]
+distgit_prefix: src/xfce-wayland
+
 # Only what images ship is built here; build tooling comes from the
 # buildroot's own Fedora 44 repos.
 membership: runtime

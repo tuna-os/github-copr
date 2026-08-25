@@ -17,10 +17,10 @@ Every answer comes out of the two indexes, and --report-json records the
 repomd revisions and primary.xml checksums the answer was computed from so a
 later run can say whether the inputs moved.
 
-Usage:
-    scripts/measure-hummingbird-gap.py --catalog manifests/hummingbird-desktops.yaml
-    scripts/measure-hummingbird-gap.py --desktop gnome --report-json gap.json \
-        --build-order build-order-hummingbird-desktops.yml
+Usage (always through the target-parameterized entry point):
+    scripts/measure-target-gap.py --target <id> \
+        --report-json docs/<id>-desktop-gap.json \
+        --build-order build-order-<id>-desktops.yml
 """
 from __future__ import annotations
 
@@ -44,15 +44,6 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 COMMON = "{http://linux.duke.edu/metadata/common}"
 RPM = "{http://linux.duke.edu/metadata/rpm}"
 REPO = "{http://linux.duke.edu/metadata/repo}"
-
-DEFAULT_REFERENCE = (
-    "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide"
-    "/Everything/x86_64/os/"
-)
-DEFAULT_SOURCE_REFERENCE = (
-    "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide"
-    "/Everything/source/tree/"
-)
 
 # Capabilities no rebuild can supply because they are the buildroot itself or
 # an unversioned rich-dep alternative that rpm resolves at install time.
@@ -554,8 +545,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--catalog", type=pathlib.Path,
-        help="Target roots manifest. Defaults to Hummingbird's legacy manifest; "
-             "--target resolves this from package-factory.yaml.",
+        help="Target roots manifest; --target resolves this from "
+             "package-factory.yaml instead.",
     )
     parser.add_argument(
         "--factory", type=pathlib.Path,
@@ -580,36 +571,44 @@ def main() -> None:
              "Requires: + BuildRequires: closure, so every build tool is "
              "built here too.  'runtime': only what images ship; build "
              "tools come from the buildroot's own repositories (the "
-             "inherited Rawhide fallback at priority 99 -- see "
-             "mock/hummingbird-ci.cfg).  Defaults to the catalog's "
-             "`membership:` key, then 'selfhost'.",
+             "target's mock config declares them).  Defaults to the "
+             "catalog's `membership:` key, then 'selfhost'.",
     )
     parser.add_argument("--desktop", action="append", dest="desktops")
     parser.add_argument(
         "--cache", type=pathlib.Path,
-        default=pathlib.Path(".cache/hummingbird-gap"),
+        default=pathlib.Path(".cache/target-gap"),
     )
     parser.add_argument("--report-json", type=pathlib.Path)
     parser.add_argument("--build-order", type=pathlib.Path)
     args = parser.parse_args()
 
+    # No hard-coded target. The engine measures whichever target the
+    # contract (or explicit flags) names — a default here is how one
+    # target's assumptions become the pipeline (the hummingbird fallbacks
+    # this replaces lasted long enough to name the engine after them).
     measurement = None
     if args.target:
         factory = yaml.safe_load(args.factory.read_text(encoding="utf-8"))
         measurement = target_measurement(factory, args.target)
-    catalog_path = args.catalog or pathlib.Path(
-        measurement["roots_manifest"] if measurement
-        else "manifests/hummingbird-desktops.yaml"
-    )
+    if not measurement and not args.catalog:
+        raise SystemExit(
+            "no target given: pass --target <id> (whose gap_measurement "
+            "contract in manifests/package-factory.yaml supplies roots and "
+            "indexes, via scripts/measure-target-gap.py) or an explicit "
+            "--catalog with --reference/--source-reference")
+    catalog_path = args.catalog or pathlib.Path(measurement["roots_manifest"])
     reference = args.reference or (
-        measurement.get("reference_index") if measurement else DEFAULT_REFERENCE
-    )
+        measurement.get("reference_index") if measurement else None)
+    if not reference:
+        raise SystemExit("no reference index: the target's gap_measurement "
+                         "contract must declare reference_index, or pass "
+                         "--reference")
     source_reference = args.source_reference
     if source_reference is None:
         source_reference = (
             measurement.get("source_reference_index", "") if measurement
-            else DEFAULT_SOURCE_REFERENCE
-        )
+            else "")
 
     catalog = yaml.safe_load(catalog_path.read_text())
     membership = args.membership or catalog.get("membership") or "selfhost"
@@ -775,11 +774,13 @@ def main() -> None:
             # and args.catalog is then None -- which crashed the scheduled
             # drift re-measure right after it wrote the report.
             catalog_path.resolve().parents[1],
+            target_name=args.target,
         )
         print(f"wrote {args.build_order}", file=sys.stderr)
 
 
-def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -> None:
+def emit_build_order(path, catalog, global_tiers, global_cycles, report, root,
+                     target_name=None) -> None:
     """Write a build-chain.sh manifest whose tiers came out of the measurement.
 
     A package that already has a reviewed spec directory in this repository
@@ -789,17 +790,27 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -
     scripts/import-fedora-distgit.py before the tier runs.
     """
     target = catalog["target"]
-    search = ["src/gnome-50", "src/deps", "src/hummingbird", "src/xfce-wayland"]
+    # Where reviewed spec directories live and where dist-git imports land
+    # are properties of the TARGET's source tree, so the roots manifest
+    # declares them — hard-coding one family's layout here is how the
+    # engine ended up named after hummingbird.
+    search = catalog.get("source_paths")
+    fallback = catalog.get("distgit_prefix")
+    if not search or not fallback:
+        raise SystemExit(
+            f"{target['id']}: --build-order needs `source_paths:` and "
+            "`distgit_prefix:` declared in the roots manifest")
     cycles = {name for cycle in global_cycles for name in cycle}
 
     def locate(name):
         for prefix in search:
             if (root / prefix / name).is_dir():
                 return f"{prefix}/{name}", False
-        return f"src/hummingbird/{name}", True
+        return f"{fallback}/{name}", True
 
+    target_id = target_name or target["id"].split("-")[0]
     lines = [
-        "# GENERATED BY scripts/measure-target-gap.py --target hummingbird — DO NOT HAND-EDIT.",
+        f"# GENERATED BY scripts/measure-target-gap.py --target {target_id} — DO NOT HAND-EDIT.",
         "#",
         "# Tiers are ONE topological order over the condensed BuildRequires:",
         "# graph of every desktop at once -- not one order per desktop glued",
@@ -808,9 +819,9 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -
         f"# {target['id']} already ships.  Each tier builds in",
         "# parallel; tiers are sequential.  Regenerate with:",
         "#",
-        "#   scripts/measure-target-gap.py --target hummingbird \\",
-        "#     --report-json docs/hummingbird-desktop-gap.json \\",
-        "#     --build-order build-order-hummingbird-desktops.yml",
+        f"#   scripts/measure-target-gap.py --target {target_id} \\",
+        f"#     --report-json docs/{target_id}-desktop-gap.json \\",
+        f"#     --build-order {path.name}",
         "#",
         f"# Measured {report['measured_at']}",
         f"# target primary.xml   sha256 {report['target_index']['primary_sha256']}",
@@ -823,7 +834,7 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -
         "# the buildroot or in the produced image.",
         "#",
         "# `bootstrap: true` marks a member of a BuildRequires cycle — see",
-        "# docs/hummingbird-desktop-gap.json .buildrequires_cycles.  Those",
+        f"# docs/{target_id}-desktop-gap.json .buildrequires_cycles.  Those",
         "# packages cannot come up in one pass from a clean buildroot; the tier",
         "# they sit in needs a bootstrap spec or a second --force pass.",
         f"target: {target['id']}",
@@ -837,7 +848,7 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -
             "# Membership is `runtime`: only what images ship is built here.",
             "# BuildRequires-only tools (bison, transfig, gtk-doc, ...) come",
             "# from the buildroot's inherited Rawhide fallback at priority 99",
-            "# (mock/hummingbird-ci.cfg), never from this build order.",
+            "# (the target's mock config), never from this build order.",
             "#",
         ]
     # The declared bootstrap tiers come first and verbatim.  They are the

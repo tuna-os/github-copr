@@ -1,6 +1,6 @@
 """The manifest and the gap report must come from the same measurement.
 
-scripts/measure-hummingbird-gap.py writes both files in one run:
+scripts/gap_engine.py writes both files in one run:
 build-order-hummingbird-desktops.yml (with the measurement stamped into its
 header) and docs/hummingbird-desktop-gap.json. Nothing made anyone commit
 them together, and on main they drifted two days apart:
@@ -53,7 +53,7 @@ def report() -> dict:
 def test_same_measurement_timestamp():
     assert manifest_header()["measured_at"] == report()["measured_at"], (
         "the manifest and the gap report were produced by different runs of "
-        "measure-hummingbird-gap.py; regenerate both together"
+        "gap_engine.py; regenerate both together"
     )
 
 

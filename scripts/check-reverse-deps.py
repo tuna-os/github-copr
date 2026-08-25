@@ -70,7 +70,7 @@ def load(name: str, filename: str):
 
 def local_primary(repo: pathlib.Path) -> bytes:
     """The decompressed primary.xml of an on-disk repo directory."""
-    gap = load("gap", "measure-hummingbird-gap.py")
+    gap = load("gap", "gap_engine.py")
     repomd = (repo / "repodata" / "repomd.xml").read_bytes()
     root = ET.fromstring(repomd)
     for data in root.findall(f"{gap.REPO}data"):
@@ -90,7 +90,7 @@ def local_primary(repo: pathlib.Path) -> bytes:
 
 def parse_obsoletes(blob: bytes) -> dict[str, list[str]]:
     """package name -> the capability names it Obsoletes."""
-    gap = load("gap", "measure-hummingbird-gap.py")
+    gap = load("gap", "gap_engine.py")
     result: dict[str, list[str]] = {}
     for _, element in ET.iterparse(_bytes_io(blob), events=("end",)):
         if element.tag != f"{gap.COMMON}package":
@@ -226,7 +226,7 @@ def main() -> int:
     parser.add_argument("--json", type=pathlib.Path)
     args = parser.parse_args()
 
-    gap = load("gap", "measure-hummingbird-gap.py")
+    gap = load("gap", "gap_engine.py")
     vercmp = load("rpm_vercmp", "rpm_vercmp.py")
 
     urls = list(args.index)

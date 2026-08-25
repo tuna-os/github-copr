@@ -51,7 +51,7 @@ from typing import Any
 # Inert for every format: nothing in any build or verify path reads these.
 #   r2_path / r2_path_aarch64  bucket WRITE paths, read by the publishers and
 #                              scripts/generate-distributed-workflow.py
-#   gap_measurement            read only by scripts/measure-hummingbird-gap.py
+#   gap_measurement            read only by scripts/gap_engine.py
 #   status                     a reporting label (supported / scaffold)
 BUILD_INERT_KEYS = frozenset({
     "r2_path",

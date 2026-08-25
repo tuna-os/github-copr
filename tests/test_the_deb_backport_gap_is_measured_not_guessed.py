@@ -1,7 +1,7 @@
 """The deb backport gap must be computed, and computed with the right rule.
 
 RFC 011's gap engine is rpm-md only -- measure-target-gap.py is a shim over
-measure-hummingbird-gap.py, which parses primary.xml and knows nothing about
+gap_engine.py, which parses primary.xml and knows nothing about
 APT. scripts/measure-deb-backport-gap.py is the deb half, and it answers a
 different question: Hummingbird asks what a target fails to PROVIDE and closes
 over Requires:, while a backport asks what must be REBUILT and closes over

@@ -2,8 +2,9 @@
 
 `manifests/package-factory.yaml` declares three package formats — rpm,
 deb, pkg.tar.zst — and every one of them is a first-class target. Yet
-the de-facto library for reading repositories grew inside
-`measure-hummingbird-gap.py`, a script named for one RPM target, and
+the de-facto library for reading repositories grew inside the gap
+engine (scripts/gap_engine.py, which was literally named
+measure-hummingbird-gap.py until the pipeline was de-hardcoded), and
 each new tool that imported it inherited an RPM-shaped view of the
 world. That is how a factory becomes EL-focused without anyone
 deciding it should be.
@@ -70,7 +71,7 @@ def satisfies(fmt: str, available: str, op: str, required: str) -> bool:
 
 def fetch(url: str, cache: pathlib.Path) -> bytes:
     """Cached HTTPS fetch with the factory's User-Agent (rpm engine's)."""
-    return load("gap", "measure-hummingbird-gap.py").fetch(url, cache)
+    return load("gap", "gap_engine.py").fetch(url, cache)
 
 
 def _fetch_first(base: str, names: list[str], cache: pathlib.Path) -> tuple[str, bytes]:
@@ -87,7 +88,7 @@ def load_index(url: str, fmt: str, cache: pathlib.Path,
                repo_name: str | None = None) -> dict:
     """Read one served repository into the standard index shape."""
     if fmt == "rpm":
-        gap = load("gap", "measure-hummingbird-gap.py")
+        gap = load("gap", "gap_engine.py")
         return gap.parse_primary(gap.primary_of(url, cache)[0])
     if fmt == "deb":
         apt = load("apt_packages")
@@ -112,7 +113,7 @@ def iter_rows(url: str, fmt: str, cache: pathlib.Path,
     path keeps every entry.
     """
     if fmt == "rpm":
-        gap = load("gap", "measure-hummingbird-gap.py")
+        gap = load("gap", "gap_engine.py")
         yield from iter_rpm_rows(gap.primary_of(url, cache)[0])
         return
     if fmt == "deb":
@@ -133,7 +134,7 @@ def iter_rows(url: str, fmt: str, cache: pathlib.Path,
 
 def iter_rpm_rows(blob: bytes):
     """Every package row of a primary.xml, duplicates included."""
-    gap = load("gap", "measure-hummingbird-gap.py")
+    gap = load("gap", "gap_engine.py")
     for _, element in ET.iterparse(io.BytesIO(blob), events=("end",)):
         if element.tag != f"{gap.COMMON}package":
             continue

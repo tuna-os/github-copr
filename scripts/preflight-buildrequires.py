@@ -31,7 +31,7 @@ factory has already paid for (#480):
 
 Usage:
 
-    scripts/preflight-buildrequires.py --manifest build-order-hummingbird-desktops.yml
+    scripts/preflight-buildrequires.py --target <id> [--manifest ORDER.yml]
 
 Exits non-zero when anything is unsatisfiable, so it can gate a dispatch.
 """
@@ -49,7 +49,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 
 def load_gap():
     spec = importlib.util.spec_from_file_location(
-        "gap", HERE / "measure-hummingbird-gap.py")
+        "gap", HERE / "gap_engine.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -163,27 +163,38 @@ def runtime_unsatisfied(sources, reference, have, rich_prefix="("):
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--target", required=True,
+                        help="factory target id; its gap_measurement contract "
+                             "in manifests/package-factory.yaml supplies the "
+                             "roots manifest and repository indexes — no "
+                             "target is ever assumed")
     parser.add_argument("--manifest", type=pathlib.Path,
-                        default=pathlib.Path("build-order-hummingbird-desktops.yml"))
-    parser.add_argument("--catalog", type=pathlib.Path,
-                        default=pathlib.Path("manifests/hummingbird-desktops.yaml"))
+                        help="build order to preflight (default: the file "
+                             "the target's drift regeneration writes, "
+                             "build-order-<target>-desktops.yml)")
+    parser.add_argument("--factory", type=pathlib.Path,
+                        default=pathlib.Path("manifests/package-factory.yaml"))
     parser.add_argument("--cache", type=pathlib.Path,
-                        default=pathlib.Path(".cache/hummingbird-gap"))
+                        default=pathlib.Path(".cache/target-gap"))
     parser.add_argument("--arch", default="x86_64")
     args = parser.parse_args()
 
     gap = load_gap()
-    catalog = yaml.safe_load(args.catalog.read_text())
-    target = catalog["target"]
-    baseurl = target["baseurl"].replace("$arch", args.arch).replace("$basearch", args.arch)
+    factory = yaml.safe_load(args.factory.read_text())
+    measurement = gap.target_measurement(factory, args.target)
+    manifest = args.manifest or pathlib.Path(
+        f"build-order-{args.target}-desktops.yml")
+    baseurl = (measurement["target_index"]
+               .replace("$arch", args.arch).replace("$basearch", args.arch))
 
     target_index = gap.parse_primary(gap.primary_of(baseurl, args.cache)[0])
-    reference = gap.parse_primary(gap.primary_of(gap.DEFAULT_REFERENCE, args.cache)[0])
+    reference = gap.parse_primary(gap.primary_of(
+        measurement["reference_index"], args.cache)[0])
     source_index = gap.parse_source_primary(
-        gap.primary_of(gap.DEFAULT_SOURCE_REFERENCE, args.cache)[0])
+        gap.primary_of(measurement["source_reference_index"], args.cache)[0])
     have = set(target_index["provides"]) | set(target_index["packages"])
 
-    order = yaml.safe_load(args.manifest.read_text())
+    order = yaml.safe_load(manifest.read_text())
     sources = sorted({
         pkg.get("distgit") or pkg["path"].rsplit("/", 1)[-1]
         for tier in order["tiers"] for pkg in tier["packages"]
@@ -196,7 +207,7 @@ def main() -> int:
     # check assumes (target union reference), judged at EVR level.
     vercmp = load_vercmp()
     source_versioned = gap.parse_source_primary_versioned(
-        gap.primary_of(gap.DEFAULT_SOURCE_REFERENCE, args.cache)[0])
+        gap.primary_of(measurement["source_reference_index"], args.cache)[0])
     available_evr = collections.defaultdict(set)
     for index in (target_index, reference):
         for cap, evrs in index.get("provides_evr", {}).items():

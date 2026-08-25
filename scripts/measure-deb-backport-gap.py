@@ -2,7 +2,7 @@
 """Measure what a deb suite needs backported from a newer donor suite.
 
 RFC 011's gap engine covers rpm-md only: measure-target-gap.py is a shim over
-measure-hummingbird-gap.py, which parses primary.xml and knows nothing about
+gap_engine.py, which parses primary.xml and knows nothing about
 APT. This is the deb half, and it answers a different question than the
 Hummingbird measurer does.
 

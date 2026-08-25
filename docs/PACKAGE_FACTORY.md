@@ -73,14 +73,20 @@ across runs rather than in one:
   `<cell>-partial` artifact, and the next run of the same cell restores it
   (key-matched, `scripts/restore-partial-chain-output.py`) and continues
   from there — the chain skips any package whose exact NVR already exists.
-- Per-target drift workflows (`hummingbird-gap-drift.yml`,
-  `fedora-gap-drift.yml`) re-measure the gap against the live target index
-  when it changes and open a review PR that adds new work and *removes*
+- One contract-driven drift workflow (`gap-drift.yml`, replacing the
+  per-target copies) re-measures each declared gap against the live index
+  when it changes and opens a review PR that adds new work and *removes*
   work the distro has caught up on.
 
 `scripts/factory-status.py` measures the result — built vs needed per target
 and per architecture, from the live published indexes — into
-`docs/FACTORY-STATUS.md` on a daily schedule.
+`docs/FACTORY-STATUS.md` on a daily schedule. Since the trend layer it
+also measures IMPROVEMENT itself: every run diffs against the last
+merged measurement, renders per-target deltas and days-without-movement
+from a history the JSON carries forward, flags any name that was served
+and no longer is as **REGRESSED** (the repo-wipe shape, caught at
+measurement time — #519 was found by exactly this check's first run),
+and alarms when the refresh itself stops landing.
 
 Around the build loop sit four preventive checks adapted from the
 sandogasa toolset (provenance, incident history, and the
