@@ -17,10 +17,10 @@ Every answer comes out of the two indexes, and --report-json records the
 repomd revisions and primary.xml checksums the answer was computed from so a
 later run can say whether the inputs moved.
 
-Usage:
-    scripts/measure-hummingbird-gap.py --catalog manifests/hummingbird-desktops.yaml
-    scripts/measure-hummingbird-gap.py --desktop gnome --report-json gap.json \
-        --build-order build-order-hummingbird-desktops.yml
+Usage (always through the target-parameterized entry point):
+    scripts/measure-target-gap.py --target <id> \
+        --report-json docs/<id>-desktop-gap.json \
+        --build-order build-order-<id>-desktops.yml
 """
 from __future__ import annotations
 
@@ -44,15 +44,6 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 COMMON = "{http://linux.duke.edu/metadata/common}"
 RPM = "{http://linux.duke.edu/metadata/rpm}"
 REPO = "{http://linux.duke.edu/metadata/repo}"
-
-DEFAULT_REFERENCE = (
-    "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide"
-    "/Everything/x86_64/os/"
-)
-DEFAULT_SOURCE_REFERENCE = (
-    "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide"
-    "/Everything/source/tree/"
-)
 
 # Capabilities no rebuild can supply because they are the buildroot itself or
 # an unversioned rich-dep alternative that rpm resolves at install time.
@@ -95,7 +86,13 @@ def fetch(url: str, cache: pathlib.Path) -> bytes:
     blob = cache / key
     if blob.exists():
         return blob.read_bytes()
-    with urllib.request.urlopen(url, timeout=300) as response:
+    # A named User-Agent, because the served indexes sit behind Cloudflare
+    # and some egress paths get the default Python-urllib agent answered
+    # with 403 while curl from the same host gets 200. Measured, not
+    # assumed. Same agent string bump-github-release-recipe.py sends.
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "tunaos-package-factory"})
+    with urllib.request.urlopen(request, timeout=300) as response:
         data = response.read()
     cache.mkdir(parents=True, exist_ok=True)
     blob.write_bytes(data)
@@ -145,10 +142,32 @@ def primary_of(baseurl: str, cache: pathlib.Path) -> tuple[bytes, dict]:
     return decompress(href, raw), provenance
 
 
+# primary.xml dependency-entry flags -> RPM comparison operators.
+FLAG_OPS = {"EQ": "=", "GE": ">=", "LE": "<=", "GT": ">", "LT": "<"}
+
+
+def entry_evr(entry) -> str | None:
+    """The epoch:version[-release] a versioned dependency entry names."""
+    ver = entry.get("ver")
+    if not ver:
+        return None
+    evr = f"{entry.get('epoch') or '0'}:{ver}"
+    rel = entry.get("rel")
+    return f"{evr}-{rel}" if rel else evr
+
+
 def parse_primary(blob: bytes) -> dict:
-    """Index a primary.xml into packages / provides / files."""
+    """Index a primary.xml into packages / provides / files.
+
+    `provides_evr` records, per capability, the set of EVRs it is
+    provided at — only for entries that carry a version. A capability
+    provided without a version cannot be judged against a constraint
+    and is deliberately absent, so version checks treat it as
+    satisfiable rather than inventing a verdict.
+    """
     packages: dict[str, dict] = {}
     provides: dict[str, set] = {}
+    provides_evr: dict[str, set] = {}
     files: set[str] = set()
     for _, element in ET.iterparse(io.BytesIO(blob), events=("end",)):
         if element.tag != f"{COMMON}package":
@@ -168,14 +187,27 @@ def parse_primary(blob: bytes) -> dict:
                         f"{COMMON}format/{RPM}requires/{RPM}entry"
                     )
                 ],
+                "requires_versioned": [
+                    (entry.get("name"), FLAG_OPS[entry.get("flags")],
+                     entry_evr(entry))
+                    for entry in element.findall(
+                        f"{COMMON}format/{RPM}requires/{RPM}entry"
+                    )
+                    if entry.get("flags") in FLAG_OPS
+                    and entry_evr(entry) is not None
+                ],
             }
         for entry in element.findall(f"{COMMON}format/{RPM}provides/{RPM}entry"):
             provides.setdefault(entry.get("name"), set()).add(name)
+            evr = entry_evr(entry)
+            if evr is not None:
+                provides_evr.setdefault(entry.get("name"), set()).add(evr)
         for shipped in element.findall(f"{COMMON}format/{COMMON}file"):
             files.add(shipped.text)
             provides.setdefault(shipped.text, set()).add(name)
         element.clear()
-    return {"packages": packages, "provides": provides, "files": files}
+    return {"packages": packages, "provides": provides,
+            "provides_evr": provides_evr, "files": files}
 
 
 def parse_source_primary(blob: bytes) -> dict:
@@ -191,6 +223,31 @@ def parse_source_primary(blob: bytes) -> dict:
                 f"{COMMON}format/{RPM}requires/{RPM}entry"
             )
         ]
+        element.clear()
+    return result
+
+
+def parse_source_primary_versioned(blob: bytes) -> dict:
+    """srpm name -> [(capability, op, required EVR)], versioned BRs only.
+
+    The name-level index above answers "does anything provide this at
+    all"; this one carries the constraints, so a preflight can also
+    answer "at a version that satisfies" — the libnotify >= 0.8.7 class
+    (#480), where the capability exists everywhere and satisfies
+    nothing.
+    """
+    result: dict[str, list[tuple[str, str, str]]] = {}
+    for _, element in ET.iterparse(io.BytesIO(blob), events=("end",)):
+        if element.tag != f"{COMMON}package":
+            continue
+        name = element.findtext(f"{COMMON}name")
+        versioned = []
+        for entry in element.findall(f"{COMMON}format/{RPM}requires/{RPM}entry"):
+            op = FLAG_OPS.get(entry.get("flags") or "")
+            evr = entry_evr(entry)
+            if op and evr:
+                versioned.append((entry.get("name"), op, evr))
+        result[name] = versioned
         element.clear()
     return result
 
@@ -488,8 +545,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--catalog", type=pathlib.Path,
-        help="Target roots manifest. Defaults to Hummingbird's legacy manifest; "
-             "--target resolves this from package-factory.yaml.",
+        help="Target roots manifest; --target resolves this from "
+             "package-factory.yaml instead.",
     )
     parser.add_argument(
         "--factory", type=pathlib.Path,
@@ -514,36 +571,44 @@ def main() -> None:
              "Requires: + BuildRequires: closure, so every build tool is "
              "built here too.  'runtime': only what images ship; build "
              "tools come from the buildroot's own repositories (the "
-             "inherited Rawhide fallback at priority 99 -- see "
-             "mock/hummingbird-ci.cfg).  Defaults to the catalog's "
-             "`membership:` key, then 'selfhost'.",
+             "target's mock config declares them).  Defaults to the "
+             "catalog's `membership:` key, then 'selfhost'.",
     )
     parser.add_argument("--desktop", action="append", dest="desktops")
     parser.add_argument(
         "--cache", type=pathlib.Path,
-        default=pathlib.Path(".cache/hummingbird-gap"),
+        default=pathlib.Path(".cache/target-gap"),
     )
     parser.add_argument("--report-json", type=pathlib.Path)
     parser.add_argument("--build-order", type=pathlib.Path)
     args = parser.parse_args()
 
+    # No hard-coded target. The engine measures whichever target the
+    # contract (or explicit flags) names — a default here is how one
+    # target's assumptions become the pipeline (the hummingbird fallbacks
+    # this replaces lasted long enough to name the engine after them).
     measurement = None
     if args.target:
         factory = yaml.safe_load(args.factory.read_text(encoding="utf-8"))
         measurement = target_measurement(factory, args.target)
-    catalog_path = args.catalog or pathlib.Path(
-        measurement["roots_manifest"] if measurement
-        else "manifests/hummingbird-desktops.yaml"
-    )
+    if not measurement and not args.catalog:
+        raise SystemExit(
+            "no target given: pass --target <id> (whose gap_measurement "
+            "contract in manifests/package-factory.yaml supplies roots and "
+            "indexes, via scripts/measure-target-gap.py) or an explicit "
+            "--catalog with --reference/--source-reference")
+    catalog_path = args.catalog or pathlib.Path(measurement["roots_manifest"])
     reference = args.reference or (
-        measurement.get("reference_index") if measurement else DEFAULT_REFERENCE
-    )
+        measurement.get("reference_index") if measurement else None)
+    if not reference:
+        raise SystemExit("no reference index: the target's gap_measurement "
+                         "contract must declare reference_index, or pass "
+                         "--reference")
     source_reference = args.source_reference
     if source_reference is None:
         source_reference = (
             measurement.get("source_reference_index", "") if measurement
-            else DEFAULT_SOURCE_REFERENCE
-        )
+            else "")
 
     catalog = yaml.safe_load(catalog_path.read_text())
     membership = args.membership or catalog.get("membership") or "selfhost"
@@ -704,12 +769,18 @@ def main() -> None:
     if args.build_order:
         emit_build_order(
             args.build_order, catalog, global_tiers, global_cycles, report,
-            args.catalog.resolve().parents[1],
+            # catalog_path, NOT args.catalog: the generic entrypoint
+            # (measure-target-gap.py --target hummingbird) passes no --catalog
+            # and args.catalog is then None -- which crashed the scheduled
+            # drift re-measure right after it wrote the report.
+            catalog_path.resolve().parents[1],
+            target_name=args.target,
         )
         print(f"wrote {args.build_order}", file=sys.stderr)
 
 
-def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -> None:
+def emit_build_order(path, catalog, global_tiers, global_cycles, report, root,
+                     target_name=None) -> None:
     """Write a build-chain.sh manifest whose tiers came out of the measurement.
 
     A package that already has a reviewed spec directory in this repository
@@ -719,17 +790,27 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -
     scripts/import-fedora-distgit.py before the tier runs.
     """
     target = catalog["target"]
-    search = ["src/gnome-50", "src/deps", "src/hummingbird", "src/xfce-wayland"]
+    # Where reviewed spec directories live and where dist-git imports land
+    # are properties of the TARGET's source tree, so the roots manifest
+    # declares them — hard-coding one family's layout here is how the
+    # engine ended up named after hummingbird.
+    search = catalog.get("source_paths")
+    fallback = catalog.get("distgit_prefix")
+    if not search or not fallback:
+        raise SystemExit(
+            f"{target['id']}: --build-order needs `source_paths:` and "
+            "`distgit_prefix:` declared in the roots manifest")
     cycles = {name for cycle in global_cycles for name in cycle}
 
     def locate(name):
         for prefix in search:
             if (root / prefix / name).is_dir():
                 return f"{prefix}/{name}", False
-        return f"src/hummingbird/{name}", True
+        return f"{fallback}/{name}", True
 
+    target_id = target_name or target["id"].split("-")[0]
     lines = [
-        "# GENERATED BY scripts/measure-target-gap.py --target hummingbird — DO NOT HAND-EDIT.",
+        f"# GENERATED BY scripts/measure-target-gap.py --target {target_id} — DO NOT HAND-EDIT.",
         "#",
         "# Tiers are ONE topological order over the condensed BuildRequires:",
         "# graph of every desktop at once -- not one order per desktop glued",
@@ -738,9 +819,9 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -
         f"# {target['id']} already ships.  Each tier builds in",
         "# parallel; tiers are sequential.  Regenerate with:",
         "#",
-        "#   scripts/measure-target-gap.py --target hummingbird \\",
-        "#     --report-json docs/hummingbird-desktop-gap.json \\",
-        "#     --build-order build-order-hummingbird-desktops.yml",
+        f"#   scripts/measure-target-gap.py --target {target_id} \\",
+        f"#     --report-json docs/{target_id}-desktop-gap.json \\",
+        f"#     --build-order {path.name}",
         "#",
         f"# Measured {report['measured_at']}",
         f"# target primary.xml   sha256 {report['target_index']['primary_sha256']}",
@@ -753,7 +834,7 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -
         "# the buildroot or in the produced image.",
         "#",
         "# `bootstrap: true` marks a member of a BuildRequires cycle — see",
-        "# docs/hummingbird-desktop-gap.json .buildrequires_cycles.  Those",
+        f"# docs/{target_id}-desktop-gap.json .buildrequires_cycles.  Those",
         "# packages cannot come up in one pass from a clean buildroot; the tier",
         "# they sit in needs a bootstrap spec or a second --force pass.",
         f"target: {target['id']}",
@@ -767,7 +848,7 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root) -
             "# Membership is `runtime`: only what images ship is built here.",
             "# BuildRequires-only tools (bison, transfig, gtk-doc, ...) come",
             "# from the buildroot's inherited Rawhide fallback at priority 99",
-            "# (mock/hummingbird-ci.cfg), never from this build order.",
+            "# (the target's mock config), never from this build order.",
             "#",
         ]
     # The declared bootstrap tiers come first and verbatim.  They are the

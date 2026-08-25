@@ -287,6 +287,20 @@ ensure_local_repo() {
     fi
 }
 
+# Opt-in: record what the buildroot resolved for each package, so a red run
+# can be diffed against a green one (scripts/diff-buildroots.py) instead of
+# reconstructed from issue comments — #480's libnotify hunt took a day of
+# archaeology for an answer mock had already written into root.log.
+# Enabled by exporting BUILDROOT_MANIFESTS=<dir>; never fatal: a manifest
+# that cannot be written must not fail a build that succeeded.
+record_buildroot_manifest() {
+    local resultdir="$1" pkg_name="$2"
+    [[ -n "${BUILDROOT_MANIFESTS:-}" ]] || return 0
+    python3 "${REPO_ROOT}/scripts/extract-buildroot-manifest.py" "$resultdir" \
+        --output "${BUILDROOT_MANIFESTS}/${pkg_name}.buildroot.txt" \
+        || echo "==> [${pkg_name}] buildroot manifest not recorded (non-fatal)"
+}
+
 update_local_repo() {
     log "Updating local repo metadata"
     # Attempt to update existing metadata first (faster)
@@ -912,6 +926,8 @@ build_package_podman() {
         rpm_count=$(( rpm_count + 1 ))
     done < <(find "$resultdir" -name "*.rpm" ! -name "*.src.rpm" -print0)
 
+    record_buildroot_manifest "$resultdir" "$pkg_name"
+
     if [[ $rpm_count -eq 0 ]]; then
         echo "ERROR: No RPMs produced for ${pkg_name}" >&2
         return 1
@@ -996,6 +1012,8 @@ build_package_mock() {
         echo "==> [${pkg_name}] -> $(basename "$rpm")"
         rpm_count=$(( rpm_count + 1 ))
     done < <(find "$resultdir" -name "*.rpm" ! -name "*.src.rpm" -print0)
+
+    record_buildroot_manifest "$resultdir" "$pkg_name"
 
     if [[ $rpm_count -eq 0 ]]; then
         echo "ERROR: No RPMs produced for ${pkg_name}" >&2

@@ -1,6 +1,6 @@
 """The drift workflow must install every module the measure script imports.
 
-measure-hummingbird-gap.py imports `zstandard` lazily, inside decompress(),
+gap_engine.py imports `zstandard` lazily, inside decompress(),
 and only when a repository's primary index is .zst — which the Fedora Rawhide
 reference always is.  A workflow that installs only PyYAML passes the drift
 gate, downloads repomd, and then dies on the import: run 32017727489, the
@@ -17,8 +17,8 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts" / "measure-hummingbird-gap.py"
-WORKFLOW = ROOT / ".github" / "workflows" / "hummingbird-gap-drift.yml"
+SCRIPT = ROOT / "scripts" / "gap_engine.py"
+WORKFLOW = ROOT / ".github" / "workflows" / "gap-drift.yml"
 
 # import name -> pip distribution name
 NON_STDLIB = {"yaml": "PyYAML", "zstandard": "zstandard"}
@@ -43,7 +43,7 @@ def test_script_import_surface_is_known() -> None:
         if name not in NON_STDLIB and name not in sys.stdlib_module_names
     }
     assert not unknown, (
-        f"measure-hummingbird-gap.py imports {sorted(unknown)} which this test "
+        f"gap_engine.py imports {sorted(unknown)} which this test "
         "does not classify; add each to NON_STDLIB and to the drift workflow's "
         "pip install"
     )
@@ -52,7 +52,8 @@ def test_script_import_surface_is_known() -> None:
 def test_workflow_installs_every_non_stdlib_import() -> None:
     body = WORKFLOW.read_text(encoding="utf-8")
     needed = {NON_STDLIB[n] for n in script_imports() if n in NON_STDLIB}
-    install_lines = [l for l in body.splitlines() if "pip install" in l]
+    install_lines = [line for line in body.splitlines()
+                     if "pip install" in line]
     assert install_lines, "drift workflow has no pip install step"
     for dist in sorted(needed):
         assert any(dist in line for line in install_lines), (

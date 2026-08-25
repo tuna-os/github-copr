@@ -117,4 +117,5 @@ jobs:
             order-${{ github.event.inputs.target }}.yml
             .factory/backport-${{ github.event.inputs.target }}/artifacts/
             .factory/backport-${{ github.event.inputs.target }}/logs/
+            .factory/backport-${{ github.event.inputs.target }}/buildroots/
           if-no-files-found: warn

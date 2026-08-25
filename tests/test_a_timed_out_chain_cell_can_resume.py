@@ -227,11 +227,8 @@ def test_the_job_may_read_its_own_workflow_artifacts():
 
 def _fake_api(module, listing, blob):
     """Stand in for the artifacts API so the happy path is exercised, not read."""
-    def api_get(url, token, raw=False):
-        if raw:
-            return blob
-        return listing
-    module.api_get = api_get
+    module.api_get = lambda url, token: listing
+    module.download_artifact = lambda url, token: blob
 
 
 def test_a_matching_partial_lands_in_the_local_repo(tmp_path, monkeypatch):
@@ -302,6 +299,74 @@ def test_a_mismatched_partial_leaves_the_cell_directory_untouched(tmp_path, monk
         "--action-key", "the-current-key", "--out-dir", str(out)])
     assert module.main() == 0
     assert not out.exists(), "a mismatched partial must land nothing at all"
+
+
+def test_the_download_does_not_leak_the_token_through_the_redirect(tmp_path):
+    """The bug that made every resume a no-op (#480).
+
+    GitHub's archive endpoint answers 302 with a pre-signed blob-storage URL.
+    urllib's default redirect handler replays the original headers -- with
+    Authorization -- against the new host, and Azure answers a GitHub bearer
+    token with HTTP 401. The nightly logged exactly that ("could not download
+    it (HTTP Error 401 ...); building from scratch"), rebuilt six hours of
+    work, and timed out in the same place again.
+
+    This server refuses the redirected request if Authorization is present,
+    which is Azure's observable behaviour. It also proves the token IS sent
+    on the first hop, where GitHub requires it.
+    """
+    import http.server
+    import threading
+
+    payload = tmp_path / "partial.zip"
+    with zipfile.ZipFile(payload, "w") as archive:
+        archive.writestr("action-key.txt", "k\n")
+        archive.writestr("artifacts/glib2-2.88.0-2.el10.x86_64.rpm", "rpm")
+    blob = payload.read_bytes()
+    seen = {}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/api/artifact/zip":
+                seen["api_auth"] = self.headers.get("Authorization")
+                self.send_response(302)
+                self.send_header(
+                    "Location", f"http://127.0.0.1:{self.server.server_port}/blob")
+                self.end_headers()
+            elif self.path == "/blob":
+                seen["blob_auth"] = self.headers.get("Authorization")
+                if self.headers.get("Authorization"):
+                    self.send_response(401)  # what Azure does with a GitHub token
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(blob)))
+                self.end_headers()
+                self.wfile.write(blob)
+
+        def log_message(self, *_):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        module = load_module()
+        url = f"http://127.0.0.1:{server.server_port}/api/artifact/zip"
+        fetched = module.download_artifact(url, "ghs_secret")
+    finally:
+        server.shutdown()
+        thread.join()
+
+    assert fetched == blob
+    assert seen["api_auth"] == "Bearer ghs_secret", (
+        "the GitHub hop must be authenticated -- artifact downloads 404 without it"
+    )
+    assert seen["blob_auth"] is None, (
+        "the Authorization header must not follow the redirect: the blob host "
+        "answers a GitHub token with 401 and the resume silently degrades to "
+        "a full rebuild"
+    )
 
 
 def test_an_expired_artifact_is_skipped(tmp_path, monkeypatch):

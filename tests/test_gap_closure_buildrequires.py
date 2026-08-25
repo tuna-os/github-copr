@@ -23,7 +23,7 @@ import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location(
-    "gap", ROOT / "scripts" / "measure-hummingbird-gap.py"
+    "gap", ROOT / "scripts" / "gap_engine.py"
 )
 gap = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gap)

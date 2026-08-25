@@ -73,14 +73,51 @@ def log(message: str) -> None:
     print(f"[resume] {message}", flush=True)
 
 
-def api_get(url: str, token: str, raw: bool = False):
+def api_get(url: str, token: str):
     request = urllib.request.Request(url)
     request.add_header("Authorization", f"Bearer {token}")
     request.add_header("Accept", "application/vnd.github+json")
     request.add_header("X-GitHub-Api-Version", "2022-11-28")
     with urllib.request.urlopen(request, timeout=120) as response:
         payload = response.read()
-    return payload if raw else json.loads(payload)
+    return json.loads(payload)
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def download_artifact(url: str, token: str) -> bytes:
+    """Fetch the artifact zip, following GitHub's redirect BY HAND.
+
+    The archive endpoint answers 302 with a pre-signed blob-storage URL in
+    Location. urllib's default redirect handler replays every original header
+    against the new host -- including Authorization -- and Azure answers a
+    GitHub bearer token with HTTP 401 ("Server failed to authenticate the
+    request"). That 401 made every resume fall back to building from scratch,
+    which put the hummingbird cells right back on the 6-hour wall this script
+    exists to remove (#480). So: authenticate the GitHub hop, then fetch the
+    pre-signed Location with no Authorization header at all.
+    """
+    request = urllib.request.Request(url)
+    request.add_header("Authorization", f"Bearer {token}")
+    request.add_header("Accept", "application/vnd.github+json")
+    request.add_header("X-GitHub-Api-Version", "2022-11-28")
+    opener = urllib.request.build_opener(_NoRedirect())
+    try:
+        with opener.open(request, timeout=120) as response:
+            # GitHub documents a redirect, but a direct 200 is fine too.
+            return response.read()
+    except urllib.error.HTTPError as error:
+        if error.code not in (301, 302, 303, 307, 308):
+            raise
+        location = error.headers.get("Location")
+        if not location:
+            raise
+    # A 445 MB zip at ~10 MB/s wants far more than the API timeout.
+    with urllib.request.urlopen(location, timeout=1800) as response:
+        return response.read()
 
 
 def newest_partial(repository: str, name: str, token: str) -> dict | None:
@@ -161,7 +198,7 @@ def main() -> int:
     log(f"found `{name}` from {artifact.get('created_at')} "
         f"({artifact.get('size_in_bytes', 0) / 1e6:.0f} MB)")
     try:
-        blob = api_get(artifact["archive_download_url"], token, raw=True)
+        blob = download_artifact(artifact["archive_download_url"], token)
     except (urllib.error.URLError, OSError) as error:
         log(f"could not download it ({error}); building from scratch")
         return 0
