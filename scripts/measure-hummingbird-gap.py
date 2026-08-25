@@ -704,7 +704,11 @@ def main() -> None:
     if args.build_order:
         emit_build_order(
             args.build_order, catalog, global_tiers, global_cycles, report,
-            args.catalog.resolve().parents[1],
+            # catalog_path, NOT args.catalog: the generic entrypoint
+            # (measure-target-gap.py --target hummingbird) passes no --catalog
+            # and args.catalog is then None -- which crashed the scheduled
+            # drift re-measure right after it wrote the report.
+            catalog_path.resolve().parents[1],
         )
         print(f"wrote {args.build_order}", file=sys.stderr)
 
