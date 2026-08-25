@@ -68,7 +68,7 @@ case ${FORMAT:?} in
       --cache-dir "$HOME/.cache/tideforge/sources"
     if [[ $target == opensuse-tumbleweed ]]; then
       docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
-        --env TARGET="$target" \
+        --env TARGET="$target" --env PUBLISHED_INDEX="$published_index" \
         --volume "$PWD/scripts:/scripts:ro" \
         --volume "$root:/work" "$image" bash -lc '
           set -euo pipefail
@@ -76,6 +76,21 @@ case ${FORMAT:?} in
           # that sync at different speeds and one caught mid-snapshot-rotation
           # serves a repomd naming files it does not have yet. See the script.
           bash /scripts/zypper-refresh-with-retry.sh
+          # Cross-cell BuildRequires resolve from the SERVED factory index —
+          # this branch predates the target having one, and the day the
+          # first tumbleweed wave was served, niri failed right here on
+          # libseat-devel: built, published, resolving, and invisible to the
+          # buildroot. Same gap-filler rules as the dnf branch, in zypper
+          # terms: priority is INVERTED (higher number = worse), the system
+          # repos sit at 99, so 200 keeps every shared name coming from
+          # Tumbleweed while factory-only names resolve from here.
+          index_n=0
+          for published_url in ${PUBLISHED_INDEX:-}; do
+            zypper --non-interactive addrepo --no-gpgcheck --priority 200 \
+              "${published_url}" "tunaos-published-${index_n}"
+            index_n=$((index_n + 1))
+          done
+          ((index_n == 0)) || bash /scripts/zypper-refresh-with-retry.sh
           zypper --non-interactive install rpm-build
           mapfile -t requirements < <(rpmspec -q --buildrequires /work/rpmbuild/SPECS/*.spec)
           ((${#requirements[@]} == 0)) || zypper --non-interactive install "${requirements[@]}"
