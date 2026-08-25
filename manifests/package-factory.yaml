@@ -180,10 +180,20 @@ targets:
     # shaped -- an image built from the target's own repository.
     status: scaffold
     format: rpm
-    # The chroot is Fedora Rawhide with the target's repository on top, so
-    # this is what a probe would boot. It is recorded for provenance; see the
-    # note above for why it is not yet trustworthy to probe against.
-    probe_image: registry.fedoraproject.org/fedora:rawhide
+    # A Hummingbird-shaped image at last: the upstream bootc-os image, pinned
+    # to the same digest tunaOS builds from. It ships Hummingbird's OWN repos
+    # and nothing else, so the probe answers from what the target actually
+    # serves rather than from the Rawhide base beneath it — the lie the note
+    # above describes. Measured, not assumed: inside exactly this image,
+    # tunaOS run 32813311729 resolved dbus-daemon and got
+    # "No match for argument: flatpak", the truthful answer for a
+    # distribution that does not package flatpak.
+    #
+    # The scaffold status can now be lifted on its own merits: the reason
+    # recorded above (probe cannot tell the truth) no longer holds. Left as
+    # scaffold here because flipping it is a policy decision about letting
+    # recipes opt in, not part of making the probe honest.
+    probe_image: quay.io/hummingbird-community/bootc-os:latest@sha256:c5539f9ed4d93aab6bd41e4f5aef8ab83055f3f9e855a47b69fadb7420d0d1df
     # aarch64 added for tunaOS#1755 §3: hummingbird's desktop flavors declare
     # linux/arm64, but until this leg publishes something, every aarch64
     # rebuild path 404s -- the only live repo was 20251124-x86_64. mock/
