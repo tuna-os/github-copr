@@ -96,6 +96,15 @@ def resolve(requested, available):
             # newest commit touching the manifest or any source path, the same
             # derivation package-factory-cell.yml's identity step uses.
             "source_paths": cell.get("source_paths", []),
+            # The four remaining native-key inputs. The publish build job now
+            # computes the SAME action key as the nightly so it can cache-hit
+            # a chain the nightly completed and resume a partial it deferred;
+            # omitting these made the key differ (empty vs "stable") and the
+            # cache could never bridge the two workflows.
+            "dependency_tree": cell.get("dependency_tree", ""),
+            "target_queue": cell.get("target_queue", ""),
+            "track": cell.get("track", ""),
+            "series": cell.get("series", ""),
             "r2_path": path,
         })
     return selected, rejections
