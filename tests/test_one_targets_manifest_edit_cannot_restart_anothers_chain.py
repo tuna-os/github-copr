@@ -23,6 +23,19 @@ This also silently defeated #473, which had narrowed the manifest's
 contribution to `build_view(target)` for exactly this reason -- and then the
 whole-file digest reinstated every other target's fields.
 
+The manifest reaches the key by TWO independent paths, and fixing one while
+leaving the other looks exactly like a fix while changing nothing:
+
+  * `native_inputs[].digest` -- the file's content;
+  * `reproducibility.source_date_epoch` -- computed in package-factory-cell.yml
+    as `git log -1 --format=%at -- <manifest> <source_paths>`, so any commit
+    touching the manifest bumps it.
+
+The first version of this file held the epoch constant and so proved only the
+first half, while its name claimed the whole thing. Both are closed now, and
+`test_the_epoch_is_not_derived_from_the_manifest` is what keeps the second one
+closed.
+
 The pair of tests below is the point. Isolation alone is easy to get by
 dropping the manifest from the key entirely, which would be a cache that
 cannot tell two different recipes apart -- so the second test requires the key
@@ -157,4 +170,46 @@ def test_a_schema_bump_still_moves_the_key(tmp_path) -> None:
     assert before != after, (
         "a manifest schema bump no longer invalidates the key, so cells would "
         "reuse output built under different field semantics"
+    )
+
+
+def test_the_epoch_is_not_derived_from_the_manifest() -> None:
+    """The second path from the manifest into the key.
+
+    The digest fix above is invisible without this one: the epoch is
+    SOURCE_DATE_EPOCH *and* an action-key input, so while it was computed over
+    the manifest, every edit re-keyed every cell no matter how well the digest
+    was scoped. A test that only checked the digest would have passed on a
+    change that fixed nothing in production.
+    """
+    workflow = (ROOT / ".github" / "workflows" / "package-factory-cell.yml").read_text(
+        encoding="utf-8")
+    line = next(
+        l for l in workflow.splitlines()
+        if "epoch=$(git log" in l and "source_paths" in l
+    )
+    assert "matrix.manifest" not in line, (
+        "SOURCE_DATE_EPOCH is derived from the manifest again, so an edit to "
+        "ANY target's block re-keys this cell and its partial is rejected "
+        f"(#528). Line: {line.strip()}"
+    )
+
+
+def test_an_empty_source_path_list_fails_loudly() -> None:
+    """`git log -1 --format=%at --` with no paths returns the repo's last commit.
+
+    That would re-key every cell on every commit -- strictly worse than the
+    bug being fixed -- and it would do so silently, because an epoch is just a
+    number. Every build-chain cell declares source_paths today; the guard is
+    for the one that some day does not.
+    """
+    workflow = (ROOT / ".github" / "workflows" / "package-factory-cell.yml").read_text(
+        encoding="utf-8")
+    epoch_at = workflow.index('epoch=$(git log -1 --format=%at -- "${source_paths[@]}")')
+    preceding = workflow[:epoch_at]
+    guard = preceding.rindex('if [ "${#source_paths[@]}" -eq 0 ]')
+    assert "exit 1" in preceding[guard:], (
+        "the empty-source_paths guard no longer exits, so a cell without "
+        "sources would silently take the repository's last commit as its "
+        "SOURCE_DATE_EPOCH and re-key on every push"
     )

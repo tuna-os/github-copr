@@ -70,7 +70,35 @@ jobs:
               --source-date-epoch "$epoch")
           else
             mapfile -t source_paths < <(jq -r '.source_paths[]' <<<"$CELL")
-            epoch=$(git log -1 --format=%at -- '${{ matrix.manifest }}' "${source_paths[@]}")
+            # The SOURCES only, not the manifest. This epoch is SOURCE_DATE_EPOCH
+            # and it feeds the action key, so including the manifest meant an
+            # edit to ANY target's block moved this cell's key -- and therefore
+            # made `restore-partial-chain-output.py` reject the previous
+            # attempt's partial and restart a 22-tier chain at bootstrap-00.
+            #
+            # Run 32842254545: a 429 MB partial written 34 seconds earlier was
+            # rejected as "action key differs", and 4h01m of build reached
+            # layer-00. #512 had edited the manifest to add `drift:` blocks and
+            # correct `probe_image` -- neither changes what an RPM compiles to.
+            # See #528.
+            #
+            # Scoping the manifest DIGEST alone (tideforge-action-cache.py) does
+            # not achieve this on its own: the epoch is a second, independent
+            # path from the same file into the same key, and it would have kept
+            # invalidating everything while looking fixed.
+            #
+            # Correctness is unaffected. The target's build view is still in the
+            # key via native_inputs, so a change this build actually reads still
+            # re-keys the cell. What changes is that SOURCE_DATE_EPOCH now tracks
+            # the sources it timestamps, which is what it is for.
+            if [ "${#source_paths[@]}" -eq 0 ]; then
+              echo "::error::cell '${{ matrix.id }}' declares no source_paths, so" \
+                   "SOURCE_DATE_EPOCH cannot be derived from them; refusing rather" \
+                   "than falling back to the repository's last commit, which would" \
+                   "re-key this cell on EVERY commit"
+              exit 1
+            fi
+            epoch=$(git log -1 --format=%at -- "${source_paths[@]}")
             args=()
             for path in "${source_paths[@]}"; do args+=(--input "$path"); done
             payload=$(python3 scripts/tideforge-action-cache.py native-key \
