@@ -142,7 +142,7 @@ jobs:
           python3 scripts/measure-target-gap.py $(cat /tmp/drift-args)
 
       - name: Propose the regenerated measurement
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: upstream-drift/${{ matrix.target }}
           title: "chore(${{ matrix.target }}): re-measure the gap against live upstream"
