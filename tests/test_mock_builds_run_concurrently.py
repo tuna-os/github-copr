@@ -12,8 +12,10 @@ They do not, on three counts, none of which this change introduced:
     /var/lib/mock/<config>-<pkg>; that is what the flag exists for.
   * /var/lib/mock lives inside the per-build container and dies with it, so
     two concurrent builds cannot observe each other's chroots at all.
-  * /var/cache/mock is bind-mounted only when MOCK_CACHE_DIR is set, and
-    .github/workflows/build-hummingbird-desktops.yml does not set it.
+  * the one thing concurrent builds do share is the mock ROOT CACHE under
+    /var/cache/mock/<config>/root_cache, and mock guards that itself with an
+    fcntl lock -- shared to unpack, exclusive to rebuild.  repo.lock never
+    protected it and could not have.
 
 What genuinely needs serialising is `createrepo_c --update`, which REWRITES the
 metadata mock reads.  That is a classic reader/writer split: builds take the

@@ -1,0 +1,168 @@
+name: Upstream Drift
+
+# Re-measure a target's gap when UPSTREAM moves, not when a clock says to.
+#
+# Hummingbird exists to ship fixes as soon as they are published. Measuring
+# against a snapshot taken weeks ago defeats that twice over: the factory keeps
+# rebuilding packages upstream has since adopted, and does not know about the
+# ones upstream has just changed. The build order is generated as
+# (desktop closure) minus (what upstream ships), so it is only correct for the
+# upstream revision it was generated against.
+#
+# manifests/package-factory.yaml has declared this per target all along, under
+# gap_measurement.drift. .github/workflows/hummingbird-gap-drift.yml
+# implemented it until 6d4b77a removed it with the rest of the
+# hummingbird-specific pipeline (#517). measure-target-gap.py was correctly
+# generalised and kept; the reactive driver was not replaced, so the
+# declaration went inert and the measurement stopped moving.
+#
+# Measured on 2026-08-25, before this landed:
+#
+#     live upstream revision   1787625027   2026-08-25T02:30:27Z
+#     committed measurement    1787045128   2026-08-18T09:25:28Z
+#
+# Upstream had published five hours earlier.
+#
+# Generic over targets on purpose — the previous version named hummingbird in
+# its filename, its URL and its outputs, which is why removing hummingbird
+# specifics removed the reactivity with it. A second target opting in needs
+# only a drift block.
+#
+# The revision gate keeps this cheap: the expensive part is downloading the
+# reference index, and it is skipped entirely unless the upstream revision has
+# actually changed. Hourly rather than daily because "as soon as they are
+# published" is the requirement; a HEAD-sized fetch of repomd.xml per target
+# per hour is not a meaningful load on anyone.
+
+on:
+  schedule:
+    - cron: '25 * * * *'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Only check/measure this target (default: all declared)'
+        required: false
+        type: string
+      force:
+        description: 'Re-measure even if the revision has not moved'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  # Serialise, and do NOT cancel in progress: a half-finished measurement that
+  # gets evicted leaves nothing, and the previous hummingbird build workflow
+  # was killed by exactly this — ten consecutive runs cancelled each other and
+  # its fix never executed (tunaos-packages#406). Queueing one behind another
+  # is correct here; the revision gate makes the queued run cheap if upstream
+  # has not moved again.
+  group: upstream-drift
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      drifted: ${{ steps.check.outputs.drifted }}
+      any: ${{ steps.check.outputs.any }}
+      matrix: ${{ steps.check.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install --disable-pip-version-check PyYAML
+
+      - name: Which targets has upstream moved past
+        id: check
+        env:
+          ONLY: ${{ inputs.target }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          args=(--github-output)
+          [[ -n "${ONLY:-}" ]] && args+=(--target "${ONLY}")
+          # Without this, `force` produces an empty matrix and the remeasure
+          # job is skipped for having no cells -- a green run that measured
+          # nothing, which is the outcome this whole workflow exists to stop.
+          [[ "${FORCE:-false}" == "true" ]] && args+=(--force-all)
+          # Exit 2 means a declared index could not be read at all. That is a
+          # real problem worth a red check -- an unreadable upstream must never
+          # be indistinguishable from an unchanged one -- but it must not stop
+          # the targets that DID answer from being measured below, so the
+          # status is captured rather than allowed to abort the step.
+          rc=0
+          python3 scripts/check-upstream-drift.py "${args[@]}" || rc=$?
+          if [[ $rc -eq 2 ]]; then
+            echo "::warning::at least one declared upstream index was unreadable; see the log"
+          elif [[ $rc -ne 0 ]]; then
+            exit $rc
+          fi
+
+  remeasure:
+    needs: detect
+    if: needs.detect.outputs.any == 'true' || inputs.force
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.detect.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      # zstandard: the Fedora Rawhide reference primary.xml is .zst and
+      # measure-target-gap.py imports the decompressor lazily. The first
+      # scheduled run of the previous workflow (32017727489) died on exactly
+      # this import.
+      - run: pip install --disable-pip-version-check PyYAML zstandard
+
+      - name: Re-measure ${{ matrix.target }} against live upstream
+        run: |
+          set -euo pipefail
+          python3 - "${{ matrix.target }}" <<'PY' > /tmp/drift-args
+          import shlex, sys, yaml
+          t = sys.argv[1]
+          gap = yaml.safe_load(open("manifests/package-factory.yaml"))["targets"][t]["gap_measurement"]
+          d = gap["drift"]
+          out = ["--target", t, "--report-json", d["report_json"]]
+          if d.get("build_order"):
+              out += ["--build-order", d["build_order"]]
+          print(shlex.join(out))
+          PY
+          # shellcheck disable=SC2046
+          python3 scripts/measure-target-gap.py $(cat /tmp/drift-args)
+
+      - name: Propose the regenerated measurement
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: upstream-drift/${{ matrix.target }}
+          title: "chore(${{ matrix.target }}): re-measure the gap against live upstream"
+          commit-message: |
+            chore(${{ matrix.target }}): re-measure the gap against live upstream
+
+            Upstream published a new repository revision. The build order is
+            generated as (closure) minus (what upstream ships), so it is only
+            correct for the revision it was measured against: every package
+            upstream adopts must drop out of our build set, or the factory
+            keeps rebuilding something the target already maintains.
+
+            Opened by .github/workflows/upstream-drift.yml.
+          body: |
+            `${{ matrix.target }}`'s upstream index moved, so the committed gap
+            measurement no longer describes what still needs building.
+
+            Regenerated by `scripts/measure-target-gap.py`. The diff is what
+            upstream has adopted (drops out of our build set) and what it has
+            newly changed (comes in).
+
+            Opened automatically by
+            [`upstream-drift.yml`](.github/workflows/upstream-drift.yml).

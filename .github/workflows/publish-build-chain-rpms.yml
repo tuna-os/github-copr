@@ -75,22 +75,66 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q createrepo-c podman rpm
-      - id: epoch
-        name: Date the build reproducibly
-        # run-package-factory-cell.sh requires SOURCE_DATE_EPOCH (`${VAR:?}`),
-        # and the first dispatch of this workflow died on its absence:
-        #   run-package-factory-cell.sh: line 14: SOURCE_DATE_EPOCH:
-        #   parameter null or not set
-        # Same derivation as package-factory-cell.yml's identity step for a
-        # build-chain cell: the newest commit touching the manifest or any of
-        # the family's source paths.
+      # --- Bridge to the nightly's banked work -------------------------------
+      # This job used to rebuild every cell from ZERO on every dispatch: no
+      # action-cache restore, no partial resume. That made nightly
+      # convergence useless to publication -- a chain the nightly had
+      # completed was rebuilt for hours here, and a chain the nightly had
+      # deferred restarted at tier 0. These three steps are the same
+      # identity/restore/resume trio package-factory-cell.yml runs, computing
+      # the SAME native action key, so:
+      #   * a chain the nightly COMPLETED cache-hits and stages in seconds;
+      #   * a chain the nightly DEFERRED resumes its newest partial and
+      #     extends it under this job's own CHAIN_BUDGET_SECONDS before
+      #     publishing the additive increment (publish-rpm-wave.sh merges
+      #     against the synced-down repo, so partial publishes only grow it).
+      - name: Pull the declared build image
+        run: docker pull -q '${{ matrix.image }}'
+      - id: identity
+        name: Resolve immutable inputs and action key
         env:
           SOURCE_PATHS: ${{ toJSON(matrix.source_paths) }}
         run: |
           set -euo pipefail
+          image=$(docker image inspect --format '{{json .RepoDigests}}' '${{ matrix.image }}' | jq -r 'sort | .[0]')
           mapfile -t source_paths < <(jq -r '.[]' <<<"$SOURCE_PATHS")
-          epoch=$(git log -1 --format=%ct -- '${{ matrix.manifest }}' "${source_paths[@]}")
+          # %at, not %ct -- author date survives rebases; the nightly's key
+          # uses it and this key must MATCH the nightly's or the bridge is a
+          # mirage (package-factory-cell.yml carries the full incident).
+          epoch=$(git log -1 --format=%at -- '${{ matrix.manifest }}' "${source_paths[@]}")
+          args=()
+          for path in "${source_paths[@]}"; do args+=(--input "$path"); done
+          payload=$(python3 scripts/tideforge-action-cache.py native-key             --identity '${{ matrix.id }}' --manifest '${{ matrix.manifest }}'             "${args[@]}" --target '${{ matrix.target }}'             --arch '${{ matrix.architecture }}' --image "$image"             --dependency-tree '${{ matrix.dependency_tree }}'             --target-queue '${{ matrix.target_queue }}'             --track '${{ matrix.track }}' --series '${{ matrix.series }}'             --source-date-epoch "$epoch")
+          echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
           echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
+          mkdir -p '.factory/${{ matrix.id }}'
+          jq -r .action_key <<<"$payload" > '.factory/${{ matrix.id }}/action-key.txt'
+      - id: restore
+        uses: ./.github/actions/tideforge-action-cache
+        with:
+          operation: restore
+          action-key: ${{ steps.identity.outputs.key }}
+          path: |
+            .factory/${{ matrix.id }}/artifacts
+            .factory/${{ matrix.id }}/action-result.json
+            .factory/${{ matrix.id }}/package-info.txt
+      - id: verdict
+        name: Verify restored output
+        run: |
+          set -euo pipefail
+          hit=false
+          if [ '${{ steps.restore.outputs.cache-hit }}' = true ]; then
+            python3 scripts/tideforge-action-cache.py verify               --result '.factory/${{ matrix.id }}/action-result.json'               --artifact-dir '.factory/${{ matrix.id }}/artifacts'               --expected-action-key '${{ steps.identity.outputs.key }}'
+            hit=true
+          fi
+          echo "hit=$hit" >> "$GITHUB_OUTPUT"
+          echo "::notice title=action-cache::$([ "$hit" = true ] && echo hit || echo miss) ${{ matrix.id }}"
+      - name: Resume from a previous attempt's partial output
+        if: steps.verdict.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/restore-partial-chain-output.py             --cell-id '${{ matrix.id }}'             --action-key '${{ steps.identity.outputs.key }}'             --out-dir '.factory/${{ matrix.id }}'
       - name: Build the cell
         env:
           CELL_ID: ${{ matrix.id }}
@@ -102,7 +146,8 @@ jobs:
           IMAGE: ${{ matrix.image }}
           MANIFEST: ${{ matrix.manifest }}
           MOCK_CONFIG: ${{ matrix.mock_config }}
-          SOURCE_DATE_EPOCH: ${{ steps.epoch.outputs.epoch }}
+          SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
+        if: steps.verdict.outputs.hit != 'true'
         run: bash scripts/run-package-factory-cell.sh
       - uses: actions/upload-artifact@v7
         with:
@@ -156,8 +201,36 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p repo
+          # NOT `|| true`. The sync-up later in this job makes the bucket MATCH
+          # repo/, so any object that failed to come down here is DELETED from
+          # the bucket there. Swallowing a partial sync-down is precisely how
+          # repo/10/x86_64 lost ~160 served package names between 2026-08-20
+          # and 2026-08-25 (#519) -- gdk-pixbuf2, harfbuzz, gnome-desktop3 and
+          # malcontent among them. Those are dependencies, not leaves, so dnf
+          # then reported gtk4 and 17 others as BROKEN rather than missing, and
+          # tunaOS shipped a hummingbird:gnome image containing no GNOME at all
+          # (410 packages: wallpapers and docs). Same shape as #124 /
+          # INCIDENT-repo-wipe-gnome, one prefix at a time.
+          #
+          # publish-rpm-wave.sh's NEVER SHRINK guard cannot catch this: it
+          # counts RPMs in the local tree, and these files were never synced
+          # down to be counted.
+          #
+          # rclone exit 3 is "directory not found" -- the legitimate
+          # first-publish case for a new prefix. Every other non-zero status is
+          # a real failure and must stop the job BEFORE the destructive
+          # sync-up, not after.
+          set +e
           rclone sync "r2:${R2_BUCKET}/${{ matrix.r2_path }}/" repo/ \
-            --exclude "repodata/**" || true
+            --exclude "repodata/**"
+          _sync_rc=$?
+          set -e
+          if ((_sync_rc == 3)); then
+            echo "::notice::no existing objects at ${{ matrix.r2_path }} — treating as first publish"
+          elif ((_sync_rc != 0)); then
+            echo "::error::sync-down of ${{ matrix.r2_path }} failed (rclone rc=${_sync_rc}); refusing to continue — the sync-up in this job would DELETE every object that failed to come down"
+            exit 1
+          fi
           echo "synced down $(find repo -name '*.rpm' | wc -l) RPM(s) from ${{ matrix.r2_path }}"
       - uses: actions/download-artifact@v8
         with:

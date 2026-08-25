@@ -38,7 +38,24 @@ if [[ $engine == build-chain ]]; then
     if [[ -n ${TIERS:-} ]]; then
       args+=(--stream --tiers "$TIERS")
     fi
+    # Soft deadline inside the job's hard ceiling (#480, and the 08-19..08-24
+    # nightlies dying at 5h59m with everything after the build skipped). The
+    # chain finishes its in-flight packages, drains and exits 0, so the
+    # validate/checksum/SBOM/attest/upload steps below run on what DID build.
+    # 4.5h of building leaves ~90 minutes for the longest in-flight package to
+    # finish plus post-processing, inside timeout-minutes: 360.
+    export CHAIN_BUDGET_SECONDS=${CHAIN_BUDGET_SECONDS:-16200}
+    export CHAIN_DEFERRED_MARKER="$out/chain-deferred"
+    rm -f "$CHAIN_DEFERRED_MARKER"
     ./scripts/build-chain.sh "${args[@]}"
+    # Tell the workflow this run is partial, so the action cache is NOT
+    # written: a deferred chain recorded as a completed ActionResult would
+    # make every later run cache-hit on the partial and freeze the chain
+    # at it forever. The publish artifact still uploads -- shipping what
+    # built is the whole point.
+    if [[ -f "$CHAIN_DEFERRED_MARKER" && -n "${GITHUB_OUTPUT:-}" ]]; then
+        echo "chain_deferred=true" >> "$GITHUB_OUTPUT"
+    fi
     exit 0
 fi
 

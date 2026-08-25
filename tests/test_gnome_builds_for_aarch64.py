@@ -75,8 +75,13 @@ def test_every_build_chain_family_now_has_both_arches():
 
 
 def test_each_is_dispatchable_by_id():
+    """A --cell dispatch selects exactly that cell -- plus, for a full-chain
+    build-chain cell, its continuation copies in the chained shards, which is
+    what makes a manual dispatch bank three budgets of chain instead of one
+    (test_continuation_shards_extend_the_chain_same_day.py)."""
     for cell_id in NEW:
-        assert [c["id"] for c in planned("--cell", cell_id)] == [cell_id]
+        ids = [c["id"] for c in planned("--cell", cell_id)]
+        assert ids == [cell_id, f"{cell_id}-c1", f"{cell_id}-c2"], ids
 
 
 def test_they_run_on_a_native_arm_runner():
