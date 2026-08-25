@@ -83,17 +83,22 @@ and per architecture, from the live published indexes — into
 `docs/FACTORY-STATUS.md` on a daily schedule.
 
 Around the build loop sit four preventive checks adapted from the
-sandogasa toolset (provenance and incident history in
-`SANDOGASA-ADAPTATIONS.md`): `scripts/preflight-buildrequires.py`
-answers before dispatch whether a build order can build (name-level and
-version-level) and whether its binaries will install;
-`scripts/check-published-hygiene.py` audits the served prefix
-combination for duplicate entries, name fights, and file conflicts;
-`publish-rpm-wave.sh` refuses a wave that leaves any served package
-unresolvable (`scripts/check-reverse-deps.py`); and every build-chain
-cell records per-package buildroot manifests into
-`artifacts/buildroots/` so a red run diffs against the last green one
-(`scripts/diff-buildroots.py`).
+sandogasa toolset (provenance, incident history, and the
+capability-per-format matrix in `SANDOGASA-ADAPTATIONS.md`), built on
+one format-neutral index layer (`scripts/repo_index.py`) so they treat
+every declared format as an equal — RPM, DEB, and pacman alike, each
+judged with its own version comparator:
+`scripts/preflight-buildrequires.py` answers before dispatch whether a
+build order can build (name-level and version-level) and whether its
+binaries will install; `scripts/check-published-hygiene.py` audits the
+served prefix combination of every target with an index for duplicate
+entries, name fights, and file conflicts; every publish path — rpm
+wave, deb repo, pacman repo — refuses a publish that leaves a served
+package unresolvable (`check-reverse-deps.py`,
+`check-index-regression.py`); and both build chains record per-package
+buildroot manifests so a red run diffs against the last green one
+(`scripts/diff-buildroots.py`). `tests/test_target_tooling_parity.py`
+keeps this per-format equality a CI property rather than an intention.
 
 ### What the gate does not cover
 

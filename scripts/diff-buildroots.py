@@ -24,7 +24,23 @@ import sys
 
 
 def parse_nevra(nevra: str) -> tuple[str, str]:
-    """NEVRA -> (name, evr.arch). `glibc-2.39-14.el10.x86_64`."""
+    """One manifest line -> (name, version identity), either format.
+
+    rpm rows are NEVRAs (`glibc-2.39-14.el10.x86_64`, as mock's
+    installed_pkgs.log writes them); deb rows are underscore-joined
+    (`libc6_2.39-0ubuntu8_amd64`, as the deb chain's dpkg-query format
+    writes them). One differ for both, because "what changed between
+    the green buildroot and the red one" is not a per-format question.
+    """
+    # A deb row is exactly name_version_arch and the version leads with a
+    # digit (an epoch or upstream version — Debian policy requires it).
+    # A bare `"_" in line` test is NOT enough: every x86_64 NEVRA has an
+    # underscore inside its arch, measured the hard way in this differ's
+    # own tests.
+    parts = nevra.split("_")
+    if len(parts) == 3 and parts[1][:1].isdigit():
+        name, version, arch = parts
+        return name, f"{version}_{arch}"
     stem, _, arch = nevra.rpartition(".")
     parts = stem.rsplit("-", 2)
     if len(parts) < 3:

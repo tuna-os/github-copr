@@ -23,15 +23,20 @@ The checks read the same `published_index` contract every buildroot
 reads, so a clean report means the *combination* a buildroot actually
 sees is clean -- not merely each prefix in isolation.
 
-Scope, recorded deliberately: primary.xml lists only "primary" files
-(binaries and /etc), so the file-conflict check covers the class that
-breaks installs first, not every shared path. RPM targets only -- the
-DEB targets need a Packages-file reader, which does not exist here yet.
+Every format the factory contract declares is covered, through the
+format-neutral index layer (scripts/repo_index.py): rpm-md primary.xml,
+flat-APT Packages, and pacman .db. Scope, recorded deliberately:
+primary.xml lists only "primary" files (binaries and /etc), so the rpm
+file-conflict check covers the class that breaks installs first, not
+every shared path; flat APT repos and pacman .db files carry NO file
+lists at all, so on those formats the file-conflict check has nothing
+to read and reports nothing -- absence of findings there is absence of
+data, not cleanliness. The other three checks run on every format.
 
 Usage:
-    scripts/check-published-hygiene.py                       # every rpm target
+    scripts/check-published-hygiene.py                # every served target
     scripts/check-published-hygiene.py --target el10 --arch x86_64
-    scripts/check-published-hygiene.py --json report.json
+    scripts/check-published-hygiene.py --target ubuntu --json report.json
 
 Exits non-zero when any finding exists, so a publisher can gate on it.
 """
@@ -40,11 +45,9 @@ from __future__ import annotations
 import argparse
 import collections
 import importlib.util
-import io
 import json
 import pathlib
 import sys
-import xml.etree.ElementTree as ET
 
 HERE = pathlib.Path(__file__).resolve().parent
 
@@ -65,32 +68,15 @@ def iter_packages(blob: bytes):
     """Every package row of a primary.xml, duplicates included.
 
     parse_primary keys by name and therefore cannot see the very thing
-    the duplicate checks exist for; this iterator keeps every entry.
+    the duplicate checks exist for. The implementation lives in the
+    format-neutral layer (scripts/repo_index.py) alongside the deb and
+    pacman row readers; this alias keeps the rpm spelling.
     """
-    gap = load("gap", "measure-hummingbird-gap.py")
-    for _, element in ET.iterparse(io.BytesIO(blob), events=("end",)):
-        if element.tag != f"{gap.COMMON}package":
-            continue
-        version = element.find(f"{gap.COMMON}version")
-        source = element.find(f"{gap.COMMON}format/{gap.RPM}sourcerpm")
-        yield {
-            "name": element.findtext(f"{gap.COMMON}name"),
-            "arch": element.findtext(f"{gap.COMMON}arch"),
-            "evr": (f"{version.get('epoch') or '0'}:"
-                    f"{version.get('ver')}-{version.get('rel')}"),
-            "srpm": source.text if source is not None else None,
-            # Regular files only. Directories are co-owned by design
-            # (/etc/logrotate.d belongs to everyone who drops a file in
-            # it) and ghosts have no content to conflict.
-            "files": [shipped.text for shipped in
-                      element.findall(f"{gap.COMMON}format/{gap.COMMON}file")
-                      if shipped.get("type") not in ("dir", "ghost")],
-        }
-        element.clear()
+    yield from load("repo_index", "repo_index.py").iter_rpm_rows(blob)
 
 
-def analyse(prefixes: dict[str, list[dict]]) -> dict:
-    """All four checks over {prefix url: [package rows]}."""
+def analyse(prefixes: dict[str, list[dict]], fmt: str = "rpm") -> dict:
+    """All four checks over {prefix url: [package rows]}, any format."""
     findings = {
         "duplicate_nevra_in_prefix": [],
         "duplicate_name_two_sources_in_prefix": [],
@@ -107,10 +93,11 @@ def analyse(prefixes: dict[str, list[dict]]) -> dict:
                     "prefix": prefix, "name": name, "evr": evr,
                     "arch": arch, "count": count,
                 })
+        ri = load("repo_index", "repo_index.py")
         by_name = collections.defaultdict(set)
         for row in rows:
             if row["srpm"]:
-                by_name[row["name"]].add(_srpm_name(row["srpm"]))
+                by_name[row["name"]].add(ri.source_name(fmt, row["srpm"]))
         for name, srcs in sorted(by_name.items()):
             if len(srcs) > 1:
                 findings["duplicate_name_two_sources_in_prefix"].append({
@@ -133,13 +120,15 @@ def analyse(prefixes: dict[str, list[dict]]) -> dict:
                 "severity": "redundant" if len(evrs) == 1 else "shadowing",
             })
 
+    ri = load("repo_index", "repo_index.py")
     owners = collections.defaultdict(set)
     for prefix, rows in prefixes.items():
         for row in rows:
             if row["arch"] == "src":
                 continue
             for path in row["files"]:
-                owners[path].add((row["name"], _srpm_name(row["srpm"]) or ""))
+                owners[path].add((row["name"],
+                                  ri.source_name(fmt, row["srpm"]) or ""))
     for path, who in sorted(owners.items()):
         # Distinct SOURCES, as hs-relmon keys it: subpackages of one
         # source sharing an identical file is a packaging choice rpm
@@ -154,13 +143,6 @@ def analyse(prefixes: dict[str, list[dict]]) -> dict:
     return findings
 
 
-def _srpm_name(srpm):
-    if not srpm:
-        return None
-    stem = srpm[: -len(".src.rpm")] if srpm.endswith(".src.rpm") else srpm
-    return stem.rsplit("-", 2)[0]
-
-
 def total(findings: dict) -> int:
     return sum(len(rows) for rows in findings.values())
 
@@ -170,7 +152,7 @@ def main() -> int:
         description="hygiene checks over the served package indexes")
     parser.add_argument("--target", action="append",
                         help="target id from package-factory.yaml "
-                             "(default: every rpm target with an index)")
+                             "(default: every target with a served index)")
     parser.add_argument("--arch", action="append",
                         help="architecture (default: every declared one)")
     parser.add_argument("--cache", type=pathlib.Path,
@@ -179,7 +161,7 @@ def main() -> int:
                         help="also write the full findings as JSON")
     args = parser.parse_args()
 
-    gap = load("gap", "measure-hummingbird-gap.py")
+    ri = load("repo_index", "repo_index.py")
     published = load("published_index", "published_index.py")
     contract = published.load()
 
@@ -188,8 +170,7 @@ def main() -> int:
     for target_id, target in sorted(contract["targets"].items()):
         if args.target and target_id not in args.target:
             continue
-        if target.get("format") != "rpm":
-            continue
+        fmt = target.get("format")
         index = target.get("published_index")
         if not index:
             continue
@@ -201,9 +182,14 @@ def main() -> int:
                 continue
             prefixes = {}
             for url in urls:
-                blob = gap.primary_of(url, args.cache)[0]
-                prefixes[url] = list(iter_packages(blob))
-            findings = analyse(prefixes)
+                rows = list(ri.iter_rows(url, fmt, args.cache))
+                if fmt == "deb":
+                    # A flat apt repo serves every architecture from one
+                    # Packages; apt selects on the Architecture field, so
+                    # the per-arch view filters the same way.
+                    rows = [r for r in rows if r["arch"] in (arch, "all")]
+                prefixes[url] = rows
+            findings = analyse(prefixes, fmt)
             report[f"{target_id}/{arch}"] = findings
             count = total(findings)
             dirty += count

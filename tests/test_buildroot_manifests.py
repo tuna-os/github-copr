@@ -103,3 +103,27 @@ def test_the_cell_keeps_manifests_inside_the_cached_artifacts():
     """
     runner = (ROOT / "scripts" / "run-package-factory-cell.sh").read_text()
     assert 'BUILDROOT_MANIFESTS="$out/artifacts/buildroots"' in runner
+
+
+def test_nevra_parsing_handles_the_deb_convention_too():
+    """`libc6_2.39-0ubuntu8_amd64`: one differ for every chain."""
+    assert differ.parse_nevra("libc6_2.39-0ubuntu8_amd64") == (
+        "libc6", "2.39-0ubuntu8_amd64")
+    delta = differ.diff({"libc6": "2.39-0ubuntu8_amd64"},
+                        {"libc6": "2.40-1ubuntu1_amd64"})
+    assert delta["changed"] == ["libc6"]
+
+
+def test_the_deb_chain_records_manifests_like_the_rpm_chain():
+    """Parity pin: both chains keep a diffable buildroot record.
+
+    The deb leg snapshots dpkg after build-dep, never fatally, and the
+    workflow uploads buildroots/ next to artifacts/ and logs/ — a green
+    run's state must survive for the red run's diff.
+    """
+    chain = (ROOT / "scripts" / "build-deb-chain.sh").read_text()
+    assert "dpkg-query -W" in chain
+    assert "buildroots" in chain
+    assert "non-fatal" in chain
+    flow = (ROOT / ".github" / "workflows" / "backport-deb-chain.yml").read_text()
+    assert "/buildroots/" in flow

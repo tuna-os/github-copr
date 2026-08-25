@@ -151,6 +151,15 @@ jobs:
           # excluded here rather than round-tripped.
           rclone sync "r2:${R2_BUCKET}/${{ matrix.src }}/" repo/ \
             --exclude "*.db*" --exclude "*.files*" || true
+          # The SERVED db is kept separately as the before-state for the
+          # reverse-dependency gate below — the regenerated db replaces it,
+          # so this copy is the only record of what consumers can resolve
+          # today. Absent on a first publish, and the gate treats that as
+          # "nothing served, nothing to regress".
+          mkdir -p old
+          rclone copyto \
+            "r2:${R2_BUCKET}/${{ matrix.src }}/${{ matrix.repo_name }}.db" \
+            "old/${{ matrix.repo_name }}.db" || true
       - uses: actions/download-artifact@v8
         with:
           pattern: publish-arch-${{ matrix.arch }}-*
@@ -173,6 +182,16 @@ jobs:
             '${{ needs.plan.outputs.image }}' \
             bash /scripts/publish-arch-wave.sh \
               --staged /work/staged --repo /work/repo --name '${{ matrix.repo_name }}'
+      - name: Refuse a wave that breaks the served repository
+        # NEVER BREAK RDEPS, the pacman leg: every dependency the served db
+        # resolved must still resolve in the regenerated one. On the runner
+        # host, not in the Arch container — the check is pure Python over
+        # two db files both present on this side of the volume mount.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-index-regression.py --format pacman \
+            --old "old/${{ matrix.repo_name }}.db" \
+            --new "repo/${{ matrix.repo_name }}.db"
       - name: Sync up
         run: |
           set -euo pipefail

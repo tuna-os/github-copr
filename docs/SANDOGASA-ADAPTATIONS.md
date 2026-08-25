@@ -27,26 +27,57 @@ verbatim.
 | `scripts/extract-buildroot-manifest.py` + `scripts/diff-buildroots.py`, recorded per package by `build-chain.sh` into `artifacts/buildroots/` | koji-diff | the #480 libnotify buildroot diagnosis, reconstructed from issue comments when mock's root.log had the answer |
 | `scripts/collect-cell-throughput.py` | koji-lag's measure-from-metadata approach | `docs/hummingbird-throughput.md` was a one-off hand scrape (it found concurrency 1.0 with `--jobs 2`); now re-runnable against any cell log |
 
+## One level of support across targets
+
+sandogasa itself is Fedora/CentOS-centric; adapting it naively would
+have produced an EL-focused toolset bolted onto a multi-target factory.
+The adaptations are therefore built on a format-neutral layer,
+`scripts/repo_index.py`: one index shape for every reader (rpm-md
+primary.xml, flat-APT Packages, pacman .db) and one version comparator
+per format — `rpm_vercmp`, `deb_version` (validated against real
+`dpkg --compare-versions`, 900/900 pairs), and libalpm's variant in
+`pacman_db`. The comparators provably disagree on real versions, so no
+format is ever judged with another's ruler.
+`tests/test_target_tooling_parity.py` is the enforcement: a format
+declared in `manifests/package-factory.yaml` without a reader, a
+comparator, a publish gate, and a buildroot record is a red test.
+
+| Capability | rpm (el10/fedora/hummingbird/tumbleweed) | deb (ubuntu/debian) | pkg.tar.zst (arch) |
+| --- | --- | --- | --- |
+| index reader + version comparator | ✅ | ✅ | ✅ |
+| served-index hygiene | ✅ | ✅ (no file lists in flat APT → file-conflict check inert, said in-tool) | ✅ once a `published_index` is declared |
+| reverse-dep publish gate | ✅ `publish-rpm-wave.sh` | ✅ `publish-tideforge-debs.yml` (old-vs-new Packages) | ✅ `publish-tideforge-arch.yml` (old-vs-new .db) |
+| buildroot manifests + differ | ✅ mock root.log / installed_pkgs | ✅ dpkg-query after build-dep | — no arch build chain exists yet; the differ already parses any manifest a future one writes |
+| build/version/runtime preflight | ✅ (gap-engine manifests) | measured by the deb backport gap engine (`measure-deb-backport-gap.py`, pre-existing) | — no chain to preflight yet |
+| throughput timers | ✅ mock's own timers | — the deb chain logs no per-package timer; add one there before extending the tool | — |
+
 ## Where each runs
 
 - **Preflight** (`preflight-buildrequires.py`): manual gate before
   dispatching a chain; now answers build-time satisfiability, version
   constraints, and runtime installability in one run.
 - **Hygiene** (`check-published-hygiene.py`): ad hoc or scheduled;
-  reads the same `published_index` contract every buildroot reads, so a
-  clean report covers the *combination* of prefixes a buildroot sees.
-  First live run found 8 findings: the gtk-layer-shell and xfconf
-  families served identically from both el10 prefixes (redundant, not
-  shadowing), and hummingbird clean.
-- **Reverse-dep gate**: runs inside `publish-rpm-wave.sh` on every
-  wave, entirely locally (staged repodata vs the synced-down served
-  tree). Differential by design — it reports only what a wave *newly*
-  breaks, so system-repo dependencies outside its view are never noise,
-  and its blind spots all lean lenient (documented in the script).
-- **Buildroot manifests**: opt-in via `BUILDROOT_MANIFESTS`, switched
-  on by the cell runner; manifests land in `artifacts/buildroots/` so
-  the action cache and success artifact keep the green run's state for
-  a later red run to diff against.
+  reads the same `published_index` contract every buildroot reads —
+  every format, through `repo_index` — so a clean report covers the
+  *combination* of prefixes a buildroot sees. First live run: 8
+  findings on el10 (gtk-layer-shell and xfconf families served
+  identically from both prefixes), hummingbird and both deb targets
+  clean.
+- **Reverse-dep gates**: every publish path refuses a publish that
+  breaks what is already served, entirely locally. rpm gates inside
+  `publish-rpm-wave.sh` (staged repodata vs the synced-down tree); deb
+  and arch regenerate their whole index in place, so they gate
+  old-vs-new (`check-index-regression.py`) in their publishers, with
+  native semantics — apt's highest-version candidate and `|`
+  alternatives on deb, libalpm ordering on arch. All are differential
+  by design: only what a publish *newly* breaks counts, so
+  distro-archive dependencies outside the view are never noise, and
+  the blind spots all lean lenient (documented in each script).
+- **Buildroot manifests**: the rpm chains record mock's resolved
+  buildroot (opt-in via `BUILDROOT_MANIFESTS`, switched on by the cell
+  runner, into `artifacts/buildroots/`); the deb chain records a
+  dpkg-query snapshot after every `build-dep` into its uploaded
+  `buildroots/`. One differ reads both conventions.
 - **Throughput**: run by hand against a downloaded cell job log when
   the 6-hour-ceiling work needs numbers.
 
