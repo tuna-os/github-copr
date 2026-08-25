@@ -198,6 +198,18 @@ jobs:
           MANIFEST: ${{ matrix.manifest }}
           MOCK_CONFIG: ${{ matrix.mock_config }}
           TIERS: ${{ matrix.tiers }}
+          # One mock root cache for the whole chain instead of one per
+          # package. build-chain.sh has supported this since #277 and nothing
+          # has set it since the hummingbird-specific workflow that did was
+          # removed (6d4b77a, #517), so every package in every nightly since
+          # has rebuilt the same minimal buildroot from scratch --
+          # docs/hummingbird-throughput.md Finding 2 measures that at 34.1% of
+          # mock time. Deliberately runner.temp and NOT actions/cache: the
+          # win is sharing between the hundreds of packages within one job,
+          # and the first package of a job rebuilding the tarball once is
+          # cheaper than shipping a gigabyte through the cache service. Also
+          # deliberately outside OUT_DIR, which is uploaded and published.
+          MOCK_CACHE_DIR: ${{ runner.temp }}/mock-cache
           SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
         run: bash scripts/run-package-factory-cell.sh
       # `chain_deferred` (set by run-package-factory-cell.sh when the chain

@@ -743,15 +743,51 @@ build_package_podman() {
 
     echo "==> [${pkg_name}] Running mock inside podman (${BUILD_IMAGE})..."
 
-    # Optional persistent mock cache (dnf package downloads + chroot state).
-    # CI sets MOCK_CACHE_DIR to a host path wrapped in actions/cache, keyed
-    # per package, so a rebuild of the SAME package (Renovate bump, retry)
-    # reuses its already-resolved BuildRequires instead of re-downloading
-    # them from the CentOS/EPEL mirrors. No-op locally when unset.
+    # Persistent mock ROOT CACHE, shared by every package in the run.
+    #
+    # Without it each package pays "installing minimal buildroot with dnf5" in
+    # full and then tars a root cache that is thrown away with its container.
+    # docs/hummingbird-throughput.md Finding 2 counted it across five real
+    # runs: `Start: creating root cache` once per package, `unpacking root
+    # cache` ZERO times, and 43 s -- the floor observed anywhere in the corpus
+    # -- paid 194 times, 2.32 h of 6.80 h, 34.1%.
+    #
+    # Sharing one cache between concurrent builds is what mock is built for.
+    # buildroot.py keys cachedir on shared_root_name, the config's root from
+    # BEFORE --uniqueext is appended, and plugins/root_cache.py guards it with
+    # an fcntl lock (shared to unpack, exclusive to rebuild). Correctness
+    # against the local repo growing mid-run is equally by design: the tarball
+    # holds only the MINIMAL buildroot, BuildRequires resolve after the unpack
+    # against the live repos, and the Rawhide template these configs include
+    # sets metadata_expire=0.
+    #
+    # Only <config>/root_cache, not all of /var/cache/mock. The sibling
+    # yum_cache accumulates every BuildRequires RPM the chain downloads, which
+    # for a desktop closure is unbounded in a way this directory is not (one
+    # tarball, rewritten rather than appended). Filling the runner's disk now
+    # costs more than it used to: the chain runs 4.5 h and its partial output
+    # is what the continuation shards resume from, so an ENOSPC in hour three
+    # poisons the whole night rather than one package. Widen it if a measured
+    # run shows the headroom.
+    #
+    # <config> is MOCK_CONFIG because every profile in mock/ sets
+    # config_opts['root'] to its own filename stem; a mismatch would mount a
+    # path mock never looks at and be silent about it, so
+    # tests/test_the_mock_root_cache_is_actually_shared.py pins it.
     MOCK_CACHE_ARGS=()
     if [[ -n "${MOCK_CACHE_DIR:-}" ]]; then
-        mkdir -p "${MOCK_CACHE_DIR}"
-        MOCK_CACHE_ARGS=(-v "${MOCK_CACHE_DIR}:/var/cache/mock:Z")
+        mkdir -p "${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache"
+        # Mode, because the leaf is now created on the HOST rather than by
+        # mock inside the container. Run 31268488082 mounted the parent and
+        # let mock create this directory itself, so its owner was whatever
+        # the container decided; mounting the leaf hands it a directory owned
+        # by the runner user, which rootless podman maps to container root
+        # while mock drops to builder:mock and has to write the tarball. Same
+        # reason `chmod -R a+rX /tmp/mock-configdir` is a few lines below --
+        # this is an ephemeral single-tenant runner directory, not a shared
+        # host path.
+        chmod 0777 "${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache"
+        MOCK_CACHE_ARGS=(-v "${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache:/var/cache/mock/${MOCK_CONFIG}/root_cache:Z")
     fi
 
     local mock_check_flag="--nocheck"
@@ -890,8 +926,11 @@ build_package_podman() {
                 #   * /var/lib/mock lives INSIDE this container and is thrown
                 #     away with it, so two concurrent builds cannot see each
                 #     other's chroots at all;
-                #   * /var/cache/mock is only bind-mounted when MOCK_CACHE_DIR
-                #     is set, and the Hummingbird workflow does not set it.
+                #   * the one thing concurrent builds now DO share is the
+                #     root cache under /var/cache/mock/<config>/root_cache,
+                #     and mock guards that itself with an fcntl lock (shared
+                #     to unpack, exclusive to rebuild) -- repo.lock never
+                #     protected it and could not have.
                 # So the exclusive lock protected nothing, while serialising
                 # the single most expensive step in the run: --jobs N started N
                 # workers that then took turns compiling one at a time.
