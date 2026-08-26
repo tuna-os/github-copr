@@ -307,10 +307,11 @@ def go_module_mode(recipe: dict) -> str:
     return mode
 
 
-def go_build_command(recipe: dict, binary: str, package: str) -> str:
+def go_build_command(recipe: dict, binary: str, package: str, *, buildmode: str = "pie") -> str:
     """Render the portable Go build invocation for a recipe."""
     tags, ldflags = go_options(recipe)
-    return f"go build -buildmode=pie -trimpath -mod={go_module_mode(recipe)}{tags}{ldflags} -o {binary} {package}"
+    mode = f" -buildmode={buildmode}" if buildmode else ""
+    return f"go build{mode} -trimpath -mod={go_module_mode(recipe)}{tags}{ldflags} -o {binary} {package}"
 
 
 def with_build_environment(recipe: dict, command: str) -> str:
@@ -504,6 +505,32 @@ def validate_verify(recipe: dict) -> None:
         unknown = set(override) - {"smoke", "install_name"}
         if unknown:
             fail(f"unknown verify.targets.{name} key(s): {sorted(unknown)}")
+
+
+def portable_payload_contract(recipe: dict) -> dict | None:
+    """Detect recipes the handler can safely build independently of a distro.
+
+    This is deliberately a property of Tideforge's implementation, not a
+    promise copied into each package manifest.  Data installs contain no ABI,
+    while the standardized Go handler can attempt a CGO-disabled build and
+    prove the resulting ELF is fully static before it is reused.  Anything the
+    carrier cannot faithfully represent stays on the existing native path.
+    """
+    outputs = recipe.get("outputs", {})
+    if len(outputs.get("deb", {}).get("packages", [])) > 1 or outputs.get("rpm", {}).get("subpackages"):
+        return None
+    if recipe.get("build_system") == "data":
+        return {"mode": "portable-payload", "architecture": "noarch"}
+    if recipe.get("build_system") == "go":
+        environment = recipe.get("build", {}).get("environment", {})
+        if str(environment.get("CGO_ENABLED", "0")) != "0":
+            return None
+        return {
+            "mode": "portable-payload",
+            "architecture": "per-arch",
+            "probe": "fully-static-elf",
+        }
+    return None
 
 
 def validate(recipe: dict, target: str | None = None) -> None:

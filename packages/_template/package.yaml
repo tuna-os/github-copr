@@ -20,6 +20,10 @@ source:
 #     destination: third-party/vendor
 #     strip_components: 1
 build_system: meson
+# Build reuse is detected by Tideforge rather than declared here. Data recipes
+# are candidates for one noarch payload; standardized Go recipes are candidates
+# for one payload per CPU architecture and are reused only after ELF inspection
+# proves them fully static. All other recipes keep their target-native build.
 # python is also a first-class build system for PEP 517 projects (pyproject.toml
 # and setup.py).  It renders %pyproject_wheel/%pyproject_install for RPM,
 # --buildsystem=pybuild for DEB, and python -m build + python -m installer for
