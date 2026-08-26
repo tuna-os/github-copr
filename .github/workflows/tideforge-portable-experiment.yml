@@ -132,18 +132,29 @@ jobs:
             "$(( (finished - started) / 1000000 ))" \
             > "benchmark-data/carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
           find .portable/out -maxdepth 1 -type f -print -exec sha256sum {} \;
-      - uses: actions/upload-artifact@v7
-        with:
-          name: benchmark-carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
-          path: benchmark-data/*.json
-          if-no-files-found: error
       - name: Read Arch package metadata
         if: matrix.target == 'arch'
         run: |
           docker run --rm --volume "$PWD/.portable/out:/artifacts:ro" \
             docker.io/library/archlinux:latest bash -lc \
             'pacman -Qip /artifacts/*.pkg.tar.*' > .portable/out/package-info.txt
+      # The gate's verdict is RECORDED, not enforced here.
+      #
+      # The question this experiment asks is whether repackaging a sealed
+      # payload yields the same package the target-native path yields. So the
+      # gate has to be applied to BOTH arms and compared. Enforcing it on the
+      # portable arm alone answers a different question -- "is every recipe
+      # installable from the repos this gate configures" -- and run
+      # 32946019180 shows how far apart those are: 8 carriers were failed for
+      # unmet runtime deps (dms needs quickshell, which no el10 published
+      # index serves) while the native arm, which never ran the gate at all,
+      # was recorded green. The carrier had produced a faithful package; the
+      # comparison was rigged.
+      #
+      # The parity assertion lives in `benchmark`, over both arms' JSON.
       - name: Run the existing native lint/install/smoke gate
+        id: gate
+        continue-on-error: true
         env:
           CELL_ID: portable-${{ matrix.package }}-${{ matrix.target }}
           ENGINE: tideforge
@@ -159,6 +170,28 @@ jobs:
             \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' \) \
             -exec cp -t .portable/out/artifacts {} +
           ./scripts/verify-package-factory-cell.sh
+      - name: Record the portable arm's gate verdict
+        run: |
+          gate=false
+          if [ '${{ steps.gate.outcome }}' = 'success' ]; then gate=true; fi
+          python3 - "$gate" <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path(
+              "benchmark-data/carrier-${{ matrix.package }}"
+              "-${{ matrix.target }}-${{ matrix.architecture }}.json")
+          row = json.loads(path.read_text())
+          row["gate_success"] = sys.argv[1] == "true"
+          path.write_text(json.dumps(row) + "\n")
+          PY
+          cat "benchmark-data/carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
+      # Uploaded AFTER the verdict is recorded. It used to upload here-first,
+      # which would have shipped a row with no gate_success at all and made
+      # the parity check below silently vacuous for every carrier.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
+          path: benchmark-data/*.json
+          if-no-files-found: error
 
   native-baseline:
     name: Existing native / ${{ matrix.package }} / ${{ matrix.target }}
@@ -204,6 +237,42 @@ jobs:
             '${{ matrix.package }}' '${{ matrix.target }}' '${{ matrix.architecture }}' \
             "$(( (finished - started) / 1000000 ))" "$success" "$status" \
             > "benchmark-data/native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
+      # The CONTROL, and it did not exist before.
+      #
+      # run-package-factory-cell.sh builds and packages; it does not verify.
+      # The lint/install/smoke gate is invoked by the WORKFLOW
+      # (package-factory-cell.yml:270), so a baseline that calls only the cell
+      # script never runs it. That is why run 32946019180 recorded
+      # `Existing native / dms / el10` as a success while the identical
+      # package, gated on the portable arm, failed on an unmet quickshell.
+      # Nothing was compared: one arm was gated and the other was timed.
+      - name: Run the same gate on the native arm
+        id: gate
+        continue-on-error: true
+        env:
+          CELL_ID: baseline-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
+          ENGINE: tideforge
+          TARGET: ${{ matrix.target }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          FORMAT: ${{ matrix.format }}
+          IMAGE: ${{ matrix.image }}
+          RECIPE: ${{ matrix.recipe }}
+          OUT_DIR: ${{ github.workspace }}/.baseline/out
+        run: ./scripts/verify-package-factory-cell.sh
+      - name: Record the native arm's gate verdict
+        run: |
+          gate=false
+          if [ '${{ steps.gate.outcome }}' = 'success' ]; then gate=true; fi
+          python3 - "$gate" <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path(
+              "benchmark-data/native-${{ matrix.package }}"
+              "-${{ matrix.target }}-${{ matrix.architecture }}.json")
+          row = json.loads(path.read_text())
+          row["gate_success"] = sys.argv[1] == "true"
+          path.write_text(json.dumps(row) + "\n")
+          PY
+          cat "benchmark-data/native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
       - uses: actions/upload-artifact@v7
         with:
           name: benchmark-native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
@@ -244,6 +313,52 @@ jobs:
           if native:
               print(f"measured summed-work reduction: {(1 - portable / native) * 100:.1f}%")
           print(json.dumps(sorted(rows, key=lambda row: (row["package"], row["kind"], row.get("target", ""))), indent=2))
+
+          # THE CLAIM UNDER TEST: repackaging a sealed payload yields a package
+          # that is no worse than the one the target-native path yields.
+          #
+          # Absolute success is the wrong bar. dms declares `runtime: common:
+          # [quickshell]` and no el10 published index serves quickshell, so
+          # NEITHER arm can clean-install it -- that is a fact about the recipe
+          # and the repos, not about portability, and failing the experiment on
+          # it would be measuring the wrong thing. What must never happen is a
+          # carrier that fails where the native package passes.
+          def key(row):
+              return (row["package"], row["target"])
+
+          native_gate = {key(r): r.get("gate_success") for r in grouped["target-native"]}
+          carrier_gate = {key(r): r.get("gate_success") for r in grouped["portable-carrier"]}
+
+          missing = sorted(k for k, v in carrier_gate.items() if v is None)
+          missing += sorted(k for k, v in native_gate.items() if v is None)
+          if missing:
+              raise SystemExit(
+                  "rows carry no gate_success, so parity would pass without "
+                  f"comparing anything: {missing}")
+
+          unpaired = sorted(set(carrier_gate) ^ set(native_gate))
+          if unpaired:
+              raise SystemExit(f"no arm-to-arm pair for: {unpaired}")
+
+          regressions = sorted(k for k in carrier_gate
+                               if native_gate[k] and not carrier_gate[k])
+          both_red = sorted(k for k in carrier_gate
+                            if not native_gate[k] and not carrier_gate[k])
+          improved = sorted(k for k in carrier_gate
+                            if not native_gate[k] and carrier_gate[k])
+
+          print(f"\ngate parity over {len(carrier_gate)} package/target pairs")
+          for k in both_red:
+              print(f"  red on BOTH arms (not a portability defect): {k[0]} / {k[1]}")
+          for k in improved:
+              print(f"  portable passes where native fails: {k[0]} / {k[1]}")
+          if regressions:
+              for k in regressions:
+                  print(f"  REGRESSION -- native passes, carrier fails: {k[0]} / {k[1]}")
+              raise SystemExit(
+                  f"{len(regressions)} carrier(s) fail a gate their native "
+                  "counterpart passes")
+          print("no carrier fails a gate its native counterpart passes")
           PY
 
   result:
@@ -256,5 +371,16 @@ jobs:
         env:
           PAYLOAD: ${{ needs.payload.result }}
           NATIVE_PACKAGE: ${{ needs.native-package.result }}
+          NATIVE_BASELINE: ${{ needs.native-baseline.result }}
+          BENCHMARK: ${{ needs.benchmark.result }}
           PLAN: ${{ needs.plan.result }}
-        run: test "$PLAN" = success && test "$PAYLOAD" = success && test "$NATIVE_PACKAGE" = success
+        # BENCHMARK is where the parity assertion runs, so it is required.
+        # Without it the experiment could go green having compared nothing --
+        # every gate verdict is recorded rather than enforced now, so the
+        # per-leg jobs no longer fail on a red gate by themselves.
+        run: |
+          test "$PLAN" = success
+          test "$PAYLOAD" = success
+          test "$NATIVE_PACKAGE" = success
+          test "$NATIVE_BASELINE" = success
+          test "$BENCHMARK" = success
