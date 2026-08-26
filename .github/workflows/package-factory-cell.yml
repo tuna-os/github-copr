@@ -101,8 +101,16 @@ jobs:
             epoch=$(git log -1 --format=%at -- "${source_paths[@]}")
             args=()
             for path in "${source_paths[@]}"; do args+=(--input "$path"); done
+            # base_id, NOT id. A continuation shard is the SAME work as the
+            # leg it resumes -- same manifest, same inputs, same image -- so it
+            # must compute the same action key. Passing `matrix.id` hashed the
+            # `-c1` suffix into the key, so leg 2 asked for a key no partial
+            # could ever carry and `restore-partial-chain-output.py` rejected
+            # all five candidates as "action key differs", every time. The
+            # partial is already NAMED by base_id (line ~423) and looked up by
+            # base_id (line ~206); this was the one place still using id.
             payload=$(python3 scripts/tideforge-action-cache.py native-key \
-              --identity '${{ matrix.id }}' --manifest '${{ matrix.manifest }}' \
+              --identity '${{ matrix.base_id || matrix.id }}' --manifest '${{ matrix.manifest }}' \
               "${args[@]}" --target '${{ matrix.target }}' \
               --arch '${{ matrix.architecture }}' --image "$image" \
               --dependency-tree '${{ matrix.dependency_tree }}' \
