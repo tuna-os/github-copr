@@ -1,8 +1,11 @@
+import importlib.util
 import json
 from pathlib import Path
 import subprocess
 import sys
 import tarfile
+
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +34,15 @@ dependencies:
 targets: [ubuntu, debian]
 """
     )
+
+
+def intermediate_module():
+    """Import the script by path — its filename is not an identifier."""
+    spec = importlib.util.spec_from_file_location("tideforge_intermediate", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(ROOT / "scripts"))
+    spec.loader.exec_module(module)
+    return module
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -149,3 +161,88 @@ def test_one_intermediate_packages_for_both_deb_targets_without_recompile(tmp_pa
         control = subprocess.run(["dpkg-deb", "-f", package, "Depends"], check=True, text=True, stdout=subprocess.PIPE).stdout.strip()
         assert control == f"{target}-runtime"
     assert len(payload_digests) == 1
+
+
+# --- the carrier must repackage faithfully, not approximately ----------------
+
+
+def write_tree_recipe(path: Path) -> None:
+    """A recipe that declares a DIRECTORY, the way `dms` does."""
+    path.write_text(
+        """schema: 1
+name: payload-canary
+version: '1.0'
+release: 1
+summary: canary
+description: |-
+  first line
+  second line
+license: MIT
+source:
+  url: https://example.invalid/payload-canary.tar.gz
+  sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+build_system: data
+files: {common: [usr/share/payload-canary]}
+dependencies:
+  runtime:
+    targets:
+      ubuntu: [ubuntu-runtime]
+      debian: [debian-runtime]
+targets: [ubuntu, debian]
+"""
+    )
+
+
+def seal_tree(tmp_path: Path) -> tuple[Path, Path]:
+    recipe = tmp_path / "package.yaml"
+    write_tree_recipe(recipe)
+    root = tmp_path / "root"
+    nested = root / "usr/share/payload-canary/nested"
+    nested.mkdir(parents=True)
+    (nested / "message").write_text("built once\n")
+    intermediate = tmp_path / "payload.tfi.tar"
+    run("create", "--recipe", str(recipe), "--root", str(root),
+        "--architecture", "noarch", "--build-contract", "theory-sdk-v0",
+        "--output", str(intermediate))
+    return recipe, intermediate
+
+
+def test_the_rpm_carrier_owns_the_directories_the_native_spec_owns(tmp_path: Path):
+    """A declared directory must reach %files as the directory.
+
+    Expanding the payload inventory instead lists each file and owns none of
+    the directories holding them, so `rpm -e` leaves the tree behind and the
+    portable carrier stops being a faithful repackaging of the native one.
+    """
+    recipe, _ = seal_tree(tmp_path)
+    loaded = yaml.safe_load(recipe.read_text())
+    rendered = intermediate_module().rpm_files(loaded)
+    assert rendered == "/usr/share/payload-canary"
+    assert "nested" not in rendered, (
+        "a declared directory must not be expanded into its members"
+    )
+
+
+def test_a_multi_line_description_stays_one_deb_control_field(tmp_path: Path):
+    """A bare blank/unprefixed line ENDS a deb822 field.
+
+    Written the obvious way, the second line of a multi-line description
+    terminates Description and the rest of the control file is lost.
+    """
+    recipe, intermediate = seal_tree(tmp_path)
+    output = tmp_path / "ubuntu"
+    run("package", str(intermediate), "--recipe", str(recipe),
+        "--target", "ubuntu", "--output-dir", str(output))
+    package = next(output.glob("*.deb"))
+    fields = subprocess.run(
+        ["dpkg-deb", "-f", package], check=True, text=True,
+        stdout=subprocess.PIPE).stdout
+    # The field survived in full...
+    assert "first line" in fields and "second line" in fields
+    # ...and the fields written AFTER it are still there, which is what a
+    # truncated Description would have eaten.
+    assert "Depends: ubuntu-runtime" in fields
+    description = subprocess.run(
+        ["dpkg-deb", "-f", package, "Description"], check=True, text=True,
+        stdout=subprocess.PIPE).stdout
+    assert "second line" in description

@@ -12,6 +12,7 @@ import io
 import json
 import os
 from pathlib import Path, PurePosixPath
+import shlex
 import shutil
 import stat
 import subprocess
@@ -304,6 +305,16 @@ def portable_package_name(recipe: dict, target: str) -> str:
     return recipe["name"]
 
 
+def deb_description(text: str) -> str:
+    """Render the extended description as deb822 continuation lines.
+
+    Every line after the synopsis carries a leading space, and an empty one
+    becomes " ." — a bare blank line ENDS the field, so a multi-line
+    description written the obvious way silently truncates the control file.
+    """
+    return "".join(f" {line}\n" if line.strip() else " .\n" for line in text.splitlines())
+
+
 def package_deb(recipe: dict, target: str, manifest: dict, payload: Path, output: Path) -> Path:
     name = portable_package_name(recipe, target)
     architecture = {"x86_64": "amd64", "aarch64": "arm64", "noarch": "all"}[manifest["architecture"]]
@@ -315,7 +326,7 @@ def package_deb(recipe: dict, target: str, manifest: dict, payload: Path, output
     control.write_text(
         f"Package: {name}\nVersion: {recipe['version']}-{recipe.get('release', 1)}\n"
         f"Architecture: {architecture}\nMaintainer: TunaOS Package Factory <packages@tunaos.org>\n"
-        f"Description: {recipe['summary']}\n {recipe['description']}\n"
+        f"Description: {recipe['summary']}\n{deb_description(recipe['description'])}"
         + (f"Depends: {', '.join(dependencies)}\n" if dependencies else "")
     )
     artifact = output / f"{name}_{recipe['version']}-{recipe.get('release', 1)}_{architecture}.deb"
@@ -326,6 +337,15 @@ def package_deb(recipe: dict, target: str, manifest: dict, payload: Path, output
     return artifact
 
 
+def rpm_files(recipe: dict) -> str:
+    """The %files body, rendered from the recipe's DECLARED paths."""
+    rpm_output = recipe.get("outputs", {}).get("rpm", {})
+    return "\n".join(
+        f"/{path.lstrip('/')}"
+        for path in rpm_output.get("files", recipe["files"]["common"])
+    )
+
+
 def package_rpm(recipe: dict, target: str, manifest: dict, intermediate: Path, output: Path) -> Path:
     top = output / "rpmbuild"
     for name in ("BUILD", "BUILDROOT", "RPMS", "SOURCES", "SPECS", "SRPMS"):
@@ -333,9 +353,16 @@ def package_rpm(recipe: dict, target: str, manifest: dict, intermediate: Path, o
     source = top / "SOURCES" / intermediate.name
     shutil.copy2(intermediate, source)
     dependencies = "\n".join(f"Requires: {name}" for name in tideforge.target_runtime_dependencies(recipe, target))
-    files = "\n".join(
-        f"/{row['path']}" for row in manifest["files"] if row["type"] in {"file", "symlink"}
-    )
+    # The SAME expression the native renderer uses (scripts/tideforge.py), so
+    # the two carriers cannot disagree about what the package owns. Expanding
+    # the payload inventory instead would list every file individually and own
+    # none of the directories holding them: `dms` declares the directory
+    # /usr/share/dankmaterialshell, which RPM reads as "this tree is mine", and
+    # a file-by-file %files would leave those directories behind on erase.
+    # It also buys a real check for free — rpmbuild fails the build on a file
+    # staged into the buildroot that %files does not cover, so a payload that
+    # drifts from the recipe's declaration cannot be packaged silently.
+    files = rpm_files(recipe)
     rpm_arch = manifest["architecture"]
     release_suffix = {"el10": "tfi.el10", "opensuse-tumbleweed": "tfi.tw"}.get(target, "tfi")
     spec = top / "SPECS" / f"{recipe['name']}.spec"
@@ -391,15 +418,10 @@ def package_arch(recipe: dict, target: str, manifest: dict, payload: Path, outpu
         f"arch = {architecture}\nlicense = {recipe['license']}\n{dependencies}"
     )
     artifact = output / f"{name}-{recipe['version']}-{recipe.get('release', 1)}-{architecture}.pkg.tar.zst"
-    members = " ".join(shlex_quote(path.name) for path in sorted(root.iterdir()))
-    command = f"tar --sort=name --mtime=@${{SOURCE_DATE_EPOCH:-0}} --owner=0 --group=0 --numeric-owner -C {shlex_quote(str(root))} -cf - {members} | zstd -19 -T0 -o {shlex_quote(str(artifact))}"
+    members = " ".join(shlex.quote(path.name) for path in sorted(root.iterdir()))
+    command = f"tar --sort=name --mtime=@${{SOURCE_DATE_EPOCH:-0}} --owner=0 --group=0 --numeric-owner -C {shlex.quote(str(root))} -cf - {members} | zstd -19 -T0 -o {shlex.quote(str(artifact))}"
     subprocess.run(["bash", "-euo", "pipefail", "-c", command], check=True)
     return artifact
-
-
-def shlex_quote(value: str) -> str:
-    import shlex
-    return shlex.quote(value)
 
 
 def package(args: argparse.Namespace) -> None:
