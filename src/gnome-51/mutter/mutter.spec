@@ -18,8 +18,8 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:          mutter
-Version:       50.0
-Release:       4%{?dist}
+Version:       51~beta
+Release:       1%{?dist}
 Summary:       Window and compositing manager based on Clutter
 
 # Automatically converted from old format: GPLv2+ - review is highly recommended.
@@ -165,7 +165,10 @@ Viewer for nested mutter instances.
 %autosetup -n %{name}-%{tarball_version}
 
 %build
-meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build -Degl_device=true
+# mutter 51 dropped the egl_device option along with EGLStream support;
+# 51.beta's meson.options has no such key and meson hard-errors on it
+# ("Unknown option: egl_device"). Verified against the 51.beta tarball.
+meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build
 meson compile -C build
 
 %install
@@ -215,6 +218,9 @@ DESTDIR=%{buildroot} meson install -C build
 %{_libexecdir}/mutter-devkit
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
+- Update to 51.beta (GNOME 51 beta cycle)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-4
 - Update to 50.0 (GNOME 50 stable release)
 - Track F44 branch instead of rawhide

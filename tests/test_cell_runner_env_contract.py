@@ -121,3 +121,23 @@ def test_every_caller_supplies_what_its_engine_reads(caller) -> None:
         "the script exits on the first one it reads, after the checkout and "
         "the image pull have already been paid for"
     )
+
+
+def test_every_rpm_buildroot_reads_the_published_index():
+    """Cross-cell BuildRequires resolve on EVERY rpm target's buildroot.
+
+    The dnf branch gained the gap-filler repo in #440's era; the zypper
+    branch predated tumbleweed having a served index and quietly kept
+    none — and the day the first wave was served, niri failed right
+    there on libseat-devel: built, published, resolving, and invisible
+    to the buildroot. Both branches must consume PUBLISHED_INDEX, or a
+    format-parity gap reopens at the exact moment a target goes live.
+    """
+    runner = RUNNER.read_text()
+    tumbleweed = runner.split("opensuse-tumbleweed ]]")[1].split("    else")[0]
+    assert "PUBLISHED_INDEX" in tumbleweed, (
+        "the zypper buildroot must add the served factory index; see the "
+        "dnf branch for the gap-filler rules")
+    assert "--priority 200" in tumbleweed, (
+        "zypper priority is INVERTED (higher = worse); the published index "
+        "must never beat the system repos on a shared name")

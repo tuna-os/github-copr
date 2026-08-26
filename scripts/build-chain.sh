@@ -113,6 +113,22 @@ _on_error() {
             fi
             echo "--- tail of ${log} ---" >&2
             tail -n 40 "$log" >&2 || true
+            # KEEP the log, do not only print it. A 40-line tail in a job log
+            # is not a diagnosis: on a long chain the run prints one of these
+            # per failed package, hours apart, and the API only serves the
+            # tail of a multi-hundred-kilobyte log -- so the 25 failures of
+            # the GNOME 51.beta bump were unreadable after the fact, exactly
+            # the archaeology BUILDROOT_MANIFESTS was added to end (#480).
+            # Copied beside the buildroot manifests, inside artifacts/, so
+            # the cell's artifact carries every failure's full build.log and
+            # root.log. Never fatal: a log that cannot be copied must not
+            # change how the build failed.
+            if [[ -n "${FAILURE_LOGS:-}" ]]; then
+                mkdir -p "$FAILURE_LOGS" 2>/dev/null \
+                    && cp "$log" \
+                       "${FAILURE_LOGS}/${pkg_name:-chain}.$(basename "$log")" \
+                    || echo "--- ${log} not kept (non-fatal) ---" >&2
+            fi
         fi
     done
     echo "=============================================================" >&2

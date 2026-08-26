@@ -242,10 +242,19 @@ targets:
     # own ABI (3.14, where Rawhide is 3.15).
     build_repositories: [fedora-rawhide, fedora-44-python]
   opensuse-tumbleweed:
-    status: scaffold
+    status: supported
     format: rpm
     architectures: [x86_64, aarch64]
     r2_path: rpm/opensuse-tumbleweed/{arch}
+    # The SERVED index, live since the first publish wave (2026-08-25,
+    # publish-tideforge-rpms.yml: libseat, quickshell, dms, dms-greeter,
+    # greetd, dgop, danksearch, cpptrace-devel — 17 names on each arch,
+    # verified resolving before this declaration per the repo's rule).
+    # Tumbleweed ships current desktops itself, so this overlay carries
+    # only what its repositories lack: the niri/DMS stack.
+    published_index:
+      x86_64: https://repo.tunaos.org/rpm/opensuse-tumbleweed/x86_64/
+      aarch64: https://repo.tunaos.org/rpm/opensuse-tumbleweed/aarch64/
     repository: rpm-md
     probe_image: registry.opensuse.org/opensuse/tumbleweed:latest
   arch:

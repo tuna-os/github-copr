@@ -11,7 +11,7 @@ targets, and publishes only validated repositories to Cloudflare R2.
 | EL10 | RPM | rpm-md | supported |
 | Ubuntu | DEB | APT | supported foundation |
 | Debian Sid | DEB | APT | supported foundation |
-| openSUSE Tumbleweed | RPM | rpm-md | scaffold |
+| openSUSE Tumbleweed | RPM | rpm-md | supported foundation |
 | Arch | pkg.tar.zst | pacman | scaffold |
 
 The authoritative target and R2-path contract is

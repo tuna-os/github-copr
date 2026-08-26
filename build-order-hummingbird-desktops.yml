@@ -814,16 +814,16 @@ tiers:
         bootstrap: true
       - path: src/deps/glycin
         bootstrap: true
-      - path: src/gnome-50/gnome-desktop3
+      - path: src/gnome-51/gnome-desktop3
         bootstrap: true
-      - path: src/gnome-50/gnome-settings-daemon
+      - path: src/gnome-51/gnome-settings-daemon
         bootstrap: true
-      - path: src/gnome-50/gobject-introspection
+      - path: src/gnome-51/gobject-introspection
         bootstrap: true
       - path: src/hummingbird/graphene
         distgit: graphene
         bootstrap: true
-      - path: src/gnome-50/gsettings-desktop-schemas
+      - path: src/gnome-51/gsettings-desktop-schemas
         bootstrap: true
       - path: src/hummingbird/gssdp
         distgit: gssdp
@@ -840,7 +840,7 @@ tiers:
       - path: src/hummingbird/gtk3
         distgit: gtk3
         bootstrap: true
-      - path: src/gnome-50/gtk4
+      - path: src/gnome-51/gtk4
         bootstrap: true
       - path: src/hummingbird/gupnp
         distgit: gupnp
@@ -879,7 +879,7 @@ tiers:
         distgit: kf6-ksvg
       - path: src/hummingbird/knighttime
         distgit: knighttime
-      - path: src/gnome-50/libadwaita
+      - path: src/gnome-51/libadwaita
         bootstrap: true
       - path: src/hummingbird/libbs2b
         distgit: libbs2b
@@ -974,7 +974,7 @@ tiers:
       - path: src/hummingbird/mpg123
         distgit: mpg123
         bootstrap: true
-      - path: src/gnome-50/mutter
+      - path: src/gnome-51/mutter
         bootstrap: true
       - path: src/deps/pango
         bootstrap: true
@@ -1044,7 +1044,7 @@ tiers:
         distgit: cosmic-workspaces
       - path: src/hummingbird/gcr3
         distgit: gcr3
-      - path: src/gnome-50/gjs
+      - path: src/gnome-51/gjs
       - path: src/deps/gnome-autoar
       - path: src/hummingbird/gnome-color-manager
         distgit: gnome-color-manager
@@ -1052,7 +1052,7 @@ tiers:
         distgit: gnome-icon-theme
       - path: src/hummingbird/gnome-menus
         distgit: gnome-menus
-      - path: src/gnome-50/gnome-session
+      - path: src/gnome-51/gnome-session
       - path: src/deps/gsound
       - path: src/hummingbird/gspell
         distgit: gspell
@@ -1171,7 +1171,7 @@ tiers:
         distgit: totem-pl-parser
       - path: src/hummingbird/unity-gtk-module
         distgit: unity-gtk-module
-      - path: src/gnome-50/vte291
+      - path: src/gnome-51/vte291
       - path: src/hummingbird/wireplumber
         distgit: wireplumber
       - path: src/hummingbird/wlroots
@@ -1205,12 +1205,12 @@ tiers:
         distgit: fuzzel
       - path: src/hummingbird/fwupd
         distgit: fwupd
-      - path: src/gnome-50/gdm
+      - path: src/gnome-51/gdm
       - path: src/hummingbird/gnome-bluetooth
         distgit: gnome-bluetooth
       - path: src/hummingbird/gnome-keyring
         distgit: gnome-keyring
-      - path: src/gnome-50/gnome-online-accounts
+      - path: src/gnome-51/gnome-online-accounts
       - path: src/hummingbird/gpsd
         distgit: gpsd
       - path: src/xfce-wayland/gtkgreet
@@ -1250,7 +1250,7 @@ tiers:
         distgit: pangomm
       - path: src/hummingbird/pangomm2.48
         distgit: pangomm2.48
-      - path: src/gnome-50/ptyxis
+      - path: src/gnome-51/ptyxis
       - path: src/hummingbird/qqc2-breeze-style
         distgit: qqc2-breeze-style
       - path: src/hummingbird/qt6-qtimageformats
@@ -1278,10 +1278,10 @@ tiers:
         distgit: cosmic-initial-setup
       - path: src/deps/evolution-data-server
       - path: src/deps/fprintd
-      - path: src/gnome-50/gnome-control-center
+      - path: src/gnome-51/gnome-control-center
       - path: src/hummingbird/gnome-disk-utility
         distgit: gnome-disk-utility
-      - path: src/gnome-50/gnome-initial-setup
+      - path: src/gnome-51/gnome-initial-setup
       - path: src/hummingbird/gnome-remote-desktop
         distgit: gnome-remote-desktop
       - path: src/hummingbird/gtkmm3.0
@@ -1299,7 +1299,7 @@ tiers:
         distgit: msgraph
       - path: src/hummingbird/qt6-qtquick3d
         distgit: qt6-qtquick3d
-      - path: src/gnome-50/xdg-desktop-portal
+      - path: src/gnome-51/xdg-desktop-portal
       - path: src/hummingbird/yelp
         distgit: yelp
 
@@ -1307,7 +1307,7 @@ tiers:
     packages:
       - path: src/xfce-wayland/exo
       - path: src/xfce-wayland/garcon
-      - path: src/gnome-50/gnome-shell
+      - path: src/gnome-51/gnome-shell
       - path: src/hummingbird/gnome-system-monitor
         distgit: gnome-system-monitor
       - path: src/hummingbird/gvfs
@@ -1322,7 +1322,7 @@ tiers:
         distgit: qt6-qtmultimedia
       - path: src/hummingbird/waybar
         distgit: waybar
-      - path: src/gnome-50/xdg-desktop-portal-gnome
+      - path: src/gnome-51/xdg-desktop-portal-gnome
       - path: src/hummingbird/xdg-desktop-portal-gtk
         distgit: xdg-desktop-portal-gtk
       - path: src/hummingbird/xfce-polkit
@@ -1352,7 +1352,7 @@ tiers:
         distgit: kglobalacceld
       - path: src/hummingbird/kmenuedit
         distgit: kmenuedit
-      - path: src/gnome-50/nautilus
+      - path: src/gnome-51/nautilus
       - path: src/hummingbird/plasma-integration
         distgit: plasma-integration
       - path: src/hummingbird/qt6-qtspeech

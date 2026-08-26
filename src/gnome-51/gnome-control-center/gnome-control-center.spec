@@ -17,13 +17,13 @@
 %bcond malcontent %[!0%{?rhel}]
 
 Name:           gnome-control-center
-Version:        50.0
-Release:        4%{?dist}
+Version:        51~beta
+Release:        1%{?dist}
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
 URL:            https://gitlab.gnome.org/GNOME/gnome-control-center/
-Source0:        https://download.gnome.org/sources/%{name}/50/%{name}-%{tarball_version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
 
 BuildRequires:  blueprint-compiler >= %{blueprint_compiler_version}
 BuildRequires:  desktop-file-utils
@@ -223,6 +223,9 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
+- Update to 51.beta (GNOME 51 beta cycle)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-4
 - Restore -Ddocumentation=false: gcc docs need yelp-tools/itstool not currently
   wired in; gate man page behind %%if !0%%{?rhel} to avoid packaging missing file

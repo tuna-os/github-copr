@@ -27,7 +27,10 @@ native_builds:
     verify_image: quay.io/centos/centos:stream10
     manifest: build-order.yml
     mock_config: centos-stream-10-ci
-    source_paths: [src/gnome-50/, src/deps/]
+    # input-remapper and python3-evdev are built out of their own top-level
+    # directories; without them listed, editing those specs does not re-key
+    # this cell and the cache serves a build made from the old spec.
+    source_paths: [src/gnome-50/, src/deps/, src/input-remapper/, src/python3-evdev/]
     r2_path: repo/10-x86_64
   - id: gnome51-el10-x86_64
     family: gnome51
@@ -74,6 +77,8 @@ native_builds:
     source_paths:
       - src/gnome-50/
       - src/deps/
+      - src/input-remapper/
+      - src/python3-evdev/
     r2_path: gnome50/10-stream-aarch64
 
   # gnome51 on aarch64. Same reasoning as gnome50 above; its r2 prefix is the
@@ -180,7 +185,14 @@ native_builds:
     verify_image: registry.fedoraproject.org/fedora:43
     manifest: build-order-hummingbird-desktops.yml
     mock_config: hummingbird-ci
-    source_paths: [src/hummingbird/, src/xfce-wayland/]
+    # src/gnome-51/ is here because build-order-hummingbird-desktops.yml pulls
+    # 19 packages from it (gtk4, mutter, gnome-shell and the rest of the GNOME
+    # stack). Without the path listed, an edit to any of those specs does not
+    # move this cell's action key, so the cache restores an ActionResult built
+    # from the OLD spec and the change is silently ignored -- a cache that
+    # cannot tell two recipes apart. The same was true of src/gnome-50/ before
+    # hummingbird was repointed to the 51 track; it was never listed either.
+    source_paths: [src/hummingbird/, src/xfce-wayland/, src/gnome-51/, src/deps/]
     r2_path: hummingbird/20251124-x86_64
     canary_tiers: bootstrap-00
   - id: hummingbird-aarch64
@@ -192,7 +204,14 @@ native_builds:
     verify_image: registry.fedoraproject.org/fedora:43
     manifest: build-order-hummingbird-desktops.yml
     mock_config: hummingbird-ci-aarch64
-    source_paths: [src/hummingbird/, src/xfce-wayland/]
+    # src/gnome-51/ is here because build-order-hummingbird-desktops.yml pulls
+    # 19 packages from it (gtk4, mutter, gnome-shell and the rest of the GNOME
+    # stack). Without the path listed, an edit to any of those specs does not
+    # move this cell's action key, so the cache restores an ActionResult built
+    # from the OLD spec and the change is silently ignored -- a cache that
+    # cannot tell two recipes apart. The same was true of src/gnome-50/ before
+    # hummingbird was repointed to the 51 track; it was never listed either.
+    source_paths: [src/hummingbird/, src/xfce-wayland/, src/gnome-51/, src/deps/]
     r2_path: hummingbird/20251124-aarch64
     canary_tiers: bootstrap-00
   - id: fprintd-el10-x86_64

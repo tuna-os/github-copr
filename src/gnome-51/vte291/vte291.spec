@@ -21,7 +21,7 @@
 %global major_minor_version %%(echo %%{version} | cut -d "." -f 1-2)
 
 Name:           vte291
-Version:        0.84.0
+Version:        0.84.1
 Release:        %autorelease
 Summary:        GTK terminal emulator library
 
@@ -212,4 +212,7 @@ rm %{buildroot}/%{_datadir}/applications/org.gnome.Vte.App.Gtk4.desktop
 %{_sysconfdir}/profile.d/vte.sh
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 0.84.1-1
+- Update to 0.84.1 (GNOME 51 beta cycle)
+
 %autochangelog

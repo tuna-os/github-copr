@@ -244,9 +244,14 @@ jobs:
           fi
 
   # The anti-#179 job, from the FIRST publish: install every published
-  # package from the SERVED URL on a clean image-contract container
-  # (base + crb + epel, the el10 system_repositories), so a repo that was
-  # never actually published can never sit behind a green workflow.
+  # package from the SERVED URL on a clean image-contract container, in the
+  # TARGET'S package manager. The el10 branch enables base + crb + epel (its
+  # system_repositories); the tumbleweed branch adds the served repo with
+  # the same inverted-priority semantics the cell runner uses (system repos
+  # at 99, ours at 200, so shared names stay Tumbleweed's). A dnf script
+  # inside a zypper image dies on 'dnf: command not found' — the first
+  # tumbleweed wave's verify proved that — so a repo that was never
+  # actually published can never sit behind a green workflow, on any target.
   verify:
     needs: [plan, publish]
     runs-on: ${{ matrix.runner }}
@@ -257,14 +262,21 @@ jobs:
       - name: Install the published wave from the served repo
         env:
           PACKAGES: ${{ inputs.packages }}
+          TARGET: ${{ needs.plan.outputs.target }}
         run: |
           set -euo pipefail
           url='${{ matrix.served }}'
-          docker run --rm --env PACKAGES --env URL="$url" '${{ needs.plan.outputs.image }}' bash -lc '
+          docker run --rm --env PACKAGES --env TARGET --env URL="$url" '${{ needs.plan.outputs.image }}' bash -lc '
             set -euo pipefail
-            dnf -y install epel-release "dnf-command(config-manager)"
-            dnf config-manager --set-enabled crb
-            dnf -y install --nogpgcheck --repofrompath tunaos,"$URL" --enablerepo=tunaos \
-              $(echo "$PACKAGES" | tr "," " ")
+            if [[ "$TARGET" == opensuse-tumbleweed ]]; then
+              zypper --non-interactive addrepo --no-gpgcheck --priority 200 "$URL" tunaos
+              zypper --non-interactive refresh
+              zypper --non-interactive install --no-recommends $(echo "$PACKAGES" | tr "," " ")
+            else
+              dnf -y install epel-release "dnf-command(config-manager)"
+              dnf config-manager --set-enabled crb
+              dnf -y install --nogpgcheck --repofrompath tunaos,"$URL" --enablerepo=tunaos \
+                $(echo "$PACKAGES" | tr "," " ")
+            fi
             rpm -q $(echo "$PACKAGES" | tr "," " ")
           '

@@ -1,11 +1,11 @@
 Name:           orca
-Version:        50.0.9
+Version:        51~beta
 Release:        1%{?dist}
 Summary:        Assistive technology for people with visual impairments
 
 License:        LGPL-2.1-or-later AND CC-BY-SA-3.0
 URL:            https://wiki.gnome.org/Projects/Orca
-Source0:        https://download.gnome.org/sources/orca/50/orca-50.0.9.tar.xz
+Source0:        https://download.gnome.org/sources/orca/51/orca-51.beta.tar.xz
 
 BuildArch:      noarch
 
@@ -46,7 +46,7 @@ applications and toolkits that support the assistive technology service
 provider interface (AT-SPI), e.g. the GNOME desktop.
 
 %prep
-%autosetup -p1 -n orca-50.0.9
+%autosetup -p1 -n orca-51.beta
 
 %build
 # Expand %%meson macro manually to avoid "fg: no job control" in EL10 mock chroot
@@ -82,6 +82,9 @@ desktop-file-validate %{buildroot}%{_sysconfdir}/xdg/autostart/orca-autostart.de
 %{_userunitdir}/orca.service
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
+- Update to 51.beta (GNOME 51 beta cycle)
+
 * Mon Mar 23 2026 James <james@example.com> - 50.0.9-1
 - Update to 50.0.9 (GNOME 50)
 - Expand %%meson macro to avoid "fg: no job control" failure in EL10 mock chroot

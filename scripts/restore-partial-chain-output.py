@@ -66,6 +66,10 @@ import urllib.request
 import zipfile
 
 API = "https://api.github.com"
+# How far down the newest-first list to look for a partial that
+# actually carries packages. More than a couple of consecutive
+# empty uploads means something other than a blip is wrong.
+MAX_CANDIDATES = 5
 KEY_FILE = "action-key.txt"
 
 
@@ -120,19 +124,17 @@ def download_artifact(url: str, token: str) -> bytes:
         return response.read()
 
 
-def newest_partial(repository: str, name: str, token: str) -> dict | None:
-    """The most recent unexpired artifact with this exact name.
+def unexpired_partials(repository: str, name: str, token: str) -> list[dict]:
+    """Every unexpired artifact with this exact name, newest first.
 
     The artifacts endpoint filters by name across the whole repository and
     returns newest first, so this is one request rather than a walk over runs.
+
+    Newest FIRST, deliberately not newest-only: see the walk in main().
     """
     url = f"{API}/repos/{repository}/actions/artifacts?name={name}&per_page=30"
     listing = api_get(url, token)
-    for artifact in listing.get("artifacts") or []:
-        if artifact.get("expired"):
-            continue
-        return artifact
-    return None
+    return [a for a in (listing.get("artifacts") or []) if not a.get("expired")]
 
 
 def extract(blob: bytes, destination: pathlib.Path) -> tuple[str | None, int]:
@@ -187,44 +189,53 @@ def main() -> int:
 
     name = f"{args.cell_id}-partial"
     try:
-        artifact = newest_partial(args.repository, name, token)
+        candidates = unexpired_partials(args.repository, name, token)
     except (urllib.error.URLError, ValueError, OSError) as error:
         log(f"could not list artifacts ({error}); building from scratch")
         return 0
-    if artifact is None:
+    if not candidates:
         log(f"no unexpired `{name}` artifact; building from scratch")
-        return 0
-
-    log(f"found `{name}` from {artifact.get('created_at')} "
-        f"({artifact.get('size_in_bytes', 0) / 1e6:.0f} MB)")
-    try:
-        blob = download_artifact(artifact["archive_download_url"], token)
-    except (urllib.error.URLError, OSError) as error:
-        log(f"could not download it ({error}); building from scratch")
         return 0
 
     # Extract somewhere disposable first. A key mismatch must leave the cell
     # directory exactly as it was, not half-populated with another key's RPMs.
     out = pathlib.Path(args.out_dir)
     staging = out.parent / f".{out.name}-partial-staging"
-    shutil.rmtree(staging, ignore_errors=True)
-    staging.mkdir(parents=True, exist_ok=True)
-    try:
-        key, recovered = extract(blob, staging)
-    except (zipfile.BadZipFile, OSError) as error:
-        log(f"could not unpack it ({error}); building from scratch")
+    source = None
+    recovered = 0
+    # Newest first, but NOT newest-only. A cell that dies before it builds
+    # anything still uploads a partial, and that empty artifact is NEWER
+    # than the one the previous run banked: on 2026-08-25 an upstream mirror
+    # served a bad repomd.xml, the gnome51 x86_64 cell died at its first
+    # buildroot, and its 6KB partial shadowed the 247MB one behind it --
+    # discarding hours of banked packages, the one thing resume exists to
+    # prevent. So walk down the list until one actually carries packages.
+    # Downloading a useless candidate is cheap precisely because it is empty.
+    for artifact in candidates[:MAX_CANDIDATES]:
+        log(f"found `{name}` from {artifact.get('created_at')} "
+            f"({artifact.get('size_in_bytes', 0) / 1e6:.0f} MB)")
         shutil.rmtree(staging, ignore_errors=True)
-        return 0
+        staging.mkdir(parents=True, exist_ok=True)
+        try:
+            blob = download_artifact(artifact["archive_download_url"], token)
+            key, recovered = extract(blob, staging)
+        except (urllib.error.URLError, OSError, zipfile.BadZipFile) as error:
+            log(f"  could not use it ({error}); trying an older one")
+            continue
+        if key != args.action_key:
+            log(f"  action key differs (partial {key or 'absent'}, this cell "
+                f"{args.action_key}); trying an older one")
+            continue
+        candidate = staging / "artifacts"
+        if not candidate.is_dir() or not any(candidate.glob("*.rpm")):
+            log("  it carries no packages; trying an older one")
+            continue
+        source = candidate
+        break
 
-    if key != args.action_key:
-        log(f"action key differs (partial {key or 'absent'}, this cell "
-            f"{args.action_key}); the inputs changed, so building from scratch")
-        shutil.rmtree(staging, ignore_errors=True)
-        return 0
-
-    source = staging / "artifacts"
-    if not source.is_dir():
-        log("the partial carries no artifacts/; building from scratch")
+    if source is None:
+        log("no unexpired partial carries usable packages; "
+            "building from scratch")
         shutil.rmtree(staging, ignore_errors=True)
         return 0
 
