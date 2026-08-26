@@ -129,3 +129,42 @@ fi
 echo "==> repo now holds ${final} RPM(s)"
 
 createrepo_c --update "$REPO" 2>/dev/null || createrepo_c "$REPO"
+
+# Detached signature over repomd.xml.
+#
+# rpmsign above signs the PACKAGES, which is what makes gpgcheck=1 meaningful:
+# an attacker serving repo.tunaos.org cannot get an unsigned RPM installed.
+# It does not stop the attacks that need no forged package signature —
+# replaying an older repomd.xml to reinstate a withdrawn version (downgrade),
+# or serving current-looking metadata forever so clients never see updates
+# (freeze). Signed metadata is the control for those, and it was the missing
+# half: contrib/install.sh and contrib/install-gnome49.sh both carry
+# repo_gpgcheck=0 with a comment explaining that no repomd.xml.asc is
+# published. This publishes it. See #509.
+#
+# The apt side of this same pipeline already does the equivalent —
+# publish-tideforge-debs.yml signs both InRelease and Release.gpg with this
+# key — so this brings the rpm side level rather than introducing a new
+# requirement.
+#
+# The key is the one rpmsign is already using: both publish workflows write
+# %_gpg_name into ~/.rpmmacros from the imported key, and the agent is already
+# unlocked by the time we get here. Falling back to gpg's default key keeps a
+# local run working for someone who signs with a single key and no rpmmacros.
+repomd="${REPO}/repodata/repomd.xml"
+if [ ! -f "$repomd" ]; then
+	echo "ERROR: ${repomd} missing after createrepo_c; refusing to publish" \
+	     "metadata that cannot be signed" >&2
+	exit 1
+fi
+
+gpg_name="$(awk '$1 == "%_gpg_name" { print $2 }' "${HOME}/.rpmmacros" 2>/dev/null || true)"
+sign_args=(--batch --yes --armor --detach-sign)
+[ -n "$gpg_name" ] && sign_args+=(--local-user "$gpg_name")
+
+# Deliberately fatal. Syncing a repodata/ whose signature is stale or absent is
+# worse than not publishing: clients that have been told to expect
+# repo_gpgcheck=1 would start failing, and clients that have not would silently
+# lose the protection this step exists to add.
+gpg "${sign_args[@]}" --output "${repomd}.asc" "$repomd"
+echo "==> signed $(basename "$repomd") -> $(basename "$repomd").asc"

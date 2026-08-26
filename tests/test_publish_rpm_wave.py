@@ -30,13 +30,50 @@ SCRIPT = ROOT / "scripts" / "publish-rpm-wave.sh"
 
 @pytest.fixture
 def stubbed(tmp_path):
-    """rpmsign and createrepo_c stubbed; they need a keyring and a real repo."""
+    """rpmsign, createrepo_c and gpg stubbed; they need a keyring and a real repo.
+
+    createrepo_c and gpg do a little more than log, because the script now
+    depends on their side effects: it refuses to continue if repomd.xml is
+    absent, and the signature it produces is what the tests check for.
+    """
     binq = tmp_path / "bin"
     binq.mkdir()
-    for tool in ("rpmsign", "createrepo_c"):
-        p = binq / tool
-        p.write_text(f'#!/bin/sh\necho "{tool} $*" >> "$STUB_LOG"\nexit 0\n')
-        p.chmod(0o755)
+    p = binq / "rpmsign"
+    p.write_text('#!/bin/sh\necho "rpmsign $*" >> "$STUB_LOG"\nexit 0\n')
+    p.chmod(0o755)
+
+    # Real createrepo_c writes repodata/repomd.xml under the repo root, which
+    # is the last argument in both invocations the script makes.
+    p = binq / "createrepo_c"
+    p.write_text(
+        '#!/bin/sh\n'
+        'echo "createrepo_c $*" >> "$STUB_LOG"\n'
+        'for a in "$@"; do last="$a"; done\n'
+        'mkdir -p "$last/repodata"\n'
+        # Real createrepo_c REGENERATES a valid index. A stub that always
+        # writes a placeholder would instead destroy the real one a test
+        # pre-placed, so only stand in when there is nothing there.
+        '[ -s "$last/repodata/repomd.xml" ] ||'
+        ' printf "<repomd/>" > "$last/repodata/repomd.xml"\n'
+        'exit 0\n'
+    )
+    p.chmod(0o755)
+
+    # Honour --output so the detached signature actually appears on disk.
+    p = binq / "gpg"
+    p.write_text(
+        '#!/bin/sh\n'
+        'echo "gpg $*" >> "$STUB_LOG"\n'
+        'out=""\n'
+        'while [ $# -gt 0 ]; do\n'
+        '  case "$1" in --output) out="$2"; shift ;; esac\n'
+        '  shift\n'
+        'done\n'
+        '[ -n "$out" ] && printf "SIGNATURE" > "$out"\n'
+        'exit 0\n'
+    )
+    p.chmod(0o755)
+
     env = dict(os.environ)
     env["PATH"] = f"{binq}:{env['PATH']}"
     env["STUB_LOG"] = str(tmp_path / "stub.log")
@@ -276,6 +313,86 @@ def test_an_unrelated_older_package_is_never_removed(tmp_path, stubbed) -> None:
     assert rpms(tmp_path / "repo") == [
         "xfwl4-4.20.0-1.el10.x86_64.rpm", "xfwl4-4.21.0-1.el10.x86_64.rpm"
     ]
+
+
+# --- signed repository metadata ---------------------------------------------
+
+
+def test_repomd_is_detach_signed(tmp_path, stubbed) -> None:
+    """rpmsign signs the packages; this signs the index that points at them.
+
+    Without repodata/repomd.xml.asc, clients cannot set repo_gpgcheck=1, and
+    gpgcheck=1 alone does not stop an attacker replaying an older, still-signed
+    index to reinstate a withdrawn package (downgrade) or serving
+    current-looking metadata forever (freeze).
+    """
+    make(tmp_path / "staged", "foo-1.0.el10.x86_64.rpm")
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr
+
+    sig = tmp_path / "repo" / "repodata" / "repomd.xml.asc"
+    assert sig.is_file(), "repomd.xml.asc was not produced"
+    assert sig.read_text() == "SIGNATURE"
+
+
+def test_repomd_signature_is_armored_and_detached(tmp_path, stubbed) -> None:
+    """A clearsigned or inline signature is not what repo_gpgcheck reads."""
+    make(tmp_path / "staged", "foo-1.0.el10.x86_64.rpm")
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr
+
+    gpg_calls = [ln for ln in (tmp_path / "stub.log").read_text().splitlines()
+                 if ln.startswith("gpg ")]
+    assert len(gpg_calls) == 1, gpg_calls
+    assert "--detach-sign" in gpg_calls[0]
+    assert "--armor" in gpg_calls[0]
+    assert "repodata/repomd.xml.asc" in gpg_calls[0]
+
+
+def test_repomd_is_signed_after_it_is_generated(tmp_path, stubbed) -> None:
+    """Signing a stale index would be worse than not signing at all."""
+    make(tmp_path / "staged", "foo-1.0.el10.x86_64.rpm")
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr
+
+    log = (tmp_path / "stub.log").read_text().splitlines()
+    createrepo = max(i for i, ln in enumerate(log) if ln.startswith("createrepo_c "))
+    signed = next(i for i, ln in enumerate(log) if ln.startswith("gpg "))
+    assert signed > createrepo, log
+
+
+def test_the_signing_key_follows_rpmmacros(tmp_path, stubbed) -> None:
+    """The same key rpmsign uses, so no second secret has to be provisioned."""
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".rpmmacros").write_text(
+        "%_signature gpg\n%_gpg_name DEADBEEFCAFE1234\n"
+    )
+    env = dict(stubbed)
+    env["HOME"] = str(home)
+
+    make(tmp_path / "staged", "foo-1.0.el10.x86_64.rpm")
+    r = run(tmp_path, env)
+    assert r.returncode == 0, r.stderr
+
+    gpg_call = next(ln for ln in (tmp_path / "stub.log").read_text().splitlines()
+                    if ln.startswith("gpg "))
+    assert "--local-user DEADBEEFCAFE1234" in gpg_call
+
+
+def test_a_missing_repomd_is_fatal(tmp_path, stubbed) -> None:
+    """createrepo_c reporting success without producing an index must not
+    publish silently unsigned metadata."""
+    binq = tmp_path / "bin"
+    (binq / "createrepo_c").write_text(
+        '#!/bin/sh\necho "createrepo_c $*" >> "$STUB_LOG"\nexit 0\n'
+    )
+    (binq / "createrepo_c").chmod(0o755)
+
+    make(tmp_path / "staged", "foo-1.0.el10.x86_64.rpm")
+    r = run(tmp_path, stubbed)
+    assert r.returncode != 0
+    assert "refusing to publish" in r.stderr
 
 
 # --- never break rdeps ------------------------------------------------------
