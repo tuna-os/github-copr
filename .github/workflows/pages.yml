@@ -98,14 +98,24 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # Turn Pages on if it is not already, and point it at Actions rather
-      # than a branch. Without this the FIRST deploy fails with "Pages is not
-      # enabled" and someone has to go click a settings toggle -- which makes
-      # the publish manual, which is the one thing this workflow exists to
-      # avoid. It is idempotent: on every later run it just reads back the
-      # settings that are already correct.
+      # Reads the Pages configuration, and turns Pages on where the token is
+      # allowed to. `enablement: true` is kept because it costs nothing and
+      # self-heals a fork, but do NOT rely on it here: creating a Pages site
+      # needs repository-administration scope, which GITHUB_TOKEN cannot be
+      # granted no matter what `permissions:` says, so on this repository the
+      # first enable is a one-time human action. Run 32926048349 failed
+      # exactly there, with "Create Pages site failed: Resource not accessible
+      # by integration" -- an error that names an integration and reads like a
+      # bug, when the actual fix is one settings toggle. The step below turns
+      # that into instructions.
       - uses: actions/configure-pages@v5
         with:
           enablement: true
+      - name: Explain a Pages site that does not exist yet
+        if: failure()
+        run: |
+          # One line, because ::error:: annotations are line-oriented.
+          echo "::error::GitHub Pages is not enabled for this repository, and the workflow token is not permitted to enable it (creating a Pages site needs repository-administration scope, which GITHUB_TOKEN cannot be granted). A repository admin must do this ONCE: Settings -> Pages -> Build and deployment -> Source: GitHub Actions. Every later run of this workflow then deploys with no manual step."
+          exit 1
       - id: deployment
         uses: actions/deploy-pages@v4

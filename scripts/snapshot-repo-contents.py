@@ -94,8 +94,13 @@ def read(row: dict, cache: pathlib.Path) -> dict:
     """One index's packages, or the reason there are none."""
     out = dict(row, packages=[], error=None)
     try:
-        rows = list(repo_index.iter_rows(
-            row["url"], row["format"], cache, repo_name=row["target"]))
+        # NOT repo_name=target. For pkg.tar.zst the db file is named after
+        # the REPOSITORY (scripts/plan-arch-publish.py: REPO_NAME = "tunaos",
+        # published as tunaos.db), not after the factory's target id, so
+        # passing "arch" here would fetch arch.db, 404, and report the index
+        # as unreachable the day it is first declared. Omitting it takes the
+        # same default the hygiene checks take.
+        rows = list(repo_index.iter_rows(row["url"], row["format"], cache))
     except Exception as exc:                    # noqa: BLE001 -- see docstring
         out["error"] = f"{type(exc).__name__}: {exc}"
         return out

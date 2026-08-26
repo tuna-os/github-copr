@@ -404,3 +404,40 @@ def test_it_also_republishes_on_a_timer():
     assert "schedule" in triggers, (
         "without a schedule the browser only refreshes when unrelated files "
         "change on main")
+
+
+def test_the_pacman_db_is_named_after_the_repo_not_the_target():
+    """arch declares no published_index yet, so this is unexercised until the
+    day it does -- which is exactly when a wrong db name would surface, as an
+    index reported unreachable rather than as a bug anyone could see coming.
+
+    repo-add publishes <REPO_NAME>.db (scripts/plan-arch-publish.py, "tunaos"),
+    and the factory's target id is "arch". Passing the target as the db name
+    would fetch arch.db and 404."""
+    body = SNAPSHOT.read_text(encoding="utf-8")
+    assert "repo_name=row" not in body, (
+        "the target id is not the repository name; see plan-arch-publish.py")
+    name = re.search(r'REPO_NAME\s*=\s*"([^"]+)"',
+                     (ROOT / "scripts" / "plan-arch-publish.py")
+                     .read_text(encoding="utf-8")).group(1)
+    ri = module("repo_index_for_db", "repo_index.py")
+    default = re.search(r'db = f"\{repo_name\}\.db" if repo_name else "([^"]+)\.db"',
+                        (ROOT / "scripts" / "repo_index.py")
+                        .read_text(encoding="utf-8")).group(1)
+    assert default == name, (
+        f"repo_index defaults to {default}.db but the publisher writes "
+        f"{name}.db")
+    del ri
+
+
+def test_a_missing_pages_site_is_explained_not_just_failed():
+    """`Create Pages site failed: Resource not accessible by integration` names
+    an integration and reads like a bug. It is a one-time settings toggle that
+    GITHUB_TOKEN cannot perform at any permission level, and the workflow
+    should say so rather than leave the next person reading GitHub's REST
+    docs (run 32926048349)."""
+    steps = flow()["jobs"]["deploy"]["steps"]
+    explain = [s for s in steps if s.get("if") == "failure()"]
+    assert explain, "nothing explains a deploy that failed to configure Pages"
+    body = str(explain[0].get("run", ""))
+    assert "Settings" in body and "Pages" in body and "GitHub Actions" in body
