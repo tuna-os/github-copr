@@ -147,6 +147,8 @@ def iter_rows(text: str):
             "arch": stanza.get("Architecture", ""),
             "evr": stanza.get("Version", ""),
             "srpm": stanza.get("Source", name).split(" ")[0],
+            # Pool path relative to the index URL; see repo_index's note.
+            "location": stanza.get("Filename"),
             # Flat repos carry no Contents index, so file-level conflict
             # checking is not measurable here; recorded in the hygiene
             # tool's scope notes rather than silently pretended.

@@ -76,7 +76,15 @@ def test_the_partial_is_uploaded_when_the_clock_runs_out():
         "and that is the case this exists for"
     )
     # And not on a clean run, where the action cache already holds the output.
-    assert "steps.build.outcome != 'success'" in condition
+    #
+    # This used to assert the denylist `steps.build.outcome != 'success'` --
+    # i.e. it pinned the bug. On an exact cache hit the build step does not
+    # run, its outcome is `skipped`, and `skipped != 'success'`, so the
+    # partial uploaded beside the real artifact on every cached green cell
+    # (run 32674169357, 4 of 8). The condition is an allowlist now; see the
+    # dedicated tests below.
+    assert "steps.build.outcome == 'failure'" in condition
+    assert "steps.build.outcome == 'cancelled'" in condition
 
 
 def test_the_partial_carries_only_what_a_resume_reads():
@@ -106,7 +114,11 @@ def test_the_partial_cannot_be_confused_with_the_success_artifact():
     interchangeably.
     """
     names = {(step.get("with") or {}).get("name") for step in steps()}
-    assert "${{ matrix.id }}-partial" in names
+    # Named by base_id so continuation shards share one partial per family
+    # cell (test_continuation_shards_extend_the_chain_same_day.py owns that
+    # behaviour); the property THIS test guards is unchanged -- the partial's
+    # name can never collide with the success artifact's.
+    assert "${{ matrix.base_id || matrix.id }}-partial" in names
     assert "${{ matrix.id }}" in names
     module = load_module()
     assert module.unexpired_partials.__doc__, (
@@ -219,11 +231,14 @@ def test_the_resume_runs_before_the_build():
 
 
 def test_the_job_may_read_its_own_workflow_artifacts():
-    """`actions: read`. Without it the API listing 404s and every resume
+    """At least read. Without it the API listing 404s and every resume
     silently degrades to a full rebuild -- the exact failure this fixes,
-    reintroduced as a permissions omission."""
+    reintroduced as a permissions omission. `write` satisfies this too, and
+    is what the continuation shards' shared-partial overwrite now requires
+    (test_continuation_shards_extend_the_chain_same_day.py pins that side).
+    `none`/absent is the regression this test exists to stop."""
     permissions = yaml.safe_load(CELL.read_text())["permissions"]
-    assert permissions.get("actions") == "read"
+    assert permissions.get("actions") in ("read", "write")
 
 
 def _fake_api(module, listing, blob):
@@ -474,3 +489,65 @@ def test_the_walk_stops_rather_than_restoring_another_cells_key(
     assert not (out / "artifacts").exists(), (
         "a partial built from different inputs was restored anyway")
     assert not list(tmp_path.glob(".*-partial-staging")), "staging left behind"
+
+
+# ── The partial must not shadow a cache hit ─────────────────────────────────
+#
+# The upload condition was `steps.build.outcome != 'success'`, with a comment
+# claiming that kept a clean run from uploading a redundant copy. Run
+# 32674169357 disproved it: on an exact cache hit the build step does not run,
+# so its outcome is `skipped`, which is `!= 'success'`, and the partial
+# uploaded beside the real artifact within a few KB of its size --
+#
+#   fprintd-el10-x86_64            2,152,816 bytes
+#   fprintd-el10-x86_64-partial    2,148,746 bytes
+#
+# for 4 of 8 cells in that run. gnome51, which actually built, correctly
+# skipped it. Harmless to correctness, but a gnome-sized cell is ~500MB and
+# cache hits are the common case.
+#
+# A denylist silently admits every outcome value GitHub adds. These pin the
+# allowlist, and pin that `always()` survives -- the two properties pull in
+# opposite directions and a fix for one can quietly undo the other.
+
+PARTIAL_STEP_NAME = "-partial"
+
+
+def _partial_upload_step():
+    doc = yaml.safe_load(CELL.read_text(encoding="utf-8"))
+    for job in doc["jobs"].values():
+        for step in job.get("steps", []):
+            with_ = step.get("with") or {}
+            if str(with_.get("name", "")).endswith(PARTIAL_STEP_NAME):
+                return step
+    raise AssertionError("no -partial upload step found; this test checked nothing")
+
+
+def test_the_partial_upload_step_exists():
+    """Guard: every assertion below is vacuous without this."""
+    step = _partial_upload_step()
+    assert "upload-artifact" in step["uses"]
+
+
+def test_a_cache_hit_does_not_upload_a_partial():
+    """`skipped` must not qualify. This is the regression run 32674169357 found."""
+    cond = _partial_upload_step()["if"]
+    assert "!= 'success'" not in cond, (
+        "a denylist admits `skipped`, which is the outcome of a cache hit, so "
+        "every green cached cell uploads a redundant near-full-size partial"
+    )
+    assert "== 'failure'" in cond, cond
+    assert "== 'cancelled'" in cond, cond
+
+
+def test_the_partial_still_uploads_when_the_job_is_torn_down():
+    """always() is why a timeout is captured at all -- it must not be lost."""
+    cond = _partial_upload_step()["if"]
+    assert "always()" in cond, cond
+    # cancelled() is what a timeout reports as, and it must be admitted.
+    assert "cancelled" in cond, cond
+
+
+def test_the_partial_is_confined_to_the_chain_engine():
+    cond = _partial_upload_step()["if"]
+    assert "build-chain" in cond, cond

@@ -91,13 +91,26 @@ def test_every_caller_grants_what_its_called_workflow_requests():
     )
 
 
-def test_the_factory_caller_grants_actions_read():
-    """Named explicitly, because the sweep above would also pass if someone
-    removed the resume step instead of granting the permission — and the
-    resume is what stops a six-hour cell losing six hours of work."""
+def test_the_factory_caller_grants_what_the_cell_requests():
+    """The invariant is EQUALITY of the actions grant between caller and
+    callee, not any particular literal. It was "read" when the resume step
+    landed and is "write" since the continuation shards' shared-partial
+    overwrite (which deletes before re-uploading); pinning the old literal
+    here turned a deliberate upgrade into a red test. What must never happen
+    is the two files disagreeing — the called workflow requesting more than
+    the caller grants is an INVALID WORKFLOW FILE, which is not a failed run:
+    nothing plans, and the merge queue has no required check to evaluate."""
     caller = yaml.safe_load(
         (WORKFLOWS / "package-factory.yml").read_text(encoding="utf-8"))
     callee = yaml.safe_load(
         (WORKFLOWS / "package-factory-cell.yml").read_text(encoding="utf-8"))
-    assert permissions(callee).get("actions") == "read"
-    assert permissions(caller).get("actions") == "read"
+    caller_grant = permissions(caller).get("actions")
+    callee_grant = permissions(callee).get("actions")
+    assert callee_grant == caller_grant, (
+        f"cell requests actions: {callee_grant!r} but the caller grants "
+        f"{caller_grant!r} — GitHub rejects the whole file at parse time"
+    )
+    assert callee_grant in ("read", "write"), (
+        "the resume step needs at least read; none/absent silently degrades "
+        "every resume to a full rebuild"
+    )

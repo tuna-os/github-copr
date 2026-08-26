@@ -101,6 +101,20 @@ republishes when the data it renders changes rather than on a schedule,
 because the daily refresh lands through a bot PR at an hour no cron can
 predict.
 
+The same site carries a **package browser** for `repo.tunaos.org` itself,
+which answers a different question: not "how much of the plan is built"
+but "what is actually IN the repository" — until now answerable only by
+adding the repo to a machine and asking dnf, i.e. by trusting it first in
+order to find out what it holds. `scripts/snapshot-repo-contents.py`
+reads every `published_index` the contract declares, through the same
+format-neutral index layer the hygiene checks use, at the same URLs a
+package manager would use. So the listing cannot show a package the repo
+does not serve, nor hide one it does. An index that cannot be read is
+recorded and named on the page with its reason rather than dropped —
+silently missing names is exactly what #519 looked like from outside — and
+one dead prefix does not fail the deploy. This half DOES run on a timer,
+for the opposite reason to the status page: its source is not a file in
+git, so no commit marks the moment a publish wave changes what is served.
 Around the build loop sit four preventive checks adapted from the
 sandogasa toolset (provenance, incident history, and the
 capability-per-format matrix in `SANDOGASA-ADAPTATIONS.md`), built on

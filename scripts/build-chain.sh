@@ -159,6 +159,31 @@ FORCE=false
 WITH_CHECKS=false
 STREAM=false
 
+# --- Soft deadline -----------------------------------------------------------
+# CHAIN_BUDGET_SECONDS, when set, is a clean stopping point INSIDE the job's
+# hard ceiling. The nightly hummingbird-desktops cells die at
+# `timeout-minutes: 360` -- reported as CANCELLED -- with every step after the
+# build skipped, so six hours of mock output reaches only the resume partial
+# and the SERVED repo never gains a package (every scheduled run 08-19..08-24,
+# e.g. job 97441135486: killed at 5h59m29s still inside the python bootstrap
+# tiers). A chain that stops itself BEFORE the ceiling finishes its current
+# packages, drains, and exits normally -- so validation, checksums, SBOM,
+# attestation and the publish artifact all run on what DID build.
+#
+# Deferring is not failing: remaining packages are counted and named in the
+# summary, and the caller learns about it through CHAIN_DEFERRED_MARKER (a
+# file written on deadline, carrying the count) -- which the workflow uses to
+# keep a partial OUT of the action cache. Recording a deferred chain as a
+# completed ActionResult would make every later run cache-hit on the partial
+# and freeze the chain at it forever.
+CHAIN_START_EPOCH=$(date +%s)
+DEADLINE_HIT=false
+DEFERRED_COUNT=0
+_past_deadline() {
+    [[ -n "${CHAIN_BUDGET_SECONDS:-}" ]] || return 1
+    (( $(date +%s) - CHAIN_START_EPOCH >= CHAIN_BUDGET_SECONDS ))
+}
+
 usage() {
     echo "Usage: $0 [options]"
     echo ""
@@ -734,15 +759,71 @@ build_package_podman() {
 
     echo "==> [${pkg_name}] Running mock inside podman (${BUILD_IMAGE})..."
 
-    # Optional persistent mock cache (dnf package downloads + chroot state).
-    # CI sets MOCK_CACHE_DIR to a host path wrapped in actions/cache, keyed
-    # per package, so a rebuild of the SAME package (Renovate bump, retry)
-    # reuses its already-resolved BuildRequires instead of re-downloading
-    # them from the CentOS/EPEL mirrors. No-op locally when unset.
+    # Persistent mock ROOT CACHE, shared by every package in the run.
+    #
+    # Without it each package pays "installing minimal buildroot with dnf5" in
+    # full and then tars a root cache that is thrown away with its container.
+    # docs/hummingbird-throughput.md Finding 2 counted it across five real
+    # runs: `Start: creating root cache` once per package, `unpacking root
+    # cache` ZERO times, and 43 s -- the floor observed anywhere in the corpus
+    # -- paid 194 times, 2.32 h of 6.80 h, 34.1%.
+    #
+    # Sharing one cache between concurrent builds is what mock is built for.
+    # buildroot.py keys cachedir on shared_root_name, the config's root from
+    # BEFORE --uniqueext is appended, and plugins/root_cache.py guards it with
+    # an fcntl lock (shared to unpack, exclusive to rebuild). Correctness
+    # against the local repo growing mid-run is equally by design: the tarball
+    # holds only the MINIMAL buildroot, BuildRequires resolve after the unpack
+    # against the live repos, and the Rawhide template these configs include
+    # sets metadata_expire=0.
+    #
+    # Only <config>/root_cache, not all of /var/cache/mock. The sibling
+    # yum_cache accumulates every BuildRequires RPM the chain downloads, which
+    # for a desktop closure is unbounded in a way this directory is not (one
+    # tarball, rewritten rather than appended). Filling the runner's disk now
+    # costs more than it used to: the chain runs 4.5 h and its partial output
+    # is what the continuation shards resume from, so an ENOSPC in hour three
+    # poisons the whole night rather than one package. Widen it if a measured
+    # run shows the headroom.
+    #
+    # <config> is MOCK_CONFIG because every profile in mock/ sets
+    # config_opts['root'] to its own filename stem; a mismatch would mount a
+    # path mock never looks at and be silent about it, so
+    # tests/test_the_mock_root_cache_is_actually_shared.py pins it.
     MOCK_CACHE_ARGS=()
     if [[ -n "${MOCK_CACHE_DIR:-}" ]]; then
-        mkdir -p "${MOCK_CACHE_DIR}"
-        MOCK_CACHE_ARGS=(-v "${MOCK_CACHE_DIR}:/var/cache/mock:Z")
+        mkdir -p "${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache"
+        # Mode, because the leaf is now created on the HOST rather than by
+        # mock inside the container. Run 31268488082 mounted the parent and
+        # let mock create this directory itself, so its owner was whatever
+        # the container decided; mounting the leaf hands it a directory owned
+        # by the runner user, which rootless podman maps to container root
+        # while mock drops to builder:mock and has to write the tarball. Same
+        # reason `chmod -R a+rX /tmp/mock-configdir` is a few lines below --
+        # this is an ephemeral single-tenant runner directory, not a shared
+        # host path.
+        chmod 0777 "${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache"
+        # A TRUNCATED tarball is worse than no tarball: every later package in
+        # the job fails to unpack it, so one bad write would cost the whole
+        # chain rather than one package. It can happen -- the timeout(1) around
+        # this container SIGKILLs a wedged build, and a kill landing in the
+        # seconds mock spends tarring the buildroot leaves a partial file
+        # behind, with the fcntl lock released by the dead process.
+        #
+        # Age-gated, and that gate is the load-bearing part. Testing a file
+        # another worker is writing RIGHT NOW would read it as corrupt and
+        # delete it, and with several workers that ping-pongs forever: the
+        # cache would never survive long enough to be used and the whole
+        # optimisation would silently do nothing. Tarring a minimal buildroot
+        # takes under a minute; ten minutes cannot be an in-flight write.
+        _root_cache_tarball="${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache/cache.tar.gz"
+        if [[ -f "$_root_cache_tarball" ]] \
+           && [[ -z "$(find "$_root_cache_tarball" -mmin -10 2>/dev/null)" ]] \
+           && ! gzip -t "$_root_cache_tarball" 2>/dev/null; then
+            log "  discarding a corrupt mock root cache: ${_root_cache_tarball}"
+            rm -f "$_root_cache_tarball"
+        fi
+        MOCK_CACHE_ARGS=(-v "${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache:/var/cache/mock/${MOCK_CONFIG}/root_cache:Z")
     fi
 
     local mock_check_flag="--nocheck"
@@ -881,11 +962,25 @@ build_package_podman() {
                 #   * /var/lib/mock lives INSIDE this container and is thrown
                 #     away with it, so two concurrent builds cannot see each
                 #     other's chroots at all;
-                #   * /var/cache/mock is only bind-mounted when MOCK_CACHE_DIR
-                #     is set, and the Hummingbird workflow does not set it.
+                #   * the one thing concurrent builds now DO share is the
+                #     root cache under /var/cache/mock/<config>/root_cache,
+                #     and mock guards that itself with an fcntl lock (shared
+                #     to unpack, exclusive to rebuild) -- repo.lock never
+                #     protected it and could not have.
                 # So the exclusive lock protected nothing, while serialising
                 # the single most expensive step in the run: --jobs N started N
                 # workers that then took turns compiling one at a time.
+                # Both directories, and both matter. Only the LEAF is
+                # bind-mounted, so podman creates the <config> parent itself,
+                # root-owned and 0755 -- and mock runs as builder:mock two
+                # lines below, so without this it cannot create its siblings
+                # (yum_cache) under a directory it does not own. In the image
+                # /var/cache/mock is root:mock 2775 and mock makes the whole
+                # subtree itself; introducing a mount point is what changes
+                # that. || true because a missing cache must never be worse
+                # than a slow build, which is the whole point of the mount.
+                chmod 0777 /var/cache/mock/${MOCK_CONFIG} \
+                           /var/cache/mock/${MOCK_CONFIG}/root_cache 2>/dev/null || true
                 flock -s /local-repo/repo.lock -c \"
                     setpriv --reuid=builder --regid=mock --init-groups \\
                     mock --configdir /tmp/mock-configdir -r '${MOCK_CONFIG}' \\
@@ -1236,6 +1331,18 @@ build_tier() {
             continue
         fi
 
+        # Past the soft deadline: stop DISPATCHING, keep draining. Checked at
+        # the package boundary so a package in flight always completes; only
+        # work that has not started is deferred.
+        if $DEADLINE_HIT || _past_deadline; then
+            if ! $DEADLINE_HIT; then
+                DEADLINE_HIT=true
+                log "  CHAIN_BUDGET_SECONDS=${CHAIN_BUDGET_SECONDS:-} reached; deferring the rest of the chain"
+            fi
+            DEFERRED_COUNT=$(( DEFERRED_COUNT + 1 ))
+            continue
+        fi
+
         _tier_pkg_total=$(( _tier_pkg_total + 1 ))
 
         if $DRY_RUN; then
@@ -1285,7 +1392,7 @@ build_tier() {
     # a retry could need has appeared, so retrying is just a second identical
     # failure at twice the cost. That gate is what keeps this from being a
     # blanket "try everything twice".
-    if ((${#_tier_failed[@]})) && [[ "$(_repo_rpm_count)" -gt "$_tier_start_rpms" ]]; then
+    if ((${#_tier_failed[@]})) && ! $DEADLINE_HIT && [[ "$(_repo_rpm_count)" -gt "$_tier_start_rpms" ]]; then
         local retry=("${_tier_failed[@]}")
         _tier_failed=()
         log "  ${#retry[@]} package(s) failed but the repo grew during this tier;"
@@ -1370,6 +1477,16 @@ build_stream() {
             continue
         fi
 
+        # Same soft deadline as build_tier: stop dispatching, keep draining.
+        if $DEADLINE_HIT || _past_deadline; then
+            if ! $DEADLINE_HIT; then
+                DEADLINE_HIT=true
+                log "  CHAIN_BUDGET_SECONDS=${CHAIN_BUDGET_SECONDS:-} reached; deferring the rest of the stream"
+            fi
+            DEFERRED_COUNT=$(( DEFERRED_COUNT + 1 ))
+            continue
+        fi
+
         _pkg_total=$(( _pkg_total + 1 ))
 
         if $DRY_RUN; then
@@ -1403,7 +1520,7 @@ build_stream() {
     # Retry failures once, if anything was built during this stream.
     # Same gate as build_tier: if the repo grew, a failed package may
     # have been missing a dependency that has since landed.
-    if ((${#_failed[@]})) && [[ "$(_repo_rpm_count)" -gt "$_stream_start_rpms" ]]; then
+    if ((${#_failed[@]})) && ! $DEADLINE_HIT && [[ "$(_repo_rpm_count)" -gt "$_stream_start_rpms" ]]; then
         local retry=("${_failed[@]}")
         _failed=()
         log "  ${#retry[@]} package(s) failed but the repo grew during the stream;"
@@ -1487,6 +1604,19 @@ main() {
     log "===== Summary ====="
     log "Tiers processed: ${tier_count}"
     log "Packages built:  ${pkg_total}"
+    if $DEADLINE_HIT; then
+        log "Deferred (deadline): ${DEFERRED_COUNT}"
+        # The marker is how the CALLER learns this run is partial. It must be
+        # written before the failure exit below: a deferred run with failures
+        # is still partial, and a consumer that only checks the exit code
+        # would otherwise record it as a complete red rather than a truncated
+        # one.
+        if [[ -n "${CHAIN_DEFERRED_MARKER:-}" ]]; then
+            printf 'deferred=%s\nbudget_seconds=%s\n' \
+                "${DEFERRED_COUNT}" "${CHAIN_BUDGET_SECONDS:-}" \
+                > "${CHAIN_DEFERRED_MARKER}"
+        fi
+    fi
 
     if [[ ${#failed[@]} -gt 0 ]]; then
         err "Failed packages (${#failed[@]}):"
@@ -1494,6 +1624,15 @@ main() {
             err "  - ${f}"
         done
         exit 1
+    fi
+
+    if $DEADLINE_HIT; then
+        # NOT "all packages built". Exit 0 on purpose: the point of stopping
+        # cleanly is that validation, checksums, SBOM, attestation and the
+        # publish artifact all run on what DID build. The marker above is what
+        # keeps this partial out of the action cache.
+        log "Chain stopped at the soft deadline with ${DEFERRED_COUNT} package(s) deferred; partial output is complete and valid as far as it goes."
+        return 0
     fi
 
     log "All packages built successfully!"

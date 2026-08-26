@@ -18,6 +18,13 @@
 # The push trigger keys on the files the page is rendered FROM, so a merged
 # refresh republishes immediately and a merge that touches nothing relevant
 # does not spend a deploy.
+#
+# The package browser is the exception, and it is why there is ALSO a cron.
+# Its source is not a file in git at all -- it is what repo.tunaos.org is
+# serving, read at deploy time by scripts/snapshot-repo-contents.py. The
+# repository changes when a PUBLISH workflow runs, and no commit records
+# that, so for the browser a timer is the only signal there is. Daily, which
+# is the granularity the page reports its own age at.
 name: Pages
 
 on:
@@ -39,6 +46,9 @@ on:
       - "manifests/package-builds.yaml"
       - "scripts/render-factory-site.py"
       - ".github/workflows/pages.yml"
+  # Refreshes the package browser against the live repo; see the note above.
+  schedule:
+    - cron: "17 6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -60,6 +70,14 @@ jobs:
           python-version: "3.14"
       - name: Install deps
         run: pip install --quiet pyyaml
+      # Reads every published_index the contract declares. An index that
+      # cannot be read is recorded in the snapshot as unreachable and named
+      # on the page -- it does NOT fail this step, because one dead prefix
+      # must not take the whole site down. Only an outright crash fails here,
+      # and that is deliberate: it means the deploy always carries a browser,
+      # so the page can never quietly lose it and look complete.
+      - name: Snapshot what the repo is actually serving
+        run: ./scripts/snapshot-repo-contents.py --out docs/repo-contents.json
       - name: Render
         run: ./scripts/render-factory-site.py --out site
       - name: Upload the page as a Pages artifact
@@ -80,5 +98,24 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # Reads the Pages configuration, and turns Pages on where the token is
+      # allowed to. `enablement: true` is kept because it costs nothing and
+      # self-heals a fork, but do NOT rely on it here: creating a Pages site
+      # needs repository-administration scope, which GITHUB_TOKEN cannot be
+      # granted no matter what `permissions:` says, so on this repository the
+      # first enable is a one-time human action. Run 32926048349 failed
+      # exactly there, with "Create Pages site failed: Resource not accessible
+      # by integration" -- an error that names an integration and reads like a
+      # bug, when the actual fix is one settings toggle. The step below turns
+      # that into instructions.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Explain a Pages site that does not exist yet
+        if: failure()
+        run: |
+          # One line, because ::error:: annotations are line-oriented.
+          echo "::error::GitHub Pages is not enabled for this repository, and the workflow token is not permitted to enable it (creating a Pages site needs repository-administration scope, which GITHUB_TOKEN cannot be granted). A repository admin must do this ONCE: Settings -> Pages -> Build and deployment -> Source: GitHub Actions. Every later run of this workflow then deploys with no manual step."
+          exit 1
       - id: deployment
         uses: actions/deploy-pages@v4

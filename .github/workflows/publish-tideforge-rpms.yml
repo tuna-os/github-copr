@@ -172,7 +172,35 @@ jobs:
           mkdir -p repo
           src='${{ matrix.src }}'
           echo "src=$src" >> "$GITHUB_ENV"
-          rclone sync "r2:${R2_BUCKET}/${src}/" repo/ --exclude "repodata/**" || true
+          # NOT `|| true`. The sync-up later in this job makes the bucket MATCH
+          # repo/, so any object that failed to come down here is DELETED from
+          # the bucket there. Swallowing a partial sync-down is precisely how
+          # repo/10/x86_64 lost ~160 served package names between 2026-08-20
+          # and 2026-08-25 (#519) -- gdk-pixbuf2, harfbuzz, gnome-desktop3 and
+          # malcontent among them. Those are dependencies, not leaves, so dnf
+          # then reported gtk4 and 17 others as BROKEN rather than missing, and
+          # tunaOS shipped a hummingbird:gnome image containing no GNOME at all
+          # (410 packages: wallpapers and docs). Same shape as #124 /
+          # INCIDENT-repo-wipe-gnome, one prefix at a time.
+          #
+          # publish-rpm-wave.sh's NEVER SHRINK guard cannot catch this: it
+          # counts RPMs in the local tree, and these files were never synced
+          # down to be counted.
+          #
+          # rclone exit 3 is "directory not found" -- the legitimate
+          # first-publish case for a new prefix. Every other non-zero status is
+          # a real failure and must stop the job BEFORE the destructive
+          # sync-up, not after.
+          set +e
+          rclone sync "r2:${R2_BUCKET}/${src}/" repo/ --exclude "repodata/**"
+          _sync_rc=$?
+          set -e
+          if ((_sync_rc == 3)); then
+            echo "::notice::no existing objects at ${src} — treating as first publish"
+          elif ((_sync_rc != 0)); then
+            echo "::error::sync-down of ${src} failed (rclone rc=${_sync_rc}); refusing to continue — the sync-up in this job would DELETE every object that failed to come down"
+            exit 1
+          fi
           # The #124 / INCIDENT-repo-wipe-gnome lesson: rclone sync makes the
           # destination match the source, so an accidentally-partial local
           # tree would DELETE the served repo. A prefix known to hold hundreds

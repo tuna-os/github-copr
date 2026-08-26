@@ -191,13 +191,42 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
     if int(args.source_date_epoch) <= 0:
         raise SystemExit("SOURCE_DATE_EPOCH must be a positive integer")
     inputs = []
-    for raw in [args.manifest, *args.input]:
+    # The manifest is hashed as THIS TARGET'S SLICE, not as a file, exactly as
+    # the target_queue and dependency_tree contracts below already are.
+    #
+    # It used to be `digest_path(manifest)` -- the whole file, every target --
+    # which silently defeated #473. That change narrowed the manifest's
+    # contribution to `build_view(target)` precisely so a field no build reads
+    # could not rebuild a cell, and then the whole-file digest put every other
+    # target's fields straight back into the key.
+    #
+    # Measured cost, run 32842254545: #512 edited this manifest to add `drift:`
+    # blocks and correct `probe_image` -- neither of which changes what any
+    # hummingbird RPM compiles to. The key moved, a 429 MB partial written 34
+    # seconds earlier was rejected as "action key differs", and a 22-tier chain
+    # restarted at bootstrap-00. Four hours of runner time reached layer-00.
+    # See #528.
+    #
+    # `schema` rides along because it decides how every other field is read; a
+    # schema bump must still invalidate. What is dropped is other targets'
+    # blocks and `upstreams`, plus `dependency_catalog`, which native targets
+    # are already documented above as not consuming.
+    for raw in [*args.input]:
         path = pathlib.Path(raw)
         try:
             relative = path.resolve().relative_to(root.resolve()).as_posix()
         except ValueError as exc:
             raise SystemExit(f"native input must be inside repository root: {path}") from exc
         inputs.append({"path": relative, "digest": digest_path(path)})
+    manifest_path = pathlib.Path(args.manifest)
+    try:
+        manifest_relative = manifest_path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError as exc:
+        raise SystemExit(f"native input must be inside repository root: {manifest_path}") from exc
+    inputs.append({
+        "path": manifest_relative,
+        "digest": digest_json({"schema": factory.get("schema"), "target": selected}),
+    })
     contracts = []
     if args.dependency_tree:
         path = pathlib.Path(args.dependency_tree)

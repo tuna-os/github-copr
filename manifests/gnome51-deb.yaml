@@ -24,6 +24,29 @@ roots:
   - gdm3
   - nautilus
   - xdg-desktop-portal-gnome
+  # accountsservice is a root because the closure engine cannot see why it is
+  # needed. gnome-control-center 1:51~beta-1ubuntu1 declares only
+  # `libaccountsservice-dev (>= 23.11.69)` in debian/control, which resolute's
+  # 23.13.9-8ubuntu5 satisfies -- so no edge enters the closure. Its
+  # meson.build asks for a different number:
+  #
+  #   ../meson.build:228:15: ERROR: Dependency lookup for accountsservice with
+  #   method 'pkgconfig' failed: Invalid version, need 'accountsservice'
+  #   ['>= 26.27.3'] found '23.13.9'.
+  #
+  # (run 32678956022, the only failure in an otherwise 17/18 chain.) The donor
+  # carries 26.27.3-0ubuntu1; the packaging simply never tightened the
+  # declared minimum alongside the upstream bump. That is a bug in the donor's
+  # metadata, not in the engine: closing over declared Build-Depends is the
+  # correct rule, and widening it to "rebuild every build-dep the donor has
+  # newer" would drag in the whole toolchain.
+  #
+  # So it is named here, with the evidence, rather than inferred. The engine
+  # still computes its version gap and its own build-deps; only the fact that
+  # it is wanted is stated by hand. scripts/build-deb-chain.sh prints a HINT
+  # naming the source to add whenever a build fails this same way, so the next
+  # instance costs a log line rather than a two-hour chain.
+  - accountsservice
 
 targets:
   # The only PERMANENT gap of the three deb/rpm targets. resolute is 26.04
