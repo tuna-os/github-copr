@@ -140,12 +140,19 @@ def iter_rpm_rows(blob: bytes):
             continue
         version = element.find(f"{gap.COMMON}version")
         source = element.find(f"{gap.COMMON}format/{gap.RPM}sourcerpm")
+        where = element.find(f"{gap.COMMON}location")
         yield {
             "name": element.findtext(f"{gap.COMMON}name"),
             "arch": element.findtext(f"{gap.COMMON}arch"),
             "evr": (f"{version.get('epoch') or '0'}:"
                     f"{version.get('ver')}-{version.get('rel')}"),
             "srpm": source.text if source is not None else None,
+            # Where the file sits relative to the index URL. Nothing in the
+            # hygiene checks needs it; a reader browsing the repo does, and
+            # deriving it from the NEVRA instead would be a guess -- the
+            # publisher renames '+' out of filenames, so the guess is wrong
+            # for exactly the packages that already caused an incident.
+            "location": where.get("href") if where is not None else None,
             # Regular files only: directories are co-owned by design
             # and ghosts have no content to conflict.
             "files": [shipped.text for shipped in

@@ -175,10 +175,17 @@ def test_the_bar_carries_an_accessible_label():
 
 
 def test_the_page_is_self_contained():
-    """No CDN, no external stylesheet, no script: Pages serves it as-is and
-    it opens from a file:// URL."""
+    """No CDN, no external stylesheet, no external script: Pages serves it
+    as-is and it opens from a file:// URL.
+
+    This used to forbid <script> outright. The browser pages need a filter
+    box, so the rule is now the one that was actually load-bearing: nothing
+    is FETCHED. An inline script keeps the page a single file that opens from
+    file://; a src= would not. The companion property -- that no content
+    comes from script -- is pinned separately by
+    test_the_package_rows_are_in_the_html_not_generated_by_script."""
     page = render()
-    assert "<script" not in page.lower()
+    assert "<script src" not in page.lower()
     assert "http://" not in page.replace("http://www.w3.org", "")
     external = re.findall(r'(?:src|href)="(https?://[^"]+)"', page)
     for url in external:
