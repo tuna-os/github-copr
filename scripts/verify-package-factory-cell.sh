@@ -133,7 +133,41 @@ if [[ ${ENGINE:?} == build-chain ]]; then
       ${published_args[@]+"${published_args[@]}"} \
       "${names[@]}"
     rpm -q "${names[@]}"
-    rpm -V "${names[@]}"
+    # rpm -V, minus two classes of difference a THROWAWAY CONTAINER reports by
+    # construction rather than because a package is wrong. Both took all four
+    # gnome cells red in run 32646102181 AFTER a clean build, a clean lint and
+    # a clean install:
+    #
+    #   .....UG..    /var/lib/avahi-autoipd
+    #   .M.......  g /var/lib/selinux/minimum/active/policy.linked
+    #
+    # GHOST FILES (the `g` in the second column). A %%ghost path is one rpm
+    # knows the name of but ships no content for -- it is created at runtime
+    # by a scriptlet, and the attributes in the header are placeholders.
+    # selinux-policy declares its .linked files that way and semodule builds
+    # them. Comparing a placeholder against what a scriptlet produced is not
+    # a measurement of anything.
+    #
+    # OWNERSHIP. A service account like avahi-autoipd is created by sysusers
+    # at install time; a container without systemd running does not get one,
+    # so rpm falls back to root and then reports U and G as differing. That
+    # is a fact about the verification environment.
+    #
+    # What is deliberately still checked: digest, size, mode, link target,
+    # capabilities. Those catch a corrupt or mis-packaged payload, which is
+    # what this step is for. Note also what rpm -V CANNOT tell us here -- it
+    # compares the installed tree against the header rpm itself just wrote,
+    # so a wrong owner or mode in the spec would agree with itself and pass.
+    # Ownership policy is verified where it takes effect, in the image build,
+    # not in a container that discards itself a second later.
+    rpm -V --nouser --nogroup "${names[@]}" > /tmp/rpm-verify.out 2>&1 || true
+    grep -vE "^[.?SM5DLUGTPa]{8,9} +g " /tmp/rpm-verify.out > /tmp/rpm-verify.real || true
+    if [ -s /tmp/rpm-verify.real ]; then
+      echo "==> rpm -V reported differences outside the excluded classes:" >&2
+      cat /tmp/rpm-verify.real >&2
+      exit 1
+    fi
+    echo "==> rpm -V clean across ${#names[@]} package name(s)"
   '
   exit 0
 fi

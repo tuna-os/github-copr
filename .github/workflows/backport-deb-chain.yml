@@ -42,15 +42,26 @@ jobs:
   chain:
     name: ${{ github.event.inputs.target }}-${{ github.event.inputs.architecture }}
     runs-on: ${{ github.event.inputs.architecture == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
-    # The same ceiling every factory cell uses. A GNOME chain is the shape of
-    # workload that has hit it before (#480), so a run that stops here is a
-    # capacity result, not a build failure -- re-dispatch with --tier.
+    # The same ceiling every factory cell uses. Measured rather than feared
+    # here: tier-0's 8 packages built in 6m30s (run 32652552159), so the full
+    # 18-package ubuntu chain has an order of magnitude of headroom. A deb
+    # backport is cheap because there is no packaging to author -- it is the
+    # EL10 rpm chain, which builds ~55 packages from spec, that lives against
+    # this ceiling.
+    #
+    # If one ever does stop here, RE-DISPATCH FROM tier-0 OR WITH NO TIER AT
+    # ALL. `tier` narrows a single run; it cannot resume one. The local apt
+    # repo that carries a tier's output to the next tier lives inside the
+    # runner and is gone when the job ends, so dispatching tier-1 after a
+    # tier-0 run would resolve its build-deps against the target archive
+    # alone -- and that does not fail loudly, it silently builds against the
+    # wrong versions.
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.12'
+          python-version: '3.14'
       - run: pip install pyyaml==6.0.3
 
       - name: Measure the gap and regenerate the build order
@@ -98,7 +109,7 @@ jobs:
 
       - name: Upload the order, the report and whatever was built
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: backport-${{ github.event.inputs.target }}-${{ github.event.inputs.architecture }}
           path: |
@@ -106,4 +117,5 @@ jobs:
             order-${{ github.event.inputs.target }}.yml
             .factory/backport-${{ github.event.inputs.target }}/artifacts/
             .factory/backport-${{ github.event.inputs.target }}/logs/
+            .factory/backport-${{ github.event.inputs.target }}/buildroots/
           if-no-files-found: warn

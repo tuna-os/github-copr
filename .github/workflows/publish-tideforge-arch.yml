@@ -149,8 +149,37 @@ jobs:
           mkdir -p repo
           # The db is regenerated from the full package set below, so it is
           # excluded here rather than round-tripped.
+          # NOT `|| true`. The sync-up later in this job makes the bucket MATCH
+          # repo/, so any object that failed to come down here is DELETED from
+          # the bucket there. Swallowing a partial sync-down is precisely how
+          # repo/10/x86_64 lost ~160 served package names between 2026-08-20
+          # and 2026-08-25 (#519), which shipped a hummingbird:gnome image
+          # containing no GNOME. Same shape as #124 / INCIDENT-repo-wipe-gnome.
+          #
+          # rclone exit 3 is "directory not found" -- the legitimate
+          # first-publish case for a new prefix. Every other non-zero status is
+          # a real failure and must stop the job BEFORE the destructive
+          # sync-up, not after.
+          set +e
           rclone sync "r2:${R2_BUCKET}/${{ matrix.src }}/" repo/ \
-            --exclude "*.db*" --exclude "*.files*" || true
+            --exclude "*.db*" --exclude "*.files*"
+          _sync_rc=$?
+          set -e
+          if ((_sync_rc == 3)); then
+            echo "::notice::no existing objects at ${{ matrix.src }} — treating as first publish"
+          elif ((_sync_rc != 0)); then
+            echo "::error::sync-down of ${{ matrix.src }} failed (rclone rc=${_sync_rc}); refusing to continue — the sync-up in this job would DELETE every object that failed to come down"
+            exit 1
+          fi
+          # The SERVED db is kept separately as the before-state for the
+          # reverse-dependency gate below — the regenerated db replaces it,
+          # so this copy is the only record of what consumers can resolve
+          # today. Absent on a first publish, and the gate treats that as
+          # "nothing served, nothing to regress".
+          mkdir -p old
+          rclone copyto \
+            "r2:${R2_BUCKET}/${{ matrix.src }}/${{ matrix.repo_name }}.db" \
+            "old/${{ matrix.repo_name }}.db" || true
       - uses: actions/download-artifact@v8
         with:
           pattern: publish-arch-${{ matrix.arch }}-*
@@ -173,6 +202,16 @@ jobs:
             '${{ needs.plan.outputs.image }}' \
             bash /scripts/publish-arch-wave.sh \
               --staged /work/staged --repo /work/repo --name '${{ matrix.repo_name }}'
+      - name: Refuse a wave that breaks the served repository
+        # NEVER BREAK RDEPS, the pacman leg: every dependency the served db
+        # resolved must still resolve in the regenerated one. On the runner
+        # host, not in the Arch container — the check is pure Python over
+        # two db files both present on this side of the volume mount.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-index-regression.py --format pacman \
+            --old "old/${{ matrix.repo_name }}.db" \
+            --new "repo/${{ matrix.repo_name }}.db"
       - name: Sync up
         run: |
           set -euo pipefail

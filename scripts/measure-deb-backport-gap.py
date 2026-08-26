@@ -2,7 +2,7 @@
 """Measure what a deb suite needs backported from a newer donor suite.
 
 RFC 011's gap engine covers rpm-md only: measure-target-gap.py is a shim over
-measure-hummingbird-gap.py, which parses primary.xml and knows nothing about
+gap_engine.py, which parses primary.xml and knows nothing about
 APT. This is the deb half, and it answers a different question than the
 Hummingbird measurer does.
 
@@ -147,6 +147,162 @@ def parse_sources(text: str) -> dict[str, dict[str, str]]:
     return sources
 
 
+# --- the binary side ---------------------------------------------------------
+#
+# A Sources index lists a source's REAL binaries and never its `Provides:`, so
+# every virtual package looks absent from it. That blind spot cost the first
+# real tier-0 run (32651265182): all three failures -- gexiv2, gnome-desktop
+# and gsettings-desktop-schemas -- were one unsatisfied build-dependency,
+#
+#   Depends: debhelper-compat (= 14)   [no choices]
+#
+# and everything else apt listed under them was the usual cascade of "not
+# going to be installed" for packages that were fine. `debhelper-compat` is
+# provided by `debhelper`; resolute carries 13, stonking carries 14. The
+# measurement could not see any of that, so it dropped the clause and reported
+# a closure that could not build.
+#
+# The clause was not merely mis-answered, it was UNANSWERABLE: "present but
+# too old" is decidable from a Sources index, "absent from the map" is not,
+# and the two are indistinguishable there. Binary Packages indexes carry
+# `Provides:`, which makes them decidable -- so the measurement reads them
+# too, and anything still unattributable afterwards is reported rather than
+# silently dropped.
+
+PACKAGES_ARCH = "amd64"
+
+
+def packages_url(sources_url: str, arch: str = PACKAGES_ARCH) -> str:
+    """The binary index beside a declared source index.
+
+    Derived rather than declared. The manifest already names every
+    suite/component pairing once; a second hand-maintained list of the same
+    pairings would double the file and could disagree with the first, and a
+    disagreement here is invisible -- it reads as "that virtual package does
+    not exist" rather than as a broken URL.
+    """
+    return sources_url.replace("/source/Sources.", f"/binary-{arch}/Packages.")
+
+
+def parse_packages(text: str) -> dict[str, dict[str, str]]:
+    """deb822 Packages index -> {binary name: stanza}, highest version wins.
+
+    Parsed a stanza at a time rather than by splitting the whole index: a
+    merged main+universe Packages runs to hundreds of megabytes decompressed,
+    and `text.split(chr(10) * 2)` on that materialises a list of a million
+    strings before a single field is read.
+    """
+    wanted = {"Package", "Version", "Provides", "Source"}
+    packages: dict[str, dict[str, str]] = {}
+
+    def commit(stanza: dict[str, str]) -> None:
+        name = stanza.get("Package")
+        if not name or "Version" not in stanza:
+            return
+        existing = packages.get(name)
+        if existing is None or compare_versions(stanza["Version"], existing["Version"]) > 0:
+            packages[name] = stanza
+
+    stanza: dict[str, str] = {}
+    key = None
+    for line in text.splitlines():
+        if not line.strip():
+            commit(stanza)
+            stanza, key = {}, None
+            continue
+        if line.startswith((" ", "\t")):
+            if key in wanted:
+                stanza[key] = stanza.get(key, "") + " " + line.strip()
+            continue
+        key, _, value = line.partition(":")
+        if key in wanted:
+            stanza[key] = value.strip()
+    commit(stanza)
+    return packages
+
+
+def merge_packages(urls) -> dict[str, dict[str, str]]:
+    """One binary view over several component indexes, highest version wins."""
+    if isinstance(urls, str):
+        urls = [urls]
+    merged: dict[str, dict[str, str]] = {}
+    for url in urls:
+        text = lzma.decompress(fetch(url)).decode("utf8", "replace")
+        for name, stanza in parse_packages(text).items():
+            existing = merged.get(name)
+            if existing is None or compare_versions(stanza["Version"], existing["Version"]) > 0:
+                merged[name] = stanza
+    return merged
+
+
+def parse_provides(field: str) -> list[tuple[str, str | None]]:
+    """`Provides: foo, bar (= 1.2)` -> [("foo", None), ("bar", "1.2")]."""
+    provided: list[tuple[str, str | None]] = []
+    for entry in field.split(","):
+        token = entry.strip()
+        if not token:
+            continue
+        name, _, rest = token.partition("(")
+        name = name.strip().split(":")[0].strip()
+        if not name:
+            continue
+        version = None
+        if rest:
+            constraint = rest.split(")")[0].strip()
+            # Debian policy allows only `=` in a Provides.
+            if constraint.startswith("="):
+                version = constraint[1:].strip()
+        provided.append((name, version))
+    return provided
+
+
+def provides_map(packages: dict[str, dict[str, str]]) -> dict[str, list[str | None]]:
+    """virtual name -> the versions its providers declare (None = unversioned)."""
+    mapping: dict[str, list[str | None]] = {}
+    for stanza in packages.values():
+        for name, version in parse_provides(stanza.get("Provides", "")):
+            mapping.setdefault(name, []).append(version)
+    return mapping
+
+
+def virtual_to_source(packages: dict[str, dict[str, str]]) -> dict[str, str]:
+    """virtual name -> the SOURCE that would have to be rebuilt to supply it.
+
+    `Source:` is omitted when it equals the binary name, which is the deb822
+    convention, and it can carry a version in parentheses.
+    """
+    mapping: dict[str, str] = {}
+    for binary, stanza in packages.items():
+        source = (stanza.get("Source") or binary).split("(")[0].strip()
+        for name, _ in parse_provides(stanza.get("Provides", "")):
+            mapping.setdefault(name, source)
+    return mapping
+
+
+def clause_satisfied(binary: str, op: str, want: str,
+                     versions: dict[str, str],
+                     provides: dict[str, list[str | None]]) -> bool:
+    """Can the suite satisfy this one alternative, really or virtually?
+
+    Debian policy 7.5: an UNVERSIONED `Provides` satisfies only an unversioned
+    dependency. That distinction is the whole answer for `debhelper-compat
+    (= 14)` -- if it were treated as satisfied by any provider, resolute's
+    debhelper 13 would look adequate and the closure would stay wrong in the
+    other direction.
+    """
+    real = versions.get(binary)
+    if real is not None and satisfies(real, op, want):
+        return True
+    for provided in provides.get(binary, ()):
+        if provided is None:
+            if not op:
+                return True
+            continue
+        if satisfies(provided, op, want):
+            return True
+    return False
+
+
 def binary_to_source(sources: dict[str, dict[str, str]]) -> dict[str, str]:
     mapping: dict[str, str] = {}
     for name, stanza in sources.items():
@@ -228,10 +384,19 @@ def merge_indexes(urls) -> dict[str, dict[str, str]]:
 
 
 
-def measure(roots, donor, target, bin2src, target_binary) -> dict:
+def measure(roots, donor, target, bin2src, target_binary,
+            target_provides=None, donor_virtual_source=None) -> dict:
     """Close over Build-Depends, keeping only what the target cannot satisfy."""
+    target_provides = target_provides or {}
+    donor_virtual_source = donor_virtual_source or {}
     needed: dict[str, dict] = {}
     missing_roots: list[str] = []
+    # Clauses no alternative satisfies AND that no donor source can supply.
+    # Silently dropping these is what let run 32651265182 report a closure
+    # that could not build: `debhelper-compat (= 14)` was correctly judged
+    # unsatisfied, then discarded because no Sources index maps it to
+    # anything. Unsatisfied-and-unattributable is a finding, not a no-op.
+    unattributable: dict[str, list[str]] = {}
     queue = collections.deque()
 
     for root in roots:
@@ -265,16 +430,21 @@ def measure(roots, donor, target, bin2src, target_binary) -> dict:
             # An alternative group is satisfied if ANY of its members is, so a
             # rebuild is only forced when every alternative fails.
             if any(
-                satisfies(target_binary.get(binary), op, version)
+                clause_satisfied(binary, op, version, target_binary, target_provides)
                 for binary, op, version in alternatives
             ):
                 continue
-            binary, _, _ = alternatives[0]
-            source = bin2src.get(binary)
-            if source and source != name:
+            binary, op, version = alternatives[0]
+            source = bin2src.get(binary) or donor_virtual_source.get(binary)
+            if source is None:
+                constraint = f"{binary} ({op} {version})" if op else binary
+                unattributable.setdefault(name, []).append(constraint)
+                continue
+            if source != name:
                 queue.append((source, depth + 1))
 
-    return {"needed": needed, "missing_roots": missing_roots}
+    return {"needed": needed, "missing_roots": missing_roots,
+            "unattributable": unattributable}
 
 
 def donor_cannot_build(needed, donor, donor_binary) -> dict[str, list[str]]:
@@ -331,8 +501,18 @@ def donor_cannot_build(needed, donor, donor_binary) -> dict[str, list[str]]:
     return blocked
 
 
-def build_edges(needed, donor, bin2src, target_binary) -> dict[str, set[str]]:
-    """For each needed package, the needed packages it must be built AFTER."""
+def build_edges(needed, donor, bin2src, target_binary,
+                target_provides=None, donor_virtual_source=None) -> dict[str, set[str]]:
+    """For each needed package, the needed packages it must be built AFTER.
+
+    Resolved exactly as measure() resolves it, virtuals included. If the two
+    disagreed, a package could enter the closure through a virtual clause and
+    then be ordered as though that clause did not exist -- which is a chain
+    that builds things in the wrong order rather than one that reports a
+    problem.
+    """
+    target_provides = target_provides or {}
+    donor_virtual_source = donor_virtual_source or {}
     edges: dict[str, set[str]] = {name: set() for name in needed}
     for name in needed:
         stanza = donor.get(name)
@@ -340,12 +520,12 @@ def build_edges(needed, donor, bin2src, target_binary) -> dict[str, set[str]]:
             continue
         for alternatives in build_dep_clauses(stanza):
             if any(
-                satisfies(target_binary.get(binary), op, version)
+                clause_satisfied(binary, op, version, target_binary, target_provides)
                 for binary, op, version in alternatives
             ):
                 continue
             binary, _, _ = alternatives[0]
-            source = bin2src.get(binary)
+            source = bin2src.get(binary) or donor_virtual_source.get(binary)
             if source and source != name and source in needed:
                 edges[name].add(source)
     return edges
@@ -454,7 +634,22 @@ def main() -> None:
             for binary in (b.strip() for b in stanza.get("Binary", "").split(","))
             if binary
         }
-        result = measure(roots, donor, target, binary_to_source(donor), target_binary)
+        # The binary indexes carry `Provides:`, which the Sources ones cannot.
+        # Without them every virtual build-dependency is indistinguishable
+        # from an absent one -- see the note above parse_packages.
+        target_packages = merge_packages(
+            [packages_url(url) for url in spec["target_index"]])
+        donor_packages = merge_packages(
+            [packages_url(url) for url in spec["donor_index"]])
+        # Real binary versions from the Packages index take precedence over
+        # the Sources proxy where the two differ (a binary whose version is
+        # bumped independently of its source, most often via binNMU).
+        target_binary.update(
+            {name: stanza["Version"] for name, stanza in target_packages.items()})
+        target_provides = provides_map(target_packages)
+        donor_virtual_source = virtual_to_source(donor_packages)
+        result = measure(roots, donor, target, binary_to_source(donor), target_binary,
+                         target_provides, donor_virtual_source)
         donor_binary = {
             binary: stanza["Version"]
             for stanza in donor.values()
@@ -462,7 +657,8 @@ def main() -> None:
             if binary
         }
         blocked = donor_cannot_build(result["needed"], donor, donor_binary)
-        edges = build_edges(result["needed"], donor, binary_to_source(donor), target_binary)
+        edges = build_edges(result["needed"], donor, binary_to_source(donor),
+                            target_binary, target_provides, donor_virtual_source)
         order = tiers(edges)
         report["targets"][name] = {
             "donor_suites": spec["donor_suites"],
@@ -471,6 +667,7 @@ def main() -> None:
             "target_sources": len(target),
             "needed_count": len(result["needed"]),
             "missing_roots": result["missing_roots"],
+            "unattributable": result["unattributable"],
             "donor_cannot_build": blocked,
             "tiers": order,
             "packages": sorted(result["needed"].values(), key=lambda r: (-r["depth"], r["source"])),
@@ -481,6 +678,11 @@ def main() -> None:
               f"{len(order)} tiers", file=sys.stderr)
         if result["missing_roots"]:
             print(f"  roots absent from donor: {result['missing_roots']}", file=sys.stderr)
+        if result["unattributable"]:
+            print(f"  UNSATISFIED AND UNATTRIBUTABLE "
+                  f"({len(result['unattributable'])}):", file=sys.stderr)
+            for source, clauses in sorted(result["unattributable"].items()):
+                print(f"    {source}: {'; '.join(clauses)}", file=sys.stderr)
         if blocked:
             print(f"  NOT BUILDABLE FROM {donor_label} ({len(blocked)}):", file=sys.stderr)
             for source, unmet in sorted(blocked.items()):

@@ -24,7 +24,7 @@ This script measures both halves of that gap, from live sources:
    are per-distro (tracker -> tinysparql/localsearch on openSUSE, gdm3 on
    Debian, ...); metapackage coverage comes from measured facts, not guesses.
 
-Outputs are written together in one run, like measure-hummingbird-gap.py:
+Outputs are written together in one run, like gap_engine.py:
 ``docs/gnome-parity-gap.json`` (machine-readable, with provenance) and
 ``docs/gnome-parity-gap.md`` (the readable report).  If a strict-base variant
 (zypper/apt: no dnf group installs to fall back on) is missing a core

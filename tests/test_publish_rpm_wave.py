@@ -50,7 +50,11 @@ def stubbed(tmp_path):
         'echo "createrepo_c $*" >> "$STUB_LOG"\n'
         'for a in "$@"; do last="$a"; done\n'
         'mkdir -p "$last/repodata"\n'
-        'printf "<repomd/>" > "$last/repodata/repomd.xml"\n'
+        # Real createrepo_c REGENERATES a valid index. A stub that always
+        # writes a placeholder would instead destroy the real one a test
+        # pre-placed, so only stand in when there is nothing there.
+        '[ -s "$last/repodata/repomd.xml" ] ||'
+        ' printf "<repomd/>" > "$last/repodata/repomd.xml"\n'
         'exit 0\n'
     )
     p.chmod(0o755)
@@ -389,3 +393,81 @@ def test_a_missing_repomd_is_fatal(tmp_path, stubbed) -> None:
     r = run(tmp_path, stubbed)
     assert r.returncode != 0
     assert "refusing to publish" in r.stderr
+
+
+# --- never break rdeps ------------------------------------------------------
+
+
+def _repodata(root: Path, packages: str) -> None:
+    """A minimal real rpm-md index, since createrepo_c is stubbed here."""
+    import gzip
+    repodata = root / "repodata"
+    repodata.mkdir(parents=True, exist_ok=True)
+    primary = f"""<?xml version="1.0"?>
+<metadata xmlns="http://linux.duke.edu/metadata/common"
+          xmlns:rpm="http://linux.duke.edu/metadata/rpm">{packages}</metadata>"""
+    (repodata / "primary.xml.gz").write_bytes(gzip.compress(primary.encode()))
+    (repodata / "repomd.xml").write_text("""<?xml version="1.0"?>
+<repomd xmlns="http://linux.duke.edu/metadata/repo">
+  <revision>1</revision>
+  <data type="primary">
+    <location href="repodata/primary.xml.gz"/>
+    <checksum type="sha256">x</checksum>
+  </data>
+</repomd>""")
+
+
+def _pkg_xml(name: str, provides: list[str] = (), requires: list[str] = ()) -> str:
+    pro = "".join(f'<rpm:entry name="{p}"/>' for p in provides)
+    req = "".join(f'<rpm:entry name="{r}"/>' for r in requires)
+    return f"""<package type="rpm"><name>{name}</name><arch>x86_64</arch>
+      <version epoch="0" ver="1.0" rel="1.el10"/>
+      <format><rpm:provides>{pro}</rpm:provides>
+      <rpm:requires>{req}</rpm:requires></format></package>"""
+
+
+def test_a_wave_that_breaks_a_served_reverse_dep_is_refused(tmp_path, stubbed):
+    """NEVER BREAK RDEPS, in the shared implementation both publishers use.
+
+    The served tree holds gtkgreet, which needs libgreetd.so.1 from the
+    served greetd. The wave replaces greetd with a build that dropped
+    the provide. Signing, copying, and indexing must all be refused —
+    the gate runs before any of them.
+    """
+    make(tmp_path / "staged", "greetd-1.0-2.el10.x86_64.rpm")
+    make(tmp_path / "repo", "greetd-1.0-1.el10.x86_64.rpm",
+         "gtkgreet-1.0-1.el10.x86_64.rpm")
+    _repodata(tmp_path / "repo",
+              _pkg_xml("greetd", provides=["greetd", "libgreetd.so.1"])
+              + _pkg_xml("gtkgreet", requires=["libgreetd.so.1"]))
+    # createrepo_c is a stub, so the staged index is pre-placed; the
+    # real tool would regenerate it in place.
+    _repodata(tmp_path / "staged",
+              _pkg_xml("greetd", provides=["greetd", "libgreetd.so.2"]))
+    r = run(tmp_path, stubbed)
+    assert r.returncode != 0
+    assert "does not keep the served index installable" in r.stdout
+    assert "rpmsign" not in (tmp_path / "stub.log").read_text(), (
+        "the gate must refuse the wave before anything is signed")
+
+
+def test_a_wave_that_keeps_reverse_deps_resolvable_publishes(tmp_path, stubbed):
+    make(tmp_path / "staged", "greetd-1.0-2.el10.x86_64.rpm")
+    make(tmp_path / "repo", "greetd-1.0-1.el10.x86_64.rpm",
+         "gtkgreet-1.0-1.el10.x86_64.rpm")
+    _repodata(tmp_path / "repo",
+              _pkg_xml("greetd", provides=["greetd", "libgreetd.so.1"])
+              + _pkg_xml("gtkgreet", requires=["libgreetd.so.1"]))
+    _repodata(tmp_path / "staged",
+              _pkg_xml("greetd", provides=["greetd", "libgreetd.so.1"]))
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr
+    assert "every served package still resolves" in r.stdout
+
+
+def test_a_first_publish_with_no_served_repodata_skips_the_gate(tmp_path, stubbed):
+    """Nothing served means nothing to break — not a reason to fail."""
+    make(tmp_path / "staged", "greetd-1.0-1.el10.x86_64.rpm")
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr
+    assert "reverse-dep gate skipped" in r.stdout

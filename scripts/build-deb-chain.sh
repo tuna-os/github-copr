@@ -98,9 +98,160 @@ export SOURCE_DATE_EPOCH
         /etc/apt/sources.list.d/ubuntu.sources
     fi
 
+    # Lift the container image dpkg exclusions BEFORE installing anything.
+    #
+    # Ubuntu container images ship /etc/dpkg/dpkg.cfg.d/excludes, which drops
+    # translation catalogues and manpages to keep the image small. That is
+    # correct for a runtime image and wrong for a buildroot: an sbuild chroot,
+    # which is what the Ubuntu builders use and what this is imitating, is a
+    # full install.
+    #
+    # Measured consequence, run 32665378407, once the chain was made to surface
+    # the meson testlog:
+    #
+    #   # Ignoring `C.UTF-8` as a locale, since it lacks translations
+    #   # Ignoring `en_US.UTF-8` as a locale, since it lacks translations
+    #   not ok /languages/using-null-locale - GnomeDesktop-FATAL-WARNING:
+    #     Could not read list of available locales from libc, guessing possible
+    #     locales from available translations, but list may be incomplete!
+    #   Bail out!
+    #
+    # The locales existed -- locale-gen had run. Every one was discarded for
+    # having no translation files, the list came out empty, and glib turns that
+    # warning into a fatal. Two earlier guesses at this failure were wrong
+    # because the log showed only a summary line; this is what the log said
+    # once it showed anything.
+    #
+    # It must come first: dpkg applies the exclusions at unpack time, so a
+    # package installed before this runs keeps its files stripped.
     apt-get update -qq
     apt-get install -y --no-install-recommends \
-      build-essential devscripts dpkg-dev ca-certificates
+      build-essential devscripts dpkg-dev ca-certificates locales
+    # Translations for a real language, not just the C locale. gnome-desktop
+    # enumerates locales and keeps only those that have them.
+    #
+    # --reinstall matters: dpkg applies path-exclude at UNPACK time, so a
+    # package already on the image kept its files stripped, and a plain
+    # install of something already present is a no-op that changes nothing.
+    apt-get install -y --no-install-recommends language-pack-en || true
+    apt-get install -y --reinstall --no-install-recommends \
+      language-pack-en-base || true
+
+    # A UTF-8 locale. Correct on its own terms -- a buildroot should have one,
+    # and a minimal Ubuntu image ships almost no locale data -- but READ THE
+    # NEXT PARAGRAPH before treating it as the fix for anything.
+    #
+    # It was added to explain this, in run 32653189343:
+    #
+    #   4/6 gnome-desktop:languages  FAIL  (exit status 134 or signal 6 SIGABRT)
+    #
+    # on the theory that `is_utf8: FALSE`, visible in the same suite, meant the
+    # process had no UTF-8 locale. Run 32659338235 DISPROVED that as a
+    # sufficient cause: locale-gen ran, and both the SIGABRT and `is_utf8:
+    # FALSE` are unchanged. So the cause is still unknown, and the honest
+    # record is that this did not fix gnome-desktop. What it may have fixed is
+    # nothing -- gnome-shell passed in the second run having failed in the
+    # first, but its failure was a compositor integration test complaining
+    # about a session bus, which is not obviously locale-related and is exactly
+    # the shape that flakes.
+    #
+    # gnome-desktop failing takes gnome-control-center with it, because
+    # libgnome-desktop-4-dev never reaches the local repo, so this one package
+    # costs two of eighteen.
+    #
+    # The Ubuntu builders do not hit this: an sbuild chroot is a full
+    # install, not a container image with the locale data stripped out. Same
+    # class as the ca-certificates ordering in run-package-factory-cell.sh --
+    # a buildroot that is not the chroot upstream assumed.
+    #
+    # NO APOSTROPHES BELOW THIS POINT, and none above it either: this whole
+    # body is a single-quoted `bash -lc` string, so one apostrophe ends it
+    # early and bash then reports `unexpected EOF` at the last line of the
+    # script rather than at the comment that broke it. Writing this very
+    # comment cost that lesson twice.
+    locale-gen C.UTF-8 en_US.UTF-8
+
+    # Assert it against a GENERATED locale, not against C.UTF-8.
+    #
+    # The first version of this check asked `LC_ALL=C.UTF-8 locale charmap`,
+    # which cannot fail: C.UTF-8 is built into glibc and resolves with zero
+    # generated locales. It would have passed on the unmodified image it was
+    # written to catch. en_US.UTF-8 exists only if locale-gen actually ran.
+    charmap=$(LC_ALL=en_US.UTF-8 locale charmap 2>/dev/null || true)
+    if [ "$charmap" != "UTF-8" ]; then
+      echo "ERROR: locale-gen did not produce a usable UTF-8 locale." >&2
+      echo "       LC_ALL=en_US.UTF-8 locale charmap reported: ${charmap:-nothing}" >&2
+      echo "       Failing here rather than later inside a package test suite." >&2
+      exit 1
+    fi
+    # Ubuntu ships package translations in /usr/share/locale-langpack, not in
+    # /usr/share/locale. gettext finds them there via an Ubuntu patch; code
+    # that looks in its own GNOMELOCALEDIR does not.
+    #
+    # Read out of gnome-desktop 51~alpha, libgnome-desktop/gnome-languages.c,
+    # rather than guessed. collect_locales() warns only when BOTH collectors
+    # fail:
+    #
+    #   collect_locales_from_localebin()  runs `locale -a` and keeps a locale
+    #     only if add_locale() accepts it -- and add_locale rejects any locale
+    #     with no .mo under GNOMELOCALEDIR/<code>/LC_MESSAGES, trying in turn
+    #     the full name, the id, and the bare language code.
+    #   collect_locales_from_directory()  scandirs LIBLOCALEDIR for
+    #     DIRECTORIES -- and locale-gen writes a single locale-archive FILE,
+    #     so it matches nothing.
+    #
+    # Both false, so it emits the fatal warning and the test aborts. The
+    # locales were never the problem; where the catalogues live is.
+    #
+    # Presenting the langpack tree at the path the default localedir names is
+    # what an sbuild chroot effectively has and this container did not.
+    for langdir in /usr/share/locale-langpack/*/; do
+      [ -d "$langdir" ] || continue
+      lang=$(basename "$langdir")
+      mkdir -p "/usr/share/locale/$lang/LC_MESSAGES"
+      cp -n "$langdir"/LC_MESSAGES/*.mo "/usr/share/locale/$lang/LC_MESSAGES/" \
+        2>/dev/null || true
+    done
+
+    # Report the predicate gnome-desktop actually evaluates, every run, pass
+    # or fail. Four guesses at this failure were wrong while the log showed
+    # only a summary; a number here costs one line and settles it.
+    usable=0
+    for loc in $(locale -a 2>/dev/null); do
+      lang=${loc%%_*}; lang=${lang%%.*}
+      if find "/usr/share/locale/$lang/LC_MESSAGES" -name "*.mo" -print -quit \
+           2>/dev/null | grep -q . ; then
+        usable=$((usable + 1))
+      fi
+    done
+    echo "==> locales that gnome-desktop would accept: $usable"
+
+    # And that translations survived. A locale with no message catalogue is
+    # exactly what gnome-desktop discards, so checking only the charmap would
+    # pass on the buildroot that produced the Bail out above.
+    # -print -quit, NOT a pipe into head. See the note above the loop below:
+    # under `set -o pipefail` a pipeline whose head closes early reports the
+    # SIGPIPE, and this assertion spent a run claiming the buildroot had no
+    # catalogues while standing next to them.
+    catalogue=$(find /usr/share/locale /usr/share/locale-langpack \
+                     -name "*.mo" -print -quit 2>/dev/null || true)
+    if [ -z "$catalogue" ]; then
+      echo "ERROR: the buildroot has no translation catalogues." >&2
+      echo "       A package that enumerates locales will discard every one." >&2
+      # Print the evidence rather than leave the next person to guess. Three
+      # guesses at the gnome-desktop:languages failure were wrong before the
+      # chain was made to show what the test actually said; the same rule
+      # applies to the buildroot itself.
+      echo "---- dpkg configuration" >&2
+      cat /etc/dpkg/dpkg.cfg /etc/dpkg/dpkg.cfg.d/* 2>/dev/null >&2 || true
+      echo "---- locale trees" >&2
+      ls -d /usr/share/locale* /usr/lib/locale* 2>/dev/null >&2 || true
+      find /usr/share/locale /usr/share/locale-langpack -maxdepth 2 2>/dev/null \
+        | head -20 >&2 || true
+      echo "---- what the language pack shipped" >&2
+      dpkg -L language-pack-en-base 2>/dev/null | head -20 >&2 || true
+      exit 1
+    fi
 
     # SOURCES ONLY from the donor. See the header: a `deb` line here would
     # silently build the whole chain against the donor suite and produce
@@ -155,7 +306,7 @@ export SOURCE_DATE_EPOCH
         failed="$failed $source"
         continue
       fi
-      tree=$(find . -maxdepth 1 -mindepth 1 -type d | head -1)
+      tree=$(find . -maxdepth 1 -mindepth 1 -type d -print -quit)
       cd "$tree"
       if ! apt-get build-dep -y --no-install-recommends "$PWD" \
             > "/work/logs/$source.builddep.log" 2>&1; then
@@ -164,9 +315,104 @@ export SOURCE_DATE_EPOCH
         failed="$failed $source"
         continue
       fi
+      # The buildroot manifest, deb leg: what dpkg holds when this source
+      # builds, diffable across runs with scripts/diff-buildroots.py --
+      # the same record the rpm chain keeps from mock root.log output, so
+      # a red deb run has a green one to diff against instead of the
+      # #480-style archaeology. The container accumulates build deps
+      # across a tier, which the manifest records honestly: it is the
+      # state this build actually saw. Never fatal. NOTE this whole
+      # container script is single-quoted, so no apostrophes, and the
+      # dpkg-query format string uses escaped dollars inside double
+      # quotes to reach dpkg-query literally.
+      mkdir -p /work/buildroots
+      dpkg-query -W -f "\${Package}_\${Version}_\${Architecture}\n" \
+        > "/work/buildroots/$source.buildroot.txt" 2>/dev/null \
+        || echo "    buildroot manifest not recorded (non-fatal)"
       if ! dpkg-buildpackage -us -uc -b > "/work/logs/$source.build.log" 2>&1; then
         echo "    FAILED build" >&2
         tail -40 "/work/logs/$source.build.log" >&2 || true
+        # A failing TEST SUITE prints a summary line here and buffers its own
+        # output somewhere else. meson writes it to meson-logs/testlog*.txt and
+        # the build log carries only:
+        #
+        #   4/6 gnome-desktop:languages  FAIL  (exit status 134 or signal 6 SIGABRT)
+        #
+        # which names the test and says nothing about why. Two full chain runs
+        # were spent on that -- 1h47m each -- guessing at a cause the log could
+        # not confirm. The evidence exists inside the build tree, which is not
+        # uploaded, so copy it out and print it. autotools writes the same
+        # thing to test-suite.log.
+        # THE PIPEFAIL / SIGPIPE TRAP, and this script is run with
+        # `set -euo pipefail`. `find | head -N` makes head close the pipe once
+        # it has N lines; find then dies of SIGPIPE (141), and pipefail
+        # reports the whole pipeline as failed. Under `set -e` that aborts the
+        # chain -- here it would abort exactly when a package has just failed
+        # and the logs matter most. It stays hidden while fewer than N lines
+        # are produced, which is why it survived the run that added it.
+        # Collect first, then take the head of a FILE, which has no upstream
+        # process to kill.
+        find "/work/build/$source" \
+             \( -name "testlog*.txt" -o -name "test-suite.log" \) \
+             -type f > /tmp/testlogs.txt 2>/dev/null || true
+        head -4 /tmp/testlogs.txt | while read -r testlog; do
+          echo "    ---- $testlog" >&2
+          tail -100 "$testlog" >&2 || true
+          cp "$testlog" "/work/logs/$source.$(basename "$testlog")" 2>/dev/null || true
+        done
+
+        # A build-dependency version that debian/control never declared.
+        #
+        # gnome-control-center 1:51~beta-1ubuntu1 build-depends on
+        # libaccountsservice-dev (>= 23.11.69). resolute ships 23.13.9, so the
+        # declared constraint is satisfied and no edge enters the closure --
+        # the gap engine is right to leave it out. Its meson.build asks for a
+        # different number, and only says so 1h47m into the chain:
+        #
+        #   ERROR: Dependency lookup for accountsservice with method
+        #   pkgconfig failed: Invalid version, need accountsservice
+        #   [>= 26.27.3] found 23.13.9.
+        #
+        # (run 32678956022, the sole failure in an otherwise 17/18 chain.)
+        # Closing over declared Build-Depends is still the correct rule --
+        # widening it to "rebuild every build-dep the donor has newer" drags in
+        # the toolchain -- so the answer is to NAME the missing root, and the
+        # only cheap way to know which one is to read it off the failure.
+        #
+        # The .pc file is on disk right now, installed by build-dep, so dpkg
+        # can map module -> binary -> SOURCE exactly instead of guessing. That
+        # source name is what goes in the manifest roots list.
+        #
+        # apostrophes cannot appear in this body (it is a single-quoted
+        # bash -lc argument), and the meson message is built out of them, so
+        # the quote character is produced with printf and matched through $q.
+        q=$(printf "\047")
+        vmiss=$(grep -oE "Invalid version, need ${q}[^${q}]+${q} \[${q}[^${q}]+${q}\] found ${q}[^${q}]+${q}" \
+                  "/work/logs/$source.build.log" | head -1 || true)
+        if [ -n "$vmiss" ]; then
+          mod=$(echo "$vmiss" | sed "s/.*need ${q}\([^${q}]*\)${q}.*/\1/")
+          want=$(echo "$vmiss" | sed "s/.*\[${q}\([^${q}]*\)${q}\].*/\1/")
+          have=$(echo "$vmiss" | sed "s/.*found ${q}\([^${q}]*\)${q}.*/\1/")
+          pc=$(find /usr/lib /usr/share -name "$mod.pc" -type f -print -quit 2>/dev/null || true)
+          binpkg=""
+          srcpkg=""
+          if [ -n "$pc" ]; then
+            binpkg=$(dpkg -S "$pc" 2>/dev/null | cut -d: -f1 | head -1 || true)
+          fi
+          if [ -n "$binpkg" ]; then
+            srcpkg=$(dpkg-query -W -f "\${source:Package}" "$binpkg" 2>/dev/null || true)
+          fi
+          echo "    ---- HINT: undeclared build-dependency version" >&2
+          echo "    $source needs $mod $want; the buildroot has $have." >&2
+          if [ -n "$srcpkg" ]; then
+            echo "    $mod comes from source package: $srcpkg" >&2
+            echo "    Add $srcpkg to the roots list in the manifest and re-measure;" >&2
+            echo "    debian/control did not declare this, so the closure cannot infer it." >&2
+          else
+            echo "    Could not map $mod back to a source package (no .pc on disk)." >&2
+            echo "    Find the source that ships $mod.pc and add it to the manifest roots." >&2
+          fi
+        fi
         failed="$failed $source"
         continue
       fi

@@ -1,6 +1,6 @@
 """The build order was five per-desktop orders glued end to end.
 
-measure-hummingbird-gap.py tiered each desktop separately and the emitter
+gap_engine.py tiered each desktop separately and the emitter
 concatenated the five results, deduplicating as it went. That is not just
 longer than it needs to be, it is wrong, and for a reason that is invisible
 unless you look at tier_sources: it only draws an edge when the dependency is

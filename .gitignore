@@ -60,3 +60,10 @@ hummingbird-imports.json
 
 # Cloudflare Worker local build output
 /dist/
+
+site/
+
+# Snapshotted from the live repo at deploy time by
+# scripts/snapshot-repo-contents.py -- megabytes that change daily and are
+# never read from git. The Pages build regenerates it; see .github/workflows/pages.yml.
+docs/repo-contents.json

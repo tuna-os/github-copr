@@ -292,11 +292,11 @@ fi
 %changelog
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 1.16.0-7.2.tuna
 - Disable gtkdoc (-Dgtkdoc=disabled); gtk-doc not available on EL10
-- Remove gtk-doc %files devel entry (no docs built)
+- Remove gtk-doc %%files devel entry (no docs built)
 - Remove Fedora-only Source1 (flatpak-add-fedora-repos.service)
 
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 1.16.0-7.1.tuna
-- EL10 override: add gcc/gcc-c++ BRs; gate gtk-doc %files behind %%if fedora
+- EL10 override: add gcc/gcc-c++ BRs; gate gtk-doc %%files behind %%if fedora
 
 * Mon Oct 13 2025 Jan Grulich <jgrulich@redhat.com> - 1.16.0-7
 - Get certificates from /etc/pki/entitlement for registry.redhat.io

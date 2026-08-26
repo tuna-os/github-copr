@@ -146,7 +146,7 @@ DESTDIR=%{buildroot} ninja -C _build install
 - Adopt %meson build macros
 - Remove no-op %ldconfig_scriptlets
 - Remove dbus-daemon BR (pulled in transitively)
-- Fix %files tests subpackage to be populated unconditionally
+- Fix %%files tests subpackage to be populated unconditionally
 - EL10: keep %%bcond_with tests guard; xwfb-run/mutter tests not usable in COPR
 
 * Thu Mar 12 2026 Conductor <james@conductor.local> - 1.87.90-1

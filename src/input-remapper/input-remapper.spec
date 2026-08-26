@@ -14,7 +14,7 @@
 
 Name:           input-remapper
 Version:        2.2.1
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Change the mapping of input device buttons
 
 License:        GPL-3.0-or-later
@@ -39,6 +39,12 @@ BuildRequires:  gettext
 # places the udev rules, polkit action, systemd unit and D-Bus policy.
 BuildRequires:  python3-pip
 BuildRequires:  python3-gobject
+# For %%install's PIP_NO_BUILD_ISOLATION -- see the note there. With build
+# isolation off, pip uses the PEP 517 backend from the buildroot instead of
+# fetching one, so the backend has to BE in the buildroot. setuptools is
+# already required above; wheel is the other half of what a setuptools
+# backend expects to find.
+BuildRequires:  python3-wheel
 
 # python3-evdev is built alongside this package in this repository.
 # All other runtime names were verified against CentOS Stream 10 repository
@@ -81,6 +87,38 @@ true
 # install/module.py resolves site-packages vs dist-packages per distribution,
 # places udev rules / polkit action / systemd unit / D-Bus policy correctly,
 # and compiles translations.
+#
+# THE TWO PIP VARIABLES ARE LOAD-BEARING, AND --no-deps IS NOT ENOUGH.
+#
+# install/module.py runs `pip install . --target ... --no-deps`. `--no-deps`
+# suppresses RUNTIME dependency resolution; it says nothing about PEP 517
+# BUILD dependencies. By default pip builds the sdist in an ISOLATED
+# environment that it populates from PyPI, so it goes to the network before
+# it has looked at anything local. mock has no network in %%install, and the
+# result is five connection retries and then:
+#
+#   ERROR: Could not find a version that satisfies the requirement
+#          setuptools>=40.8.0 (from versions: none)
+#   ERROR: No matching distribution found for setuptools>=40.8.0
+#   ...
+#   error: Bad exit status from /var/tmp/rpm-tmp.eJf98H (%%install)
+#
+# (gnome50-el10 x86_64 and aarch64, run 32674169357 — the only failed package
+# in that chain, and the failure left after the changelog-macro fix.)
+#
+# PIP_NO_BUILD_ISOLATION makes pip use the setuptools already in the
+# buildroot, which is what BuildRequires is for. PIP_NO_INDEX is the belt to
+# that braces: with no index configured, anything still reaching for the
+# network fails immediately and says what it wanted, instead of timing out
+# five times and blaming the connection. A buildroot that needs the network
+# is a buildroot with an undeclared BuildRequires, and this makes it say so.
+#
+# Environment rather than flags because the pip invocation is upstream's, in
+# install/module.py, not ours to pass arguments to. pip reads PIP_* for every
+# invocation including a subprocess, so this reaches it without patching
+# their installer.
+export PIP_NO_BUILD_ISOLATION=1
+export PIP_NO_INDEX=1
 python3 -m install --root %{buildroot}
 
 %files
@@ -109,9 +147,18 @@ python3 -m install --root %{buildroot}
 %{python3_sitelib}/input_remapper-*.dist-info/
 
 %changelog
+* Sun Aug 23 2026 TunaOS Bot <bot@tunaos.org> - 2.2.1-3
+- Build the bundled installer's pip step offline: PIP_NO_BUILD_ISOLATION
+  so it uses the buildroot's setuptools instead of fetching one from
+  PyPI, PIP_NO_INDEX so any remaining reach for the network fails
+  locally and by name. --no-deps only covers runtime dependencies, not
+  PEP 517 build dependencies, so mock's lack of network in %%install
+  broke the build after five connection retries. Adds python3-wheel,
+  which an un-isolated setuptools backend expects to find.
+
 * Fri Aug 21 2026 TunaOS Bot <bot@tunaos.org> - 2.2.1-2
 - Add python3-pip and python3-gobject BuildRequires: upstream's bundled
-  installer shells out to pip and imports gi, so %install failed in mock
+  installer shells out to pip and imports gi, so %%install failed in mock
 
 * Tue Aug 12 2025 TunaOS Bot <bot@tunaos.org> - 2.2.1-1
 - Initial package: input-remapper for EL10 (#122, #126)

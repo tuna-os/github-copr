@@ -26,13 +26,42 @@ if [[ $engine == build-chain ]]; then
         --branch rawhide --state "$out/import-state.json" \
         --release-bump --jobs 4
     fi
+    # Buildroot manifests ride inside artifacts/ so the action cache and
+    # the success artifact both carry them: diffing a red run against the
+    # last green one (scripts/diff-buildroots.py) needs the green side to
+    # have been kept. createrepo_c indexes *.rpm only and the publishers
+    # glob *.rpm, so the subdirectory is invisible to both.
+    export BUILDROOT_MANIFESTS="$out/artifacts/buildroots"
+    # Same reasoning for the failing side: mock already writes the answer into
+    # build.log/root.log, and printing a tail into the job log threw it away
+    # (the 51.beta chain failed 25 packages whose errors were then only
+    # reachable by tailing a 590KB log). Kept beside the manifests so the
+    # cell artifact carries them.
+    export FAILURE_LOGS="$out/artifacts/failure-logs"
     args=(--manifest "${MANIFEST:?}" --backend podman --image "$image"
           --mock-config "${MOCK_CONFIG:?}" --local-repo "$out/artifacts"
           --with-checks)
     if [[ -n ${TIERS:-} ]]; then
       args+=(--stream --tiers "$TIERS")
     fi
+    # Soft deadline inside the job's hard ceiling (#480, and the 08-19..08-24
+    # nightlies dying at 5h59m with everything after the build skipped). The
+    # chain finishes its in-flight packages, drains and exits 0, so the
+    # validate/checksum/SBOM/attest/upload steps below run on what DID build.
+    # 4.5h of building leaves ~90 minutes for the longest in-flight package to
+    # finish plus post-processing, inside timeout-minutes: 360.
+    export CHAIN_BUDGET_SECONDS=${CHAIN_BUDGET_SECONDS:-16200}
+    export CHAIN_DEFERRED_MARKER="$out/chain-deferred"
+    rm -f "$CHAIN_DEFERRED_MARKER"
     ./scripts/build-chain.sh "${args[@]}"
+    # Tell the workflow this run is partial, so the action cache is NOT
+    # written: a deferred chain recorded as a completed ActionResult would
+    # make every later run cache-hit on the partial and freeze the chain
+    # at it forever. The publish artifact still uploads -- shipping what
+    # built is the whole point.
+    if [[ -f "$CHAIN_DEFERRED_MARKER" && -n "${GITHUB_OUTPUT:-}" ]]; then
+        echo "chain_deferred=true" >> "$GITHUB_OUTPUT"
+    fi
     exit 0
 fi
 
@@ -62,7 +91,7 @@ case ${FORMAT:?} in
       --cache-dir "$HOME/.cache/tideforge/sources"
     if [[ $target == opensuse-tumbleweed ]]; then
       docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
-        --env TARGET="$target" \
+        --env TARGET="$target" --env PUBLISHED_INDEX="$published_index" \
         --volume "$PWD/scripts:/scripts:ro" \
         --volume "$root:/work" "$image" bash -lc '
           set -euo pipefail
@@ -70,6 +99,21 @@ case ${FORMAT:?} in
           # that sync at different speeds and one caught mid-snapshot-rotation
           # serves a repomd naming files it does not have yet. See the script.
           bash /scripts/zypper-refresh-with-retry.sh
+          # Cross-cell BuildRequires resolve from the SERVED factory index —
+          # this branch predates the target having one, and the day the
+          # first tumbleweed wave was served, niri failed right here on
+          # libseat-devel: built, published, resolving, and invisible to the
+          # buildroot. Same gap-filler rules as the dnf branch, in zypper
+          # terms: priority is INVERTED (higher number = worse), the system
+          # repos sit at 99, so 200 keeps every shared name coming from
+          # Tumbleweed while factory-only names resolve from here.
+          index_n=0
+          for published_url in ${PUBLISHED_INDEX:-}; do
+            zypper --non-interactive addrepo --no-gpgcheck --priority 200 \
+              "${published_url}" "tunaos-published-${index_n}"
+            index_n=$((index_n + 1))
+          done
+          ((index_n == 0)) || bash /scripts/zypper-refresh-with-retry.sh
           zypper --non-interactive install rpm-build
           mapfile -t requirements < <(rpmspec -q --buildrequires /work/rpmbuild/SPECS/*.spec)
           ((${#requirements[@]} == 0)) || zypper --non-interactive install "${requirements[@]}"

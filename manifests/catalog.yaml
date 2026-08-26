@@ -2245,11 +2245,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gdm
+        native: src/gnome-51/gdm
     upstream:
-      version: '50.0'
+      version: 51~beta
       source: https://download.gnome.org/sources/gdm/%{major_version}/gdm-%{tarball_version}.tar.xz
-      spec: src/gnome-50/gdm/gdm.spec
+      spec: src/gnome-51/gdm/gdm.spec
     targets:
       - hummingbird
     membership: runtime
@@ -2361,11 +2361,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gjs
+        native: src/gnome-51/gjs
     upstream:
-      version: 1.83.1
-      source: https://download.gnome.org/sources/%{name}/1.83/%{name}-%{version}.tar.xz
-      spec: src/gnome-50/gjs/gjs-bootstrap.spec
+      version: 1.89.2
+      source: https://download.gnome.org/sources/%{name}/1.89/%{name}-%{version}.tar.xz
+      spec: src/gnome-51/gjs/gjs.spec
     targets:
       - hummingbird
     membership: runtime
@@ -2581,11 +2581,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gnome-control-center
+        native: src/gnome-51/gnome-control-center
     upstream:
-      version: '50.0'
-      source: https://download.gnome.org/sources/%{name}/50/%{name}-%{tarball_version}.tar.xz
-      spec: src/gnome-50/gnome-control-center/gnome-control-center.spec
+      version: 51~beta
+      source: https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/gnome-control-center/gnome-control-center.spec
     targets:
       - hummingbird
     membership: runtime
@@ -2623,11 +2623,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gnome-desktop3
+        native: src/gnome-51/gnome-desktop3
     upstream:
-      version: '44.5'
-      source: https://download.gnome.org/sources/gnome-desktop/44/gnome-desktop-%{tarball_version}.tar.xz
-      spec: src/gnome-50/gnome-desktop3/gnome-desktop3.spec
+      version: 51~alpha
+      source: https://download.gnome.org/sources/gnome-desktop/51/gnome-desktop-%{tarball_version}.tar.xz
+      spec: src/gnome-51/gnome-desktop3/gnome-desktop3.spec
     targets:
       - hummingbird
     membership: runtime
@@ -2689,11 +2689,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gnome-initial-setup
+        native: src/gnome-51/gnome-initial-setup
     upstream:
-      version: '50.0'
+      version: 51~beta
       source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
-      spec: src/gnome-50/gnome-initial-setup/gnome-initial-setup.spec
+      spec: src/gnome-51/gnome-initial-setup/gnome-initial-setup.spec
     targets:
       - hummingbird
     membership: runtime
@@ -2727,11 +2727,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gnome-online-accounts
+        native: src/gnome-51/gnome-online-accounts
     upstream:
-      version: 3.56.4
-      source: https://download.gnome.org/sources/%{name}/3.56/%{name}-%{version}.tar.xz
-      spec: src/gnome-50/gnome-online-accounts/gnome-online-accounts.spec
+      version: 3.58.1
+      source: https://download.gnome.org/sources/%{name}/3.58/%{name}-%{version}.tar.xz
+      spec: src/gnome-51/gnome-online-accounts/gnome-online-accounts.spec
     targets:
       - hummingbird
     membership: runtime
@@ -2781,11 +2781,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gnome-session
+        native: src/gnome-51/gnome-session
     upstream:
-      version: '50.0'
+      version: 51~beta
       source: https://download.gnome.org/sources/gnome-session/%{major_version}/%{name}-%{tarball_version}.tar.xz
-      spec: src/gnome-50/gnome-session/gnome-session.spec
+      spec: src/gnome-51/gnome-session/gnome-session.spec
     targets:
       - hummingbird
     membership: runtime
@@ -2833,11 +2833,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gnome-settings-daemon
+        native: src/gnome-51/gnome-settings-daemon
     upstream:
-      version: '50.0'
+      version: 51~beta
       source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
-      spec: src/gnome-50/gnome-settings-daemon/gnome-settings-daemon.spec
+      spec: src/gnome-51/gnome-settings-daemon/gnome-settings-daemon.spec
     targets:
       - hummingbird
     membership: runtime
@@ -2875,11 +2875,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gnome-shell
+        native: src/gnome-51/gnome-shell
     upstream:
-      version: '50.0'
+      version: 51~beta
       source: https://download.gnome.org/sources/gnome-shell/%{major_version}/%{name}-%{tarball_version}.tar.xz
-      spec: src/gnome-50/gnome-shell/gnome-shell.spec
+      spec: src/gnome-51/gnome-shell/gnome-shell.spec
     targets:
       - hummingbird
     membership: runtime
@@ -3005,11 +3005,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gobject-introspection
+        native: src/gnome-51/gobject-introspection
     upstream:
       version: 1.86.0
       source: https://download.gnome.org/sources/%{name}/1.86/%{name}-%{version}.tar.xz
-      spec: src/gnome-50/gobject-introspection/gobject-introspection-bootstrap.spec
+      spec: src/gnome-51/gobject-introspection/gobject-introspection.spec
     targets:
       - hummingbird
     membership: runtime
@@ -3180,11 +3180,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gsettings-desktop-schemas
+        native: src/gnome-51/gsettings-desktop-schemas
     upstream:
-      version: '50.0'
-      source: https://download.gnome.org/sources/%{name}/50/%{name}-%{tarball_version}.tar.xz
-      spec: src/gnome-50/gsettings-desktop-schemas/gsettings-desktop-schemas.spec
+      version: 51~beta
+      source: https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/gsettings-desktop-schemas/gsettings-desktop-schemas.spec
     targets:
       - hummingbird
     membership: runtime
@@ -3384,11 +3384,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/gtk4
+        native: src/gnome-51/gtk4
     upstream:
-      version: 4.22.1
-      source: https://download.gnome.org/sources/gtk/4.22/gtk-%{version}.tar.xz
-      spec: src/gnome-50/gtk4/gtk4.spec
+      version: 4.23.3
+      source: https://download.gnome.org/sources/gtk/4.23/gtk-%{version}.tar.xz
+      spec: src/gnome-51/gtk4/gtk4.spec
     targets:
       - hummingbird
     membership: runtime
@@ -5385,11 +5385,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/libadwaita
+        native: src/gnome-51/libadwaita
     upstream:
-      version: 1.9.0
-      source: https://download.gnome.org/sources/%{name}/1.9/%{name}-%{tarball_version}.tar.xz
-      spec: src/gnome-50/libadwaita/libadwaita.spec
+      version: 1.10~beta.1
+      source: https://download.gnome.org/sources/%{name}/1.10/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/libadwaita/libadwaita.spec
     targets:
       - hummingbird
     membership: runtime
@@ -7677,11 +7677,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/mutter
+        native: src/gnome-51/mutter
     upstream:
-      version: 50~beta
-      source: http://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
-      spec: src/gnome-50/mutter/mutter-rawhide.spec
+      version: 51~beta
+      source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/mutter/mutter.spec
     targets:
       - hummingbird
     membership: runtime
@@ -7741,11 +7741,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/nautilus
+        native: src/gnome-51/nautilus
     upstream:
-      version: '50.0'
+      version: 51~beta
       source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
-      spec: src/gnome-50/nautilus/nautilus.spec
+      spec: src/gnome-51/nautilus/nautilus.spec
     targets:
       - hummingbird
     membership: runtime
@@ -8613,11 +8613,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/ptyxis
+        native: src/gnome-51/ptyxis
     upstream:
-      version: '50.1'
+      version: 50.1
       source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
-      spec: src/gnome-50/ptyxis/ptyxis.spec
+      spec: src/gnome-51/ptyxis/ptyxis.spec
     targets:
       - hummingbird
     membership: runtime
@@ -10598,11 +10598,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/vte291
+        native: src/gnome-51/vte291
     upstream:
-      version: 0.84.0
+      version: 0.84.1
       source: https://download.gnome.org/sources/vte/%{major_minor_version}/vte-%{version}.tar.xz
-      spec: src/gnome-50/vte291/vte291.spec
+      spec: src/gnome-51/vte291/vte291.spec
     targets:
       - hummingbird
     membership: runtime
@@ -10926,11 +10926,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/xdg-desktop-portal
+        native: src/gnome-51/xdg-desktop-portal
     upstream:
       version: 1.21.0
       source: https://github.com/flatpak/xdg-desktop-portal/releases/download/%{version}/%{name}-%{version}.tar.xz
-      spec: src/gnome-50/xdg-desktop-portal/xdg-desktop-portal.spec
+      spec: src/gnome-51/xdg-desktop-portal/xdg-desktop-portal.spec
     targets:
       - hummingbird
     membership: runtime
@@ -11014,11 +11014,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/gnome-50/xdg-desktop-portal-gnome
+        native: src/gnome-51/xdg-desktop-portal-gnome
     upstream:
-      version: '50.0'
-      source: https://download.gnome.org/sources/%{name}/50/%{name}-%{tarball_version}.tar.xz
-      spec: src/gnome-50/xdg-desktop-portal-gnome/xdg-desktop-portal-gnome.spec
+      version: 51~alpha
+      source: https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/xdg-desktop-portal-gnome/xdg-desktop-portal-gnome.spec
     targets:
       - hummingbird
     membership: runtime

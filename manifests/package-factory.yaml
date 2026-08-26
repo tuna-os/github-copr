@@ -148,6 +148,17 @@ targets:
       target_index: https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Everything/x86_64/os/
       reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/
       source_reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/source/tree/
+      # How gap-drift.yml treats this target. `exhibit`: dispatch-only —
+      # regenerate NEXT TO the curated order and show the diff, because the
+      # conversion row (docs/rfc011-conversions.md) is not passed yet: the
+      # engine satisfies requirements by name and this family exists because
+      # of `>= 4.21` version pins. Becomes `propose` in the PR that passes
+      # exact-or-explained and deletes the curated file.
+      drift:
+        mode: exhibit
+        build_order: build-order-xfce-fedora.generated.yml
+        compare_to: build-order-xfce-fedora.yml
+        report_json: fedora-gap.json
 
   hummingbird:
     # Hummingbird is a target of a different shape from the rest, and the
@@ -169,10 +180,20 @@ targets:
     # shaped -- an image built from the target's own repository.
     status: scaffold
     format: rpm
-    # The chroot is Fedora Rawhide with the target's repository on top, so
-    # this is what a probe would boot. It is recorded for provenance; see the
-    # note above for why it is not yet trustworthy to probe against.
-    probe_image: registry.fedoraproject.org/fedora:rawhide
+    # A Hummingbird-shaped image at last: the upstream bootc-os image, pinned
+    # to the same digest tunaOS builds from. It ships Hummingbird's OWN repos
+    # and nothing else, so the probe answers from what the target actually
+    # serves rather than from the Rawhide base beneath it — the lie the note
+    # above describes. Measured, not assumed: inside exactly this image,
+    # tunaOS run 32813311729 resolved dbus-daemon and got
+    # "No match for argument: flatpak", the truthful answer for a
+    # distribution that does not package flatpak.
+    #
+    # The scaffold status can now be lifted on its own merits: the reason
+    # recorded above (probe cannot tell the truth) no longer holds. Left as
+    # scaffold here because flipping it is a policy decision about letting
+    # recipes opt in, not part of making the probe honest.
+    probe_image: quay.io/hummingbird-community/bootc-os:latest@sha256:c5539f9ed4d93aab6bd41e4f5aef8ab83055f3f9e855a47b69fadb7420d0d1df
     # aarch64 added for tunaOS#1755 §3: hummingbird's desktop flavors declare
     # linux/arm64, but until this leg publishes something, every aarch64
     # rebuild path 404s -- the only live repo was 20251124-x86_64. mock/
@@ -209,16 +230,31 @@ targets:
       target_index: https://packages.redhat.com/api/pulp-content/public-hummingbird/$arch/
       reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/
       source_reference_index: https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/source/tree/
+      # `propose`: scheduled, revision-gated, opens a review PR with the
+      # regenerated build order when the live target index moves.
+      drift:
+        mode: propose
+        build_order: build-order-hummingbird-desktops.yml
+        report_json: docs/hummingbird-desktop-gap.json
     # Buildroot inputs only, never repositories on a produced image. Fedora
     # Rawhide supplies -devel headers and build backends Hummingbird has no
     # build of yet; Fedora 44 supplies the Python namespace at the target's
     # own ABI (3.14, where Rawhide is 3.15).
     build_repositories: [fedora-rawhide, fedora-44-python]
   opensuse-tumbleweed:
-    status: scaffold
+    status: supported
     format: rpm
     architectures: [x86_64, aarch64]
     r2_path: rpm/opensuse-tumbleweed/{arch}
+    # The SERVED index, live since the first publish wave (2026-08-25,
+    # publish-tideforge-rpms.yml: libseat, quickshell, dms, dms-greeter,
+    # greetd, dgop, danksearch, cpptrace-devel — 17 names on each arch,
+    # verified resolving before this declaration per the repo's rule).
+    # Tumbleweed ships current desktops itself, so this overlay carries
+    # only what its repositories lack: the niri/DMS stack.
+    published_index:
+      x86_64: https://repo.tunaos.org/rpm/opensuse-tumbleweed/x86_64/
+      aarch64: https://repo.tunaos.org/rpm/opensuse-tumbleweed/aarch64/
     repository: rpm-md
     probe_image: registry.opensuse.org/opensuse/tumbleweed:latest
   arch:

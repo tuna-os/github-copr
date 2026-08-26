@@ -73,6 +73,22 @@ if [ "$staged_count" -eq 0 ]; then
 	exit 1
 fi
 
+# NEVER BREAK RDEPS: before anything is signed or moved, simulate the
+# publish against the synced-down tree's own repodata — the served state —
+# and refuse a wave that leaves a surviving package unresolvable (the
+# glib2-Obsoletes hijack and the libnotify version trap are the incidents;
+# scripts/check-reverse-deps.py carries the receipts). Entirely local:
+# the staged dir gets a throwaway index, the served state is already on
+# disk. A first-ever publish has no served repodata and nothing to break.
+if [ -f "${REPO}/repodata/repomd.xml" ]; then
+	createrepo_c --quiet "$STAGED" || createrepo_c "$STAGED"
+	python3 "$(dirname "$0")/check-reverse-deps.py" \
+		--wave-repo "$STAGED" --served-repo "$REPO"
+	rm -rf "${STAGED}/repodata"
+else
+	echo "==> no served repodata in ${REPO}; first publish, reverse-dep gate skipped"
+fi
+
 mkdir -p "$REPO"
 baseline=$(count_rpms "$REPO")
 echo "==> staged ${staged_count} RPM(s); repo already holds ${baseline}"
