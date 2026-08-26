@@ -109,6 +109,11 @@ STATE_ICONS = {
 }
 
 
+def thousands(value: int) -> str:
+    """9966 is a count someone has to read, not an identifier."""
+    return f"{value:,}"
+
+
 def esc(value) -> str:
     return html.escape(str(value), quote=True)
 
@@ -123,8 +128,44 @@ def parse_iso(stamp: str) -> dt.datetime:
     return value if value.tzinfo else value.replace(tzinfo=dt.timezone.utc)
 
 
+def stamp(value: str) -> str:
+    """One date format for the whole site.
+
+    The status half wrote "2026-08-25 05:09 UTC" and the browser half wrote
+    the raw ISO string; on two linked pages that reads as two different
+    clocks."""
+    try:
+        return parse_iso(value).strftime("%Y-%m-%d %H:%M UTC")
+    except ValueError:
+        return value
+
+
 def days_between(later: dt.datetime, earlier: dt.datetime) -> int:
     return max(0, (later - earlier).days)
+
+
+# The file each format's index metadata actually lives in, relative to the
+# baseurl. A baseurl is what you hand a package manager; it is NOT a page --
+# R2 serves objects and has no directory listing, so linking the bare prefix
+# gives every reader a 404 (measured 2026-08-26: all 8 of them). These DO
+# resolve, so they are what gets linked; the baseurl itself is rendered as
+# copyable text.
+INDEX_FILE = {
+    "rpm": "repodata/repomd.xml",
+    "deb": "InRelease",
+    "pkg.tar.zst": "tunaos.db",
+}
+
+
+def baseurl(url: str, fmt: str = "rpm", names: str = "") -> str:
+    """A served index, shown as copyable text plus a link that resolves."""
+    meta = INDEX_FILE.get(fmt)
+    tail = f' <span class="dim">{esc(names)}</span>' if names else ""
+    if not meta:
+        return f"<code>{esc(url)}</code>{tail}"
+    href = url.rstrip("/") + "/" + meta
+    return (f"<code>{esc(url)}</code> "
+            f'<a class="meta" href="{esc(href)}">index</a>{tail}')
 
 
 def slug(value: str) -> str:
@@ -167,8 +208,10 @@ def bar(built: int, needed: int) -> str:
     )
 
 
-def coverage_rows(status: dict) -> list[dict]:
+def coverage_rows(status: dict, contract: dict | None = None) -> list[dict]:
     """One row per measured target x architecture, in a stable order."""
+    formats = {t: (c or {}).get("format", "rpm")
+               for t, c in ((contract or {}).get("targets") or {}).items()}
     rows = []
     trend_rows = (status.get("trend") or {}).get("rows") or {}
     for target in sorted(status.get("targets") or {}):
@@ -182,6 +225,7 @@ def coverage_rows(status: dict) -> list[dict]:
                 "built": built,
                 "needed": needed,
                 "indexes": data.get("indexes") or [],
+                "format": formats.get(target, "rpm"),
                 "trend": trend_rows.get(f"{target}/{arch}") or {},
             })
     return rows
@@ -254,8 +298,8 @@ def render_coverage(rows: list[dict]) -> str:
                                f"built {delta_text(built_delta)}"))
 
         indexes = "".join(
-            f'<li><a href="{esc(i["baseurl"])}">{esc(i["baseurl"])}</a>'
-            f' <span class="dim">{i.get("package_names", 0)} names</span></li>'
+            "<li>" + baseurl(i["baseurl"], row.get("format", "rpm"),
+                             f'{i.get("package_names", 0)} names') + "</li>"
             for i in row["indexes"]
         )
         total = row["built"] + row["needed"]
@@ -450,8 +494,12 @@ def style() -> str:
         ".pill-critical{border-color:var(--critical)}"
         ".pill-critical .ico{color:var(--critical)}"
         ".pill-muted .ico{color:var(--text-muted)}"
+        # overflow-wrap:anywhere breaks a long URL only where it must,
+        # instead of mid-token on every line the way break-all did.
         ".idx{margin:10px 0 0;padding-left:16px;font-size:.78rem;"
-        "color:var(--text-secondary);word-break:break-all}"
+        "color:var(--text-secondary);overflow-wrap:anywhere}"
+        ".idx li{margin-bottom:4px}"
+        "a.meta{font-size:.9em;white-space:nowrap}"
         ".dim{color:var(--text-muted)}"
         ".reason{color:var(--text-secondary);font-size:.85rem}"
         ".gaps{padding-left:18px}.gaps li{margin-bottom:10px}"
@@ -528,19 +576,69 @@ def repo_rows(contents: dict) -> list[dict]:
     return rows
 
 
+def multi_index_note(rows: list[dict]) -> str:
+    """Say why one target/arch can occupy two rows.
+
+    el10 x86_64 does (#467): two publishers write to disjoint prefixes. With
+    every other column identical, the two rows otherwise read as a bug."""
+    seen, repeated = set(), set()
+    for row in rows:
+        for arch in row["arches"] or [""]:
+            key = (row["target"], arch)
+            (repeated if key in seen else seen).add(key)
+    if not repeated:
+        return ""
+    which = ", ".join(f"{t} {a}".strip() for t, a in sorted(repeated))
+    return (f'<p class="lede">{which} appears more than once, and that is '
+            "correct: two publishers write to disjoint prefixes, so one "
+            "target and arch can have several indexes (#467). They are "
+            "different repositories, not duplicates &mdash; the "
+            "<em>Index</em> column is what tells them apart.</p>")
+
+
 def repo_freshness(contents: dict, now: dt.datetime) -> tuple[int, str]:
     """Age of the snapshot in days, and the sentence that states it."""
-    stamp = contents.get("generated")
-    if not stamp:
+    generated = contents.get("generated")
+    if not generated:
         return 0, "Snapshot time not recorded."
-    age = days_between(now, parse_iso(stamp))
-    when = f"Read from the live indexes on {esc(stamp)}"
+    age = days_between(now, parse_iso(generated))
+    when = f"Read from the live indexes on {esc(stamp(generated))}"
     if age == 0:
         return age, f"{when} (today)."
     return age, f"{when} &mdash; {age} day{'' if age == 1 else 's'} ago."
 
 
-def render_repo_overview(contents: dict, now: dt.datetime) -> str:
+def render_missing_indexes(contents: dict, contract: dict) -> str:
+    """Declared targets this listing cannot show, and why.
+
+    Absence is the one thing a browser must never render as nothing. On
+    2026-08-26 opensuse-tumbleweed was serving a resolvable index on BOTH
+    arches and did not appear here at all, because its published_index was
+    still undeclared -- so the page showed five targets and implied that was
+    all of them. A gap is a finding; it gets a row."""
+    shown = {row["target"] for row in contents.get("indexes", [])}
+    missing = [t for t in sorted((contract.get("targets") or {}))
+               if t not in shown]
+    if not missing:
+        return ""
+    items = "".join(
+        f"<li><strong>{esc(t)}</strong> <span class=\"dim\">"
+        f"{esc((contract['targets'][t] or {}).get('format', 'rpm'))}</span>"
+        "</li>" for t in missing)
+    return (
+        "<h2>Declared, but not listed here</h2>"
+        f'<p class="lede">{len(missing)} target'
+        f"{'' if len(missing) == 1 else 's'} the factory contract declares "
+        "have no <code>published_index</code>, so this page cannot read them. "
+        "That is NOT the same as having nothing published: a target can be "
+        "serving packages while its index is still undeclared, and it would "
+        "be invisible here until the contract names it. Check the target "
+        "before concluding it is empty.</p>"
+        f'<ul class="gaps">{items}</ul>')
+
+
+def render_repo_overview(contents: dict, contract: dict,
+                         now: dt.datetime) -> str:
     """packages.html: every served index, with a way into each."""
     rows = repo_rows(contents)
     totals = contents.get("totals", {})
@@ -570,10 +668,10 @@ def render_repo_overview(contents: dict, now: dt.datetime) -> str:
         "they are build inputs, and the served tree excludes them too.</p>",
         '<div class="tiles">',
         f'<div class="tile"><div class="tile-n">'
-        f'{totals.get("names", 0)}</div><div class="tile-k">package names'
+        f'{thousands(totals.get("names", 0))}</div><div class="tile-k">package names'
         f'</div><div class="tile-s">distinct, across every index</div></div>',
         f'<div class="tile"><div class="tile-n">'
-        f'{totals.get("packages", 0)}</div><div class="tile-k">packages'
+        f'{thousands(totals.get("packages", 0))}</div><div class="tile-k">packages'
         f'</div><div class="tile-s">counting each index separately</div>'
         f'</div>',
         f'<div class="tile"><div class="tile-n">{len(rows)}</div>'
@@ -583,6 +681,7 @@ def render_repo_overview(contents: dict, now: dt.datetime) -> str:
         f'<p class="measured">{freshness}</p>',
         alarm,
         "<h2>Indexes</h2>",
+        multi_index_note(rows),
         "<table><thead><tr><th>Target</th><th>Arch</th><th>Format</th>"
         '<th class="num">Packages</th><th>Index</th></tr></thead><tbody>',
     ]
@@ -593,9 +692,8 @@ def render_repo_overview(contents: dict, now: dt.datetime) -> str:
             link = f'<code>{esc(row["url"])}</code>'
         else:
             count = (f'<a href="repo/{esc(row["slug"])}.html">'
-                     f'{row["count"]}</a>')
-            link = (f'<a href="{esc(row["url"])}"><code>'
-                    f'{esc(row["url"])}</code></a>')
+                     f'{thousands(row["count"])}</a>')
+            link = baseurl(row["url"], row["format"])
         body.append(
             f"<tr><td>{esc(row['target'])}</td><td>{esc(arches)}</td>"
             f"<td><code>{esc(row['format'])}</code></td>"
@@ -604,6 +702,7 @@ def render_repo_overview(contents: dict, now: dt.datetime) -> str:
     for row in dead:
         body.append(f'<p class="reason"><strong>{esc(row["target"])}</strong> '
                     f'{esc(row["url"])}: <code>{esc(row["error"])}</code></p>')
+    body.append(render_missing_indexes(contents, contract))
     return "".join(body)
 
 
@@ -617,13 +716,20 @@ def render_repo_index(row: dict, contents: dict, now: dt.datetime) -> str:
     if recipe:
         how = (f"<h2>Using it</h2><pre><code>"
                f"{esc(recipe.format(url=row['url'], name=row['target']))}"
-               f"</code></pre>")
+               f"</code></pre>"
+               '<p class="reason">These lines turn signature checking OFF '
+               "(<code>gpgcheck=0</code> / <code>trusted=yes</code>), and "
+               "that is a compromise, not a recommendation. The packages and "
+               "the apt <code>InRelease</code> ARE signed &mdash; but the "
+               "public key is not published at a URL this page can point you "
+               "at, so there is currently no way to state a verifying recipe "
+               "that works. Until there is, treat this repository as one you "
+               "are choosing to trust on the strength of its transport.</p>")
 
     body = [
         f"<h1>{esc(row['target'])} <span class=\"arch\">{esc(arches)}</span>"
         "</h1>",
-        f'<p class="sub"><a href="{esc(row["url"])}"><code>'
-        f'{esc(row["url"])}</code></a></p>',
+        f'<p class="sub">{baseurl(row["url"], row["format"])}</p>',
         f'<p class="measured">{freshness} '
         f'<a href="../packages.html">All indexes</a> &middot; '
         f'<a href="../index.html">Factory status</a></p>',
@@ -631,7 +737,7 @@ def render_repo_index(row: dict, contents: dict, now: dt.datetime) -> str:
         f"<h2>Packages</h2>",
         '<input id="q" type="search" hidden placeholder="Filter by package '
         'or source name" aria-label="Filter packages">',
-        f'<p class="measured" id="shown">{len(packages)} packages</p>',
+        f'<p class="measured" id="shown">{thousands(len(packages))} packages</p>',
         '<table id="pkgs"><thead><tr><th>Package</th><th>Version</th>'
         "<th>Arch</th><th>Source</th></tr></thead><tbody>",
     ]
@@ -677,17 +783,20 @@ def shell(title: str, description: str, body: str, *, depth: int = 0,
 
 def render(status: dict, contract: dict, cells: dict,
            now: dt.datetime, contents: dict | None = None) -> str:
-    rows = coverage_rows(status)
+    rows = coverage_rows(status, contract)
     # Only offered when the snapshot is actually there to link to: a link to a
     # page that was not rendered is worse than no link.
     browse = ""
     if contents is not None:
         totals = contents.get("totals", {})
-        browse = (f'<p class="lede"><a href="packages.html">Browse the '
-                  f'{totals.get("names", 0)} package names</a> '
-                  f"repo.tunaos.org is serving right now &mdash; what is IN "
+        # The link text is a phrase that stands on its own. It used to run
+        # "Browse the N package names" straight into "repo.tunaos.org is
+        # serving right now", which read as one broken sentence.
+        browse = (f'<p class="lede">A different question: what is actually IN '
                   f"the repository, as opposed to how much of the plan is "
-                  f"built.</p>")
+                  f'built. <a href="packages.html">Browse the '
+                  f'{thousands(totals.get("names", 0))} package names '
+                  f"repo.tunaos.org serves</a>.</p>")
     return (
         "<!doctype html>"
         '<html lang="en"><head><meta charset="utf-8">'
@@ -717,7 +826,7 @@ def render(status: dict, contract: dict, cells: dict,
     )
 
 
-def write_browser(contents: dict, out: pathlib.Path,
+def write_browser(contents: dict, contract: dict, out: pathlib.Path,
                   now: dt.datetime) -> int:
     """packages.html plus one page per readable index."""
     rows = repo_rows(contents)
@@ -725,7 +834,7 @@ def write_browser(contents: dict, out: pathlib.Path,
         shell("TunaOS package browser",
               "Every package repo.tunaos.org is serving, read from the "
               "published indexes themselves.",
-              render_repo_overview(contents, now)),
+              render_repo_overview(contents, contract, now)),
         encoding="utf-8")
     pages = out / "repo"
     pages.mkdir(parents=True, exist_ok=True)
@@ -774,7 +883,7 @@ def main(argv: list[str] | None = None) -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "index.html").write_text(page, encoding="utf-8")
     if contents is not None:
-        written = write_browser(contents, args.out, now)
+        written = write_browser(contents, load(args.contract), args.out, now)
         print(f"wrote {written} package-browser pages")
     # Pages runs Jekyll over the artifact unless told not to, and Jekyll
     # silently drops files beginning with an underscore.

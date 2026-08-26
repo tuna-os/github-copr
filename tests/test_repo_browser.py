@@ -228,8 +228,14 @@ def test_the_snapshot_is_deterministic(monkeypatch, tmp_path):
 # --- the rendered pages ----------------------------------------------------
 
 
-def overview(**over) -> str:
-    return site.render_repo_overview(contents(**over), NOW)
+CONTRACT = yaml.safe_load(
+    (ROOT / "manifests" / "package-factory.yaml").read_text("utf-8"))
+
+
+def overview(contract: dict | None = None, **over) -> str:
+    return site.render_repo_overview(contents(**over),
+                                     CONTRACT if contract is None else contract,
+                                     NOW)
 
 
 def index_page(which: int = 0, **over) -> str:
@@ -278,7 +284,7 @@ def test_an_unreachable_index_is_named_on_the_page_with_its_reason():
         "target": "el10", "arches": ["aarch64"], "format": "rpm",
         "url": "https://repo.tunaos.org/rpm/el10/aarch64/",
         "error": "HTTPError: 502", "packages": []}])
-    page = site.render_repo_overview(data, NOW)
+    page = site.render_repo_overview(data, CONTRACT, NOW)
     assert "unreachable" in page
     assert "502" in page
     assert "rpm/el10/aarch64" in page
@@ -290,7 +296,7 @@ def test_an_unreachable_index_gets_no_browse_page(tmp_path):
     data = contents(indexes=[{
         "target": "el10", "arches": ["x86_64"], "format": "rpm",
         "url": "https://x/dead/", "error": "boom", "packages": []}])
-    site.write_browser(data, tmp_path, NOW)
+    site.write_browser(data, CONTRACT, tmp_path, NOW)
     assert list((tmp_path / "repo").glob("*.html")) == []
 
 
@@ -337,12 +343,12 @@ def test_two_indexes_of_one_target_get_distinct_pages(tmp_path):
          "packages": [{"name": "b", "arch": "x86_64", "evr": "0:1-1",
                        "source": "b", "location": None}]},
     ])
-    site.write_browser(data, tmp_path, NOW)
+    site.write_browser(data, CONTRACT, tmp_path, NOW)
     assert len(list((tmp_path / "repo").glob("*.html"))) == 2
 
 
 def test_the_browser_pages_are_self_contained(tmp_path):
-    site.write_browser(contents(), tmp_path, NOW)
+    site.write_browser(contents(), CONTRACT, tmp_path, NOW)
     for page in [tmp_path / "packages.html", *(tmp_path / "repo").glob("*")]:
         text = page.read_text("utf-8")
         assert "<script src" not in text.lower(), page
@@ -441,3 +447,125 @@ def test_a_missing_pages_site_is_explained_not_just_failed():
     assert explain, "nothing explains a deploy that failed to configure Pages"
     body = str(explain[0].get("run", ""))
     assert "Settings" in body and "Pages" in body and "GitHub Actions" in body
+
+
+# --- what the first live deploy exposed ------------------------------------
+#
+# Every issue below was measured on the published site on 2026-08-26, not
+# imagined. They share one shape: the page was confidently WRONG rather than
+# merely plain, which is the failure mode a status page is most prone to.
+
+
+def test_a_baseurl_is_never_rendered_as_a_link():
+    """All 8 index links on the live page returned 404.
+
+    R2 serves objects and has no directory listing, so a bare prefix like
+    https://repo.tunaos.org/repo/10/x86_64/ is a BASEURL you hand a package
+    manager -- it is not a page and never will be. Linking it hands every
+    reader a broken link and makes a working repository look dead."""
+    page = index_page()
+    assert '<a href="https://repo.tunaos.org/repo/10/x86_64/"' not in page
+    assert "<code>https://repo.tunaos.org/repo/10/x86_64/</code>" in page
+
+
+def test_the_link_that_is_offered_instead_actually_resolves():
+    """repodata/repomd.xml (rpm) and InRelease (deb) DO return 200. Offering
+    no link at all would be safe but useless; offering the metadata file is
+    both honest and the thing a reader can inspect."""
+    assert "repo/10/x86_64/repodata/repomd.xml" in index_page()
+    deb = [i for i, r in enumerate(site.repo_rows(contents()))
+           if r["format"] == "deb"][0]
+    assert "tideforge/ubuntu/InRelease" in index_page(deb)
+
+
+def test_every_format_the_contract_declares_knows_its_index_file():
+    """A format without one silently falls back to no link at all."""
+    for spec in CONTRACT["targets"].values():
+        assert spec.get("format", "rpm") in site.INDEX_FILE
+
+
+def test_a_declared_target_with_no_index_is_named_on_the_page():
+    """The failure this catches, measured: opensuse-tumbleweed was serving a
+    resolvable index on BOTH arches and appeared nowhere, because its
+    published_index was still undeclared. The page showed five targets and
+    implied that was all of them. Absence must never render as nothing."""
+    page = overview()
+    assert "Declared, but not listed here" in page
+    for absent in ("opensuse-tumbleweed", "arch", "fedora", "hummingbird"):
+        if absent not in {r["target"] for r in contents()["indexes"]}:
+            assert absent in page, absent
+
+
+def test_that_section_disappears_when_every_target_is_listed():
+    """It is a gap report, not furniture."""
+    tiny = {"targets": {"el10": {"format": "rpm"},
+                        "ubuntu": {"format": "deb"}}}
+    assert "Declared, but not listed here" not in overview(contract=tiny)
+
+
+def test_it_does_not_claim_an_undeclared_target_is_empty():
+    """The distinction that matters: "we cannot read it" is not "it has
+    nothing". Tumbleweed had 21 names per arch while invisible here."""
+    page = overview()
+    assert "not the same as having nothing published" in page.lower() or \
+        "NOT the same as having nothing published" in page
+
+
+def test_one_target_arch_appearing_twice_is_explained():
+    """el10 x86_64 occupies two rows identical in every visible column but
+    the URL (#467). Unexplained, that reads as a duplicate-row bug."""
+    data = contents(indexes=[
+        {"target": "el10", "arches": ["x86_64"], "format": "rpm",
+         "url": "https://repo.tunaos.org/repo/10/x86_64/", "error": None,
+         "packages": []},
+        {"target": "el10", "arches": ["x86_64"], "format": "rpm",
+         "url": "https://repo.tunaos.org/xfce/10-stream-x86_64/",
+         "error": None, "packages": []},
+    ])
+    page = site.render_repo_overview(data, CONTRACT, NOW)
+    assert "el10 x86_64 appears more than once" in page
+    assert "not duplicates" in page
+
+
+def test_no_such_note_when_nothing_repeats():
+    assert "appears more than once" not in overview()
+
+
+def test_counts_are_formatted_for_reading():
+    """9966 is a number someone reads, not an identifier."""
+    page = overview(totals={"indexes": 8, "unreachable": 0,
+                            "packages": 9966, "names": 8215})
+    assert "9,966" in page and "8,215" in page
+    assert ">9966<" not in page
+
+
+def test_both_halves_of_the_site_stamp_time_the_same_way():
+    """The status half wrote "2026-08-25 05:09 UTC" and the browser half the
+    raw ISO string. On two linked pages that reads as two different clocks."""
+    assert site.stamp("2026-08-26T04:27:40Z") == "2026-08-26 04:27 UTC"
+    assert "2026-08-26T04:27:40Z" not in overview()
+
+
+def test_a_stamp_it_cannot_parse_is_shown_rather_than_crashing():
+    assert site.stamp("who knows") == "who knows"
+
+
+def test_turning_signature_checking_off_is_justified_not_just_done():
+    """The recipes carry gpgcheck=0 / trusted=yes on a repository that IS
+    signed -- the apt InRelease holds a real PGP signature. The reason is
+    that no public key is published at a URL to verify against. A page that
+    prints the insecure line without saying so teaches it as normal."""
+    page = index_page()
+    assert "gpgcheck=0" in page
+    lowered = page.lower()
+    assert "signature checking off" in lowered
+    assert "are signed" in lowered
+    assert "public key is not published" in lowered
+
+
+def test_long_urls_wrap_at_boundaries_not_mid_token():
+    """break-all split every index URL mid-token in the coverage cards
+    (".../202511" / "24-aarch64/"), which is unreadable and looks corrupt."""
+    css = site.style()
+    assert "word-break:break-all" not in css
+    assert "overflow-wrap:anywhere" in css
