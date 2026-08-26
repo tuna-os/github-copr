@@ -185,31 +185,16 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           set -euo pipefail
-          {
-            echo "Automated re-measurement: ${TARGET}'s live target index"
-            echo "published a new revision, so the build order was regenerated"
-            echo "against it."
-            echo
-            dropped="$(git diff -U0 "$BUILD_ORDER" | grep '^-' | grep -o 'path: src/.*' | sed 's|path: ||' | sort -u || true)"
-            added="$(git diff -U0 "$BUILD_ORDER" | grep '^+' | grep -o 'path: src/.*' | sed 's|path: ||' | sort -u || true)"
-            really_dropped="$(comm -23 <(echo "$dropped") <(echo "$added") | sed '/^$/d' || true)"
-            really_added="$(comm -13 <(echo "$dropped") <(echo "$added") | sed '/^$/d' || true)"
-            if [ -n "$really_dropped" ]; then
-              echo "Dropped from the build set (the target now ships these):"
-              echo '```'
-              echo "$really_dropped"
-              echo '```'
-            fi
-            if [ -n "$really_added" ]; then
-              echo "Added to the build set (the target stopped shipping, or new closure members):"
-              echo '```'
-              echo "$really_added"
-              echo '```'
-            fi
-            if [ -z "$really_dropped" ] && [ -z "$really_added" ]; then
-              echo "No package set changes — only measurement provenance moved."
-            fi
-          } > /tmp/pr-body.md
+          # The comparison used to be over FULL PATHS, so a package that
+          # merely moved spec directories could never cancel: it appeared as
+          # a drop AND an add, under headings claiming the target had adopted
+          # it and stopped shipping it. #542 moved all 19 GNOME packages from
+          # src/gnome-51 to src/gnome-50 -- a desktop-wide downgrade -- and
+          # read as routine upstream churn. Moves are now their own category,
+          # reported first.
+          git diff -U0 "$BUILD_ORDER" \
+            | python3 scripts/summarize-gap-drift.py --target "$TARGET" \
+            > /tmp/pr-body.md
           cat /tmp/pr-body.md
 
       - uses: peter-evans/create-pull-request@v8
