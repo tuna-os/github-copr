@@ -101,7 +101,29 @@ jobs:
           # %at, not %ct -- author date survives rebases; the nightly's key
           # uses it and this key must MATCH the nightly's or the bridge is a
           # mirage (package-factory-cell.yml carries the full incident).
-          epoch=$(git log -1 --format=%at -- '${{ matrix.manifest }}' "${source_paths[@]}")
+          #
+          # The manifest is NOT in this list, and that is the whole point.
+          # #529 dropped it from package-factory-cell.yml so a manifest edit
+          # stops re-keying every cell -- and left this copy alone, so the two
+          # halves of the bridge computed different keys from that moment on.
+          # Measured on 2026-08-26: manifests/package-factory.yaml last moved
+          # at 1787654862 and the hummingbird sources at 1787527705, so the
+          # nightly and the publisher disagreed by 127157 seconds -- 35 hours.
+          # The epoch is an action-key input, so the publisher could neither
+          # cache-hit the nightly's completed chain nor accept its partial:
+          # restore-partial-chain-output.py rejects a partial whose key
+          # differs, and the chain restarts at bootstrap-00.
+          #
+          # This is #529's own lesson one file over -- a fix that closed one
+          # of two paths and was named for both.
+          if [ "${#source_paths[@]}" -eq 0 ]; then
+            echo "::error::cell '${{ matrix.id }}' declares no source_paths, so" \
+                 "SOURCE_DATE_EPOCH cannot be derived from them; refusing rather" \
+                 "than falling back to the repository's last commit, which would" \
+                 "re-key this cell on EVERY commit"
+            exit 1
+          fi
+          epoch=$(git log -1 --format=%at -- "${source_paths[@]}")
           args=()
           for path in "${source_paths[@]}"; do args+=(--input "$path"); done
           payload=$(python3 scripts/tideforge-action-cache.py native-key             --identity '${{ matrix.id }}' --manifest '${{ matrix.manifest }}'             "${args[@]}" --target '${{ matrix.target }}'             --arch '${{ matrix.architecture }}' --image "$image"             --dependency-tree '${{ matrix.dependency_tree }}'             --target-queue '${{ matrix.target_queue }}'             --track '${{ matrix.track }}' --series '${{ matrix.series }}'             --source-date-epoch "$epoch")
