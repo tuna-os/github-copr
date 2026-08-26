@@ -27,7 +27,7 @@
 
 Name:           gtk4
 Version:        4.23.3
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        GTK graphical user interface library
 
 # Most files are either LGPL-2.0-or-later or LGPL-2.1-or-later.
@@ -72,7 +72,6 @@ Summary:        GTK graphical user interface library
 License:        LGPL-2.0-or-later AND LGPL-2.1-or-later AND Apache-2.0 AND CC0-1.0 AND MIT AND MIT-open-group AND HPND-sell-variant AND GPL-2.0-or-later AND GPL-3.0-or-later AND OFL-1.1
 URL:            https://www.gtk.org
 Source0:        https://download.gnome.org/sources/gtk/4.23/gtk-%{version}.tar.xz
-Patch: 0001-gtkapplication-wayland-null-check.patch
 
 BuildRequires:  cups-devel
 BuildRequires:  desktop-file-utils
@@ -332,6 +331,13 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_mandir}/man1/gtk4-widget-factory.1*
 
 %changelog
+* Wed Aug 26 2026 James Reilly <jreilly1821@gmail.com> - 4.23.3-2
+- Drop 0001-gtkapplication-wayland-null-check.patch: upstream carries the
+  same GDK_IS_WAYLAND_TOPLEVEL check in 4.23.3 (MR 9643 landed), so the hunk
+  no longer applies and %%prep failed with "1 out of 1 hunk FAILED"
+- Correct the 4.21.6-{1,2,3} changelog dates, which ascended and made rpm
+  print "%%changelog not in descending chronological order" on every build
+
 * Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 4.23.3-1
 - Update to 4.23.3 (GNOME 51 beta cycle)
 
@@ -347,14 +353,14 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 - Adopt %meson build macros
 - EL10: preserve gstreamer/tracker disable guards
 
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-3
+* Mon Mar 16 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-3
 - EL10: disable tracker/tinysparql integration (not available on EL10); gate
   tracker-sparql-3.0 BuildRequires and -Dtracker=enabled behind %%if !0%%{?rhel}
 
-* Sat Mar 15 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-2
+* Sun Mar 15 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-2
 - EL10: gate gstreamer1-plugins-bad-free-devel BR and gstreamer1-plugins-bad-free-libs
   runtime Requires behind %%if !0%%{?rhel} to fix buildroot on EL10 (gtk3 was removed
   and gstreamer1-plugins-bad-free-devel still depends on libgtk-3.so.0)
 
-* Fri Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-1
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-1
 - Initial local spec based on Fedora rawhide gtk4 4.21.6
