@@ -158,6 +158,7 @@ jobs:
         run: |
           python3 scripts/restore-partial-chain-output.py             --cell-id '${{ matrix.id }}'             --action-key '${{ steps.identity.outputs.key }}'             --out-dir '.factory/${{ matrix.id }}'
       - name: Build the cell
+        id: build
         env:
           CELL_ID: ${{ matrix.id }}
           ENGINE: build-chain
@@ -176,6 +177,45 @@ jobs:
           name: publish-rpm-${{ matrix.id }}
           path: .factory/${{ matrix.id }}/artifacts/*.rpm
           if-no-files-found: error
+
+      # Bank the partial, so hours spent here are not thrown away.
+      #
+      # This job resumes the nightly's partial and extends it, and until now it
+      # could only ever READ one. Its sole upload is the success artifact
+      # above, which has no `always()`, so a run torn down at the 360-minute
+      # cap uploaded nothing at all and the next run resumed from a partial as
+      # old as whatever the nightly last banked. Six hours of chain, discarded
+      # silently, on a job whose whole purpose is to accumulate.
+      #
+      # Everything here is copied deliberately from package-factory-cell.yml,
+      # which paid for each rule:
+      #
+      #   always()      a job that exhausts timeout-minutes is torn down, and
+      #                 always() is the only condition GitHub documents as
+      #                 still running steps then. failure()/cancelled() is a
+      #                 guess about which one a timeout satisfies.
+      #   an ALLOWLIST  written as `!= 'success'` it also fires on an exact
+      #                 cache hit, where the build never ran, and uploads a
+      #                 redundant ~500MB copy beside the real artifact.
+      #   chain_deferred  the soft deadline exits 0, so the outcome is
+      #                 `success` — but "ran and did not finish" is exactly
+      #                 its state, and it is the upload the next run resumes.
+      #
+      # The name is `${{ matrix.id }}-partial` and that is not arbitrary:
+      # restore-partial-chain-output.py queries `f"{cell_id}-partial"` and this
+      # job passes `--cell-id '${{ matrix.id }}'`, while the nightly writes
+      # `${{ matrix.base_id || matrix.id }}-partial` and reads the same. The
+      # publish planner emits no base_id and its cell id IS the base, so both
+      # sides land on one shared name per family cell.
+      - uses: actions/upload-artifact@v7
+        if: always() && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled' || steps.build.outputs.chain_deferred == 'true')
+        with:
+          name: ${{ matrix.id }}-partial
+          overwrite: true
+          path: |
+            .factory/${{ matrix.id }}/artifacts/
+            .factory/${{ matrix.id }}/action-key.txt
+          if-no-files-found: warn
 
   publish:
     needs: [plan, build]
