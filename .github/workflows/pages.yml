@@ -108,7 +108,7 @@ jobs:
       # by integration" -- an error that names an integration and reads like a
       # bug, when the actual fix is one settings toggle. The step below turns
       # that into instructions.
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         with:
           enablement: true
       - name: Explain a Pages site that does not exist yet
