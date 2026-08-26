@@ -784,10 +784,12 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root,
     """Write a build-chain.sh manifest whose tiers came out of the measurement.
 
     A package that already has a reviewed spec directory in this repository
-    keeps it — src/gnome-50/gtk4 is a project-maintained Rawhide import with
+    keeps it — src/gnome-51/gtk4 is a project-maintained Rawhide import with
     local fixes and must not be silently replaced by a fresh dist-git pull.
     Everything else is marked `distgit:`, which the build workflow imports with
-    scripts/import-fedora-distgit.py before the tier runs.
+    scripts/import-fedora-distgit.py before the tier runs.  A name listed in
+    the roots manifest's `prefer_distgit:` is imported even if such a
+    directory exists: it belongs to another target.
     """
     target = catalog["target"]
     # Where reviewed spec directories live and where dist-git imports land
@@ -800,12 +802,20 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root,
         raise SystemExit(
             f"{target['id']}: --build-order needs `source_paths:` and "
             "`distgit_prefix:` declared in the roots manifest")
+    # A spec directory under a shared prefix may exist for a DIFFERENT
+    # target and carry a pin this one must not inherit.  src/deps/libnotify
+    # is pinned to 0.8.7 for EL10 -- its own comment says "0.8.7 rather than
+    # the newer 0.8.8 deliberately" -- while a Rawhide rebuild wants 0.8.8.
+    # `prefer_distgit:` is how a roots manifest says "always import this one",
+    # so the shared directory cannot silently downgrade it.
+    always_distgit = set(catalog.get("prefer_distgit") or [])
     cycles = {name for cycle in global_cycles for name in cycle}
 
     def locate(name):
-        for prefix in search:
-            if (root / prefix / name).is_dir():
-                return f"{prefix}/{name}", False
+        if name not in always_distgit:
+            for prefix in search:
+                if (root / prefix / name).is_dir():
+                    return f"{prefix}/{name}", False
         return f"{fallback}/{name}", True
 
     target_id = target_name or target["id"].split("-")[0]

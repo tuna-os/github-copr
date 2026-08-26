@@ -20,8 +20,18 @@ schema: 1
 # where dist-git imports land for packages that have none. Declared here —
 # a property of the target's source tree — so the gap engine stays free of
 # any one family's layout (it used to hard-code exactly these four).
-source_paths: [src/gnome-50, src/deps, src/hummingbird, src/xfce-wayland]
+source_paths: [src/gnome-51, src/deps, src/hummingbird, src/xfce-wayland]
 distgit_prefix: src/hummingbird
+# Names that must come from Fedora Rawhide dist-git even though a directory
+# of that name exists under `source_paths:` -- the directory belongs to
+# another target.  src/deps/libnotify was added 2026-08-23 (#490) for EL10,
+# five days after this build order was last measured, and pins 0.8.7 with
+# the comment "0.8.7 rather than the newer 0.8.8 deliberately: it is the
+# minimum that satisfies the requirement and it matches the version already
+# published".  That is right for EL10 and wrong for a Rawhide rebuild, which
+# gets 0.8.8.  Without this line the next scheduled re-measure would have
+# quietly moved libnotify onto the EL10 pin.
+prefer_distgit: [libnotify]
 # What the generated build order contains.  `runtime` builds only what images
 # ship; BuildRequires-only tools (bison, transfig, gtk-doc, the Java stack the
 # documentation toolchains drag in) come from the buildroot's inherited
@@ -54,8 +64,8 @@ target:
 
 desktops:
   gnome:
-    release: "50"
-    sources: [{local: src/gnome-50}, {local: src/deps}]
+    release: "51"
+    sources: [{local: src/gnome-51}, {local: src/deps}]
     required_packages: [gdm, gjs, gnome-control-center, gnome-initial-setup, gnome-session, gnome-settings-daemon, gnome-shell, mutter, nautilus, xdg-desktop-portal-gnome]
     # Contract surface tunaOS's desktop gate checks by command/path/unit, which
     # the required_packages list above does not name: gnome-keyring-daemon,
