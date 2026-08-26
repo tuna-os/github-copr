@@ -90,3 +90,28 @@ def test_identity_actually_changes_the_action_key(identity, expected, tmp_path):
         "identity must be part of the hashed key for the -cN suffix to have "
         "been the bug; if it is not, re-diagnose before trusting the fix"
     )
+
+
+def test_a_canary_never_inherits_the_chains_identity():
+    """The hazard this fix could have introduced, ruled out.
+
+    Keying by `base_id || id` would be dangerous if a canary cell carried
+    base_id: a canary truncated to bootstrap-00 would compute the full
+    chain's action key, and could restore -- or be mistaken for -- the
+    converging chain's partial. It does not. `canary_cells()` only appends
+    `-canary` to the id and swaps in canary_tiers; `base_id` is set in one
+    place, the continuation path, so a canary falls back to its own id and
+    keeps banking to `<id>-canary-partial`.
+    """
+    planner = (ROOT / "scripts/plan-package-factory.py").read_text(encoding="utf-8")
+    start = planner.index("def canary_cells(")
+    end = planner.index("\ndef ", start + 1)
+    assert "base_id" not in planner[start:end], (
+        "canary_cells() now touches base_id; with the workflow keying by "
+        "base_id || id a canary could compute the full chain's action key "
+        "and collide with the converging chain's partial"
+    )
+    assert planner.count('["base_id"] =') == 1, (
+        "base_id is assigned somewhere new; confirm it is still only the "
+        "continuation path before trusting the identity fallback"
+    )
