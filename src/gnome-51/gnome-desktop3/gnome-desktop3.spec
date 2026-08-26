@@ -143,7 +143,14 @@ DESTDIR=%{buildroot} ninja -C redhat-linux-build install
 # LGPL
 %{_libdir}/libgnome-bg-4.so.2{,.*}
 %{_libdir}/libgnome-desktop-4.so.2{,.*}
-%{_libdir}/libgnome-rr-4.so.2{,.*}
+# GNOME 51 drops libgnome-rr-4 (display configuration moved out) and adds the
+# QR libraries, which carry their own soversion 0 rather than 2 -- verified
+# against the 51.alpha tarball's meson.options/meson.build and against what
+# the build actually produced (libgnome-qr-4.so.0.0.1,
+# libgnome-qr-gtk-4.so.0.0.1). The -devel globs already cover their .so,
+# .pc and .gir; only the runtime sonames are spelled out here.
+%{_libdir}/libgnome-qr-4.so.0{,.*}
+%{_libdir}/libgnome-qr-gtk-4.so.0{,.*}
 %{_libdir}/girepository-1.0/Gnome*-4.0.typelib
 
 %files -n gnome-desktop4-devel

@@ -165,7 +165,10 @@ Viewer for nested mutter instances.
 %autosetup -n %{name}-%{tarball_version}
 
 %build
-meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build -Degl_device=true
+# mutter 51 dropped the egl_device option along with EGLStream support;
+# 51.beta's meson.options has no such key and meson hard-errors on it
+# ("Unknown option: egl_device"). Verified against the 51.beta tarball.
+meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build
 meson compile -C build
 
 %install
