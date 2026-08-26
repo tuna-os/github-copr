@@ -1,0 +1,386 @@
+name: Tideforge portable payload experiment
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/tideforge-portable-experiment.yml
+      - scripts/tideforge-intermediate.py
+      - scripts/tideforge.py
+      - scripts/validate-built-arch-package.py
+      - packages/_template/package.yaml
+      - packages/wayland-protocols/package.yaml
+      - packages/oversteer-udev/package.yaml
+      - packages/danksearch/package.yaml
+      - packages/dgop/package.yaml
+      - packages/dms-cli/package.yaml
+      - packages/dms-greeter/package.yaml
+      - packages/dms/package.yaml
+      - packages/uupd/package.yaml
+      - tests/test_tideforge_intermediate.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tideforge-portable-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      payload_matrix: ${{ steps.plan.outputs.payload_matrix }}
+      carrier_matrix: ${{ steps.plan.outputs.carrier_matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: pip install pyyaml==6.0.3
+      - id: plan
+        name: Detect portable package handlers
+        run: |
+          python3 scripts/tideforge-intermediate.py candidates \
+            --root packages --architecture x86_64 \
+            --targets el10 ubuntu debian opensuse-tumbleweed arch \
+            --github-output "$GITHUB_OUTPUT"
+
+  payload:
+    name: Build once / ${{ matrix.package }} / x86_64
+    needs: plan
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.payload_matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.x
+          cache: false
+      - name: Install Python dependencies
+        run: pip install pyyaml==6.0.3
+      - name: Build and reseal the portable payload
+        run: |
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "${{ matrix.recipe }}")
+          mkdir -p .portable/cache .portable/first .portable/second
+          args=(
+            --recipe "${{ matrix.recipe }}"
+            --architecture x86_64
+            --build-contract "go-$(go version | tr ' ' '-')-linux-x86_64"
+            --cache-dir .portable/cache
+          )
+          mkdir -p benchmark-data
+          started=$(date +%s%N)
+          python3 scripts/tideforge-intermediate.py build "${args[@]}" \
+            --output ".portable/first/${{ matrix.package }}.tfi.tar"
+          finished=$(date +%s%N)
+          printf '{"kind":"portable-payload","package":"%s","architecture":"%s","milliseconds":%d,"success":true}\n' \
+            '${{ matrix.package }}' '${{ matrix.architecture }}' \
+            "$(( (finished - started) / 1000000 ))" \
+            > "benchmark-data/payload-${{ matrix.package }}-${{ matrix.architecture }}.json"
+          python3 scripts/tideforge-intermediate.py build "${args[@]}" \
+            --output ".portable/second/${{ matrix.package }}.tfi.tar"
+          cmp ".portable/first/${{ matrix.package }}.tfi.tar" \
+              ".portable/second/${{ matrix.package }}.tfi.tar"
+          python3 scripts/tideforge-intermediate.py verify \
+            ".portable/first/${{ matrix.package }}.tfi.tar"
+          sha256sum ".portable/first/${{ matrix.package }}.tfi.tar"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: portable-${{ matrix.package }}-x86_64
+          path: .portable/first/${{ matrix.package }}.tfi.tar
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-payload-${{ matrix.package }}-${{ matrix.architecture }}
+          path: benchmark-data/*.json
+          if-no-files-found: error
+
+  native-package:
+    name: Repackage / ${{ matrix.package }} / ${{ matrix.target }}
+    needs: [plan, payload]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.carrier_matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v8
+        with:
+          name: portable-${{ matrix.package }}-x86_64
+          path: .portable/input
+      - name: Install native carrier tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y rpm zstd
+          pip install pyyaml==6.0.3
+      - name: Repackage without compilation
+        run: |
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "${{ matrix.recipe }}")
+          mkdir -p benchmark-data
+          started=$(date +%s%N)
+          python3 scripts/tideforge-intermediate.py package \
+            ".portable/input/${{ matrix.package }}.tfi.tar" \
+            --recipe "${{ matrix.recipe }}" \
+            --target "${{ matrix.target }}" --output-dir .portable/out
+          finished=$(date +%s%N)
+          printf '{"kind":"portable-carrier","package":"%s","target":"%s","architecture":"%s","milliseconds":%d,"success":true}\n' \
+            '${{ matrix.package }}' '${{ matrix.target }}' '${{ matrix.architecture }}' \
+            "$(( (finished - started) / 1000000 ))" \
+            > "benchmark-data/carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
+          find .portable/out -maxdepth 1 -type f -print -exec sha256sum {} \;
+      - name: Read Arch package metadata
+        if: matrix.target == 'arch'
+        run: |
+          docker run --rm --volume "$PWD/.portable/out:/artifacts:ro" \
+            docker.io/library/archlinux:latest bash -lc \
+            'pacman -Qip /artifacts/*.pkg.tar.*' > .portable/out/package-info.txt
+      # The gate's verdict is RECORDED, not enforced here.
+      #
+      # The question this experiment asks is whether repackaging a sealed
+      # payload yields the same package the target-native path yields. So the
+      # gate has to be applied to BOTH arms and compared. Enforcing it on the
+      # portable arm alone answers a different question -- "is every recipe
+      # installable from the repos this gate configures" -- and run
+      # 32946019180 shows how far apart those are: 8 carriers were failed for
+      # unmet runtime deps (dms needs quickshell, which no el10 published
+      # index serves) while the native arm, which never ran the gate at all,
+      # was recorded green. The carrier had produced a faithful package; the
+      # comparison was rigged.
+      #
+      # The parity assertion lives in `benchmark`, over both arms' JSON.
+      - name: Run the existing native lint/install/smoke gate
+        id: gate
+        continue-on-error: true
+        env:
+          CELL_ID: portable-${{ matrix.package }}-${{ matrix.target }}
+          ENGINE: tideforge
+          TARGET: ${{ matrix.target }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          FORMAT: ${{ matrix.format }}
+          IMAGE: ${{ matrix.image }}
+          RECIPE: ${{ matrix.recipe }}
+          OUT_DIR: ${{ github.workspace }}/.portable/out
+        run: |
+          mkdir -p .portable/out/artifacts
+          find .portable/out -maxdepth 1 -type f \
+            \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' \) \
+            -exec cp -t .portable/out/artifacts {} +
+          ./scripts/verify-package-factory-cell.sh
+      - name: Record the portable arm's gate verdict
+        run: |
+          gate=false
+          if [ '${{ steps.gate.outcome }}' = 'success' ]; then gate=true; fi
+          python3 - "$gate" <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path(
+              "benchmark-data/carrier-${{ matrix.package }}"
+              "-${{ matrix.target }}-${{ matrix.architecture }}.json")
+          row = json.loads(path.read_text())
+          row["gate_success"] = sys.argv[1] == "true"
+          path.write_text(json.dumps(row) + "\n")
+          PY
+          cat "benchmark-data/carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
+      # Uploaded AFTER the verdict is recorded. It used to upload here-first,
+      # which would have shipped a row with no gate_success at all and made
+      # the parity check below silently vacuous for every carrier.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
+          path: benchmark-data/*.json
+          if-no-files-found: error
+
+  native-baseline:
+    name: Existing native / ${{ matrix.package }} / ${{ matrix.target }}
+    needs: plan
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.carrier_matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: ${{ matrix.recipe }}
+      - run: scripts/pull-container-image.sh "${{ matrix.image }}" "${{ matrix.image }}"
+      - name: Time the existing target-native build and package path
+        env:
+          CELL_ID: baseline-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
+          ENGINE: tideforge
+          TARGET: ${{ matrix.target }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          FORMAT: ${{ matrix.format }}
+          IMAGE: ${{ matrix.image }}
+          RECIPE: ${{ matrix.recipe }}
+          OUT_DIR: ${{ github.workspace }}/.baseline/out
+        run: |
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "${{ matrix.recipe }}")
+          mkdir -p benchmark-data
+          started=$(date +%s%N)
+          set +e
+          bash scripts/run-package-factory-cell.sh
+          status=$?
+          set -e
+          finished=$(date +%s%N)
+          success=false
+          if (( status == 0 )); then success=true; fi
+          printf '{"kind":"target-native","package":"%s","target":"%s","architecture":"%s","milliseconds":%d,"success":%s,"exit_code":%d}\n' \
+            '${{ matrix.package }}' '${{ matrix.target }}' '${{ matrix.architecture }}' \
+            "$(( (finished - started) / 1000000 ))" "$success" "$status" \
+            > "benchmark-data/native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
+      # The CONTROL, and it did not exist before.
+      #
+      # run-package-factory-cell.sh builds and packages; it does not verify.
+      # The lint/install/smoke gate is invoked by the WORKFLOW
+      # (package-factory-cell.yml:270), so a baseline that calls only the cell
+      # script never runs it. That is why run 32946019180 recorded
+      # `Existing native / dms / el10` as a success while the identical
+      # package, gated on the portable arm, failed on an unmet quickshell.
+      # Nothing was compared: one arm was gated and the other was timed.
+      - name: Run the same gate on the native arm
+        id: gate
+        continue-on-error: true
+        env:
+          CELL_ID: baseline-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
+          ENGINE: tideforge
+          TARGET: ${{ matrix.target }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          FORMAT: ${{ matrix.format }}
+          IMAGE: ${{ matrix.image }}
+          RECIPE: ${{ matrix.recipe }}
+          OUT_DIR: ${{ github.workspace }}/.baseline/out
+        run: ./scripts/verify-package-factory-cell.sh
+      - name: Record the native arm's gate verdict
+        run: |
+          gate=false
+          if [ '${{ steps.gate.outcome }}' = 'success' ]; then gate=true; fi
+          python3 - "$gate" <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path(
+              "benchmark-data/native-${{ matrix.package }}"
+              "-${{ matrix.target }}-${{ matrix.architecture }}.json")
+          row = json.loads(path.read_text())
+          row["gate_success"] = sys.argv[1] == "true"
+          path.write_text(json.dumps(row) + "\n")
+          PY
+          cat "benchmark-data/native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
+          path: benchmark-data/*.json
+          if-no-files-found: error
+
+  benchmark:
+    name: Build-time benchmark
+    if: always()
+    needs: [payload, native-package, native-baseline]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: benchmark-*
+          path: benchmark
+          merge-multiple: true
+      - name: Compare compilation work
+        run: |
+          python3 - <<'PY'
+          import json
+          from collections import defaultdict
+          from pathlib import Path
+
+          rows = [json.loads(path.read_text()) for path in Path("benchmark").glob("*.json")]
+          grouped = defaultdict(list)
+          for row in rows:
+              grouped[row["kind"]].append(row)
+          for kind in ("target-native", "portable-payload", "portable-carrier"):
+              values = grouped[kind]
+              total = sum(row["milliseconds"] for row in values)
+              passed = sum(row.get("success", False) for row in values)
+              print(f"{kind}: {len(values)} measurements, {passed} successful, {total / 1000:.3f}s summed")
+          portable = sum(row["milliseconds"] for row in grouped["portable-payload"] + grouped["portable-carrier"])
+          native = sum(row["milliseconds"] for row in grouped["target-native"] if row.get("success"))
+          print(f"successful native sum: {native / 1000:.3f}s")
+          print(f"portable build+carrier sum: {portable / 1000:.3f}s")
+          if native:
+              print(f"measured summed-work reduction: {(1 - portable / native) * 100:.1f}%")
+          print(json.dumps(sorted(rows, key=lambda row: (row["package"], row["kind"], row.get("target", ""))), indent=2))
+
+          # THE CLAIM UNDER TEST: repackaging a sealed payload yields a package
+          # that is no worse than the one the target-native path yields.
+          #
+          # Absolute success is the wrong bar. dms declares `runtime: common:
+          # [quickshell]` and no el10 published index serves quickshell, so
+          # NEITHER arm can clean-install it -- that is a fact about the recipe
+          # and the repos, not about portability, and failing the experiment on
+          # it would be measuring the wrong thing. What must never happen is a
+          # carrier that fails where the native package passes.
+          def key(row):
+              return (row["package"], row["target"])
+
+          native_gate = {key(r): r.get("gate_success") for r in grouped["target-native"]}
+          carrier_gate = {key(r): r.get("gate_success") for r in grouped["portable-carrier"]}
+
+          missing = sorted(k for k, v in carrier_gate.items() if v is None)
+          missing += sorted(k for k, v in native_gate.items() if v is None)
+          if missing:
+              raise SystemExit(
+                  "rows carry no gate_success, so parity would pass without "
+                  f"comparing anything: {missing}")
+
+          unpaired = sorted(set(carrier_gate) ^ set(native_gate))
+          if unpaired:
+              raise SystemExit(f"no arm-to-arm pair for: {unpaired}")
+
+          regressions = sorted(k for k in carrier_gate
+                               if native_gate[k] and not carrier_gate[k])
+          both_red = sorted(k for k in carrier_gate
+                            if not native_gate[k] and not carrier_gate[k])
+          improved = sorted(k for k in carrier_gate
+                            if not native_gate[k] and carrier_gate[k])
+
+          print(f"\ngate parity over {len(carrier_gate)} package/target pairs")
+          for k in both_red:
+              print(f"  red on BOTH arms (not a portability defect): {k[0]} / {k[1]}")
+          for k in improved:
+              print(f"  portable passes where native fails: {k[0]} / {k[1]}")
+          if regressions:
+              for k in regressions:
+                  print(f"  REGRESSION -- native passes, carrier fails: {k[0]} / {k[1]}")
+              raise SystemExit(
+                  f"{len(regressions)} carrier(s) fail a gate their native "
+                  "counterpart passes")
+          print("no carrier fails a gate its native counterpart passes")
+          PY
+
+  result:
+    name: Portable payload experiment
+    if: always()
+    needs: [plan, payload, native-package, native-baseline, benchmark]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every experiment cell
+        env:
+          PAYLOAD: ${{ needs.payload.result }}
+          NATIVE_PACKAGE: ${{ needs.native-package.result }}
+          NATIVE_BASELINE: ${{ needs.native-baseline.result }}
+          BENCHMARK: ${{ needs.benchmark.result }}
+          PLAN: ${{ needs.plan.result }}
+        # BENCHMARK is where the parity assertion runs, so it is required.
+        # Without it the experiment could go green having compared nothing --
+        # every gate verdict is recorded rather than enforced now, so the
+        # per-leg jobs no longer fail on a red gate by themselves.
+        run: |
+          test "$PLAN" = success
+          test "$PAYLOAD" = success
+          test "$NATIVE_PACKAGE" = success
+          test "$NATIVE_BASELINE" = success
+          test "$BENCHMARK" = success

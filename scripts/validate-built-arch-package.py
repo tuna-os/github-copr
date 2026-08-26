@@ -12,6 +12,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "manifests" / "package-factory.yaml"
+sys.path.insert(0, str(ROOT / "scripts"))
+import tideforge  # noqa: E402
 
 
 def fail(message: str) -> None:
@@ -50,7 +52,11 @@ def validate(recipe: dict, info: str) -> None:
         fail("built package name does not match recipe")
     if not field(info, "Version").startswith(f"{recipe['version']}-"):
         fail("built package version does not match recipe")
-    if field(info, "Architecture") not in {"x86_64", "aarch64"}:
+    allowed_architectures = {"x86_64", "aarch64"}
+    contract = tideforge.portable_payload_contract(recipe)
+    if contract and contract.get("architecture") == "noarch":
+        allowed_architectures.add("any")
+    if field(info, "Architecture") not in allowed_architectures:
         fail("built package has an unsupported architecture")
     declared = runtime_dependencies(recipe)
     built = dependency_names(field(info, "Depends On").split())
