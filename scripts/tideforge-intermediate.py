@@ -271,7 +271,8 @@ def build(args: argparse.Namespace) -> None:
         stage = root / "stage"
         stage.mkdir()
         if recipe["build_system"] == "go":
-            workdir = source_root / normalized_path(tideforge.build_option(recipe, "working_directory", "."))
+            workdir_name = tideforge.build_option(recipe, "working_directory", ".")
+            workdir = source_root if workdir_name == "." else source_root / normalized_path(workdir_name)
             binary = tideforge.build_option(recipe, "binary", recipe["name"])
             package = tideforge.build_option(recipe, "go_package", ".")
             command = tideforge.go_build_command(recipe, binary, package)
