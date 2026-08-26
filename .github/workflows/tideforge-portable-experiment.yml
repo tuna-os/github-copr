@@ -70,7 +70,7 @@ jobs:
             --build-contract "go-$(go version | tr ' ' '-')-linux-x86_64"
             --cache-dir .portable/cache
           )
-          mkdir -p .benchmark
+          mkdir -p benchmark-data
           started=$(date +%s%N)
           python3 scripts/tideforge-intermediate.py build "${args[@]}" \
             --output ".portable/first/${{ matrix.package }}.tfi.tar"
@@ -78,7 +78,7 @@ jobs:
           printf '{"kind":"portable-payload","package":"%s","architecture":"%s","milliseconds":%d,"success":true}\n' \
             '${{ matrix.package }}' '${{ matrix.architecture }}' \
             "$(( (finished - started) / 1000000 ))" \
-            > ".benchmark/payload-${{ matrix.package }}-${{ matrix.architecture }}.json"
+            > "benchmark-data/payload-${{ matrix.package }}-${{ matrix.architecture }}.json"
           python3 scripts/tideforge-intermediate.py build "${args[@]}" \
             --output ".portable/second/${{ matrix.package }}.tfi.tar"
           cmp ".portable/first/${{ matrix.package }}.tfi.tar" \
@@ -94,7 +94,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: benchmark-payload-${{ matrix.package }}-${{ matrix.architecture }}
-          path: .benchmark/*.json
+          path: benchmark-data/*.json
           if-no-files-found: error
 
   native-package:
@@ -120,7 +120,7 @@ jobs:
       - name: Repackage without compilation
         run: |
           export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "${{ matrix.recipe }}")
-          mkdir -p .benchmark
+          mkdir -p benchmark-data
           started=$(date +%s%N)
           python3 scripts/tideforge-intermediate.py package \
             ".portable/input/${{ matrix.package }}.tfi.tar" \
@@ -130,12 +130,12 @@ jobs:
           printf '{"kind":"portable-carrier","package":"%s","target":"%s","architecture":"%s","milliseconds":%d,"success":true}\n' \
             '${{ matrix.package }}' '${{ matrix.target }}' '${{ matrix.architecture }}' \
             "$(( (finished - started) / 1000000 ))" \
-            > ".benchmark/carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
+            > "benchmark-data/carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
           find .portable/out -maxdepth 1 -type f -print -exec sha256sum {} \;
       - uses: actions/upload-artifact@v7
         with:
           name: benchmark-carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
-          path: .benchmark/*.json
+          path: benchmark-data/*.json
           if-no-files-found: error
       - name: Read Arch package metadata
         if: matrix.target == 'arch'
@@ -191,7 +191,7 @@ jobs:
           OUT_DIR: ${{ github.workspace }}/.baseline/out
         run: |
           export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "${{ matrix.recipe }}")
-          mkdir -p .benchmark
+          mkdir -p benchmark-data
           started=$(date +%s%N)
           set +e
           bash scripts/run-package-factory-cell.sh
@@ -203,11 +203,11 @@ jobs:
           printf '{"kind":"target-native","package":"%s","target":"%s","architecture":"%s","milliseconds":%d,"success":%s,"exit_code":%d}\n' \
             '${{ matrix.package }}' '${{ matrix.target }}' '${{ matrix.architecture }}' \
             "$(( (finished - started) / 1000000 ))" "$success" "$status" \
-            > ".benchmark/native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
+            > "benchmark-data/native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
       - uses: actions/upload-artifact@v7
         with:
           name: benchmark-native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
-          path: .benchmark/*.json
+          path: benchmark-data/*.json
           if-no-files-found: error
 
   benchmark:
