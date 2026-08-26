@@ -420,6 +420,7 @@ def package(args: argparse.Namespace) -> None:
     if args.target not in recipe["targets"]:
         raise SystemExit(f"recipe does not enable target: {args.target}")
     target = tideforge.load_targets()[args.target]
+    args.output_dir = args.output_dir.resolve()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="tideforge-portable-package-") as tmp:
         extracted = Path(tmp)
