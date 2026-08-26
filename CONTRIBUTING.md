@@ -61,7 +61,7 @@ tar -czf my-package-1.0.0.tar.gz my-package-1.0.0
 ### 5. Test Build
 
 ```bash
-./scripts/build-local.sh my-package fedora-43-x86_64
+./scripts/build-local.sh my-package centos-stream-10-ci
 ```
 
 ### 6. Commit and Push
