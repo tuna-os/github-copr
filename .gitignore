@@ -60,3 +60,5 @@ hummingbird-imports.json
 
 # Cloudflare Worker local build output
 /dist/
+
+site/

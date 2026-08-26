@@ -88,6 +88,19 @@ and no longer is as **REGRESSED** (the repo-wipe shape, caught at
 measurement time — #519 was found by exactly this check's first run),
 and alarms when the refresh itself stops landing.
 
+That measurement is also published as a browsable page
+(`scripts/render-factory-site.py` -> GitHub Pages, by `pages.yml`), so
+"what has the factory built, for which targets, and what is it still
+missing" is answerable without a checkout. The page is a VIEW and never a
+second source: it renders `docs/factory-status.json`,
+`manifests/package-factory.yaml` and `manifests/package-builds.yaml` and
+nothing else, it lists every declared-but-unmeasurable target with the
+reason so coverage is never mistaken for the whole picture, and it says so
+in its own header when the measurement behind it has gone stale. It
+republishes when the data it renders changes rather than on a schedule,
+because the daily refresh lands through a bot PR at an hour no cron can
+predict.
+
 Around the build loop sit four preventive checks adapted from the
 sandogasa toolset (provenance, incident history, and the
 capability-per-format matrix in `SANDOGASA-ADAPTATIONS.md`), built on
