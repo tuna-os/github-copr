@@ -118,4 +118,4 @@ jobs:
           echo "::error::GitHub Pages is not enabled for this repository, and the workflow token is not permitted to enable it (creating a Pages site needs repository-administration scope, which GITHUB_TOKEN cannot be granted). A repository admin must do this ONCE: Settings -> Pages -> Build and deployment -> Source: GitHub Actions. Every later run of this workflow then deploys with no manual step."
           exit 1
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
