@@ -307,10 +307,11 @@ def go_module_mode(recipe: dict) -> str:
     return mode
 
 
-def go_build_command(recipe: dict, binary: str, package: str) -> str:
+def go_build_command(recipe: dict, binary: str, package: str, *, buildmode: str = "pie") -> str:
     """Render the portable Go build invocation for a recipe."""
     tags, ldflags = go_options(recipe)
-    return f"go build -buildmode=pie -trimpath -mod={go_module_mode(recipe)}{tags}{ldflags} -o {binary} {package}"
+    mode = f" -buildmode={buildmode}" if buildmode else ""
+    return f"go build{mode} -trimpath -mod={go_module_mode(recipe)}{tags}{ldflags} -o {binary} {package}"
 
 
 def with_build_environment(recipe: dict, command: str) -> str:

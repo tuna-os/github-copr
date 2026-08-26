@@ -275,7 +275,13 @@ def build(args: argparse.Namespace) -> None:
             workdir = source_root if workdir_name == "." else source_root / normalized_path(workdir_name)
             binary = tideforge.build_option(recipe, "binary", recipe["name"])
             package = tideforge.build_option(recipe, "go_package", ".")
-            command = tideforge.go_build_command(recipe, binary, package)
+            # The normal native packages use PIE. With Go's internal linker,
+            # that still records the host ELF interpreter and is therefore not
+            # a fully static payload. The portable contract deliberately uses
+            # the default executable mode and then rejects any DT_NEEDED or
+            # interpreter entry below. Native lint/install gates decide
+            # whether that hardening trade-off is acceptable for promotion.
+            command = tideforge.go_build_command(recipe, binary, package, buildmode="")
             environment = os.environ.copy()
             environment.update({"CGO_ENABLED": "0", "GOOS": "linux", "GOARCH": {"x86_64": "amd64", "aarch64": "arm64"}[architecture]})
             subprocess.run(["bash", "-euo", "pipefail", "-c", command], cwd=workdir, env=environment, check=True)
