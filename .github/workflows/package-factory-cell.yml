@@ -9,6 +9,15 @@ on:
 
 permissions:
   contents: read
+  # WRITE, not read, and the difference is load-bearing twice over. The
+  # resume step lists and downloads this repository's own workflow artifacts
+  # to recover a timed-out cell's partial output (#480) -- that half needs
+  # read. But every continuation shard uploads the shared partial under ONE
+  # name (`<base_id>-partial`, overwrite: true), and upload-artifact
+  # implements overwrite by DELETING the existing artifact first, which the
+  # API only allows with actions: write. With read, the second shard's
+  # upload 403s at exactly the hand-off the continuation design depends on.
+  actions: write
   id-token: write
   attestations: write
 
@@ -44,15 +53,52 @@ jobs:
         run: |
           set -euo pipefail
           image=$(docker image inspect --format '{{json .RepoDigests}}' '${{ matrix.image }}' | jq -r 'sort | .[0]')
+          # %at (AUTHOR date), not %ct (committer date). This epoch is an
+          # input to the action key, and a commit object's COMMITTER time
+          # changes on every history rewrite even when the tree does not --
+          # rebase, cherry-pick, amend, and squash-merge, which is this
+          # repo's merge convention. With %ct, a rebased branch rebuilt every
+          # cell from scratch despite a byte-identical recipe (runs
+          # 32540188656 and 32541649752, ~15 min per cell, twice). Author date
+          # survives all of those, so an unchanged recipe keeps its key.
+          # See #477.
           if [ '${{ matrix.engine }}' = tideforge ]; then
-            epoch=$(git log -1 --format=%ct -- "$(dirname '${{ matrix.recipe }}')")
+            epoch=$(git log -1 --format=%at -- "$(dirname '${{ matrix.recipe }}')")
             payload=$(python3 scripts/tideforge-action-cache.py key \
               --recipe '${{ matrix.recipe }}' --target '${{ matrix.target }}' \
               --arch '${{ matrix.architecture }}' --image "$image" \
               --source-date-epoch "$epoch")
           else
             mapfile -t source_paths < <(jq -r '.source_paths[]' <<<"$CELL")
-            epoch=$(git log -1 --format=%ct -- '${{ matrix.manifest }}' "${source_paths[@]}")
+            # The SOURCES only, not the manifest. This epoch is SOURCE_DATE_EPOCH
+            # and it feeds the action key, so including the manifest meant an
+            # edit to ANY target's block moved this cell's key -- and therefore
+            # made `restore-partial-chain-output.py` reject the previous
+            # attempt's partial and restart a 22-tier chain at bootstrap-00.
+            #
+            # Run 32842254545: a 429 MB partial written 34 seconds earlier was
+            # rejected as "action key differs", and 4h01m of build reached
+            # layer-00. #512 had edited the manifest to add `drift:` blocks and
+            # correct `probe_image` -- neither changes what an RPM compiles to.
+            # See #528.
+            #
+            # Scoping the manifest DIGEST alone (tideforge-action-cache.py) does
+            # not achieve this on its own: the epoch is a second, independent
+            # path from the same file into the same key, and it would have kept
+            # invalidating everything while looking fixed.
+            #
+            # Correctness is unaffected. The target's build view is still in the
+            # key via native_inputs, so a change this build actually reads still
+            # re-keys the cell. What changes is that SOURCE_DATE_EPOCH now tracks
+            # the sources it timestamps, which is what it is for.
+            if [ "${#source_paths[@]}" -eq 0 ]; then
+              echo "::error::cell '${{ matrix.id }}' declares no source_paths, so" \
+                   "SOURCE_DATE_EPOCH cannot be derived from them; refusing rather" \
+                   "than falling back to the repository's last commit, which would" \
+                   "re-key this cell on EVERY commit"
+              exit 1
+            fi
+            epoch=$(git log -1 --format=%at -- "${source_paths[@]}")
             args=()
             for path in "${source_paths[@]}"; do args+=(--input "$path"); done
             payload=$(python3 scripts/tideforge-action-cache.py native-key \
@@ -67,6 +113,12 @@ jobs:
           echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
           echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
           jq . <<<"$payload"
+          # Written into the cell directory, not just the step output, so it
+          # rides along in the partial-output artifact. That is what lets a
+          # later attempt tell "these RPMs are what I would build" from
+          # "these RPMs came from different inputs" (#480).
+          mkdir -p '.factory/${{ matrix.id }}'
+          jq -r .action_key <<<"$payload" > '.factory/${{ matrix.id }}/action-key.txt'
       # artifacts/ and action-result.json ONLY, not the cell directory (#472).
       # Those two are everything a hit consumes: the result manifest is
       # verified against the expected key below, and
@@ -86,9 +138,28 @@ jobs:
         with:
           operation: restore
           action-key: ${{ steps.identity.outputs.key }}
+          # package-info.txt is a BUILD product that the VERIFY path reads:
+          # validate-built-arch-package.py takes it as an argument on the
+          # pkg.tar.zst branch. #472 trimmed this list to artifacts/ +
+          # action-result.json on the claim that verify reads "$out/artifacts
+          # and nothing else" — true for rpm and deb, wrong for Arch, and the
+          # grep behind that claim did not cover this branch.
+          #
+          # It stayed latent because Arch cells kept MISSING and a fresh build
+          # writes the file. Once #477 made keys stable across rebases they
+          # started hitting, and every Arch hit then died:
+          #
+          #   FileNotFoundError: .../package-info.txt
+          #
+          # (tideforge-wayland-protocols-arch-x86_64, run 32551508574 — a
+          # canary cell, which is what canary cells are for.)
+          #
+          # The other two $out paths verify touches are safe: artifacts/ is
+          # here, and smoke.sh is written by verify itself before use.
           path: |
             .factory/${{ matrix.id }}/artifacts
             .factory/${{ matrix.id }}/action-result.json
+            .factory/${{ matrix.id }}/package-info.txt
       - id: verdict
         name: Verify restored output
         run: |
@@ -110,12 +181,38 @@ jobs:
           if [ "$hit" = true ]; then verdict=hit; fi
           echo "::notice title=action-cache::${verdict} ${{ matrix.id }}"
           echo "action-cache ${verdict}: \`${{ matrix.id }}\`" >> "$GITHUB_STEP_SUMMARY"
+      # A build-chain cell can outlive `timeout-minutes: 360` (#480). When it
+      # does the job is CANCELLED, not failed, so neither the action cache
+      # (written only after a successful build) nor the `if: failure()`
+      # artifact upload keeps anything -- and the next dispatch restarts at
+      # tier 0 and stops in the same place. This recovers the RPMs a previous
+      # attempt built, but ONLY if that attempt's recorded action key matches
+      # this cell's, so a partial from different inputs is discarded rather
+      # than merged. build-chain.sh already skips a package whose exact NVR
+      # is in the local repo, so nothing in the builder changes.
+      #
+      # A resumed run still lints, still verifies install/smoke, and still
+      # writes its own ActionResult over whatever it ends up with -- a
+      # partial can shorten a run, never let one skip a gate.
+      #
+      # Only for build-chain: a tideforge cell builds a single package, so
+      # there is no partial progress to resume.
+      - name: Resume from a previous attempt's partial output
+        if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/restore-partial-chain-output.py \
+            --cell-id '${{ matrix.base_id || matrix.id }}' \
+            --action-key '${{ steps.identity.outputs.key }}' \
+            --out-dir '.factory/${{ matrix.id }}'
       - name: Install native build tools on an exact miss
         if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q createrepo-c podman rpm
       - name: Build on an exact miss
+        id: build
         if: steps.verdict.outputs.hit != 'true'
         env:
           CELL_ID: ${{ matrix.id }}
@@ -129,10 +226,29 @@ jobs:
           MANIFEST: ${{ matrix.manifest }}
           MOCK_CONFIG: ${{ matrix.mock_config }}
           TIERS: ${{ matrix.tiers }}
+          # One mock root cache for the whole chain instead of one per
+          # package. build-chain.sh has supported this since #277 and nothing
+          # has set it since the hummingbird-specific workflow that did was
+          # removed (6d4b77a, #517), so every package in every nightly since
+          # has rebuilt the same minimal buildroot from scratch --
+          # docs/hummingbird-throughput.md Finding 2 measures that at 34.1% of
+          # mock time. Deliberately runner.temp and NOT actions/cache: the
+          # win is sharing between the hundreds of packages within one job,
+          # and the first package of a job rebuilding the tarball once is
+          # cheaper than shipping a gigabyte through the cache service. Also
+          # deliberately outside OUT_DIR, which is uploaded and published.
+          MOCK_CACHE_DIR: ${{ runner.temp }}/mock-cache
           SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
         run: bash scripts/run-package-factory-cell.sh
+      # `chain_deferred` (set by run-package-factory-cell.sh when the chain
+      # stopped at its soft deadline) keeps a PARTIAL out of the action
+      # cache. An ActionResult recorded for a deferred chain would make every
+      # later run cache-hit on the partial and freeze the chain at it
+      # forever -- the packages never built would read as "already built".
+      # Validation, checksums, SBOM, attestation and the publish artifact all
+      # still run: shipping what built is the point of stopping cleanly.
       - name: Record a new ActionResult
-        if: steps.verdict.outputs.hit != 'true'
+        if: steps.verdict.outputs.hit != 'true' && steps.build.outputs.chain_deferred != 'true'
         run: |
           set -euo pipefail
           artifacts=()
@@ -185,15 +301,36 @@ jobs:
           subject-path: .factory/${{ matrix.id }}/artifacts/*
           sbom-path: .factory/${{ matrix.id }}/metadata/sbom.spdx.json
       - name: Save validated output
-        if: steps.verdict.outputs.hit != 'true'
+        # Same deferred-partial guard as Record above; the cache must only
+        # ever hold COMPLETE outputs for a key.
+        if: steps.verdict.outputs.hit != 'true' && steps.build.outputs.chain_deferred != 'true'
         continue-on-error: true
         uses: ./.github/actions/tideforge-action-cache
         with:
           operation: save
           action-key: ${{ steps.identity.outputs.key }}
+          # package-info.txt is a BUILD product that the VERIFY path reads:
+          # validate-built-arch-package.py takes it as an argument on the
+          # pkg.tar.zst branch. #472 trimmed this list to artifacts/ +
+          # action-result.json on the claim that verify reads "$out/artifacts
+          # and nothing else" — true for rpm and deb, wrong for Arch, and the
+          # grep behind that claim did not cover this branch.
+          #
+          # It stayed latent because Arch cells kept MISSING and a fresh build
+          # writes the file. Once #477 made keys stable across rebases they
+          # started hitting, and every Arch hit then died:
+          #
+          #   FileNotFoundError: .../package-info.txt
+          #
+          # (tideforge-wayland-protocols-arch-x86_64, run 32551508574 — a
+          # canary cell, which is what canary cells are for.)
+          #
+          # The other two $out paths verify touches are safe: artifacts/ is
+          # here, and smoke.sh is written by verify itself before use.
           path: |
             .factory/${{ matrix.id }}/artifacts
             .factory/${{ matrix.id }}/action-result.json
+            .factory/${{ matrix.id }}/package-info.txt
       # Split by outcome (#472). On success the packages and their
       # supply-chain metadata are the deliverable, and uploading the build
       # tree alongside them cost multi-hundred-MB transfers per cell for
@@ -220,4 +357,72 @@ jobs:
           # warn, not error: a cell that died before creating its directory
           # would otherwise fail HERE, replacing the real failure message
           # with an upload error.
+          if-no-files-found: warn
+      # The resume input, and it is a SEPARATE, SMALL upload for two reasons.
+      #
+      # `cancelled()`, because a job that exceeds `timeout-minutes` is
+      # reported as CANCELLED rather than failed. Under `if: failure()`
+      # alone, a six-hour GNOME cell that ran out of clock uploaded NOTHING
+      # and the re-dispatch began again at tier 0 (#480).
+      #
+      # And only artifacts/ + action-key.txt, because a cancelled job gets a
+      # short grace period to finish its remaining steps. The full cell
+      # directory above carries the mock build tree, which dwarfs the output
+      # -- measured at 95.4% of a cell's bytes on
+      # tideforge-cpptrace-devel-debian-amd64 (#472) -- and an upload that
+      # does not finish inside the grace window recovers nothing at all. This
+      # one holds only what a resume reads.
+      #
+      # Named `-partial` rather than `${{ matrix.id }}`, and that is
+      # load-bearing: the resume step queries the artifacts API by exact
+      # name, and must never match the success upload, whose contents are a
+      # validated deliverable rather than an interrupted attempt.
+      #
+      # `always()` gated on the build step's own outcome, rather than
+      # `failure() || cancelled()`. A job that runs out of `timeout-minutes`
+      # is torn down, and `always()` is the only condition GitHub documents
+      # as still running its steps when that happens -- guessing which of
+      # failure()/cancelled() a timeout satisfies is exactly the kind of
+      # assumption that left this uploading nothing for six-hour cells in
+      # the first place.
+      #
+      # The OUTCOME TEST IS AN ALLOWLIST, and it has to be. It was written as
+      # `steps.build.outcome != 'success'`, with a comment claiming that kept
+      # a clean run from uploading a redundant copy. Run 32674169357 disproved
+      # the claim: on an EXACT CACHE HIT the build step does not run, so its
+      # outcome is `skipped`, which is `!= 'success'`, so the partial uploaded
+      # anyway -- beside the real artifact and within a few KB of its size:
+      #
+      #   fprintd-el10-x86_64            2,152,816 bytes
+      #   fprintd-el10-x86_64-partial    2,148,746 bytes   <- pure waste
+      #
+      # for every green cell whose build was cached (4 of 8 in that run;
+      # gnome51, which actually built, correctly skipped it). Harmless to
+      # correctness -- a hit means the key matches -- but a gnome-sized cell
+      # is ~500MB, cache hits are the COMMON case, and the redundant copy is
+      # exactly what the comment promised would not happen.
+      #
+      # So name the two outcomes that mean "the build ran and did not
+      # finish". A denylist silently admits every future outcome value GitHub
+      # adds, which is how `skipped` got in.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        # A DEFERRED chain also belongs on this allowlist: the soft deadline
+        # exits 0, so its outcome is `success` -- but "ran and did not
+        # finish" is exactly its state, and it is the upload the next
+        # continuation shard resumes from. Without it a deferred shard
+        # publishes no partial, the next shard restores the previous DAY's
+        # artifact, and the whole continuation design silently loses the
+        # hours it exists to bank.
+        if: always() && matrix.engine == 'build-chain' && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled' || steps.build.outputs.chain_deferred == 'true')
+        with:
+          # Named by base_id so every continuation shard shares ONE partial
+          # per family cell: shard N+1's resume finds shard N's upload as
+          # the newest artifact under this name. overwrite lets each shard
+          # replace the previous shard's copy instead of failing on the
+          # duplicate name.
+          name: ${{ matrix.base_id || matrix.id }}-partial
+          overwrite: true
+          path: |
+            .factory/${{ matrix.id }}/artifacts/
+            .factory/${{ matrix.id }}/action-key.txt
           if-no-files-found: warn

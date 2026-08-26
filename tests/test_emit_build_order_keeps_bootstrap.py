@@ -23,7 +23,7 @@ REPO = Path(__file__).resolve().parent.parent
 @pytest.fixture(scope="module")
 def gap():
     spec = importlib.util.spec_from_file_location(
-        "gap", REPO / "scripts" / "measure-hummingbird-gap.py")
+        "gap", REPO / "scripts" / "gap_engine.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -31,6 +31,10 @@ def gap():
 
 CATALOG = {
     "target": {"id": "hummingbird", "r2_path": "hummingbird/x"},
+    # The engine no longer carries any family's tree layout; the roots
+    # manifest declares it, so the fixture must too.
+    "source_paths": ["src/hummingbird"],
+    "distgit_prefix": "src/hummingbird",
     "bootstrap": [
         {"name": "bootstrap-00",
          "packages": [{"path": "src/hummingbird/python-flit-core",

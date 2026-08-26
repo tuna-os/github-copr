@@ -44,6 +44,28 @@ for package in "$@"; do
   zypper --non-interactive --no-refresh info "$package" >/dev/null 2>&1 && status=available || status=missing
   printf 'RESULT\\t%s\\t%s\\n' "$package" "$status"
 done""",
+    # Hummingbird's script answers from the repos the image itself ships and
+    # nothing else. The target sat at status: scaffold precisely because the
+    # only probe image available answered from Fedora Rawhide, which says
+    # "available" for packages Hummingbird does not ship — a probe that lies
+    # (see manifests/package-factory.yaml). The honesty of the image's own
+    # repos is MEASURED, not assumed: inside the pinned bootc-os image, tunaOS
+    # run 32813311729 got `dnf5 install dbus-daemon` -> installed and
+    # `dnf5 install flatpak` -> "No match for argument: flatpak", which is the
+    # truthful answer for a distribution that does not package flatpak.
+    #
+    # dnf5-first: the image ships dnf5; plain `dnf` may not exist there.
+    "hummingbird": """DNF=dnf5
+command -v dnf5 >/dev/null 2>&1 || DNF=dnf
+"$DNF" -qy makecache >/dev/null 2>&1 || true
+for package in "$@"; do
+  if "$DNF" -q repoquery "$package" 2>/dev/null | grep -q .; then
+    status=available
+  else
+    status=missing
+  fi
+  printf 'RESULT\t%s\t%s\n' "$package" "$status"
+done""",
     "arch": """pacman -Sy --noconfirm >/dev/null
 for package in "$@"; do
   pacman -Si "$package" >/dev/null 2>&1 && status=available || status=missing

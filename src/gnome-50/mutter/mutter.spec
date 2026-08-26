@@ -225,5 +225,5 @@ DESTDIR=%{buildroot} meson install -C build
 - Add missing atk and libdecor BuildRequires
 - Enable libcanberra BuildRequires (now GTK3-free)
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-2
-- Fix: move meson setup/compile from %prep to %build
+- Fix: move meson setup/compile from %%prep to %%build
 - EL10: gate libcanberra BuildRequires behind %if !0%?rhel (pulls in gtk3)

@@ -3,13 +3,13 @@
 %global xdg_desktop_portal_version 1.19.1
 
 Name:           xdg-desktop-portal-gnome
-Version:        50.0
-Release:        2%{?dist}
+Version:        51~alpha
+Release:        1%{?dist}
 Summary:        Backend implementation for xdg-desktop-portal using GNOME
 
 License:        LGPL-2.1-or-later
 URL:            https://gitlab.gnome.org/GNOME/%{name}
-Source0:        https://download.gnome.org/sources/%{name}/50/%{name}-%{tarball_version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
 
 BuildRequires:  desktop-file-utils
 BuildRequires:  gcc
@@ -88,6 +88,9 @@ desktop-file-validate %{buildroot}/%{_datadir}/applications/%{name}.desktop
 
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~alpha-1
+- Update to 51.alpha (GNOME 51 beta cycle)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
 - Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
   to avoid "fg: no job control" on COPR builders (non-interactive bash).

@@ -24,7 +24,12 @@ dependencies:
       # pipewire, gbm, dbus, systemd, and display-info stacks entirely.
       ubuntu: [debhelper-compat, pkg-config, clang, libudev-dev, libgbm-dev, libxkbcommon-dev, libegl1-mesa-dev, libwayland-dev, libinput-dev, libdbus-1-dev, libsystemd-dev, libseat-dev, libpipewire-0.3-dev, libpango1.0-dev, libdisplay-info-dev]
       debian: [debhelper-compat, pkg-config, clang, libudev-dev, libgbm-dev, libxkbcommon-dev, libegl1-mesa-dev, libwayland-dev, libinput-dev, libdbus-1-dev, libsystemd-dev, libseat-dev, libpipewire-0.3-dev, libpango1.0-dev, libdisplay-info-dev]
-      opensuse-tumbleweed: [gcc, pkg-config, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
+      # Mirrors the el10 list in openSUSE spellings, each verified against the
+      # live Tumbleweed OSS index: cairo-devel provides pkgconfig(cairo-gobject)
+      # (no separate cairo-gobject-devel), the gbm headers live in libgbm-devel
+      # (not a Mesa-* name), and pkg-config resolves to pkgconf-pkg-config.
+      # libseat-devel is factory-served — OSS ships only libseat1/seatd.
+      opensuse-tumbleweed: [gcc, clang-devel, pkg-config, glib2-devel, cairo-devel, pango-devel, pipewire-devel, libdrm-devel, libgbm-devel, libdisplay-info-devel, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
       # Arch ships headers alongside every library package, so the -devel split
       # does not exist.  Every package whose headers are consumed at build time
       # must appear in makedepends, not only in depends — relying on depends is

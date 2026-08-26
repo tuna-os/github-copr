@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """RFC 011's target-parameterized gap-engine entry point.
 
-The implementation remains in measure-hummingbird-gap.py while Hummingbird
-is the first converted family. Keeping its tested closure and tiering code in
-one place is intentional: this command supplies the target contract, and new
-targets become configuration plus a roots manifest rather than forked scripts.
+The engine (scripts/gap_engine.py) carries NO target of its own: this
+command names one, the target's `gap_measurement` contract in
+manifests/package-factory.yaml supplies its roots manifest and repository
+indexes, and the roots manifest supplies its source-tree layout. A new
+target is a contract block plus a roots manifest — configuration, never a
+fork of the engine.
 
 Usage:
-    scripts/measure-target-gap.py --target hummingbird \
-      --report-json docs/hummingbird-desktop-gap.json \
-      --build-order build-order-hummingbird-desktops.yml
+    scripts/measure-target-gap.py --target <id> \
+      --report-json docs/<id>-desktop-gap.json \
+      --build-order build-order-<id>-desktops.yml
 """
 from __future__ import annotations
 
@@ -20,7 +22,7 @@ import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location(
-    "measure_hummingbird_gap", HERE / "measure-hummingbird-gap.py"
+    "gap_engine", HERE / "gap_engine.py"
 )
 _engine = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_engine)

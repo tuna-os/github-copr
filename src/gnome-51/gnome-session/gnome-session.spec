@@ -1,10 +1,10 @@
-%global major_version 50
-%global tarball_version 50.0
+%global major_version 51
+%global tarball_version 51.beta
 %define po_package gnome-session
 
 Name:           gnome-session
-Version:        50.0
-Release:        3%{?dist}
+Version:        51~beta
+Release:        1%{?dist}
 Summary:        GNOME session manager
 
 License:        GPL-2.0-or-later
@@ -108,6 +108,9 @@ DESTDIR=%{buildroot} ninja -C _build install
 %{_userunitdir}/app-gnome-.scope.d/override.conf
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
+- Update to 51.beta (GNOME 51 beta cycle)
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
 - Add Obsoletes: gnome-session < 50.0 to ensure EL10's stock gnome-session
   46.0 is replaced; without this the old gnome-session-init-worker binary

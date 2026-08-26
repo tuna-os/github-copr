@@ -1,0 +1,121 @@
+# Rebuild a measured deb backport chain (RFC 011's deb half).
+#
+# Dispatch-only, and for the same reason the publishers are: a 16-package
+# GNOME rebuild is a deliberate act costing hours of runner time, not
+# something a merge should trigger. The gate proves PRs; this ships what a
+# measurement says is missing.
+#
+# The build order is REGENERATED at dispatch rather than read from the commit.
+# RFC 011's rule is that system-repos-first is computed, not remembered: if
+# the target suite picked up part of the stack since the order was committed,
+# those packages must drop out of this run, not be rebuilt because a file in
+# git still lists them. The committed order is a record; the live archives are
+# the authority. The regenerated order is uploaded so a run can be audited
+# against what it actually built.
+name: Backport deb chain
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which deb target from manifests/gnome51-deb.yaml (ubuntu, debian)
+        default: ubuntu
+        required: true
+      architecture:
+        description: amd64 or arm64
+        default: amd64
+        required: true
+      tier:
+        description: Optional single tier name (tier-0, tier-1, ...); empty builds all
+        required: false
+
+concurrency:
+  # Per target+arch: two runs of the same chain would race on the same
+  # accumulating local repo, and a partial repo is worse than no repo.
+  group: backport-deb-${{ github.event.inputs.target }}-${{ github.event.inputs.architecture }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  chain:
+    name: ${{ github.event.inputs.target }}-${{ github.event.inputs.architecture }}
+    runs-on: ${{ github.event.inputs.architecture == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    # The same ceiling every factory cell uses. Measured rather than feared
+    # here: tier-0's 8 packages built in 6m30s (run 32652552159), so the full
+    # 18-package ubuntu chain has an order of magnitude of headroom. A deb
+    # backport is cheap because there is no packaging to author -- it is the
+    # EL10 rpm chain, which builds ~55 packages from spec, that lives against
+    # this ceiling.
+    #
+    # If one ever does stop here, RE-DISPATCH FROM tier-0 OR WITH NO TIER AT
+    # ALL. `tier` narrows a single run; it cannot resume one. The local apt
+    # repo that carries a tier's output to the next tier lives inside the
+    # runner and is gone when the job ends, so dispatching tier-1 after a
+    # tier-0 run would resolve its build-deps against the target archive
+    # alone -- and that does not fail loudly, it silently builds against the
+    # wrong versions.
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+
+      - name: Measure the gap and regenerate the build order
+        run: |
+          set -euo pipefail
+          python3 scripts/measure-deb-backport-gap.py \
+            --manifest manifests/gnome51-deb.yaml \
+            --target '${{ github.event.inputs.target }}' \
+            --report-json 'gap-${{ github.event.inputs.target }}.json' \
+            --build-order 'order-${{ github.event.inputs.target }}.yml'
+          echo '## Measured gap' >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          report = json.load(open('gap-${{ github.event.inputs.target }}.json'))
+          entry = report['targets']['${{ github.event.inputs.target }}']
+          donors = ' + '.join(entry['donor_suites'])
+          print(f"`{entry['target_suite']}` <- `{donors}`: "
+                f"**{entry['needed_count']}** source packages, {len(entry['tiers'])} tiers")
+          for index, tier in enumerate(entry['tiers']):
+              print(f"- tier-{index}: {', '.join(tier)}")
+          PY
+
+      - name: Report a chain with nothing left to do
+        id: empty
+        run: |
+          set -euo pipefail
+          count=$(python3 -c "import yaml,sys; o=yaml.safe_load(open(sys.argv[1])); print(sum(len(t.get('packages') or []) for t in o.get('tiers') or []))" 'order-${{ github.event.inputs.target }}.yml')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          # Not a failure. A target that has caught up is the engine working:
+          # the measurement retires itself and there is nothing to rebuild.
+          [ "$count" -gt 0 ] || echo "nothing to rebuild — the target already satisfies the stack"
+
+      - name: Rebuild the chain
+        if: steps.empty.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          image=$(python3 -c "import yaml;print(yaml.safe_load(open('manifests/package-factory.yaml'))['targets']['${{ github.event.inputs.target }}']['probe_image'])")
+          echo "buildroot image: $image"
+          args=(--order 'order-${{ github.event.inputs.target }}.yml' --image "$image"
+                --out '.factory/backport-${{ github.event.inputs.target }}')
+          if [ -n '${{ github.event.inputs.tier }}' ]; then
+            args+=(--tier '${{ github.event.inputs.tier }}')
+          fi
+          bash scripts/build-deb-chain.sh "${args[@]}"
+
+      - name: Upload the order, the report and whatever was built
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backport-${{ github.event.inputs.target }}-${{ github.event.inputs.architecture }}
+          path: |
+            gap-${{ github.event.inputs.target }}.json
+            order-${{ github.event.inputs.target }}.yml
+            .factory/backport-${{ github.event.inputs.target }}/artifacts/
+            .factory/backport-${{ github.event.inputs.target }}/logs/
+            .factory/backport-${{ github.event.inputs.target }}/buildroots/
+          if-no-files-found: warn

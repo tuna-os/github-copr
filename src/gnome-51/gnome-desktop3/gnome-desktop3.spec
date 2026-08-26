@@ -9,13 +9,13 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:    gnome-desktop3
-Version: 44.5
+Version: 51~alpha
 Release: %autorelease
 Summary: Library with common API for various GNOME modules
 
 License: GPL-2.0-or-later AND LGPL-2.0-or-later AND GFDL-1.1-or-later
 URL:     https://gitlab.gnome.org/GNOME/gnome-desktop
-Source:  https://download.gnome.org/sources/gnome-desktop/44/gnome-desktop-%{tarball_version}.tar.xz
+Source:  https://download.gnome.org/sources/gnome-desktop/51/gnome-desktop-%{tarball_version}.tar.xz
 
 BuildRequires: gcc
 BuildRequires: gettext
@@ -143,7 +143,14 @@ DESTDIR=%{buildroot} ninja -C redhat-linux-build install
 # LGPL
 %{_libdir}/libgnome-bg-4.so.2{,.*}
 %{_libdir}/libgnome-desktop-4.so.2{,.*}
-%{_libdir}/libgnome-rr-4.so.2{,.*}
+# GNOME 51 drops libgnome-rr-4 (display configuration moved out) and adds the
+# QR libraries, which carry their own soversion 0 rather than 2 -- verified
+# against the 51.alpha tarball's meson.options/meson.build and against what
+# the build actually produced (libgnome-qr-4.so.0.0.1,
+# libgnome-qr-gtk-4.so.0.0.1). The -devel globs already cover their .so,
+# .pc and .gir; only the runtime sonames are spelled out here.
+%{_libdir}/libgnome-qr-4.so.0{,.*}
+%{_libdir}/libgnome-qr-gtk-4.so.0{,.*}
 %{_libdir}/girepository-1.0/Gnome*-4.0.typelib
 
 %files -n gnome-desktop4-devel
@@ -157,4 +164,7 @@ DESTDIR=%{buildroot} ninja -C redhat-linux-build install
 %{_datadir}/installed-tests
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~alpha-1
+- Update to 51.alpha (GNOME 51 beta cycle)
+
 %autochangelog

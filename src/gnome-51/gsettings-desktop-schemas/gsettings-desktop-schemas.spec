@@ -3,14 +3,14 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:           gsettings-desktop-schemas
-Version:        50.0
-Release:        2%{?dist}
+Version:        51~beta
+Release:        1%{?dist}
 Summary:        A collection of GSettings schemas
 
 License:        LGPL-2.1-or-later
 # no homepage exists for this component
 URL:            https://gitlab.gnome.org/GNOME/gsettings-desktop-schemas
-Source0:        https://download.gnome.org/sources/%{name}/50/%{name}-%{tarball_version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
 Source1:        org.gnome.desktop.interface.rhel.gschema.override
 
 BuildRequires:  gcc
@@ -101,6 +101,9 @@ glib-compile-schemas --dry-run --strict %{buildroot}%{_datadir}/glib-2.0/schemas
 
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
+- Update to 51.beta (GNOME 51 beta cycle)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
 - Add gcc BuildRequires: meson checks for a C compiler at configure time even
   for schema-only projects; gcc is not auto-installed in EL10 COPR buildroots.

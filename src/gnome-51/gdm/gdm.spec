@@ -15,8 +15,8 @@
 
 Name:           gdm
 Epoch:          1
-Version:        50.0
-Release:        3%{?dist}
+Version:        51~beta
+Release:        1%{?dist}
 Summary:        The GNOME Display Manager
 
 License:        GPL-2.0-or-later
@@ -69,8 +69,8 @@ Requires: dbus-common
 Requires: dconf
 # since we use it, and pam spams the log if the module is missing
 Requires: gnome-keyring-pam
-Requires: gnome-session >= 50~alpha
-Requires: gnome-session-wayland-session >= 50~alpha
+Requires: gnome-session >= 51~beta
+Requires: gnome-session-wayland-session >= 51~beta
 Requires: gnome-settings-daemon >= 3.27.90
 Requires: gnome-shell
 Requires:       gnome50-el10-compat
@@ -175,8 +175,16 @@ ln -sf ../X11/xinit/Xsession %{buildroot}%{_sysconfdir}/gdm/
 %license COPYING
 %dir %{_sysconfdir}/gdm
 %config(noreplace) %{_sysconfdir}/gdm/custom.conf
-%config %{_sysconfdir}/pam.d/gdm-autologin
-%config %{_sysconfdir}/pam.d/gdm-password
+# GNOME 51 installs PAM services into the PAM VENDOR directory, not /etc:
+# gdm's meson.build computes
+#   pam_sys_services_dir = pam_prefix / 'lib' / 'pam.d'
+# so every gdm-*.pam lands in /usr/lib/pam.d. All six previously listed
+# under %%{_sysconfdir}/pam.d were reported missing by rpmbuild for exactly
+# this reason. They are vendor defaults now, so they are no longer %%config
+# (an admin override belongs in /etc/pam.d, which PAM still reads first).
+# The glob also covers the gdm-*-substack files meson generates for the
+# redhat config, which did not exist before.
+%{_prefix}/lib/pam.d/gdm-*
 # not config files
 %if %{with x11}
 %{_sysconfdir}/gdm/Xsession
@@ -218,10 +226,6 @@ ln -sf ../X11/xinit/Xsession %{buildroot}%{_sysconfdir}/gdm/
 %ghost %dir %{_localstatedir}/log/gdm
 %ghost %dir %{_localstatedir}/lib/gdm
 %ghost %dir %{_rundir}/gdm
-%config %{_sysconfdir}/pam.d/gdm-smartcard
-%config %{_sysconfdir}/pam.d/gdm-fingerprint
-%config %{_sysconfdir}/pam.d/gdm-switchable-auth
-%{_sysconfdir}/pam.d/gdm-launch-environment
 %{_unitdir}/gdm.service
 %{_unitdir}/gnome-headless-session@.service
 %dir %{_userunitdir}/gnome-session@gnome-login.target.d/
@@ -248,6 +252,9 @@ ln -sf ../X11/xinit/Xsession %{buildroot}%{_sysconfdir}/gdm/
 %{_libdir}/pkgconfig/gdm-pam-extensions.pc
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
+- Update to 51.beta (GNOME 51 beta cycle)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
 - Add explicit BuildRequires: gcc (COPR EL10 minimal buildroot does not
   pre-install gcc unlike Fedora; meson compiler detection fails without it)

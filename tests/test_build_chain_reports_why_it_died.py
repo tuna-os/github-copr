@@ -229,3 +229,68 @@ def test_a_log_with_no_reason_in_it_still_gets_its_tail(tmp_path: Path) -> None:
         "an empty reason section was printed for a log with no reason in it, "
         f"which reads as 'the cause is nothing': {proc.stderr!r}"
     )
+
+
+def test_a_failed_package_keeps_its_logs_not_only_a_tail(tmp_path: Path) -> None:
+    """Printing 40 lines into the job log is not keeping the evidence.
+
+    The GNOME 51.beta bump failed 25 packages in one chain. Each printed its
+    own tail at its own time, hours apart, into a 590KB job log -- and every
+    practical retrieval path serves only the END of that log, so none of the
+    25 errors could be read back afterwards. That is the same archaeology
+    BUILDROOT_MANIFESTS exists to end, and mock had already written the answer
+    into build.log and root.log both times.
+
+    So when FAILURE_LOGS is set, the handler KEEPS those files, named for the
+    package, where the cell's artifact will carry them.
+    """
+    kept = tmp_path / "kept"
+    builddir = tmp_path / "bd" / "results"
+    builddir.mkdir(parents=True)
+    (builddir / "build.log").write_text("error: Bad exit status from %build\n")
+    (builddir / "root.log").write_text("Problem: nothing provides libfoo\n")
+    proc = _drive_handler(tmp_path, f"""
+        FAILURE_LOGS={kept}
+        builddir={tmp_path / "bd"}
+        pkg_name=pango
+        ( false ) &
+        wait $! || true
+        echo "reached the end" >&2
+    """)
+    assert proc.returncode == 0, proc.stderr
+    assert (kept / "pango.build.log").read_text() == (
+        "error: Bad exit status from %build\n")
+    assert (kept / "pango.root.log").read_text() == (
+        "Problem: nothing provides libfoo\n")
+
+
+def test_keeping_logs_is_opt_in_and_never_fatal(tmp_path: Path) -> None:
+    """Unset FAILURE_LOGS keeps today's behaviour; an unwritable one must not
+    change how the build failed -- a diagnostic that turns a package failure
+    into a different failure is worse than none."""
+    builddir = tmp_path / "bd" / "results"
+    builddir.mkdir(parents=True)
+    (builddir / "build.log").write_text("error: boom\n")
+
+    proc = _drive_handler(tmp_path, f"""
+        builddir={tmp_path / "bd"}
+        pkg_name=pango
+        ( false ) &
+        wait $! || true
+        echo "reached the end" >&2
+    """)
+    assert proc.returncode == 0 and "reached the end" in proc.stderr
+
+    blocked = tmp_path / "blocked"
+    blocked.write_text("I am a file, not a directory")
+    proc = _drive_handler(tmp_path, f"""
+        FAILURE_LOGS={blocked / "sub"}
+        builddir={tmp_path / "bd"}
+        pkg_name=pango
+        ( false ) &
+        wait $! || true
+        echo "reached the end" >&2
+    """)
+    assert proc.returncode == 0, (
+        f"an unwritable FAILURE_LOGS changed the outcome: {proc.stderr!r}")
+    assert "reached the end" in proc.stderr

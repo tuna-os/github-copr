@@ -1,11 +1,11 @@
 Name:           glib2
-Version:        2.88.0
-Release:        4%{?dist}
+Version:        2.89.4
+Release:        2%{?dist}
 Summary:        A library of handy utility functions
 
 License:        LGPL-2.1-or-later
 URL:            https://www.gtk.org
-Source0:        https://download.gnome.org/sources/glib/2.88/glib-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/glib/2.89/glib-%{version}.tar.xz
 
 Patch0:         gnutls-hmac.patch
 Patch1:         default-terminal.patch
@@ -202,6 +202,16 @@ gio-querymodules-%{__isa_bits} %{_libdir}/gio/modules &> /dev/null || :
 %{_libdir}/*.a
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 2.89.4-2
+- Keep the full build's release ahead of glib2-bootstrap's. The chain skips a
+  package whose exact NVR it already built, so a full build sharing the
+  bootstrap's NVR is silently skipped and the stub bootstrap glib2-devel --
+  which ships no gir files -- stays in the buildroot. Every introspection
+  generating package then fails on "Couldn't find include 'GObject-2.0.gir'".
+
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 2.89.4-1
+- Update to 2.89.4 (GNOME 51 beta cycle)
+
 * Mon Apr 07 2026 James Reilly <jreilly1821@gmail.com> - 2.88.0-4
 - Add Requires: glibc-devel to glib2-devel; without it downstream BuildRequires
   on glib2-devel no longer pulled in glibc-devel transitively, causing

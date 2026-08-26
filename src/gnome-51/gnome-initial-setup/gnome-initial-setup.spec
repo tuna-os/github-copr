@@ -5,8 +5,8 @@
 %global geoclue_version 2.6.0
 %global gnome_desktop_version 44.0-7
 
-%global tarball_version 50.0
-%global major_version 50
+%global tarball_version 51.beta
+%global major_version 51
 
 %if 0%{?rhel}
 %bcond_with webkitgtk
@@ -15,8 +15,8 @@
 %endif
 
 Name:           gnome-initial-setup
-Version:        50.0
-Release:        5%{?dist}
+Version:        51~beta
+Release:        1%{?dist}
 Summary:        Bootstrapping your OS
 
 License:        GPL-2.0-or-later
@@ -134,6 +134,9 @@ useradd -rM -d /run/gnome-initial-setup/ -s /sbin/nologin %{name} &>/dev/null ||
 %{_userunitdir}/*
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
+- Update to 51.beta (GNOME 51 beta cycle)
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-5
 - Re-enable parental controls (-Dparental_controls=enabled)
 - Add BuildRequires: pkgconfig(malcontent-0), pkgconfig(malcontent-ui-1)

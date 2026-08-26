@@ -5,14 +5,14 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:           libadwaita
-Version:        1.9.0
-Release:        2%{?dist}
+Version:        1.10~beta.1
+Release:        1%{?dist}
 Summary:        Building blocks for modern GNOME applications
 
 # part of src/adw-spring-animation.c is MIT
 License:        LGPL-2.1-or-later AND MIT
 URL:            https://gitlab.gnome.org/GNOME/libadwaita
-Source0:        https://download.gnome.org/sources/%{name}/1.9/%{name}-%{tarball_version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/1.10/%{name}-%{tarball_version}.tar.xz
 
 BuildRequires:  desktop-file-utils
 BuildRequires:  gcc
@@ -131,6 +131,9 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/*.desktop
 
 
 %changelog
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 1.10~beta.1-1
+- Update to 1.10.beta.1 (GNOME 51 beta cycle)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.9.0-2
 - Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
   to avoid "fg: no job control" on COPR builders (non-interactive bash).

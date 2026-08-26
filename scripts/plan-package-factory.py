@@ -81,7 +81,7 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                     continue
                 cells.append(
                     {
-                        "id": f"tideforge-{package}-{target_id}-{architecture}",
+                        "id": factory_contract.tideforge_cell_id(package, target_id, architecture),
                         "engine": "tideforge",
                         "package": package,
                         "recipe": recipe_path.relative_to(root).as_posix(),
@@ -419,6 +419,54 @@ def main() -> int:
     if len(shards) > 3:
         print("package-factory planner exceeded three 200-cell shards", file=sys.stderr)
         return 2
+
+    # Continuation shards for full-chain build-chain cells.
+    #
+    # A whole desktop family (1,248 packages for hummingbird) does not fit one
+    # job: the soft deadline (CHAIN_BUDGET_SECONDS) ends the cell cleanly at
+    # ~4.5h with the rest DEFERRED, and before this the next attempt was
+    # tomorrow's schedule -- ~5.5h of chain per day, weeks to converge. The
+    # build-1/build-2 shards existed only as >200-cell overflow and had never
+    # run. Chaining them (build-1 needs build-0, build-2 needs build-1) and
+    # seeding them with CONTINUATION copies of each full-chain cell triples
+    # the chain hours per run using only mechanisms that already exist:
+    #
+    #   * the continuation carries base_id = the original cell id; the
+    #     partial artifact is NAMED by base_id, so the resume step restores
+    #     the previous shard's output (same-run artifacts are visible to the
+    #     API once finalized -- pinned by an existing test);
+    #   * the action key is derived from inputs, which are identical, so if
+    #     an earlier shard FINISHED the chain and recorded its ActionResult,
+    #     the continuation cache-hits and skips the build entirely;
+    #   * a continuation that runs out of budget defers again, uploads a
+    #     bigger partial under the same base_id name (overwrite), and the
+    #     cache stays unwritten -- exactly the single-shard semantics.
+    #
+    # Only full-chain cells continue: a TIERS-scoped dispatch asked for a
+    # bounded slice, and tideforge cells build one package with no partial
+    # progress to resume. Canary cells (canary=true) are bounded by
+    # construction and excluded for the same reason.
+    def _continuation(cell: dict, suffix: str) -> dict:
+        cont = dict(cell)
+        cont["base_id"] = cell.get("base_id") or cell["id"]
+        cont["id"] = f"{cell['id']}-{suffix}"
+        return cont
+
+    full_chain = [
+        cell for cell in shards[0]
+        if cell.get("engine") == "build-chain"
+        and not cell.get("tiers")
+        and not cell.get("canary")
+    ]
+    for shard_index, suffix in ((1, "c1"), (2, "c2")):
+        for cell in full_chain:
+            if len(shards[shard_index]) >= 200:
+                print("package-factory planner: continuation shard is full; "
+                      "dropping would silently halve chain throughput",
+                      file=sys.stderr)
+                return 2
+            shards[shard_index].append(_continuation(cell, suffix))
+
     matrices = [json.dumps({"include": shard}, separators=(",", ":")) for shard in shards]
     print(json.dumps({"count": len(selected), "matrices": matrices}))
     if args.github_output:
@@ -426,6 +474,10 @@ def main() -> int:
             output.write(f"count={len(selected)}\n")
             for index, matrix in enumerate(matrices):
                 output.write(f"matrix_{index}={matrix}\n")
+                # Shard occupancy drives the build-1/build-2 job conditions:
+                # ">200 cells" stopped being the only reason a later shard
+                # has work the moment continuations existed.
+                output.write(f"count_{index}={len(shards[index])}\n")
     return 0
 
 
