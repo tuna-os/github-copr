@@ -75,6 +75,23 @@ def test_handler_rejects_go_recipe_that_requests_cgo(tmp_path: Path):
     assert json.loads(run("classify", "--recipe", str(recipe)).stdout) is None
 
 
+def test_candidate_planner_uses_handler_and_actual_recipe_targets(tmp_path: Path):
+    packages = tmp_path / "packages"
+    recipe = packages / "payload-canary" / "package.yaml"
+    recipe.parent.mkdir(parents=True)
+    write_recipe(recipe)
+    result = json.loads(run(
+        "candidates", "--root", str(packages), "--architecture", "x86_64",
+        "--targets", "el10", "ubuntu", "debian",
+    ).stdout)
+    assert result["payload_count"] == 1
+    assert result["carrier_count"] == 2
+    assert result["payloads"]["include"][0]["payload_architecture"] == "noarch"
+    assert {row["target"] for row in result["carriers"]["include"]} == {"ubuntu", "debian"}
+    assert {row["architecture"] for row in result["carriers"]["include"]} == {"amd64"}
+    assert {row["format"] for row in result["carriers"]["include"]} == {"deb"}
+
+
 def test_intermediate_is_reproducible(tmp_path: Path, monkeypatch):
     recipe = tmp_path / "package.yaml"
     write_recipe(recipe)

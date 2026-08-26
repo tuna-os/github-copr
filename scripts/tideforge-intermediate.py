@@ -425,6 +425,58 @@ def package(args: argparse.Namespace) -> None:
     print(json.dumps({"target": args.target, "artifact": str(artifact), "payload_tree_sha256": manifest["tree_sha256"]}, sort_keys=True))
 
 
+def candidates(args: argparse.Namespace) -> None:
+    """Emit the multi-target recipes selected by Tideforge's handler."""
+    requested_targets = set(args.targets)
+    target_contracts = tideforge.load_targets()
+    payloads = []
+    carriers = []
+    for recipe_path in sorted(args.root.glob("*/package.yaml")):
+        if recipe_path.parent.name.startswith("_"):
+            continue
+        recipe = yaml.safe_load(recipe_path.read_text())
+        contract = tideforge.portable_payload_contract(recipe)
+        targets = [target for target in recipe.get("targets", []) if target in requested_targets]
+        # A one-target recipe cannot save a duplicate build, so leave it on
+        # the native path even if its bytes happen to satisfy the handler.
+        if contract is None or len(targets) < 2:
+            continue
+        package = recipe["name"]
+        payloads.append({
+            "package": package,
+            "recipe": str(recipe_path),
+            "architecture": args.architecture,
+            "payload_architecture": contract["architecture"],
+        })
+        for target in targets:
+            target_contract = target_contracts[target]
+            native_architecture = args.architecture
+            if target_contract["format"] == "deb":
+                native_architecture = {"x86_64": "amd64", "aarch64": "arm64"}[args.architecture]
+            carriers.append({
+                "package": package,
+                "recipe": str(recipe_path),
+                "architecture": native_architecture,
+                "payload_architecture": args.architecture,
+                "target": target,
+                "format": target_contract["format"],
+                "image": target_contract["probe_image"],
+            })
+    result = {
+        "payloads": {"include": payloads},
+        "carriers": {"include": carriers},
+        "payload_count": len(payloads),
+        "carrier_count": len(carriers),
+    }
+    print(json.dumps(result, sort_keys=True))
+    if args.github_output:
+        with args.github_output.open("a", encoding="utf-8") as output:
+            output.write(f"payload_matrix={json.dumps(result['payloads'], separators=(',', ':'))}\n")
+            output.write(f"carrier_matrix={json.dumps(result['carriers'], separators=(',', ':'))}\n")
+            output.write(f"payload_count={result['payload_count']}\n")
+            output.write(f"carrier_count={result['carrier_count']}\n")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -464,6 +516,12 @@ def main() -> None:
             sort_keys=True,
         ))
     )
+    candidates_parser = sub.add_parser("candidates")
+    candidates_parser.add_argument("--root", type=Path, default=Path("packages"))
+    candidates_parser.add_argument("--architecture", required=True)
+    candidates_parser.add_argument("--targets", nargs="+", required=True)
+    candidates_parser.add_argument("--github-output", type=Path)
+    candidates_parser.set_defaults(func=candidates)
     args = parser.parse_args()
     args.func(args)
 
