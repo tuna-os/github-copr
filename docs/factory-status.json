@@ -197,9 +197,50 @@
         }
       },
       "measured_at": "2026-08-25T05:01:05+00:00"
+    },
+    {
+      "counts": {
+        "debian/amd64": {
+          "built": 5,
+          "needed": 39
+        },
+        "debian/arm64": {
+          "built": 5,
+          "needed": 39
+        },
+        "el10/aarch64": {
+          "built": 20,
+          "needed": 110
+        },
+        "el10/x86_64": {
+          "built": 96,
+          "needed": 34
+        },
+        "fedora/x86_64": {
+          "built": 3,
+          "needed": 0
+        },
+        "hummingbird/aarch64": {
+          "built": 262,
+          "needed": 411
+        },
+        "hummingbird/x86_64": {
+          "built": 570,
+          "needed": 103
+        },
+        "ubuntu/amd64": {
+          "built": 5,
+          "needed": 37
+        },
+        "ubuntu/arm64": {
+          "built": 5,
+          "needed": 37
+        }
+      },
+      "measured_at": "2026-08-25T05:09:59+00:00"
     }
   ],
-  "measured_at": "2026-08-25T05:09:59+00:00",
+  "measured_at": "2026-08-26T05:58:10+00:00",
   "targets": {
     "debian": {
       "amd64": {
@@ -2155,7 +2196,10 @@
         "new": false,
         "newly_built": [],
         "regressed": [],
-        "stalled": null
+        "stalled": {
+          "at_least": false,
+          "days": 1
+        }
       },
       "debian/arm64": {
         "built_delta": 0,
@@ -2163,7 +2207,10 @@
         "new": false,
         "newly_built": [],
         "regressed": [],
-        "stalled": null
+        "stalled": {
+          "at_least": false,
+          "days": 1
+        }
       },
       "el10/aarch64": {
         "built_delta": 0,
@@ -2171,7 +2218,10 @@
         "new": false,
         "newly_built": [],
         "regressed": [],
-        "stalled": null
+        "stalled": {
+          "at_least": false,
+          "days": 1
+        }
       },
       "el10/x86_64": {
         "built_delta": 0,
@@ -2179,7 +2229,10 @@
         "new": false,
         "newly_built": [],
         "regressed": [],
-        "stalled": null
+        "stalled": {
+          "at_least": false,
+          "days": 1
+        }
       },
       "fedora/x86_64": {
         "built_delta": 0,
@@ -2189,7 +2242,7 @@
         "regressed": [],
         "stalled": {
           "at_least": true,
-          "days": 4
+          "days": 5
         }
       },
       "hummingbird/aarch64": {
@@ -2200,7 +2253,7 @@
         "regressed": [],
         "stalled": {
           "at_least": true,
-          "days": 4
+          "days": 5
         }
       },
       "hummingbird/x86_64": {
@@ -2211,7 +2264,7 @@
         "regressed": [],
         "stalled": {
           "at_least": true,
-          "days": 4
+          "days": 5
         }
       },
       "ubuntu/amd64": {
@@ -2220,7 +2273,10 @@
         "new": false,
         "newly_built": [],
         "regressed": [],
-        "stalled": null
+        "stalled": {
+          "at_least": false,
+          "days": 1
+        }
       },
       "ubuntu/arm64": {
         "built_delta": 0,
@@ -2228,11 +2284,14 @@
         "new": false,
         "newly_built": [],
         "regressed": [],
-        "stalled": null
+        "stalled": {
+          "at_least": false,
+          "days": 1
+        }
       }
     },
-    "since": "2026-08-25T05:01:05+00:00",
-    "staleness_days": 0
+    "since": "2026-08-25T05:09:59+00:00",
+    "staleness_days": 1
   },
   "unmeasured_targets": {
     "arch": {
