@@ -10,6 +10,11 @@ source:
   sha256: afd2f9542ce25c739b13d6213fdfbc5493bce537d5afec309b4df945e318ff1a
   directory: dgop-0.2.3
 build_system: go
+build_reuse:
+  mode: portable-payload
+  architecture: per-arch
+  cgo: false
+  static: true
 build:
   go_package: ./cmd/dgop
   binary: dgop

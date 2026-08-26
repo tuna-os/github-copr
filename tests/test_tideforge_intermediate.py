@@ -22,6 +22,9 @@ source:
   url: https://example.invalid/payload-canary.tar.gz
   sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 build_system: data
+build_reuse:
+  mode: portable-payload
+  architecture: noarch
 files: {common: [usr/share/payload-canary/message]}
 dependencies:
   runtime:
@@ -93,3 +96,24 @@ def test_intermediate_records_dynamic_elf_contract(tmp_path: Path):
     assert plan["elf_contracts"][0]["path"] == "usr/bin/payload-canary"
     assert "libc.so.6" in plan["elf_contracts"][0]["needed"]
     assert any(version.startswith("GLIBC_") for version in plan["elf_contracts"][0]["symbol_versions"])
+
+
+def test_one_intermediate_packages_for_both_deb_targets_without_recompile(tmp_path: Path):
+    recipe = tmp_path / "package.yaml"
+    write_recipe(recipe)
+    root = tmp_path / "root"
+    message = root / "usr/share/payload-canary/message"
+    message.parent.mkdir(parents=True)
+    message.write_text("built once\n")
+    intermediate = tmp_path / "payload.tfi.tar"
+    run("create", "--recipe", str(recipe), "--root", str(root), "--architecture", "noarch", "--build-contract", "theory-sdk-v0", "--output", str(intermediate))
+
+    payload_digests = set()
+    for target in ("ubuntu", "debian"):
+        output = tmp_path / target
+        result = json.loads(run("package", str(intermediate), "--recipe", str(recipe), "--target", target, "--output-dir", str(output)).stdout.splitlines()[-1])
+        payload_digests.add(result["payload_tree_sha256"])
+        package = next(output.glob("*.deb"))
+        control = subprocess.run(["dpkg-deb", "-f", package, "Depends"], check=True, text=True, stdout=subprocess.PIPE).stdout.strip()
+        assert control == f"{target}-runtime"
+    assert len(payload_digests) == 1

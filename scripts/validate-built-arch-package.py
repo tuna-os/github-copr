@@ -50,7 +50,10 @@ def validate(recipe: dict, info: str) -> None:
         fail("built package name does not match recipe")
     if not field(info, "Version").startswith(f"{recipe['version']}-"):
         fail("built package version does not match recipe")
-    if field(info, "Architecture") not in {"x86_64", "aarch64"}:
+    allowed_architectures = {"x86_64", "aarch64"}
+    if (recipe.get("build_reuse") or {}).get("architecture") == "noarch":
+        allowed_architectures.add("any")
+    if field(info, "Architecture") not in allowed_architectures:
         fail("built package has an unsupported architecture")
     declared = runtime_dependencies(recipe)
     built = dependency_names(field(info, "Depends On").split())

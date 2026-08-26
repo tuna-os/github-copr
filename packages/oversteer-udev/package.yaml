@@ -10,6 +10,9 @@ source:
   sha256: 996f0a34c65ce4805360e674c04678a7612c647c54a9aad7f2c7d7d5c830c2c2
   directory: oversteer-74c748436a1dff2e42a340b581db0d0e4e0cafb2
 build_system: data
+build_reuse:
+  mode: portable-payload
+  architecture: noarch
 files:
   common: [usr/lib/udev/rules.d]
 install:

@@ -1,0 +1,155 @@
+name: Tideforge portable payload experiment
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/tideforge-portable-experiment.yml
+      - scripts/tideforge-intermediate.py
+      - scripts/tideforge.py
+      - scripts/validate-built-arch-package.py
+      - packages/_template/package.yaml
+      - packages/wayland-protocols/package.yaml
+      - packages/oversteer-udev/package.yaml
+      - packages/danksearch/package.yaml
+      - packages/dgop/package.yaml
+      - tests/test_tideforge_intermediate.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tideforge-portable-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  payload:
+    name: Build once / ${{ matrix.package }} / x86_64
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [wayland-protocols, oversteer-udev, danksearch, dgop]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.25.x
+          cache: false
+      - name: Install Python dependencies
+        run: pip install pyyaml==6.0.3
+      - name: Build and reseal the portable payload
+        env:
+          SOURCE_DATE_EPOCH: "1"
+        run: |
+          mkdir -p .portable/cache .portable/first .portable/second
+          args=(
+            --recipe "packages/${{ matrix.package }}/package.yaml"
+            --architecture x86_64
+            --build-contract "go-$(go version | tr ' ' '-')-linux-x86_64"
+            --cache-dir .portable/cache
+          )
+          python3 scripts/tideforge-intermediate.py build "${args[@]}" \
+            --output ".portable/first/${{ matrix.package }}.tfi.tar"
+          python3 scripts/tideforge-intermediate.py build "${args[@]}" \
+            --output ".portable/second/${{ matrix.package }}.tfi.tar"
+          cmp ".portable/first/${{ matrix.package }}.tfi.tar" \
+              ".portable/second/${{ matrix.package }}.tfi.tar"
+          python3 scripts/tideforge-intermediate.py verify \
+            ".portable/first/${{ matrix.package }}.tfi.tar"
+          sha256sum ".portable/first/${{ matrix.package }}.tfi.tar"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: portable-${{ matrix.package }}-x86_64
+          path: .portable/first/${{ matrix.package }}.tfi.tar
+          if-no-files-found: error
+
+  native-package:
+    name: Repackage / ${{ matrix.package }} / ${{ matrix.target }}
+    needs: payload
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [wayland-protocols, oversteer-udev, danksearch, dgop]
+        target: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@v8
+        with:
+          name: portable-${{ matrix.package }}-x86_64
+          path: .portable/input
+      - name: Install native carrier tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y rpm zstd
+          pip install pyyaml==6.0.3
+      - name: Repackage without compilation
+        env:
+          SOURCE_DATE_EPOCH: "1"
+        run: |
+          python3 scripts/tideforge-intermediate.py package \
+            ".portable/input/${{ matrix.package }}.tfi.tar" \
+            --recipe "packages/${{ matrix.package }}/package.yaml" \
+            --target "${{ matrix.target }}" --output-dir .portable/out
+          find .portable/out -maxdepth 1 -type f -print -exec sha256sum {} \;
+      - name: Read Arch package metadata
+        if: matrix.target == 'arch'
+        run: |
+          docker run --rm --volume "$PWD/.portable/out:/artifacts:ro" \
+            docker.io/library/archlinux:latest bash -lc \
+            'pacman -Qip /artifacts/*.pkg.tar.*' > .portable/out/package-info.txt
+      - name: Select target contract
+        id: target
+        shell: bash
+        run: |
+          case '${{ matrix.target }}' in
+            el10)
+              echo 'format=rpm' >> "$GITHUB_OUTPUT"
+              echo 'image=quay.io/centos/centos:stream10' >> "$GITHUB_OUTPUT"
+              ;;
+            ubuntu)
+              echo 'format=deb' >> "$GITHUB_OUTPUT"
+              echo 'image=docker.io/library/ubuntu:26.04' >> "$GITHUB_OUTPUT"
+              ;;
+            debian)
+              echo 'format=deb' >> "$GITHUB_OUTPUT"
+              echo 'image=docker.io/library/debian:sid' >> "$GITHUB_OUTPUT"
+              ;;
+            opensuse-tumbleweed)
+              echo 'format=rpm' >> "$GITHUB_OUTPUT"
+              echo 'image=registry.opensuse.org/opensuse/tumbleweed:latest' >> "$GITHUB_OUTPUT"
+              ;;
+            arch)
+              echo 'format=pkg.tar.zst' >> "$GITHUB_OUTPUT"
+              echo 'image=docker.io/library/archlinux:latest' >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+      - name: Run the existing native lint/install/smoke gate
+        env:
+          CELL_ID: portable-${{ matrix.package }}-${{ matrix.target }}
+          ENGINE: tideforge
+          TARGET: ${{ matrix.target }}
+          ARCHITECTURE: x86_64
+          FORMAT: ${{ steps.target.outputs.format }}
+          IMAGE: ${{ steps.target.outputs.image }}
+          RECIPE: packages/${{ matrix.package }}/package.yaml
+          OUT_DIR: ${{ github.workspace }}/.portable/out
+        run: |
+          mkdir -p .portable/out/artifacts
+          find .portable/out -maxdepth 1 -type f \
+            \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' \) \
+            -exec cp -t .portable/out/artifacts {} +
+          ./scripts/verify-package-factory-cell.sh
+
+  result:
+    name: Portable payload experiment
+    if: always()
+    needs: [payload, native-package]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every experiment cell
+        env:
+          PAYLOAD: ${{ needs.payload.result }}
+          NATIVE_PACKAGE: ${{ needs.native-package.result }}
+        run: test "$PAYLOAD" = success && test "$NATIVE_PACKAGE" = success

@@ -13,12 +13,16 @@ import io
 import json
 import os
 from pathlib import Path, PurePosixPath
+import shutil
 import stat
 import subprocess
+import sys
 import tarfile
 import tempfile
 
 import yaml
+
+import tideforge
 
 
 SCHEMA = 0
@@ -47,7 +51,7 @@ def elf_contract(path: Path) -> dict | None:
     if magic != b"\x7fELF":
         return None
     proc = subprocess.run(
-        ["readelf", "--wide", "--dynamic", "--version-info", str(path)],
+        ["readelf", "--wide", "--dynamic", "--version-info", "--program-headers", str(path)],
         check=False,
         text=True,
         stdout=subprocess.PIPE,
@@ -55,13 +59,21 @@ def elf_contract(path: Path) -> dict | None:
     )
     needed: list[str] = []
     versions: set[str] = set()
+    interpreter = ""
     for line in proc.stdout.splitlines():
         if "(NEEDED)" in line and "[" in line:
             needed.append(line.rsplit("[", 1)[1].split("]", 1)[0])
+        if "Requesting program interpreter:" in line:
+            interpreter = line.split("Requesting program interpreter:", 1)[1].strip().rstrip("]")
         for token in line.replace("(", " ").replace(")", " ").split():
             if token.startswith(("GLIBC_", "GLIBCXX_", "CXXABI_")):
                 versions.add(token.rstrip("[]"))
-    return {"needed": sorted(set(needed)), "symbol_versions": sorted(versions)}
+    return {
+        "needed": sorted(set(needed)),
+        "symbol_versions": sorted(versions),
+        "interpreter": interpreter,
+        "static": not needed and not interpreter,
+    }
 
 
 def inventory(root: Path) -> list[dict]:
@@ -179,6 +191,244 @@ def plan(args: argparse.Namespace) -> None:
     }, indent=2, sort_keys=True))
 
 
+def reuse_contract(recipe: dict) -> dict:
+    contract = recipe.get("build_reuse") or {}
+    if contract.get("mode") != "portable-payload":
+        raise SystemExit("recipe has not opted into build_reuse.mode=portable-payload")
+    unknown = set(contract) - {"mode", "architecture", "cgo", "static"}
+    if unknown:
+        raise SystemExit(f"unknown build_reuse keys: {sorted(unknown)}")
+    if recipe["build_system"] not in {"data", "go"}:
+        raise SystemExit("portable build prototype supports only data and Go recipes")
+    architecture = contract.get("architecture", "per-arch")
+    if architecture not in {"noarch", "per-arch"}:
+        raise SystemExit("build_reuse.architecture must be noarch or per-arch")
+    if recipe["build_system"] == "data" and architecture != "noarch":
+        raise SystemExit("data recipes must use a noarch portable payload")
+    if recipe["build_system"] == "go" and (
+        contract.get("cgo") is not False or contract.get("static") is not True
+    ):
+        raise SystemExit("portable Go recipes must declare cgo: false and static: true")
+    outputs = recipe.get("outputs", {})
+    if len(outputs.get("deb", {}).get("packages", [])) > 1:
+        raise SystemExit("portable prototype does not support split DEB outputs")
+    if outputs.get("rpm", {}).get("subpackages"):
+        raise SystemExit("portable prototype does not support RPM subpackages")
+    return contract
+
+
+def copy_directory(source: Path, destination: Path) -> None:
+    destination.mkdir(parents=True, exist_ok=True)
+    for child in source.iterdir():
+        target = destination / child.name
+        if child.is_dir() and not child.is_symlink():
+            shutil.copytree(child, target, symlinks=True, dirs_exist_ok=True)
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(child, target, follow_symlinks=False)
+
+
+def stage_declared_installs(recipe: dict, source_root: Path, stage: Path) -> None:
+    for item in recipe.get("install", {}).get("directories", []):
+        source_name = item["source"]
+        source = source_root if source_name == "." else source_root / normalized_path(source_name)
+        copy_directory(source, stage / normalized_path(item["destination"]))
+    for item in recipe.get("install", {}).get("files", []):
+        source = source_root / normalized_path(item["source"])
+        destination = stage / normalized_path(item["destination"])
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination, follow_symlinks=False)
+        destination.chmod(int(str(item.get("mode", "0644")), 8))
+    for item in recipe.get("install", {}).get("generated_files", []):
+        destination = stage / normalized_path(item["destination"])
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(item["content"])
+        destination.chmod(int(str(item.get("mode", "0644")), 8))
+
+
+def build(args: argparse.Namespace) -> None:
+    recipe = yaml.safe_load(args.recipe.read_text())
+    contract = reuse_contract(recipe)
+    architecture = "noarch" if contract["architecture"] == "noarch" else args.architecture
+    if architecture not in {"noarch", "x86_64", "aarch64"}:
+        raise SystemExit(f"unsupported portable architecture: {architecture}")
+    with tempfile.TemporaryDirectory(prefix="tideforge-portable-build-") as tmp:
+        root = Path(tmp)
+        downloads = root / "downloads"
+        subprocess.run(
+            [sys.executable, str(Path(__file__).with_name("fetch-tideforge-sources.py")), str(args.recipe), str(downloads), "--cache-dir", str(args.cache_dir)],
+            check=True,
+        )
+        extracted = root / "source"
+        extracted.mkdir()
+        archive_path = downloads / tideforge.source_filename(recipe["source"], 0)
+        with tarfile.open(archive_path, "r:*") as archive:
+            archive.extractall(extracted, filter="data")
+        source_directory = recipe["source"].get("directory", f"{recipe['name']}-{recipe['version']}")
+        source_root = extracted if source_directory == "." else extracted / normalized_path(source_directory)
+        if not source_root.is_dir():
+            raise SystemExit(f"source directory was not extracted: {source_directory}")
+        stage = root / "stage"
+        stage.mkdir()
+        if recipe["build_system"] == "go":
+            workdir = source_root / normalized_path(tideforge.build_option(recipe, "working_directory", "."))
+            binary = tideforge.build_option(recipe, "binary", recipe["name"])
+            package = tideforge.build_option(recipe, "go_package", ".")
+            command = tideforge.go_build_command(recipe, binary, package)
+            environment = os.environ.copy()
+            environment.update({"CGO_ENABLED": "0", "GOOS": "linux", "GOARCH": {"x86_64": "amd64", "aarch64": "arm64"}[architecture]})
+            subprocess.run(["bash", "-euo", "pipefail", "-c", command], cwd=workdir, env=environment, check=True)
+            destination = stage / "usr/bin" / binary
+            destination.parent.mkdir(parents=True)
+            shutil.copy2(workdir / binary, destination)
+            destination.chmod(0o755)
+        stage_declared_installs(recipe, source_root, stage)
+        create(argparse.Namespace(
+            recipe=args.recipe,
+            root=stage,
+            architecture=architecture,
+            build_contract=args.build_contract,
+            output=args.output,
+        ))
+    manifest = read_manifest(args.output)
+    if recipe["build_system"] == "go":
+        elfs = [row for row in manifest["files"] if "elf" in row]
+        if not elfs or any(not row["elf"]["static"] for row in elfs):
+            raise SystemExit("portable Go payload is not fully static")
+
+
+def extract_payload(intermediate: Path, destination: Path) -> dict:
+    manifest = read_manifest(intermediate)
+    with tarfile.open(intermediate, "r:*") as archive:
+        for member in archive.getmembers():
+            normalized_path(member.name)
+        archive.extractall(destination, filter="data")
+    return manifest
+
+
+def portable_package_name(recipe: dict, target: str) -> str:
+    packages = recipe.get("outputs", {}).get("deb", {}).get("packages", [])
+    if target in {"ubuntu", "debian"} and packages:
+        return packages[0]["name"]
+    return recipe["name"]
+
+
+def package_deb(recipe: dict, target: str, manifest: dict, payload: Path, output: Path) -> Path:
+    name = portable_package_name(recipe, target)
+    architecture = {"x86_64": "amd64", "aarch64": "arm64", "noarch": "all"}[manifest["architecture"]]
+    root = output / f"{name}-deb-root"
+    copy_directory(payload, root)
+    control = root / "DEBIAN/control"
+    control.parent.mkdir(parents=True)
+    dependencies = tideforge.target_runtime_dependencies(recipe, target)
+    control.write_text(
+        f"Package: {name}\nVersion: {recipe['version']}-{recipe.get('release', 1)}\n"
+        f"Architecture: {architecture}\nMaintainer: TunaOS Package Factory <packages@tunaos.org>\n"
+        f"Description: {recipe['summary']}\n {recipe['description']}\n"
+        + (f"Depends: {', '.join(dependencies)}\n" if dependencies else "")
+    )
+    artifact = output / f"{name}_{recipe['version']}-{recipe.get('release', 1)}_{architecture}.deb"
+    subprocess.run(["dpkg-deb", "--root-owner-group", "--build", str(root), str(artifact)], check=True)
+    return artifact
+
+
+def package_rpm(recipe: dict, target: str, manifest: dict, intermediate: Path, output: Path) -> Path:
+    top = output / "rpmbuild"
+    for name in ("BUILD", "BUILDROOT", "RPMS", "SOURCES", "SPECS", "SRPMS"):
+        (top / name).mkdir(parents=True, exist_ok=True)
+    source = top / "SOURCES" / intermediate.name
+    shutil.copy2(intermediate, source)
+    dependencies = "\n".join(f"Requires: {name}" for name in tideforge.target_runtime_dependencies(recipe, target))
+    files = "\n".join(
+        f"/{row['path']}" for row in manifest["files"] if row["type"] in {"file", "symlink"}
+    )
+    rpm_arch = manifest["architecture"]
+    release_suffix = {"el10": "tfi.el10", "opensuse-tumbleweed": "tfi.tw"}.get(target, "tfi")
+    spec = top / "SPECS" / f"{recipe['name']}.spec"
+    spec.write_text(f"""Name: {recipe['name']}
+Version: {recipe['version']}
+Release: {recipe.get('release', 1)}.{release_suffix}
+Summary: {recipe['summary']}
+License: {recipe['license']}
+Source0: {intermediate.name}
+BuildArch: {rpm_arch}
+{dependencies}
+
+%description
+{recipe['description']}
+
+%prep
+:
+
+%build
+:
+
+%install
+mkdir -p %{{buildroot}}
+tar -xf %{{SOURCE0}} --strip-components=1 -C %{{buildroot}} payload
+
+%files
+{files}
+
+%changelog
+* Wed Aug 26 2026 TunaOS Package Factory <packages@tunaos.org> - {recipe['version']}-{recipe.get('release', 1)}
+- Repacked from a verified Tideforge portable payload.
+""")
+    subprocess.run(["rpmbuild", "-bb", "--define", f"_topdir {top}", "--target", rpm_arch, str(spec)], check=True)
+    artifacts = list((top / "RPMS").rglob("*.rpm"))
+    if len(artifacts) != 1:
+        raise SystemExit(f"expected one RPM artifact, got {len(artifacts)}")
+    destination = output / artifacts[0].name
+    shutil.copy2(artifacts[0], destination)
+    return destination
+
+
+def package_arch(recipe: dict, target: str, manifest: dict, payload: Path, output: Path) -> Path:
+    name = recipe["name"]
+    architecture = {"x86_64": "x86_64", "aarch64": "aarch64", "noarch": "any"}[manifest["architecture"]]
+    root = output / f"{name}-arch-root"
+    copy_directory(payload, root)
+    installed_size = sum(row.get("size", 0) for row in manifest["files"])
+    dependencies = "".join(f"depend = {dep}\n" for dep in tideforge.target_runtime_dependencies(recipe, target))
+    (root / ".PKGINFO").write_text(
+        f"pkgname = {name}\npkgbase = {name}\npkgver = {recipe['version']}-{recipe.get('release', 1)}\n"
+        f"pkgdesc = {recipe['summary']}\nurl = {recipe['source']['url']}\nbuilddate = {os.environ.get('SOURCE_DATE_EPOCH', '0')}\n"
+        f"packager = TunaOS Package Factory <packages@tunaos.org>\nsize = {installed_size}\n"
+        f"arch = {architecture}\nlicense = {recipe['license']}\n{dependencies}"
+    )
+    artifact = output / f"{name}-{recipe['version']}-{recipe.get('release', 1)}-{architecture}.pkg.tar.zst"
+    command = f"tar --sort=name --mtime=@${{SOURCE_DATE_EPOCH:-0}} --owner=0 --group=0 --numeric-owner -C {shlex_quote(str(root))} -cf - . | zstd -19 -T0 -o {shlex_quote(str(artifact))}"
+    subprocess.run(["bash", "-euo", "pipefail", "-c", command], check=True)
+    return artifact
+
+
+def shlex_quote(value: str) -> str:
+    import shlex
+    return shlex.quote(value)
+
+
+def package(args: argparse.Namespace) -> None:
+    recipe = yaml.safe_load(args.recipe.read_text())
+    reuse_contract(recipe)
+    if args.target not in recipe["targets"]:
+        raise SystemExit(f"recipe does not enable target: {args.target}")
+    target = tideforge.load_targets()[args.target]
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="tideforge-portable-package-") as tmp:
+        extracted = Path(tmp)
+        manifest = extract_payload(args.intermediate, extracted)
+        payload = extracted / "payload"
+        if target["format"] == "deb":
+            artifact = package_deb(recipe, args.target, manifest, payload, args.output_dir)
+        elif target["format"] == "rpm":
+            artifact = package_rpm(recipe, args.target, manifest, args.intermediate, args.output_dir)
+        elif target["format"] == "pkg.tar.zst":
+            artifact = package_arch(recipe, args.target, manifest, payload, args.output_dir)
+        else:
+            raise SystemExit(f"unsupported target package format: {target['format']}")
+    print(json.dumps({"target": args.target, "artifact": str(artifact), "payload_tree_sha256": manifest["tree_sha256"]}, sort_keys=True))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -197,6 +447,19 @@ def main() -> None:
     plan_parser.add_argument("--recipe", type=Path, required=True)
     plan_parser.add_argument("--target", required=True)
     plan_parser.set_defaults(func=plan)
+    build_parser = sub.add_parser("build")
+    build_parser.add_argument("--recipe", type=Path, required=True)
+    build_parser.add_argument("--architecture", required=True)
+    build_parser.add_argument("--build-contract", required=True)
+    build_parser.add_argument("--cache-dir", type=Path, required=True)
+    build_parser.add_argument("--output", type=Path, required=True)
+    build_parser.set_defaults(func=build)
+    package_parser = sub.add_parser("package")
+    package_parser.add_argument("intermediate", type=Path)
+    package_parser.add_argument("--recipe", type=Path, required=True)
+    package_parser.add_argument("--target", required=True)
+    package_parser.add_argument("--output-dir", type=Path, required=True)
+    package_parser.set_defaults(func=package)
     args = parser.parse_args()
     args.func(args)
 
