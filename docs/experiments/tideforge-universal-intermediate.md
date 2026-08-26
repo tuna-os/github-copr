@@ -112,8 +112,8 @@ existing factory gates remain authoritative.
 
 ## Proposed eligibility contract
 
-A recipe may opt into a future portable-payload path only when all of these
-are mechanically true:
+Tideforge may select its portable-payload handler only when all of these are
+mechanically true:
 
 1. one immutable, digest-pinned SDK/sysroot is declared for its architecture;
 2. installation is captured under a normalized `DESTDIR`;
@@ -128,17 +128,13 @@ are mechanically true:
 7. any target failure demotes the recipe to normal target builds rather than
    weakening the gate.
 
-Suggested recipe vocabulary (not implemented):
-
-```yaml
-build_reuse:
-  mode: portable-payload       # target-native remains the default
-  sdk: tideforge-sdk-v0@sha256:...
-  architectures: [x86_64, aarch64]
-  elf_policy:
-    static: true               # ideal for pure Go/Rust CLI tools
-    cgo: false
-```
+The implementation keeps that decision in the package handler instead of
+duplicating it in manifests. `data` is a noarch candidate. The standardized Go
+handler is a per-architecture candidate when its environment does not request
+CGO; its output is reusable only after inspection proves that every ELF has no
+interpreter and no `DT_NEEDED` entries. Split native outputs and all other build
+systems automatically remain target-native. A candidate build that cannot
+satisfy the proof must fall back to the existing path rather than weakening it.
 
 The action key for this build must intentionally omit the target ID and native
 format. It must include recipe/source/patch digests, architecture, immutable

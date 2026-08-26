@@ -507,29 +507,30 @@ def validate_verify(recipe: dict) -> None:
             fail(f"unknown verify.targets.{name} key(s): {sorted(unknown)}")
 
 
-def validate_build_reuse(recipe: dict) -> None:
-    """Keep the portable-payload fast path narrow and explicitly opt-in."""
-    block = recipe.get("build_reuse")
-    if block is None:
-        return
-    if not isinstance(block, dict):
-        fail("build_reuse must be a mapping")
-    unknown = set(block) - {"mode", "architecture", "cgo", "static"}
-    if unknown:
-        fail(f"unknown build_reuse key(s): {sorted(unknown)}")
-    if block.get("mode") != "portable-payload":
-        fail("build_reuse.mode must be portable-payload")
-    if block.get("architecture") not in {"noarch", "per-arch"}:
-        fail("build_reuse.architecture must be noarch or per-arch")
-    if recipe.get("build_system") not in {"data", "go"}:
-        fail("portable-payload currently supports only data and go")
-    if recipe.get("build_system") == "data" and block.get("architecture") != "noarch":
-        fail("portable data payloads must be noarch")
-    if recipe.get("build_system") == "go" and (block.get("cgo") is not False or block.get("static") is not True):
-        fail("portable Go payloads require cgo: false and static: true")
+def portable_payload_contract(recipe: dict) -> dict | None:
+    """Detect recipes the handler can safely build independently of a distro.
+
+    This is deliberately a property of Tideforge's implementation, not a
+    promise copied into each package manifest.  Data installs contain no ABI,
+    while the standardized Go handler can attempt a CGO-disabled build and
+    prove the resulting ELF is fully static before it is reused.  Anything the
+    carrier cannot faithfully represent stays on the existing native path.
+    """
     outputs = recipe.get("outputs", {})
     if len(outputs.get("deb", {}).get("packages", [])) > 1 or outputs.get("rpm", {}).get("subpackages"):
-        fail("portable-payload does not yet support split packages")
+        return None
+    if recipe.get("build_system") == "data":
+        return {"mode": "portable-payload", "architecture": "noarch"}
+    if recipe.get("build_system") == "go":
+        environment = recipe.get("build", {}).get("environment", {})
+        if str(environment.get("CGO_ENABLED", "0")) != "0":
+            return None
+        return {
+            "mode": "portable-payload",
+            "architecture": "per-arch",
+            "probe": "fully-static-elf",
+        }
+    return None
 
 
 def validate(recipe: dict, target: str | None = None) -> None:
@@ -563,7 +564,6 @@ def validate(recipe: dict, target: str | None = None) -> None:
     prepare_commands(recipe)
     build_environment(recipe)
     validate_verify(recipe)
-    validate_build_reuse(recipe)
     debug_package_enabled(recipe)
     autoreconf_enabled(recipe)
     configure_options(recipe)

@@ -10,11 +10,6 @@ source:
   sha256: 9454a2935c149ca3eb64106d59c266f513daff90438bac8b58e3a66b477521a9
   directory: danksearch-0.3.2
 build_system: go
-build_reuse:
-  mode: portable-payload
-  architecture: per-arch
-  cgo: false
-  static: true
 build:
   go_package: ./cmd/dsearch
   binary: dsearch

@@ -12,6 +12,10 @@ on:
       - packages/oversteer-udev/package.yaml
       - packages/danksearch/package.yaml
       - packages/dgop/package.yaml
+      - packages/dms-cli/package.yaml
+      - packages/dms-greeter/package.yaml
+      - packages/dms/package.yaml
+      - packages/uupd/package.yaml
       - tests/test_tideforge_intermediate.py
   workflow_dispatch:
 
@@ -29,9 +33,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [wayland-protocols, oversteer-udev, danksearch, dgop]
+        package: [wayland-protocols, oversteer-udev, danksearch, dgop, dms-cli, dms-greeter, dms, uupd]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v6
         with:
           go-version: 1.25.x
@@ -39,9 +45,8 @@ jobs:
       - name: Install Python dependencies
         run: pip install pyyaml==6.0.3
       - name: Build and reseal the portable payload
-        env:
-          SOURCE_DATE_EPOCH: "1"
         run: |
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "packages/${{ matrix.package }}")
           mkdir -p .portable/cache .portable/first .portable/second
           args=(
             --recipe "packages/${{ matrix.package }}/package.yaml"
@@ -71,10 +76,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [wayland-protocols, oversteer-udev, danksearch, dgop]
+        package: [wayland-protocols, oversteer-udev, danksearch, dgop, dms-cli, dms-greeter, dms, uupd]
         target: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v8
         with:
           name: portable-${{ matrix.package }}-x86_64
@@ -85,9 +92,8 @@ jobs:
           sudo apt-get install -y rpm zstd
           pip install pyyaml==6.0.3
       - name: Repackage without compilation
-        env:
-          SOURCE_DATE_EPOCH: "1"
         run: |
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "packages/${{ matrix.package }}")
           python3 scripts/tideforge-intermediate.py package \
             ".portable/input/${{ matrix.package }}.tfi.tar" \
             --recipe "packages/${{ matrix.package }}/package.yaml" \

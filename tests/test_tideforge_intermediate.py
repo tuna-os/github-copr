@@ -22,9 +22,6 @@ source:
   url: https://example.invalid/payload-canary.tar.gz
   sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 build_system: data
-build_reuse:
-  mode: portable-payload
-  architecture: noarch
 files: {common: [usr/share/payload-canary/message]}
 dependencies:
   runtime:
@@ -58,6 +55,24 @@ def test_one_payload_digest_is_reused_by_two_target_plans(tmp_path: Path):
     assert ubuntu["payload_tree_sha256"] == debian["payload_tree_sha256"]
     assert ubuntu["declared_target_runtime_dependencies"] == ["ubuntu-runtime"]
     assert debian["declared_target_runtime_dependencies"] == ["debian-runtime"]
+
+
+def test_handler_detects_portable_data_without_manifest_opt_in(tmp_path: Path):
+    recipe = tmp_path / "package.yaml"
+    write_recipe(recipe)
+    contract = json.loads(run("classify", "--recipe", str(recipe)).stdout)
+    assert contract == {"architecture": "noarch", "mode": "portable-payload"}
+
+
+def test_handler_rejects_go_recipe_that_requests_cgo(tmp_path: Path):
+    recipe = tmp_path / "package.yaml"
+    write_recipe(recipe)
+    text = recipe.read_text().replace(
+        "build_system: data\n",
+        "build_system: go\nbuild:\n  environment: {CGO_ENABLED: '1'}\n",
+    )
+    recipe.write_text(text)
+    assert json.loads(run("classify", "--recipe", str(recipe)).stdout) is None
 
 
 def test_intermediate_is_reproducible(tmp_path: Path, monkeypatch):

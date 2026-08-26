@@ -13,9 +13,6 @@ source:
   sha256: 8d94eee148db4d8111ccc0d4331de2f82d4b28c38e30eace9f052886480f7d86
   directory: wayland-protocols-1.49
 build_system: data
-build_reuse:
-  mode: portable-payload
-  architecture: noarch
 ci:
   # Small, dependency-light, and valid on every package-factory target. The
   # planner uses explicit canaries instead of alphabetic package accidents.

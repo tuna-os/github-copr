@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Theory prototype: seal one staged payload for cheap native repackaging.
 
-This is deliberately not wired into the package factory.  It explores the
-boundary between an expensive upstream build/install and the comparatively
-cheap, target-specific package metadata step.
+It explores the boundary between an expensive upstream build/install and the
+comparatively cheap, target-specific package metadata step.
 """
 from __future__ import annotations
 
@@ -192,28 +191,9 @@ def plan(args: argparse.Namespace) -> None:
 
 
 def reuse_contract(recipe: dict) -> dict:
-    contract = recipe.get("build_reuse") or {}
-    if contract.get("mode") != "portable-payload":
-        raise SystemExit("recipe has not opted into build_reuse.mode=portable-payload")
-    unknown = set(contract) - {"mode", "architecture", "cgo", "static"}
-    if unknown:
-        raise SystemExit(f"unknown build_reuse keys: {sorted(unknown)}")
-    if recipe["build_system"] not in {"data", "go"}:
-        raise SystemExit("portable build prototype supports only data and Go recipes")
-    architecture = contract.get("architecture", "per-arch")
-    if architecture not in {"noarch", "per-arch"}:
-        raise SystemExit("build_reuse.architecture must be noarch or per-arch")
-    if recipe["build_system"] == "data" and architecture != "noarch":
-        raise SystemExit("data recipes must use a noarch portable payload")
-    if recipe["build_system"] == "go" and (
-        contract.get("cgo") is not False or contract.get("static") is not True
-    ):
-        raise SystemExit("portable Go recipes must declare cgo: false and static: true")
-    outputs = recipe.get("outputs", {})
-    if len(outputs.get("deb", {}).get("packages", [])) > 1:
-        raise SystemExit("portable prototype does not support split DEB outputs")
-    if outputs.get("rpm", {}).get("subpackages"):
-        raise SystemExit("portable prototype does not support RPM subpackages")
+    contract = tideforge.portable_payload_contract(recipe)
+    if contract is None:
+        raise SystemExit("Tideforge does not classify this recipe as a portable payload")
     return contract
 
 
@@ -271,6 +251,9 @@ def build(args: argparse.Namespace) -> None:
         stage = root / "stage"
         stage.mkdir()
         if recipe["build_system"] == "go":
+            prepare = tideforge.prepare_commands(recipe)
+            if prepare:
+                subprocess.run(["bash", "-euo", "pipefail", "-c", prepare], cwd=source_root, check=True)
             workdir_name = tideforge.build_option(recipe, "working_directory", ".")
             workdir = source_root if workdir_name == "." else source_root / normalized_path(workdir_name)
             binary = tideforge.build_option(recipe, "binary", recipe["name"])
@@ -283,6 +266,7 @@ def build(args: argparse.Namespace) -> None:
             # whether that hardening trade-off is acceptable for promotion.
             command = tideforge.go_build_command(recipe, binary, package, buildmode="")
             environment = os.environ.copy()
+            environment.update({str(key): str(value) for key, value in recipe.get("build", {}).get("environment", {}).items()})
             environment.update({"CGO_ENABLED": "0", "GOOS": "linux", "GOARCH": {"x86_64": "amd64", "aarch64": "arm64"}[architecture]})
             subprocess.run(["bash", "-euo", "pipefail", "-c", command], cwd=workdir, env=environment, check=True)
             destination = stage / "usr/bin" / binary
@@ -335,7 +319,10 @@ def package_deb(recipe: dict, target: str, manifest: dict, payload: Path, output
         + (f"Depends: {', '.join(dependencies)}\n" if dependencies else "")
     )
     artifact = output / f"{name}_{recipe['version']}-{recipe.get('release', 1)}_{architecture}.deb"
-    subprocess.run(["dpkg-deb", "--root-owner-group", "--build", str(root), str(artifact)], check=True)
+    subprocess.run(
+        ["dpkg-deb", "--root-owner-group", "--uniform-compression", "-Zxz", "--build", str(root), str(artifact)],
+        check=True,
+    )
     return artifact
 
 
@@ -404,7 +391,8 @@ def package_arch(recipe: dict, target: str, manifest: dict, payload: Path, outpu
         f"arch = {architecture}\nlicense = {recipe['license']}\n{dependencies}"
     )
     artifact = output / f"{name}-{recipe['version']}-{recipe.get('release', 1)}-{architecture}.pkg.tar.zst"
-    command = f"tar --sort=name --mtime=@${{SOURCE_DATE_EPOCH:-0}} --owner=0 --group=0 --numeric-owner -C {shlex_quote(str(root))} -cf - . | zstd -19 -T0 -o {shlex_quote(str(artifact))}"
+    members = " ".join(shlex_quote(path.name) for path in sorted(root.iterdir()))
+    command = f"tar --sort=name --mtime=@${{SOURCE_DATE_EPOCH:-0}} --owner=0 --group=0 --numeric-owner -C {shlex_quote(str(root))} -cf - {members} | zstd -19 -T0 -o {shlex_quote(str(artifact))}"
     subprocess.run(["bash", "-euo", "pipefail", "-c", command], check=True)
     return artifact
 
@@ -468,6 +456,14 @@ def main() -> None:
     package_parser.add_argument("--target", required=True)
     package_parser.add_argument("--output-dir", type=Path, required=True)
     package_parser.set_defaults(func=package)
+    classify_parser = sub.add_parser("classify")
+    classify_parser.add_argument("--recipe", type=Path, required=True)
+    classify_parser.set_defaults(
+        func=lambda parsed: print(json.dumps(
+            tideforge.portable_payload_contract(yaml.safe_load(parsed.recipe.read_text())),
+            sort_keys=True,
+        ))
+    )
     args = parser.parse_args()
     args.func(args)
 
