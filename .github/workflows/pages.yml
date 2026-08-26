@@ -1,0 +1,111 @@
+# Publish the factory status site to GitHub Pages.
+#
+# docs/FACTORY-STATUS.md answers "what has the factory built" for someone
+# already reading the repository. This publishes the same measurements to a URL
+# so the answer is reachable without a checkout, and reachable by people who
+# are not going to read YAML.
+#
+# The page is a VIEW of artifacts the factory already generates
+# (docs/factory-status.json, manifests/package-factory.yaml,
+# manifests/package-builds.yaml). It is never a second source of truth: the
+# renderer reads those files and nothing else, so the site cannot drift from
+# the measurement -- it can only be stale, which it says about itself.
+#
+# WHEN IT REPUBLISHES. Not on a timer of its own. The daily Factory Status run
+# lands its refresh through a bot PR (see factory-status.yml), so the data on
+# main changes when that PR merges, at an hour no cron can predict. Publishing
+# on a schedule would therefore either race the merge or sit hours behind it.
+# The push trigger keys on the files the page is rendered FROM, so a merged
+# refresh republishes immediately and a merge that touches nothing relevant
+# does not spend a deploy.
+#
+# The package browser is the exception, and it is why there is ALSO a cron.
+# Its source is not a file in git at all -- it is what repo.tunaos.org is
+# serving, read at deploy time by scripts/snapshot-repo-contents.py. The
+# repository changes when a PUBLISH workflow runs, and no commit records
+# that, so for the browser a timer is the only signal there is. Daily, which
+# is the granularity the page reports its own age at.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/factory-status.json"
+      - "manifests/package-factory.yaml"
+      - "manifests/package-builds.yaml"
+      - "scripts/render-factory-site.py"
+      - ".github/workflows/pages.yml"
+  # Structure check only on a PR: renders the page and fails if the renderer
+  # cannot read the current data. No deploy -- a PR must not be able to
+  # publish to the live site.
+  pull_request:
+    paths:
+      - "docs/factory-status.json"
+      - "manifests/package-factory.yaml"
+      - "manifests/package-builds.yaml"
+      - "scripts/render-factory-site.py"
+      - ".github/workflows/pages.yml"
+  # Refreshes the package browser against the live repo; see the note above.
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never cancel a deploy in flight: a half-published site is worse than one
+# republish landing a minute late.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install deps
+        run: pip install --quiet pyyaml
+      # Reads every published_index the contract declares. An index that
+      # cannot be read is recorded in the snapshot as unreachable and named
+      # on the page -- it does NOT fail this step, because one dead prefix
+      # must not take the whole site down. Only an outright crash fails here,
+      # and that is deliberate: it means the deploy always carries a browser,
+      # so the page can never quietly lose it and look complete.
+      - name: Snapshot what the repo is actually serving
+        run: ./scripts/snapshot-repo-contents.py --out docs/repo-contents.json
+      - name: Render
+        run: ./scripts/render-factory-site.py --out site
+      - name: Upload the page as a Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    # A PR renders (above) but never reaches here.
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # Turn Pages on if it is not already, and point it at Actions rather
+      # than a branch. Without this the FIRST deploy fails with "Pages is not
+      # enabled" and someone has to go click a settings toggle -- which makes
+      # the publish manual, which is the one thing this workflow exists to
+      # avoid. It is idempotent: on every later run it just reads back the
+      # settings that are already correct.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - id: deployment
+        uses: actions/deploy-pages@v4

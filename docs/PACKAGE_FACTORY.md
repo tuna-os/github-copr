@@ -88,6 +88,33 @@ and no longer is as **REGRESSED** (the repo-wipe shape, caught at
 measurement time — #519 was found by exactly this check's first run),
 and alarms when the refresh itself stops landing.
 
+That measurement is also published as a browsable page
+(`scripts/render-factory-site.py` -> GitHub Pages, by `pages.yml`), so
+"what has the factory built, for which targets, and what is it still
+missing" is answerable without a checkout. The page is a VIEW and never a
+second source: it renders `docs/factory-status.json`,
+`manifests/package-factory.yaml` and `manifests/package-builds.yaml` and
+nothing else, it lists every declared-but-unmeasurable target with the
+reason so coverage is never mistaken for the whole picture, and it says so
+in its own header when the measurement behind it has gone stale. It
+republishes when the data it renders changes rather than on a schedule,
+because the daily refresh lands through a bot PR at an hour no cron can
+predict.
+
+The same site carries a **package browser** for `repo.tunaos.org` itself,
+which answers a different question: not "how much of the plan is built"
+but "what is actually IN the repository" — until now answerable only by
+adding the repo to a machine and asking dnf, i.e. by trusting it first in
+order to find out what it holds. `scripts/snapshot-repo-contents.py`
+reads every `published_index` the contract declares, through the same
+format-neutral index layer the hygiene checks use, at the same URLs a
+package manager would use. So the listing cannot show a package the repo
+does not serve, nor hide one it does. An index that cannot be read is
+recorded and named on the page with its reason rather than dropped —
+silently missing names is exactly what #519 looked like from outside — and
+one dead prefix does not fail the deploy. This half DOES run on a timer,
+for the opposite reason to the status page: its source is not a file in
+git, so no commit marks the moment a publish wave changes what is served.
 Around the build loop sit four preventive checks adapted from the
 sandogasa toolset (provenance, incident history, and the
 capability-per-format matrix in `SANDOGASA-ADAPTATIONS.md`), built on
