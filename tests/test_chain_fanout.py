@@ -179,3 +179,23 @@ def test_fanout_stays_on_free_hosted_runners(fanout):
         "the fan-out exists to use FREE hosted concurrency; the AWS pool "
         "is the one-time bringup tool"
     )
+
+
+def test_arm_bands_use_the_aarch64_image(fanout):
+    for i in range(5):
+        img = fanout["jobs"][f"band{i}-arm"]["with"]["image"]
+        assert img.endswith("-aarch64"), (
+            f"band{i}-arm: an amd64 image on an arm runner dies with "
+            "'Exec format error' at the first rpmspec (maiden run, all 8 "
+            "arm shards)"
+        )
+
+
+def test_bands_continue_past_red_shards(fanout):
+    for arch in ("x86", "arm"):
+        for i in range(1, 5):
+            cond = str(fanout["jobs"][f"band{i}-{arch}"].get("if", ""))
+            assert "!cancelled()" in cond, (
+                f"band{i}-{arch}: default gating skips the rest of the chain "
+                "after one red shard, stranding the collected band"
+            )
