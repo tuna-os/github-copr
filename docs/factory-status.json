@@ -238,9 +238,50 @@
         }
       },
       "measured_at": "2026-08-25T05:09:59+00:00"
+    },
+    {
+      "counts": {
+        "debian/amd64": {
+          "built": 5,
+          "needed": 39
+        },
+        "debian/arm64": {
+          "built": 5,
+          "needed": 39
+        },
+        "el10/aarch64": {
+          "built": 20,
+          "needed": 110
+        },
+        "el10/x86_64": {
+          "built": 96,
+          "needed": 34
+        },
+        "fedora/x86_64": {
+          "built": 3,
+          "needed": 0
+        },
+        "hummingbird/aarch64": {
+          "built": 262,
+          "needed": 411
+        },
+        "hummingbird/x86_64": {
+          "built": 570,
+          "needed": 103
+        },
+        "ubuntu/amd64": {
+          "built": 5,
+          "needed": 37
+        },
+        "ubuntu/arm64": {
+          "built": 5,
+          "needed": 37
+        }
+      },
+      "measured_at": "2026-08-26T05:58:10+00:00"
     }
   ],
-  "measured_at": "2026-08-26T05:58:10+00:00",
+  "measured_at": "2026-08-27T16:37:09+00:00",
   "targets": {
     "debian": {
       "amd64": {
@@ -251,7 +292,7 @@
           "cpptrace-devel",
           "pop-icon-theme"
         ],
-        "catalog_entries": 44,
+        "catalog_entries": 45,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/tideforge/debian-sid/",
@@ -283,6 +324,7 @@
           "gobject-introspection",
           "greetd",
           "gtk4",
+          "iio-niri",
           "kairpods",
           "krunner-bazaar",
           "libadwaita",
@@ -309,7 +351,7 @@
           "cpptrace-devel",
           "pop-icon-theme"
         ],
-        "catalog_entries": 44,
+        "catalog_entries": 45,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/tideforge/debian-sid/",
@@ -341,6 +383,7 @@
           "gobject-introspection",
           "greetd",
           "gtk4",
+          "iio-niri",
           "kairpods",
           "krunner-bazaar",
           "libadwaita",
@@ -2073,6 +2116,82 @@
         ]
       }
     },
+    "opensuse-tumbleweed": {
+      "aarch64": {
+        "built": [
+          "cpptrace-devel",
+          "danksearch",
+          "dgop",
+          "dms",
+          "dms-cli",
+          "dms-greeter",
+          "greetd",
+          "libseat",
+          "niri",
+          "quickshell"
+        ],
+        "catalog_entries": 19,
+        "indexes": [
+          {
+            "baseurl": "https://repo.tunaos.org/rpm/opensuse-tumbleweed/aarch64/",
+            "package_names": 21,
+            "primary_bytes": 5119,
+            "primary_href": "repodata/e4d6c8183f797a8be598acab57fa31346a6cacd1bde452bd655a6459016f4a8b-primary.xml.gz",
+            "primary_sha256": "e4d6c8183f797a8be598acab57fa31346a6cacd1bde452bd655a6459016f4a8b",
+            "primary_sha256_declared": "e4d6c8183f797a8be598acab57fa31346a6cacd1bde452bd655a6459016f4a8b",
+            "revision": "1787647729"
+          }
+        ],
+        "needed": [
+          "cli11-devel",
+          "iio-niri",
+          "kairpods",
+          "krunner-bazaar",
+          "libunwind-devel",
+          "ninja-build",
+          "oversteer-udev",
+          "uupd",
+          "wayland-protocols"
+        ]
+      },
+      "x86_64": {
+        "built": [
+          "cpptrace-devel",
+          "danksearch",
+          "dgop",
+          "dms",
+          "dms-cli",
+          "dms-greeter",
+          "greetd",
+          "libseat",
+          "niri",
+          "quickshell"
+        ],
+        "catalog_entries": 19,
+        "indexes": [
+          {
+            "baseurl": "https://repo.tunaos.org/rpm/opensuse-tumbleweed/x86_64/",
+            "package_names": 21,
+            "primary_bytes": 5125,
+            "primary_href": "repodata/dace89b0fb9553d8992fb9f7fb1ae6ed7c1370c056ed571b0fb3bd44112e6a6d-primary.xml.gz",
+            "primary_sha256": "dace89b0fb9553d8992fb9f7fb1ae6ed7c1370c056ed571b0fb3bd44112e6a6d",
+            "primary_sha256_declared": "dace89b0fb9553d8992fb9f7fb1ae6ed7c1370c056ed571b0fb3bd44112e6a6d",
+            "revision": "1787647687"
+          }
+        ],
+        "needed": [
+          "cli11-devel",
+          "iio-niri",
+          "kairpods",
+          "krunner-bazaar",
+          "libunwind-devel",
+          "ninja-build",
+          "oversteer-udev",
+          "uupd",
+          "wayland-protocols"
+        ]
+      }
+    },
     "ubuntu": {
       "amd64": {
         "built": [
@@ -2082,7 +2201,7 @@
           "cpptrace-devel",
           "pop-icon-theme"
         ],
-        "catalog_entries": 42,
+        "catalog_entries": 44,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/tideforge/ubuntu/",
@@ -2114,6 +2233,7 @@
           "gobject-introspection",
           "greetd",
           "gtk4",
+          "iio-niri",
           "kairpods",
           "krunner-bazaar",
           "libadwaita",
@@ -2127,7 +2247,8 @@
           "uupd",
           "wayland-protocols",
           "xdg-desktop-portal-cosmic",
-          "xfconf"
+          "xfconf",
+          "xfwl4"
         ]
       },
       "arm64": {
@@ -2138,7 +2259,7 @@
           "cpptrace-devel",
           "pop-icon-theme"
         ],
-        "catalog_entries": 42,
+        "catalog_entries": 44,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/tideforge/ubuntu/",
@@ -2170,6 +2291,7 @@
           "gobject-introspection",
           "greetd",
           "gtk4",
+          "iio-niri",
           "kairpods",
           "krunner-bazaar",
           "libadwaita",
@@ -2183,7 +2305,8 @@
           "uupd",
           "wayland-protocols",
           "xdg-desktop-portal-cosmic",
-          "xfconf"
+          "xfconf",
+          "xfwl4"
         ]
       }
     }
@@ -2192,24 +2315,24 @@
     "rows": {
       "debian/amd64": {
         "built_delta": 0,
-        "needed_delta": 0,
+        "needed_delta": 1,
         "new": false,
         "newly_built": [],
         "regressed": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "debian/arm64": {
         "built_delta": 0,
-        "needed_delta": 0,
+        "needed_delta": 1,
         "new": false,
         "newly_built": [],
         "regressed": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "el10/aarch64": {
@@ -2220,7 +2343,7 @@
         "regressed": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "el10/x86_64": {
@@ -2231,7 +2354,7 @@
         "regressed": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "fedora/x86_64": {
@@ -2242,7 +2365,7 @@
         "regressed": [],
         "stalled": {
           "at_least": true,
-          "days": 5
+          "days": 6
         }
       },
       "hummingbird/aarch64": {
@@ -2253,7 +2376,7 @@
         "regressed": [],
         "stalled": {
           "at_least": true,
-          "days": 5
+          "days": 6
         }
       },
       "hummingbird/x86_64": {
@@ -2264,44 +2387,75 @@
         "regressed": [],
         "stalled": {
           "at_least": true,
-          "days": 5
+          "days": 6
         }
+      },
+      "opensuse-tumbleweed/aarch64": {
+        "built_delta": 10,
+        "needed_delta": 9,
+        "new": true,
+        "newly_built": [
+          "cpptrace-devel",
+          "danksearch",
+          "dgop",
+          "dms",
+          "dms-cli",
+          "dms-greeter",
+          "greetd",
+          "libseat",
+          "niri",
+          "quickshell"
+        ],
+        "regressed": []
+      },
+      "opensuse-tumbleweed/x86_64": {
+        "built_delta": 10,
+        "needed_delta": 9,
+        "new": true,
+        "newly_built": [
+          "cpptrace-devel",
+          "danksearch",
+          "dgop",
+          "dms",
+          "dms-cli",
+          "dms-greeter",
+          "greetd",
+          "libseat",
+          "niri",
+          "quickshell"
+        ],
+        "regressed": []
       },
       "ubuntu/amd64": {
         "built_delta": 0,
-        "needed_delta": 0,
+        "needed_delta": 2,
         "new": false,
         "newly_built": [],
         "regressed": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "ubuntu/arm64": {
         "built_delta": 0,
-        "needed_delta": 0,
+        "needed_delta": 2,
         "new": false,
         "newly_built": [],
         "regressed": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       }
     },
-    "since": "2026-08-25T05:09:59+00:00",
+    "since": "2026-08-26T05:58:10+00:00",
     "staleness_days": 1
   },
   "unmeasured_targets": {
     "arch": {
-      "catalog_entries": 22,
+      "catalog_entries": 26,
       "format": "pkg.tar.zst",
-      "reason": "no published_index declared in package-factory.yaml"
-    },
-    "opensuse-tumbleweed": {
-      "catalog_entries": 9,
-      "format": "rpm",
       "reason": "no published_index declared in package-factory.yaml"
     }
   }
