@@ -90,3 +90,36 @@ def test_both_arches_agree():
                           ("tunaos-hummingbird", ("exclude",))):
         assert section_field(CONFIGS[0], section, *keys) == \
             section_field(CONFIGS[1], section, *keys)
+
+
+@pytest.mark.parametrize("config", CONFIGS)
+@pytest.mark.parametrize("name", ["wayland-protocols-devel", "wayland-protocols"])
+def test_stale_wayland_protocols_is_excluded(config, name):
+    """Our served wayland-protocols-devel is 1.47-2.fc43 and at priority 11
+    it masks Rawhide's 1.49; gtk4 and mutter BuildRequire >= 1.48, so the
+    stale copy blocks exactly the two packages GNOME 51 hangs on."""
+    patterns = section_field(config, "tunaos-hummingbird", "exclude")
+    assert any(fnmatch.fnmatch(name, p) for p in patterns), (
+        f"{config}: stale {name!r} survives and starves gtk4/mutter of "
+        f"pkgconfig(wayland-protocols) >= 1.48")
+
+
+@pytest.mark.parametrize("config", CONFIGS)
+def test_stale_docutils_is_excluded(config):
+    """Our served python3-docutils 0.23-1.fc43 masks F44's 0.22.4 while
+    python3-sphinx requires python3.14dist(docutils) < 0.23~~ -- our copy
+    fails the upper bound and every sphinx consumer blocks on it."""
+    patterns = section_field(config, "tunaos-hummingbird", "exclude")
+    assert any(fnmatch.fnmatch("python3-docutils", p) for p in patterns), (
+        f"{config}: stale 'python3-docutils' survives, fails sphinx's "
+        f"docutils < 0.23~~ bound, and blocks ~17 sources")
+
+
+@pytest.mark.parametrize("config", CONFIGS)
+@pytest.mark.parametrize("name", ["python3-sphinx", "python3-gobject", "wayland-devel"])
+def test_new_excludes_do_not_overreach(config, name):
+    """The two new globs must hit only the stale pair -- not sphinx itself,
+    not unrelated wayland-* or python3-* names."""
+    patterns = section_field(config, "tunaos-hummingbird", "exclude")
+    assert not any(fnmatch.fnmatch(name, p) for p in patterns), (
+        f"{config}: exclude glob overreaches onto {name!r}")
