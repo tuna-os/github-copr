@@ -31,6 +31,27 @@ on:
         required: false
         default: false
         type: boolean
+      runner:
+        # `hosted` is the default so an input-less dispatch (and every
+        # existing caller) behaves exactly as before. `runs-on` routes the
+        # build job to the AWS pool in .github/runs-on.yml: 16 vCPU, so
+        # build-chain.sh's JOBS = nproc/2 becomes 8 parallel mocks instead
+        # of 2, and self-hosted jobs may exceed the hosted 6h ceiling, so
+        # the timeout and CHAIN_BUDGET_SECONDS stretch with it -- one leg
+        # can cover what took four.
+        #
+        # If the RunsOn app turns out not to serve this repo, the run sits
+        # `queued` with zero jobs. The recovery is to dispatch again with
+        # `hosted`: this workflow's shared concurrency group keeps at most
+        # one PENDING run, so the newer dispatch cancels the stuck one,
+        # while cancel-in-progress: false still protects a RUNNING leg.
+        description: "Runner pool: hosted (GitHub) or runs-on (AWS, 16 vCPU)"
+        required: false
+        default: hosted
+        type: choice
+        options:
+          - hosted
+          - runs-on
 
 permissions:
   contents: read
@@ -62,10 +83,18 @@ jobs:
 
   build:
     needs: plan
-    runs-on: ${{ matrix.runner }}
+    # The planner's matrix.runner is a GitHub-hosted label; on the runs-on
+    # path it is translated to the equivalent AWS pool entry rather than
+    # threaded through the planner (the planner's output is arch selection,
+    # not a capacity decision).
+    runs-on: ${{ inputs.runner != 'runs-on' && matrix.runner
+      || format('runs-on={0}/runner={1}', github.run_id,
+                matrix.runner == 'ubuntu-24.04-arm' && 'chain-arm64' || 'chain-amd64') }}
     # Build-chain cells are tiered source builds: gnome50 is 19 tiers and
-    # hours, not the minutes a tideforge cell takes.
-    timeout-minutes: 360
+    # hours, not the minutes a tideforge cell takes. Hosted runners cap a
+    # job at 6h; the AWS pool does not, so the ceiling stretches and
+    # CHAIN_BUDGET_SECONDS (in the build step) stretches inside it.
+    timeout-minutes: ${{ inputs.runner != 'runs-on' && 360 || 660 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -170,6 +199,12 @@ jobs:
           MANIFEST: ${{ matrix.manifest }}
           MOCK_CONFIG: ${{ matrix.mock_config }}
           SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
+          # run-package-factory-cell.sh defaults this to 16200 (4.5h of
+          # building inside the hosted 6h ceiling). The AWS pool has no 6h
+          # ceiling and timeout-minutes is 660 there, so give the chain
+          # 9.5h of building and the same ~1.5h to drain the longest
+          # in-flight package and run validate/checksum/SBOM/upload.
+          CHAIN_BUDGET_SECONDS: ${{ inputs.runner != 'runs-on' && 16200 || 34200 }}
         if: steps.verdict.outputs.hit != 'true'
         run: bash scripts/run-package-factory-cell.sh
       - uses: actions/upload-artifact@v7

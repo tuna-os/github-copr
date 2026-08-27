@@ -1,0 +1,29 @@
+# RunsOn (AWS) runner pool for the package factory's long build-chain legs.
+# Same shape as tunaOS's .github/runs-on.yml (build-amd64/build-arm64 there),
+# sized for this repo's bottleneck: mock builds inside podman, dispatched
+# JOBS = nproc/2 wide by scripts/build-chain.sh. 16 vCPU -> 8 parallel mock
+# roots; 64GB-class memory families so eight concurrent chroots + podman
+# never OOM; a big gp3 volume because --uniqueext gives every package its
+# own mock root and the local-repo grows all leg.
+#
+# Measured on GitHub-hosted 4-vCPU runners (JOBS=2): ~17 packages/hour,
+# 81-85 per 4.5h budget, ~590 deferred every leg. At JOBS=8 the same budget
+# quadruples, and self-hosted jobs may exceed the hosted 6h ceiling, so the
+# publisher's runs-on path pairs these with a longer timeout and
+# CHAIN_BUDGET_SECONDS -- one leg can cover the whole current backlog.
+runners:
+  chain-amd64:
+    family: ["m6a", "m7a", "m6i"]
+    cpu: [16]
+    image: ubuntu24-full-x64
+    volume: 200gb:gp3
+    spot: capacity-optimized
+  chain-arm64:
+    family: ["m7g", "m6g"]
+    cpu: [16]
+    image: ubuntu24-full-arm64
+    volume: 200gb:gp3
+    spot: capacity-optimized
+
+tags:
+  team: tunaos
