@@ -90,6 +90,10 @@ jobs:
 
   band1-x86:
     needs: [plan, band0-x86]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     uses: ./.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-x86_64
@@ -107,6 +111,10 @@ jobs:
 
   band2-x86:
     needs: [plan, band1-x86]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     uses: ./.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-x86_64
@@ -124,6 +132,10 @@ jobs:
 
   band3-x86:
     needs: [plan, band2-x86]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     uses: ./.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-x86_64
@@ -141,6 +153,10 @@ jobs:
 
   band4-x86:
     needs: [plan, band3-x86]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     uses: ./.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-x86_64
@@ -164,7 +180,7 @@ jobs:
       target: hummingbird
       architecture: aarch64
       runner: ubuntu-24.04-arm
-      image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
       manifest: build-order-hummingbird-desktops.yml
       mock_config: hummingbird-ci-aarch64
       epoch: ${{ needs.plan.outputs.epoch }}
@@ -175,13 +191,17 @@ jobs:
 
   band1-arm:
     needs: [plan, band0-arm]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     uses: ./.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-aarch64
       target: hummingbird
       architecture: aarch64
       runner: ubuntu-24.04-arm
-      image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
       manifest: build-order-hummingbird-desktops.yml
       mock_config: hummingbird-ci-aarch64
       epoch: ${{ needs.plan.outputs.epoch }}
@@ -192,13 +212,17 @@ jobs:
 
   band2-arm:
     needs: [plan, band1-arm]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     uses: ./.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-aarch64
       target: hummingbird
       architecture: aarch64
       runner: ubuntu-24.04-arm
-      image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
       manifest: build-order-hummingbird-desktops.yml
       mock_config: hummingbird-ci-aarch64
       epoch: ${{ needs.plan.outputs.epoch }}
@@ -209,13 +233,17 @@ jobs:
 
   band3-arm:
     needs: [plan, band2-arm]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     uses: ./.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-aarch64
       target: hummingbird
       architecture: aarch64
       runner: ubuntu-24.04-arm
-      image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
       manifest: build-order-hummingbird-desktops.yml
       mock_config: hummingbird-ci-aarch64
       epoch: ${{ needs.plan.outputs.epoch }}
@@ -226,13 +254,17 @@ jobs:
 
   band4-arm:
     needs: [plan, band3-arm]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     uses: ./.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-aarch64
       target: hummingbird
       architecture: aarch64
       runner: ubuntu-24.04-arm
-      image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
       manifest: build-order-hummingbird-desktops.yml
       mock_config: hummingbird-ci-aarch64
       epoch: ${{ needs.plan.outputs.epoch }}
