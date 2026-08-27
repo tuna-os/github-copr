@@ -154,6 +154,24 @@ JOBS=$(( $(nproc) / 2 ))
 FILTER_TIER=""
 FILTER_PACKAGE=""
 FILTER_TIERS=""
+# --packages-file: build ONLY the paths listed (one src/... path per line,
+# blank lines and #-comments ignored). The shard runner in
+# build-chain-fanout.yml is the intended caller: packages within a tier are
+# dependency-independent, so disjoint shards of one tier can build on
+# separate runners against the same inputs. Unset = no behavior change.
+FILTER_PACKAGES_FILE=""
+declare -A FILTER_PACKAGES_SET=()
+# --served-nvrs: NVRs the published index already serves (one per line).
+# check_package_exists skips a package whose computed NVR is listed, exactly
+# as it skips one whose RPM sits in the local repo. Without this, "already
+# built" was ONLY the local repo -- seeded from action-key-matched partials
+# -- so any key move (a mock cfg edit rebuilds the image, the image digest
+# is a key input) sent the next leg back to tier 0 to rebuild packages the
+# repo has SERVED for days. Legs 32914264044/32991216265/33022688689 each
+# rebuilt the same ~85 packages for exactly this reason (#544). The served
+# index is the durable record of what exists; keys only guard partials.
+SERVED_NVRS_FILE=""
+declare -A SERVED_NVRS_SET=()
 DRY_RUN=false
 FORCE=false
 WITH_CHECKS=false
@@ -223,6 +241,8 @@ while [[ $# -gt 0 ]]; do
         --tier)        FILTER_TIER="$2"; shift 2 ;;
         --tiers)       FILTER_TIERS="$2"; shift 2 ;;
         --package)     FILTER_PACKAGE="$2"; shift 2 ;;
+        --packages-file) FILTER_PACKAGES_FILE="$2"; shift 2 ;;
+        --served-nvrs)   SERVED_NVRS_FILE="$2"; shift 2 ;;
         --with-checks)  WITH_CHECKS=true; shift ;;
         --dry-run)     DRY_RUN=true;     shift ;;
         --force)       FORCE=true;       shift ;;
@@ -233,6 +253,44 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+if [[ -n "$FILTER_PACKAGES_FILE" ]]; then
+    if [[ ! -f "$FILTER_PACKAGES_FILE" ]]; then
+        echo "ERROR: --packages-file '$FILTER_PACKAGES_FILE' does not exist" >&2
+        exit 1
+    fi
+    while IFS= read -r _line; do
+        _line="${_line%%#*}"
+        _line="${_line//[$'\t\r ']/}"
+        [[ -n "$_line" ]] && FILTER_PACKAGES_SET["$_line"]=1
+    done < "$FILTER_PACKAGES_FILE"
+    if [[ ${#FILTER_PACKAGES_SET[@]} -eq 0 ]]; then
+        echo "ERROR: --packages-file '$FILTER_PACKAGES_FILE' lists no packages" >&2
+        exit 1
+    fi
+fi
+
+if [[ -n "$SERVED_NVRS_FILE" ]]; then
+    if [[ ! -f "$SERVED_NVRS_FILE" ]]; then
+        echo "ERROR: --served-nvrs '$SERVED_NVRS_FILE' does not exist" >&2
+        exit 1
+    fi
+    while IFS= read -r _line; do
+        _line="${_line%%#*}"
+        _line="${_line//[$'\t\r ']/}"
+        [[ -n "$_line" ]] && SERVED_NVRS_SET["$_line"]=1
+    done < "$SERVED_NVRS_FILE"
+    # An empty list is legal: a first publish has nothing served yet.
+fi
+
+# True when filters say this package is NOT ours to build. Deferral/skip
+# accounting deliberately does not count these: another shard owns them.
+_package_filtered_out() {
+    local pkg_path="$1"
+    [[ -n "$FILTER_PACKAGE" && "$pkg_path" != "$FILTER_PACKAGE" ]] && return 0
+    [[ ${#FILTER_PACKAGES_SET[@]} -gt 0 && -z "${FILTER_PACKAGES_SET[$pkg_path]:-}" ]] && return 0
+    return 1
+}
 
 # Without --with-checks the build already passes --nocheck, so %check never
 # runs -- but its BuildRequires: are still installed, and they are not free.
@@ -687,6 +745,15 @@ check_package_exists() {
     # We check for $nvr.rpm or $nvr.*.rpm
     if ls "${LOCAL_REPO}/${nvr}"*.rpm &>/dev/null; then
         echo "==> [${pkg_name}] Skipping: ${nvr} already exists in local repo"
+        return 0
+    fi
+
+    # The published index is the durable record: a served NVR was built,
+    # signed and synced by an earlier leg, and consumers resolve it from the
+    # repo at priority 11 -- rebuilding it buys nothing. This is what makes
+    # legs incremental ACROSS action-key moves, which partials cannot be.
+    if [[ -n "${SERVED_NVRS_SET[$nvr]:-}" ]]; then
+        echo "==> [${pkg_name}] Skipping: ${nvr} already served by the published index"
         return 0
     fi
 
@@ -1327,7 +1394,7 @@ build_tier() {
     }
 
     while IFS=$'\t' read -r pkg_path spec_override; do
-        if [[ -n "$FILTER_PACKAGE" && "$pkg_path" != "$FILTER_PACKAGE" ]]; then
+        if _package_filtered_out "$pkg_path"; then
             continue
         fi
 
@@ -1473,7 +1540,7 @@ build_stream() {
     }
 
     while IFS=$'\t' read -r pkg_path spec_override; do
-        if [[ -n "$FILTER_PACKAGE" && "$pkg_path" != "$FILTER_PACKAGE" ]]; then
+        if _package_filtered_out "$pkg_path"; then
             continue
         fi
 
