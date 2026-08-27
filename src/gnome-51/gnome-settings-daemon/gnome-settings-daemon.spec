@@ -220,33 +220,4 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 %endif
 
 %changelog
-* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
-- Update to 51.beta (GNOME 51 beta cycle)
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-4
-- Remove %%if !0%%{?rhel} guard from gsd-sound in %%files: libcanberra-gtk3
-  is actually present on EL10 (pulled in via COPR transitive deps), so the
-  sound plugin compiles and the binary must be packaged.
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
-- Add pkgconfig(libcanberra) BuildRequires unconditionally: meson.build:105
-  requires the base libcanberra regardless of gtk3 availability.
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
-- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
-  to avoid "fg: no job control" on COPR builders (non-interactive bash).
-- Remove %%autochangelog: Fedora-specific macro not available on EL10.
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
-- Update to 50.0 (GNOME 50 stable release)
-- Track F44 branch instead of rawhide
-- Drop sed libnotify version hack (50.0 upstream no longer requires >= 0.8.7)
-- Drop libnotify version pin from BuildRequires
-- Remove vestigial plain libcanberra BR (sound plugin disabled on EL10)
-- Gate gsd-sound in %%files behind %%if !0%%{?rhel} (plugin not built without libcanberra-gtk3)
-- EL10: libcanberra-gtk3 BR remains gated (no gtk3 on EL10)
-
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-2
-- EL10: gate libcanberra-gtk3 BuildRequires behind %%if !0%%{?rhel} (requires
-  gtk3 which is removed from EL10); also gate gsd-sound from %%files since
-  the sound plugin is disabled when libcanberra-gtk3 is absent
+%autochangelog

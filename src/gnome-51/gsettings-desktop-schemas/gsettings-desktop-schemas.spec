@@ -101,18 +101,4 @@ glib-compile-schemas --dry-run --strict %{buildroot}%{_datadir}/glib-2.0/schemas
 
 
 %changelog
-* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
-- Update to 51.beta (GNOME 51 beta cycle)
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
-- Add gcc BuildRequires: meson checks for a C compiler at configure time even
-  for schema-only projects; gcc is not auto-installed in EL10 COPR buildroots.
-- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja to
-  avoid "fg: no job control" failure on COPR builders.
-- Remove %%autochangelog: Fedora-specific macro not available on EL10.
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
-- Update to 50.0 (GNOME 50 stable release)
-- Track F44 branch instead of rawhide
-- Drop gcc BuildRequires (pulled in transitively)
-- Adopt %meson build macros
+%autochangelog
