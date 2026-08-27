@@ -98,8 +98,16 @@ find "$STAGED" -name '*.rpm' ! -name '*.src.rpm' -exec rpmsign --addsign {} \;
 mkdir -p "${REPO}/${SUBDIR}"
 find "$STAGED" -name '*.rpm' ! -name '*.src.rpm' -exec cp -t "${REPO}/${SUBDIR}" {} +
 
-find "$REPO" -name '*+*.rpm' -print0 | while IFS= read -r -d '' f; do
-	mv "$f" "$(dirname "$f")/$(basename "$f" | tr '+' '.')"
+# '^' joins '+': same worker, same failure. Fedora's snapshot-version
+# convention puts '^' in filenames (quickshell-0.2.1^git…, signon-8.60^…);
+# librepo and dnf percent-encode it to %5E, the worker looks up raw R2
+# keys, and the file 404s. Found by simulate-buildroot-resolution.py's
+# fetchability pass (~30 served files, every one HEAD-verified 404 at the
+# encoded URL) -- and unlike '+', these are runtime packages the desktop
+# lanes install with --skip-unavailable, so the failure is a silently
+# thinner image rather than a red build.
+find "$REPO" \( -name '*+*.rpm' -o -name '*^*.rpm' \) -print0 | while IFS= read -r -d '' f; do
+	mv "$f" "$(dirname "$f")/$(basename "$f" | tr '+^' '..')"
 done
 
 # Runs AFTER the rename so a legacy 'foo+1.rpm' and a staged 'foo+1.rpm'

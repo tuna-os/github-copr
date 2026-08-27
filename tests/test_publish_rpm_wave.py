@@ -173,6 +173,24 @@ def test_plus_is_renamed_in_files_synced_down_too(tmp_path, stubbed) -> None:
     assert not any("+" in n for n in rpms(tmp_path / "repo"))
 
 
+def test_caret_is_renamed_like_plus(tmp_path, stubbed) -> None:
+    """'^' is Fedora's snapshot-version convention (quickshell-0.2.1^git…)
+    and fails through the worker exactly as '+' does: librepo and dnf
+    percent-encode it to %5E, the worker looks up raw R2 keys, 404. Found by
+    the resolution simulator's fetchability pass: ~30 served files, each
+    HEAD-verified 404 at the encoded URL. Worse than '+' operationally --
+    these are runtime packages the desktop lanes install with
+    --skip-unavailable, so the symptom is a silently thinner image."""
+    make(tmp_path / "staged", "quickshell-0.2.1^git20260209.dacfa9d.fc43.x86_64.rpm")
+    make(tmp_path / "repo" / "tideforge", "signon-8.60^20240205.c8ad982.fc43.x86_64.rpm")
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr
+    served = rpms(tmp_path / "repo")
+    assert "quickshell-0.2.1.git20260209.dacfa9d.fc43.x86_64.rpm" in served
+    assert "signon-8.60.20240205.c8ad982.fc43.x86_64.rpm" in served
+    assert not any("^" in n or "+" in n for n in served)
+
+
 # --- never shrink -----------------------------------------------------------
 
 
