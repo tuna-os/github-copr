@@ -117,7 +117,12 @@ true
 # install/module.py, not ours to pass arguments to. pip reads PIP_* for every
 # invocation including a subprocess, so this reaches it without patching
 # their installer.
-export PIP_NO_BUILD_ISOLATION=1
+# 'false', not '1': pip parses env values for NEGATIVE options (--no-*)
+# through an inversion (pypa/pip#5735), so PIP_NO_BUILD_ISOLATION=1 turned
+# isolation back ON under the buildroot's current pip -- the gate run showed
+# 'Installing build dependencies' with PIP_NO_INDEX correctly starving it
+# ('from versions: none'), the exact asymmetry of that wart.
+export PIP_NO_BUILD_ISOLATION=false
 export PIP_NO_INDEX=1
 python3 -m install --root %{buildroot}
 
