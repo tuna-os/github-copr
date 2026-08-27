@@ -207,11 +207,20 @@ jobs:
           CHAIN_BUDGET_SECONDS: ${{ inputs.runner != 'runs-on' && 16200 || 34200 }}
         if: steps.verdict.outputs.hit != 'true'
         run: bash scripts/run-package-factory-cell.sh
+      # always(): the wave is every RPM the chain banked, and a chain that
+      # failed ONE package out of 674 still banked the rest. Without it this
+      # upload skips on any build failure, the publish job starves, and the
+      # same 85 packages are rebuilt every leg while the served index never
+      # moves -- legs 32914264044, 32991216265 and 33022688689 all ended
+      # exactly that way. warn not error: a cell torn down before its first
+      # RPM has nothing to upload, and that must not mask the build step's
+      # own failure as an upload failure.
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: publish-rpm-${{ matrix.id }}
           path: .factory/${{ matrix.id }}/artifacts/*.rpm
-          if-no-files-found: error
+          if-no-files-found: warn
 
       # Bank the partial, so hours spent here are not thrown away.
       #
@@ -254,6 +263,11 @@ jobs:
 
   publish:
     needs: [plan, build]
+    # Publish whatever the build banked, even when the build job itself is
+    # red: one failed package must not hold the other built packages hostage,
+    # or the chain can never accumulate across legs (#544). cancelled() still
+    # aborts -- a torn-down run must not race a fresh one for the bucket.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       # Serial: every cell talks to the same bucket and rclone config.

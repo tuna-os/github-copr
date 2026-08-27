@@ -123,3 +123,28 @@ def test_new_excludes_do_not_overreach(config, name):
     patterns = section_field(config, "tunaos-hummingbird", "exclude")
     assert not any(fnmatch.fnmatch(name, p) for p in patterns), (
         f"{config}: exclude glob overreaches onto {name!r}")
+
+
+@pytest.mark.parametrize("config", CONFIGS)
+@pytest.mark.parametrize("name", [
+    "libultrahdr", "libultrahdr-devel", "signon", "signon-qt6-devel",
+    "stb_image-devel", "quickshell", "rapidjson-devel", "transfig",
+    "usbmuxd", "vpnc", "aribb24", "libmpcdec", "musepack-tools",
+    "poly2tri", "accounts-qml-module-qt6",
+])
+def test_the_caret_version_families_are_excluded(config, name):
+    """50 served RPMs carry '^' in their VERSION; librepo requests %5E, the
+    R2 worker looks up the raw path, 404. The '*+*' name glob cannot catch a
+    version-side character, so the 14 affected name families are listed --
+    leg 33022688689 failed dejavu-fonts on exactly libultrahdr-1.4.0^....rpm."""
+    patterns = section_field(config, "tunaos-hummingbird", "exclude")
+    assert any(fnmatch.fnmatch(name, p) for p in patterns), (
+        f"{config}: {name!r} still advertised but unfetchable (%5E lookup)")
+
+
+@pytest.mark.parametrize("config", CONFIGS)
+@pytest.mark.parametrize("name", ["rapidcheck", "usbutils", "librsvg2"])
+def test_caret_family_globs_do_not_overreach(config, name):
+    patterns = section_field(config, "tunaos-hummingbird", "exclude")
+    assert not any(fnmatch.fnmatch(name, p) for p in patterns), (
+        f"{config}: caret-family glob overreaches onto {name!r}")
