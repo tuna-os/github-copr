@@ -104,6 +104,14 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q createrepo-c podman rpm
+          # Ubuntu 24.04 ships kernel.apparmor_restrict_unprivileged_userns=1;
+          # GitHub's hosted images turn it off, the RunsOn AMIs keep the OS
+          # default -- and rootless podman then dies at its first clone():
+          # "cannot clone: Permission denied / cannot re-exec process", which
+          # is how run 33040673914 failed every package in under 2 minutes.
+          # -e: absent on kernels without AppArmor userns confinement, and
+          # that absence is fine, not an error.
+          sudo sysctl -e -w kernel.apparmor_restrict_unprivileged_userns=0
       # --- Bridge to the nightly's banked work -------------------------------
       # This job used to rebuild every cell from ZERO on every dispatch: no
       # action-cache restore, no partial resume. That made nightly
