@@ -30,6 +30,9 @@ Source0:        https://download.gnome.org/sources/%{name}/%{major_version}/%{na
 # disable-while-typing timeout setter. The patch lowers the meson floor and
 # no-ops that one setter, so the el10 build proceeds with the libinput it
 # has. Fedora-family chroots (%{?rhel} unset) build unpatched with 1.31.
+# pango 1.58 (src/deps/pango) defines the PangoRenderer autoptr; clutter's
+# own definition then collides. Guarded by PANGO_VERSION_CHECK in-source.
+Patch99: mutter-51-pango-158-autoptr.patch
 %if 0%{?rhel}
 Patch100: mutter-el10-libinput-1.30.patch
 %endif

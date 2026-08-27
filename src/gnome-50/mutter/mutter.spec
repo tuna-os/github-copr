@@ -26,6 +26,10 @@ Summary:       Window and compositing manager based on Clutter
 License:       GPL-2.0-or-later
 URL:           http://www.gnome.org
 Source0:        https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
+# pango 1.58 (src/deps/pango) defines the PangoRenderer autoptr; clutter's
+# own definition then collides. Guarded by PANGO_VERSION_CHECK in-source,
+# so the patch is safe against any pango.
+Patch0: mutter-50-pango-158-autoptr.patch
 
 BuildRequires: gcc
 BuildRequires: gcc-c++
@@ -162,7 +166,7 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 Viewer for nested mutter instances.
 
 %prep
-%autosetup -n %{name}-%{tarball_version}
+%autosetup -n %{name}-%{tarball_version} -p1
 
 %build
 meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build -Degl_device=true
