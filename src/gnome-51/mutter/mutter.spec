@@ -26,6 +26,13 @@ Summary:       Window and compositing manager based on Clutter
 License:       GPL-2.0-or-later
 URL:           http://www.gnome.org
 Source0:        https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
+# el10 ships libinput 1.30; mutter 51 only needs 1.31 for the
+# disable-while-typing timeout setter. The patch lowers the meson floor and
+# no-ops that one setter, so the el10 build proceeds with the libinput it
+# has. Fedora-family chroots (%{?rhel} unset) build unpatched with 1.31.
+%if 0%{?rhel}
+Patch100: mutter-el10-libinput-1.30.patch
+%endif
 
 BuildRequires: gcc
 BuildRequires: gcc-c++
@@ -162,7 +169,7 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 Viewer for nested mutter instances.
 
 %prep
-%autosetup -n %{name}-%{tarball_version}
+%autosetup -n %{name}-%{tarball_version} -p1
 
 %build
 # mutter 51 dropped the egl_device option along with EGLStream support;
