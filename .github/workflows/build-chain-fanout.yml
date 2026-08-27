@@ -246,8 +246,8 @@ jobs:
   # shared concurrency group serialises this against every other publisher.
   # !cancelled(): red shards must not strand the built wave (#563).
   publish:
-    needs: [band4-x86, band4-arm]
-    if: ${{ !cancelled() && needs.plan.result != 'failure' }}
+    needs: [plan, band4-x86, band4-arm]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     concurrency:
