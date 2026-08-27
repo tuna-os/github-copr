@@ -41,7 +41,8 @@ def section_field(config: str, section: str, *keys: str) -> list[str]:
     for key in keys:
         line = re.search(rf"^{key}=(.+)$", match.group(1), re.M)
         if line:
-            patterns.extend(line.group(1).split())
+            # exclude= is whitespace-separated; includepkgs= is comma-separated
+            patterns.extend(line.group(1).replace(",", " ").split())
     return patterns
 
 
@@ -148,3 +149,34 @@ def test_caret_family_globs_do_not_overreach(config, name):
     patterns = section_field(config, "tunaos-hummingbird", "exclude")
     assert not any(fnmatch.fnmatch(name, p) for p in patterns), (
         f"{config}: caret-family glob overreaches onto {name!r}")
+
+
+@pytest.mark.parametrize("config", CONFIGS)
+@pytest.mark.parametrize("name", [
+    "asciidoc", "go-vendor-tools", "xwayland-run", "blueprint-compiler",
+    "marshalparser", "xcb-proto", "lirc-devel", "glad2", "python3-glad2",
+])
+def test_python315_buildtools_are_pinned_to_f44(config, name):
+    """Rawhide is mid python-3.15 transition: these build tools require
+    python(abi) = 3.15, which no repo in the set provides. Their F44 builds
+    run on python 3.14 (which the base serves), so they are pinned via
+    includepkgs -- the same pattern as the python3-*/perl-*/mpich* pins.
+    Measured with the simulator: 630 -> 642 OK, 12 sources unblocked, no
+    regressions."""
+    patterns = section_field(config, "fedora-44-python", "includepkgs")
+    assert any(fnmatch.fnmatch(name, p) for p in patterns), (
+        f"{config}: {name!r} not pinned -- its Rawhide build needs "
+        f"python(abi) = 3.15 and blocks its consumers")
+
+
+@pytest.mark.parametrize("config", CONFIGS)
+@pytest.mark.parametrize("name", ["opencv-devel", "openexr", "fontforge", "gnuplot"])
+def test_dead_end_f44_pins_stay_out(config, name):
+    """Verified NOT to help before being left out: F44 opencv needs F44's
+    OpenEXR, which the base's newer openexr masks by name; F44 fontforge
+    needs the old libxml2.so.2 the base no longer ships; F44 gnuplot did
+    not unblock leptonica. Pinning them would mask working Rawhide copies
+    for nothing."""
+    patterns = section_field(config, "fedora-44-python", "includepkgs")
+    assert not any(fnmatch.fnmatch(name, p) for p in patterns), (
+        f"{config}: {name!r} pinned despite being a verified dead end")
