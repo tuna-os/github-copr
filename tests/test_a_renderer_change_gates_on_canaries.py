@@ -166,3 +166,59 @@ def test_the_nightly_is_never_bounded():
     assert cells
     bounded = [c["id"] for c in cells if c.get("tiers")]
     assert not bounded, f"the nightly must build everything: {bounded}"
+
+
+# --- the manifest's own layout -----------------------------------------------
+
+def test_canary_tiers_is_never_glued_to_a_different_cells_comment():
+    """A `canary_tiers:` line must sit right after its own cell's last data
+    key, not after a comment describing a SIBLING cell (e.g. the aarch64
+    counterpart written directly below, mid-mapping, for narrative flow).
+
+    YAML binds by indentation, not by visual proximity, so a misplaced key
+    like that still works -- until a future editor moves the misattributed
+    comment to its natural home and drags the wrong cell's `canary_tiers`
+    along with it. Caught by a cloud review on #577: four of the eleven
+    `canary_tiers` entries sat below a comment block that named a different
+    cell's id or architecture.
+
+    The rule: whatever sits directly above `canary_tiers:` is EITHER real
+    data (hummingbird's cells carry no rationale comment) OR exactly the
+    two-line "Bounds the PR gate ... bound_to_canary_tiers()" rationale --
+    and if it is the rationale, the line above THAT must be real data, not
+    another comment. A narrative comment about a sibling cell sitting
+    between the rationale and the previous data key is exactly the bug: it
+    reads as glued to canary_tiers by proximity while YAML still binds
+    canary_tiers to whichever cell's indentation it is actually nested
+    under.
+    """
+    rationale = (
+        "# Bounds the PR gate to this chain's first tier -- see",
+        "# bound_to_canary_tiers() in scripts/plan-package-factory.py.",
+    )
+    text = BUILDS.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if not line.strip().startswith("canary_tiers:"):
+            continue
+        above = lines[index - 1].strip()
+        if above == rationale[1]:
+            two_above = lines[index - 2].strip()
+            assert two_above == rationale[0], (
+                f"line {index}: expected the rationale's first line above "
+                f"canary_tiers, found {two_above!r}"
+            )
+            three_above = lines[index - 3].strip()
+            assert three_above and not three_above.startswith("#"), (
+                f"canary_tiers at line {index + 1}: a comment sits between "
+                f"the rationale and the previous cell's data "
+                f"({lines[index - 3]!r}) -- it reads as glued to a "
+                f"different cell's narrative comment"
+            )
+        else:
+            assert above and not above.startswith("#"), (
+                f"canary_tiers at line {index + 1} is directly preceded by "
+                f"a comment that is not the standard rationale "
+                f"({lines[index - 1]!r}) -- it looks glued to a comment "
+                f"about a different cell"
+            )

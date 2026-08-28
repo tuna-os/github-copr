@@ -15,14 +15,8 @@ native_builds:
     mock_config: centos-stream-10-ci-gnome49
     source_paths: [src/gnome-49/, src/deps/]
     r2_path: gnome49/10-stream-x86_64
-    # Bounds the PR gate to this chain's FIRST tier. The nightly, the
-    # publish legs and the fan-out are unbounded and still build the whole
-    # family; only the --canary-common plan (pull_request/merge_group/push)
-    # reads this. Without it a PR gate rebuilt the ENTIRE chain: measured
-    # on #576's gate, xfce-el10-x86_64 took 51m and xfce-el10-aarch64 38m
-    # for a change that could not affect either, while gnome50/51 ran past
-    # 50m unfinished. hummingbird carried this from the start; the other
-    # families were simply never given one.
+    # Bounds the PR gate to this chain's first tier -- see
+    # bound_to_canary_tiers() in scripts/plan-package-factory.py.
     canary_tiers: base-tools
   - id: gnome50-el10-x86_64
     family: gnome50
@@ -41,14 +35,8 @@ native_builds:
     # this cell and the cache serves a build made from the old spec.
     source_paths: [src/gnome-50/, src/deps/, src/input-remapper/, src/python3-evdev/]
     r2_path: repo/10-x86_64
-    # Bounds the PR gate to this chain's FIRST tier. The nightly, the
-    # publish legs and the fan-out are unbounded and still build the whole
-    # family; only the --canary-common plan (pull_request/merge_group/push)
-    # reads this. Without it a PR gate rebuilt the ENTIRE chain: measured
-    # on #576's gate, xfce-el10-x86_64 took 51m and xfce-el10-aarch64 38m
-    # for a change that could not affect either, while gnome50/51 ran past
-    # 50m unfinished. hummingbird carried this from the start; the other
-    # families were simply never given one.
+    # Bounds the PR gate to this chain's first tier -- see
+    # bound_to_canary_tiers() in scripts/plan-package-factory.py.
     canary_tiers: base-tools
   - id: gnome51-el10-x86_64
     family: gnome51
@@ -64,6 +52,9 @@ native_builds:
     mock_config: centos-stream-10-ci-gnome51
     source_paths: [src/gnome-51/, src/deps/]
     r2_path: gnome51/10-stream-x86_64
+    # Bounds the PR gate to this chain's first tier -- see
+    # bound_to_canary_tiers() in scripts/plan-package-factory.py.
+    canary_tiers: base-tools
   # gnome50 on aarch64. Reuses build-order.yml unchanged: the manifest's
   # `target:` feeds only the %{dist} derivation, which is .el10 for
   # centos-stream-10-* on either arch, and its `r2_path:` is overridden by the
@@ -79,15 +70,6 @@ native_builds:
   # Not yet in el10's published_index.aarch64: manifests/package-factory.yaml
   # says a prefix goes in only once it actually resolves, and this one 404s
   # until the first wave publishes.
-    # Bounds the PR gate to this chain's FIRST tier. The nightly, the
-    # publish legs and the fan-out are unbounded and still build the whole
-    # family; only the --canary-common plan (pull_request/merge_group/push)
-    # reads this. Without it a PR gate rebuilt the ENTIRE chain: measured
-    # on #576's gate, xfce-el10-x86_64 took 51m and xfce-el10-aarch64 38m
-    # for a change that could not affect either, while gnome50/51 ran past
-    # 50m unfinished. hummingbird carried this from the start; the other
-    # families were simply never given one.
-    canary_tiers: base-tools
   - id: gnome50-el10-aarch64
     family: gnome50
     track: stable
@@ -107,19 +89,13 @@ native_builds:
       - src/input-remapper/
       - src/python3-evdev/
     r2_path: gnome50/10-stream-aarch64
+    # Bounds the PR gate to this chain's first tier -- see
+    # bound_to_canary_tiers() in scripts/plan-package-factory.py.
+    canary_tiers: base-tools
 
   # gnome51 on aarch64. Same reasoning as gnome50 above; its r2 prefix is the
   # straight arch swap of the x86_64 one, which was already a clean
   # family-owned path.
-    # Bounds the PR gate to this chain's FIRST tier. The nightly, the
-    # publish legs and the fan-out are unbounded and still build the whole
-    # family; only the --canary-common plan (pull_request/merge_group/push)
-    # reads this. Without it a PR gate rebuilt the ENTIRE chain: measured
-    # on #576's gate, xfce-el10-x86_64 took 51m and xfce-el10-aarch64 38m
-    # for a change that could not affect either, while gnome50/51 ran past
-    # 50m unfinished. hummingbird carried this from the start; the other
-    # families were simply never given one.
-    canary_tiers: base-tools
   - id: gnome51-el10-aarch64
     family: gnome51
     track: next
@@ -137,14 +113,8 @@ native_builds:
       - src/gnome-51/
       - src/deps/
     r2_path: gnome51/10-stream-aarch64
-    # Bounds the PR gate to this chain's FIRST tier. The nightly, the
-    # publish legs and the fan-out are unbounded and still build the whole
-    # family; only the --canary-common plan (pull_request/merge_group/push)
-    # reads this. Without it a PR gate rebuilt the ENTIRE chain: measured
-    # on #576's gate, xfce-el10-x86_64 took 51m and xfce-el10-aarch64 38m
-    # for a change that could not affect either, while gnome50/51 ran past
-    # 50m unfinished. hummingbird carried this from the start; the other
-    # families were simply never given one.
+    # Bounds the PR gate to this chain's first tier -- see
+    # bound_to_canary_tiers() in scripts/plan-package-factory.py.
     canary_tiers: base-tools
 
   - id: xfce-el10-x86_64
@@ -157,6 +127,9 @@ native_builds:
     mock_config: centos-stream-10-ci
     source_paths: [src/xfce-wayland/]
     r2_path: xfce/10-stream-x86_64
+    # Bounds the PR gate to this chain's first tier -- see
+    # bound_to_canary_tiers() in scripts/plan-package-factory.py.
+    canary_tiers: xfce-build-tools
   # The aarch64 counterpart, added because el10/aarch64 had NO xfce packages
   # at all: xfce/10-stream-aarch64 404s while the x86_64 prefix serves 110
   # package names, and 88 of the 91 names el10/x86_64 has that aarch64 lacks
@@ -181,15 +154,6 @@ native_builds:
   # xfce/10-stream-aarch64 yet — that prefix does not exist until a publish
   # wave writes it, and the target contract's rule is to declare only an
   # index that actually resolves.
-    # Bounds the PR gate to this chain's FIRST tier. The nightly, the
-    # publish legs and the fan-out are unbounded and still build the whole
-    # family; only the --canary-common plan (pull_request/merge_group/push)
-    # reads this. Without it a PR gate rebuilt the ENTIRE chain: measured
-    # on #576's gate, xfce-el10-x86_64 took 51m and xfce-el10-aarch64 38m
-    # for a change that could not affect either, while gnome50/51 ran past
-    # 50m unfinished. hummingbird carried this from the start; the other
-    # families were simply never given one.
-    canary_tiers: xfce-build-tools
   - id: xfce-el10-aarch64
     family: xfce
     target: el10
@@ -201,14 +165,8 @@ native_builds:
     mock_config: centos-stream-10-ci-aarch64
     source_paths: [src/xfce-wayland/]
     r2_path: xfce/10-stream-aarch64
-    # Bounds the PR gate to this chain's FIRST tier. The nightly, the
-    # publish legs and the fan-out are unbounded and still build the whole
-    # family; only the --canary-common plan (pull_request/merge_group/push)
-    # reads this. Without it a PR gate rebuilt the ENTIRE chain: measured
-    # on #576's gate, xfce-el10-x86_64 took 51m and xfce-el10-aarch64 38m
-    # for a change that could not affect either, while gnome50/51 ran past
-    # 50m unfinished. hummingbird carried this from the start; the other
-    # families were simply never given one.
+    # Bounds the PR gate to this chain's first tier -- see
+    # bound_to_canary_tiers() in scripts/plan-package-factory.py.
     canary_tiers: xfce-build-tools
   - id: xfce-fedora-x86_64
     family: xfce
@@ -222,20 +180,14 @@ native_builds:
     mock_config: fedora-44-ci
     source_paths: [src/xfce-wayland/]
     r2_path: xfce/44-x86_64
+    # Bounds the PR gate to this chain's first tier -- see
+    # bound_to_canary_tiers() in scripts/plan-package-factory.py.
+    canary_tiers: xfce-core-libs
   # The aarch64 counterpart. Cheap here in a way the el10 xfce family is not:
   # this chain builds three packages against stock Fedora, because Fedora 44
   # already ships XFCE 4.20 and greetd/gtkgreet/cage are in Fedora proper. So
   # it carries neither of the two Requires that cannot resolve on EL10 (#482),
   # and needed only a mock config that did not exist (#480).
-    # Bounds the PR gate to this chain's FIRST tier. The nightly, the
-    # publish legs and the fan-out are unbounded and still build the whole
-    # family; only the --canary-common plan (pull_request/merge_group/push)
-    # reads this. Without it a PR gate rebuilt the ENTIRE chain: measured
-    # on #576's gate, xfce-el10-x86_64 took 51m and xfce-el10-aarch64 38m
-    # for a change that could not affect either, while gnome50/51 ran past
-    # 50m unfinished. hummingbird carried this from the start; the other
-    # families were simply never given one.
-    canary_tiers: xfce-core-libs
   - id: xfce-fedora-aarch64
     family: xfce
     target: fedora
@@ -247,14 +199,8 @@ native_builds:
     mock_config: fedora-44-ci-aarch64
     source_paths: [src/xfce-wayland/]
     r2_path: xfce/44-aarch64
-    # Bounds the PR gate to this chain's FIRST tier. The nightly, the
-    # publish legs and the fan-out are unbounded and still build the whole
-    # family; only the --canary-common plan (pull_request/merge_group/push)
-    # reads this. Without it a PR gate rebuilt the ENTIRE chain: measured
-    # on #576's gate, xfce-el10-x86_64 took 51m and xfce-el10-aarch64 38m
-    # for a change that could not affect either, while gnome50/51 ran past
-    # 50m unfinished. hummingbird carried this from the start; the other
-    # families were simply never given one.
+    # Bounds the PR gate to this chain's first tier -- see
+    # bound_to_canary_tiers() in scripts/plan-package-factory.py.
     canary_tiers: xfce-core-libs
   - id: hummingbird-x86_64
     family: hummingbird-desktops
@@ -305,14 +251,8 @@ native_builds:
     mock_config: centos-stream-10-ci
     source_paths: [src/deps/libfprint/, src/deps/fprintd/]
     publish: false
-    # Bounds the PR gate to this chain's FIRST tier. The nightly, the
-    # publish legs and the fan-out are unbounded and still build the whole
-    # family; only the --canary-common plan (pull_request/merge_group/push)
-    # reads this. Without it a PR gate rebuilt the ENTIRE chain: measured
-    # on #576's gate, xfce-el10-x86_64 took 51m and xfce-el10-aarch64 38m
-    # for a change that could not affect either, while gnome50/51 ran past
-    # 50m unfinished. hummingbird carried this from the start; the other
-    # families were simply never given one.
+    # Bounds the PR gate to this chain's first tier -- see
+    # bound_to_canary_tiers() in scripts/plan-package-factory.py.
     canary_tiers: fprint-core
   - id: fprintd-el10-aarch64
     family: fprintd
@@ -325,12 +265,6 @@ native_builds:
     mock_config: centos-stream-10-ci-aarch64
     source_paths: [src/deps/libfprint/, src/deps/fprintd/]
     r2_path: fprintd/10-stream-aarch64
-    # Bounds the PR gate to this chain's FIRST tier. The nightly, the
-    # publish legs and the fan-out are unbounded and still build the whole
-    # family; only the --canary-common plan (pull_request/merge_group/push)
-    # reads this. Without it a PR gate rebuilt the ENTIRE chain: measured
-    # on #576's gate, xfce-el10-x86_64 took 51m and xfce-el10-aarch64 38m
-    # for a change that could not affect either, while gnome50/51 ran past
-    # 50m unfinished. hummingbird carried this from the start; the other
-    # families were simply never given one.
+    # Bounds the PR gate to this chain's first tier -- see
+    # bound_to_canary_tiers() in scripts/plan-package-factory.py.
     canary_tiers: fprint-core
