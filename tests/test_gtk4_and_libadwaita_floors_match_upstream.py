@@ -60,11 +60,23 @@ def test_libadwaita_declares_gtk4s_real_floor():
     )
 
 
+def test_libadwaita_declares_glib2s_real_floor():
+    """libadwaita.spec re-forked from Rawhide: glib_version must match gtk4.spec's
+    own glib2_version floor in this tree, and Rawhide's current spec, not the
+    stale 2.80.0 that predated the re-fork."""
+    assert _global_version(LIBADWAITA_SPEC, "glib_version") >= (2, 84, 0), (
+        "Rawhide's current libadwaita.spec (and gtk4.spec's glib2_version in "
+        "this tree) declare glib_version >= 2.84.0 -- a lower floor here is "
+        "satisfiable by an older glib2 than what actually gets built alongside it"
+    )
+
+
 @pytest.mark.parametrize(
     "spec,name,stale",
     [
         (GTK4_SPEC, "pango_version", "1.56.0"),
         (LIBADWAITA_SPEC, "gtk_version", "4.21.1"),
+        (LIBADWAITA_SPEC, "glib_version", "2.80.0"),
     ],
 )
 def test_the_previously_stale_floor_is_gone(spec, name, stale):
@@ -103,3 +115,44 @@ def test_gtk4_files_does_not_reference_a_tool_upstream_removed(stale_file):
         f"at that tag) -- referencing it in %files fails the whole package "
         f"build with 'File not found', at the very end of a from-scratch build"
     )
+
+
+# libadwaita.spec was re-forked from Rawhide's current spec (which now uses
+# the %meson/%meson_build/%meson_install macros). This tree deliberately does
+# NOT adopt those macros: glib2.spec's changelog in this same tree records
+# reverting away from them because "fg: no job control" fails the build
+# under COPR-style builders that run rpmbuild under --console=pipe
+# non-interactive bash. A future naive re-fork from Rawhide is the most
+# likely way to silently reintroduce that failure, so guard it explicitly.
+def test_libadwaita_does_not_use_the_meson_macros_that_break_under_console_pipe():
+    text = LIBADWAITA_SPEC.read_text(encoding="utf-8")
+    for macro in ("%meson \\", "%meson\n", "%meson_build", "%meson_install"):
+        assert macro not in text, (
+            f"{LIBADWAITA_SPEC} uses {macro!r} -- glib2.spec's changelog in this "
+            f"tree documents this exact macro causing 'fg: no job control' under "
+            f"COPR-style non-interactive builders; use explicit meson setup / "
+            f"ninja / DESTDIR install instead"
+        )
+
+
+# Rawhide's current libadwaita.spec carries Patch0 (fix-sassc-requirement-for-
+# tarball-builds.patch, https://gitlab.gnome.org/GNOME/libadwaita/-/merge_requests/1802)
+# and has dropped the `BuildRequires: /usr/bin/sassc` that the patch makes
+# unnecessary for tarball builds (verified: the 1.10.beta.1 tarball ships
+# src/stylesheet/gtk.css, which is what the patched meson.build check looks
+# for). Losing either half of this pair independently regresses the fork:
+# the patch without dropping the BuildRequires is harmless but the
+# BuildRequires without the patch is what caused the extra dependency.
+def test_libadwaita_carries_the_sassc_patch_and_drops_its_buildrequires():
+    text = LIBADWAITA_SPEC.read_text(encoding="utf-8")
+    assert "Patch0:" in text and "fix-sassc-requirement-for-tarball-builds.patch" in text, (
+        "libadwaita.spec is missing the sassc tarball-build fix patch that "
+        "Rawhide's current spec carries"
+    )
+    assert "/usr/bin/sassc" not in text, (
+        "libadwaita.spec still declares BuildRequires: /usr/bin/sassc, which "
+        "the sassc tarball-build fix patch makes unnecessary -- Rawhide's "
+        "current spec has already dropped it"
+    )
+    patch_path = LIBADWAITA_SPEC.parent / "fix-sassc-requirement-for-tarball-builds.patch"
+    assert patch_path.is_file(), f"{patch_path} referenced by Patch0 but missing from disk"
