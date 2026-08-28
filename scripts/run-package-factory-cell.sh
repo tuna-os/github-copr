@@ -44,6 +44,16 @@ if [[ $engine == build-chain ]]; then
     if [[ -n ${TIERS:-} ]]; then
       args+=(--stream --tiers "$TIERS")
     fi
+    # Fan-out shards (build-chain-fanout.yml): each shard builds a disjoint
+    # slice of the band's packages, and the served-NVR list keeps every
+    # runner from rebuilding what an earlier leg already published. Both
+    # unset = the single-runner behavior above, unchanged.
+    if [[ -n ${CHAIN_PACKAGES_FILE:-} ]]; then
+      args+=(--packages-file "$CHAIN_PACKAGES_FILE")
+    fi
+    if [[ -n ${CHAIN_SERVED_NVRS:-} ]]; then
+      args+=(--served-nvrs "$CHAIN_SERVED_NVRS")
+    fi
     # Soft deadline inside the job's hard ceiling (#480, and the 08-19..08-24
     # nightlies dying at 5h59m with everything after the build skipped). The
     # chain finishes its in-flight packages, drains and exits 0, so the

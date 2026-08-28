@@ -1,0 +1,363 @@
+name: Build-chain fan-out
+
+# The single-runner chain builds ~19 packages/hour on a hosted runner and
+# ~65 on a 16-vCPU AWS box. This workflow gets the same order built on FREE
+# hosted runners by fanning each tier-band out across disjoint package
+# shards (packages within a tier are dependency-independent), collecting
+# each band through exactly one writer, and handing the final wave to the
+# same serial publish/verify dance the single-runner publisher uses --
+# including its shared concurrency group, so two publishers still cannot
+# touch the bucket at once (#124).
+#
+# Incrementality comes from the served index, not from action-key partials:
+# every shard skips any package whose NVR the published index already
+# serves (build-chain --served-nvrs), so a fanout run only spends runners
+# on the gap. Mock-config edits, image rebuilds and key moves no longer
+# reset the chain to tier 0 (#544's deeper half).
+#
+# A shard needing a same-band package owned by ANOTHER shard resolves it
+# from the served index when an earlier leg published it, and fails fast
+# when nothing serves it yet; that package heals on the next run, after the
+# collector merged its dependency. Fan-out is a gap-closer riding a
+# mostly-served index -- the first full bootstrap of a target belongs to
+# the single-runner chain.
+#
+# Scope: the hummingbird cells. Generalising means parameterising the cell
+# blocks below; chain-band.yml underneath is already family-agnostic.
+# GitHub Actions YAML has no anchors, hence the expanded per-band blocks.
+
+on:
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: "Shards per band per arch (8 peaks at 16 concurrent jobs on a 60-job account)"
+        required: false
+        default: "8"
+      dry_run:
+        description: "Build and index but do not sync to R2"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      bands: ${{ steps.bands.outputs.bands }}
+      epoch: ${{ steps.epoch.outputs.epoch }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Plan bands and shards
+        id: bands
+        env:
+          SHARDS: ${{ inputs.shards }}
+        run: |
+          set -euo pipefail
+          plan=$(python3 scripts/plan-chain-shards.py \
+            --order build-order-hummingbird-desktops.yml \
+            --bands 5 --shards "${SHARDS:-8}")
+          echo "bands=$plan" >> "$GITHUB_OUTPUT"
+      - name: Derive SOURCE_DATE_EPOCH
+        id: epoch
+        run: |
+          set -euo pipefail
+          # Same derivation as the single-runner publisher: the newest
+          # commit touching the cell's source paths. Both hummingbird cells
+          # declare the same paths, so one epoch serves both.
+          epoch=$(git log -1 --format=%at -- src/hummingbird/ src/xfce-wayland/ src/gnome-51/ src/deps/)
+          [ -n "$epoch" ] || { echo "::error::no epoch derivable"; exit 1; }
+          echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
+
+  band0-x86:
+    needs: plan
+    uses: ./.github/workflows/chain-band.yml
+    with:
+      cell_id: hummingbird-x86_64
+      target: hummingbird
+      architecture: x86_64
+      runner: ubuntu-24.04
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+      manifest: build-order-hummingbird-desktops.yml
+      mock_config: hummingbird-ci
+      epoch: ${{ needs.plan.outputs.epoch }}
+      served_index_url: https://repo.tunaos.org/hummingbird/20251124-x86_64/
+      band_index: 0
+      band_tiers: ${{ fromJSON(needs.plan.outputs.bands).bands[0].tiers }}
+      shards_json: ${{ toJSON(fromJSON(needs.plan.outputs.bands).bands[0].shards) }}
+
+  band1-x86:
+    needs: [plan, band0-x86]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    uses: ./.github/workflows/chain-band.yml
+    with:
+      cell_id: hummingbird-x86_64
+      target: hummingbird
+      architecture: x86_64
+      runner: ubuntu-24.04
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+      manifest: build-order-hummingbird-desktops.yml
+      mock_config: hummingbird-ci
+      epoch: ${{ needs.plan.outputs.epoch }}
+      served_index_url: https://repo.tunaos.org/hummingbird/20251124-x86_64/
+      band_index: 1
+      band_tiers: ${{ fromJSON(needs.plan.outputs.bands).bands[1].tiers }}
+      shards_json: ${{ toJSON(fromJSON(needs.plan.outputs.bands).bands[1].shards) }}
+
+  band2-x86:
+    needs: [plan, band1-x86]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    uses: ./.github/workflows/chain-band.yml
+    with:
+      cell_id: hummingbird-x86_64
+      target: hummingbird
+      architecture: x86_64
+      runner: ubuntu-24.04
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+      manifest: build-order-hummingbird-desktops.yml
+      mock_config: hummingbird-ci
+      epoch: ${{ needs.plan.outputs.epoch }}
+      served_index_url: https://repo.tunaos.org/hummingbird/20251124-x86_64/
+      band_index: 2
+      band_tiers: ${{ fromJSON(needs.plan.outputs.bands).bands[2].tiers }}
+      shards_json: ${{ toJSON(fromJSON(needs.plan.outputs.bands).bands[2].shards) }}
+
+  band3-x86:
+    needs: [plan, band2-x86]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    uses: ./.github/workflows/chain-band.yml
+    with:
+      cell_id: hummingbird-x86_64
+      target: hummingbird
+      architecture: x86_64
+      runner: ubuntu-24.04
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+      manifest: build-order-hummingbird-desktops.yml
+      mock_config: hummingbird-ci
+      epoch: ${{ needs.plan.outputs.epoch }}
+      served_index_url: https://repo.tunaos.org/hummingbird/20251124-x86_64/
+      band_index: 3
+      band_tiers: ${{ fromJSON(needs.plan.outputs.bands).bands[3].tiers }}
+      shards_json: ${{ toJSON(fromJSON(needs.plan.outputs.bands).bands[3].shards) }}
+
+  band4-x86:
+    needs: [plan, band3-x86]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    uses: ./.github/workflows/chain-band.yml
+    with:
+      cell_id: hummingbird-x86_64
+      target: hummingbird
+      architecture: x86_64
+      runner: ubuntu-24.04
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+      manifest: build-order-hummingbird-desktops.yml
+      mock_config: hummingbird-ci
+      epoch: ${{ needs.plan.outputs.epoch }}
+      served_index_url: https://repo.tunaos.org/hummingbird/20251124-x86_64/
+      band_index: 4
+      band_tiers: ${{ fromJSON(needs.plan.outputs.bands).bands[4].tiers }}
+      shards_json: ${{ toJSON(fromJSON(needs.plan.outputs.bands).bands[4].shards) }}
+
+  band0-arm:
+    needs: plan
+    uses: ./.github/workflows/chain-band.yml
+    with:
+      cell_id: hummingbird-aarch64
+      target: hummingbird
+      architecture: aarch64
+      runner: ubuntu-24.04-arm
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+      manifest: build-order-hummingbird-desktops.yml
+      mock_config: hummingbird-ci-aarch64
+      epoch: ${{ needs.plan.outputs.epoch }}
+      served_index_url: https://repo.tunaos.org/hummingbird/20251124-aarch64/
+      band_index: 0
+      band_tiers: ${{ fromJSON(needs.plan.outputs.bands).bands[0].tiers }}
+      shards_json: ${{ toJSON(fromJSON(needs.plan.outputs.bands).bands[0].shards) }}
+
+  band1-arm:
+    needs: [plan, band0-arm]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    uses: ./.github/workflows/chain-band.yml
+    with:
+      cell_id: hummingbird-aarch64
+      target: hummingbird
+      architecture: aarch64
+      runner: ubuntu-24.04-arm
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+      manifest: build-order-hummingbird-desktops.yml
+      mock_config: hummingbird-ci-aarch64
+      epoch: ${{ needs.plan.outputs.epoch }}
+      served_index_url: https://repo.tunaos.org/hummingbird/20251124-aarch64/
+      band_index: 1
+      band_tiers: ${{ fromJSON(needs.plan.outputs.bands).bands[1].tiers }}
+      shards_json: ${{ toJSON(fromJSON(needs.plan.outputs.bands).bands[1].shards) }}
+
+  band2-arm:
+    needs: [plan, band1-arm]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    uses: ./.github/workflows/chain-band.yml
+    with:
+      cell_id: hummingbird-aarch64
+      target: hummingbird
+      architecture: aarch64
+      runner: ubuntu-24.04-arm
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+      manifest: build-order-hummingbird-desktops.yml
+      mock_config: hummingbird-ci-aarch64
+      epoch: ${{ needs.plan.outputs.epoch }}
+      served_index_url: https://repo.tunaos.org/hummingbird/20251124-aarch64/
+      band_index: 2
+      band_tiers: ${{ fromJSON(needs.plan.outputs.bands).bands[2].tiers }}
+      shards_json: ${{ toJSON(fromJSON(needs.plan.outputs.bands).bands[2].shards) }}
+
+  band3-arm:
+    needs: [plan, band2-arm]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    uses: ./.github/workflows/chain-band.yml
+    with:
+      cell_id: hummingbird-aarch64
+      target: hummingbird
+      architecture: aarch64
+      runner: ubuntu-24.04-arm
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+      manifest: build-order-hummingbird-desktops.yml
+      mock_config: hummingbird-ci-aarch64
+      epoch: ${{ needs.plan.outputs.epoch }}
+      served_index_url: https://repo.tunaos.org/hummingbird/20251124-aarch64/
+      band_index: 3
+      band_tiers: ${{ fromJSON(needs.plan.outputs.bands).bands[3].tiers }}
+      shards_json: ${{ toJSON(fromJSON(needs.plan.outputs.bands).bands[3].shards) }}
+
+  band4-arm:
+    needs: [plan, band3-arm]
+    # A band with a red shard still collected everything its other shards
+    # built; the next band must consume that and keep going. Only a
+    # cancelled run stops the chain.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    uses: ./.github/workflows/chain-band.yml
+    with:
+      cell_id: hummingbird-aarch64
+      target: hummingbird
+      architecture: aarch64
+      runner: ubuntu-24.04-arm
+      image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+      manifest: build-order-hummingbird-desktops.yml
+      mock_config: hummingbird-ci-aarch64
+      epoch: ${{ needs.plan.outputs.epoch }}
+      served_index_url: https://repo.tunaos.org/hummingbird/20251124-aarch64/
+      band_index: 4
+      band_tiers: ${{ fromJSON(needs.plan.outputs.bands).bands[4].tiers }}
+      shards_json: ${{ toJSON(fromJSON(needs.plan.outputs.bands).bands[4].shards) }}
+
+  # One job, both cells, strictly sequential steps: the sync-down/sign/
+  # sync-up dance is copied from publish-build-chain-rpms.yml, and the
+  # shared concurrency group serialises this against every other publisher.
+  # !cancelled(): red shards must not strand the built wave (#563).
+  publish:
+    needs: [plan, band4-x86, band4-arm]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: publish-rpms
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install tooling
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q createrepo-c rpm gpg gpgconf
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+      - name: Import GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Configure rpmsign and rclone
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          echo "%_signature gpg" > ~/.rpmmacros
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
+          mkdir -p ~/.config/rclone
+          umask 077
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = ${R2_ENDPOINT}
+          EOF
+      - name: Fetch the x86_64 wave
+        uses: actions/download-artifact@v8
+        with:
+          name: fanout-repo-hummingbird-x86_64
+          path: staged-x86_64
+      - name: Fetch the aarch64 wave
+        uses: actions/download-artifact@v8
+        with:
+          name: fanout-repo-hummingbird-aarch64
+          path: staged-aarch64
+      - name: Publish hummingbird-x86_64
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PATH: hummingbird/20251124-x86_64
+          STAGED: staged-x86_64
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: bash .github/scripts/fanout-publish-one.sh
+      - name: Publish hummingbird-aarch64
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PATH: hummingbird/20251124-aarch64
+          STAGED: staged-aarch64
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: bash .github/scripts/fanout-publish-one.sh
+      - name: Report a dry run honestly
+        if: ${{ inputs.dry_run }}
+        run: echo "::notice::dry run -- built, signed and indexed both cells but synced nothing"
+
+  verify:
+    needs: publish
+    if: ${{ !cancelled() && needs.publish.result == 'success' && !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: The published indexes answer over HTTPS
+        run: |
+          set -euo pipefail
+          for url in \
+            "https://repo.tunaos.org/hummingbird/20251124-x86_64/" \
+            "https://repo.tunaos.org/hummingbird/20251124-aarch64/"; do
+            python3 scripts/verify-published-wave.py "$url"
+          done
