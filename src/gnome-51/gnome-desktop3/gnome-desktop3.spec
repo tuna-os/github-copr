@@ -164,7 +164,4 @@ DESTDIR=%{buildroot} ninja -C redhat-linux-build install
 %{_datadir}/installed-tests
 
 %changelog
-* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~alpha-1
-- Update to 51.alpha (GNOME 51 beta cycle)
-
 %autochangelog

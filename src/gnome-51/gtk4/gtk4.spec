@@ -110,6 +110,10 @@ BuildRequires:  pkgconfig(sysprof-capture-4)
 BuildRequires:  pkgconfig(tracker-sparql-3.0)
 %endif
 BuildRequires:  pkgconfig(vulkan)
+# gtk 4.23 re-grew a hard libdrm dependency (meson.build:723) for dmabuf
+# support; the 4.21-era changelog note about it being removed no longer
+# holds, and the el10 gate fails resolution without it.
+BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(wayland-client) >= %{wayland_version}
 BuildRequires:  pkgconfig(wayland-cursor) >= %{wayland_version}
 BuildRequires:  pkgconfig(wayland-egl) >= %{wayland_version}

@@ -212,7 +212,4 @@ rm %{buildroot}/%{_datadir}/applications/org.gnome.Vte.App.Gtk4.desktop
 %{_sysconfdir}/profile.d/vte.sh
 
 %changelog
-* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 0.84.1-1
-- Update to 0.84.1 (GNOME 51 beta cycle)
-
 %autochangelog
