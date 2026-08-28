@@ -1,6 +1,7 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
-%global xdg_desktop_portal_version 1.19.1
+# src/meson.build: dependency('xdg-desktop-portal', version: '>= 1.21.1')
+%global xdg_desktop_portal_version 1.21.1
 
 Name:           xdg-desktop-portal-gnome
 Version:        51~alpha
