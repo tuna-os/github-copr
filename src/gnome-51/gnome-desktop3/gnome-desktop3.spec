@@ -17,8 +17,10 @@
 #     rebased forks), so they are not assumed present in the hummingbird-ci
 #     buildroot. We keep our own %%{tarball_version} global instead.
 #   - -Dlegacy_library=false (drops the gtk3-era libgnome-desktop-3.so and
-#     its gtk3 runtime dependency -- hummingbird's desktop stack is GTK4-only
-#     and EL10 does not carry the gtk3 stack this library would need).
+#     its gtk3 runtime dependency -- per af46f91, hummingbird's desktop
+#     stack is GTK4-only and does not want this library, regardless of
+#     whether gtk3 itself is otherwise present in the tree for other
+#     consumers).
 #   - %files trimmed to match what legacy_library=false actually builds
 #     (this is the #580 fix -- see the comment above %files for the story).
 
