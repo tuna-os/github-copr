@@ -3,18 +3,9 @@ name: Package Factory
 on:
   pull_request:
   # NOT merge_group. A cell build takes ~2.5h; the merge queue's CI timeout is
-  # about an hour, so every src/-touching PR was evicted with CI_TIMEOUT no
-  # matter how green it was on its own head -- three evictions for #567 alone
-  # (23:38Z, 00:44Z, 01:44Z on 2026-08-28), and #545 before it. The queue run
-  # also could not reuse the PR's work: GitHub scopes the Actions cache by
-  # ref, so a run on refs/heads/gh-readonly-queue/... cannot read what a run
-  # on refs/pull/N/merge wrote, and it rebuilt all 673 packages from zero.
-  #
-  # The PR gate already builds refs/pull/N/merge -- the merge result. Doing it
-  # again on the queue's ref bought a re-test against a base that had usually
-  # not moved, for hours of runner time and a gate that could not pass.
-  # Branch protection requires `required-checks` + `actionlint`, both of which
-  # DO run on merge_group and finish in seconds.
+  # about an hour, so the queue would evict src/-touching PRs before completion.
+  # The PR gate already builds refs/pull/N/merge -- the merge result -- and the
+  # queue's required checks (required-checks and actionlint) report separately.
   push:
     branches: [main]
   schedule:
