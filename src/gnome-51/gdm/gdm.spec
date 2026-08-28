@@ -1,7 +1,5 @@
 %global _hardened_build 1
 
-%define gtk3_version 2.99.2
-
 %global major_version %%(echo %{version} | cut -d '.' -f1 | cut -d '~' -f1)
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
@@ -25,6 +23,8 @@ Source0:        https://download.gnome.org/sources/gdm/%{major_version}/gdm-%{ta
 Source1:        org.gnome.login-screen.gschema.override
 Source2:        gdm.sysusers
 
+# Upstream patches
+
 # Downstream patches
 Patch:          0001-Honor-initial-setup-being-disabled-by-distro-install.patch
 Patch:          0001-data-add-system-dconf-databases-to-gdm-profile.patch
@@ -41,13 +41,9 @@ BuildRequires:  pkgconfig(accountsservice) >= 0.6.3
 BuildRequires:  pkgconfig(audit)
 BuildRequires:  pkgconfig(check)
 BuildRequires:  pkgconfig(gobject-introspection-1.0)
-BuildRequires:  pkgconfig(gtk+-3.0) >= %{gtk3_version}
 BuildRequires:  pkgconfig(gudev-1.0)
 BuildRequires:  pkgconfig(iso-codes)
 BuildRequires:  pkgconfig(json-glib-1.0)
-%if !0%{?rhel}
-BuildRequires:  pkgconfig(libcanberra-gtk3)
-%endif
 BuildRequires:  pkgconfig(libkeyutils)
 BuildRequires:  pkgconfig(libselinux)
 BuildRequires:  pkgconfig(libsystemd)
@@ -127,35 +123,20 @@ GDM specific authentication features.
 %autosetup -S git -p1 -n gdm-%{tarball_version}
 
 %build
-meson setup _build \
-    --buildtype=plain \
-    --prefix=%{_prefix} \
-    --libdir=%{_libdir} \
-    --libexecdir=%{_libexecdir} \
-    --bindir=%{_bindir} \
-    --sbindir=%{_sbindir} \
-    --includedir=%{_includedir} \
-    --datadir=%{_datadir} \
-    --mandir=%{_mandir} \
-    --infodir=%{_infodir} \
-    --localedir=%{_datadir}/locale \
-    --sysconfdir=%{_sysconfdir} \
-    --localstatedir=%{_localstatedir} \
-    --sharedstatedir=%{_sharedstatedir} \
-    --wrap-mode=nodownload \
-    -Ddbus-sys=%{_datadir}/dbus-1/system.d \
-    -Ddefault-path=/usr/local/bin:/usr/bin \
-    -Ddefault-pam-config=redhat \
-    -Ddistro=redhat \
+%meson -Ddbus-sys=%{_datadir}/dbus-1/system.d \
+       -Ddefault-path=/usr/local/bin:/usr/bin \
+       -Ddefault-pam-config=redhat \
+       -Ddistro=redhat \
 %if %{with x11}
-    -Dx11-support=true
+       -Dx11-support=true \
 %else
-    -Dx11-support=false
+       -Dx11-support=false \
 %endif
-ninja -C _build -j%{_smp_build_ncpus}
+
+%meson_build
 
 %install
-DESTDIR=%{buildroot} ninja -C _build install
+%meson_install
 
 cp -a %{SOURCE1} %{buildroot}%{_datadir}/glib-2.0/schemas
 
@@ -186,12 +167,17 @@ ln -sf ../X11/xinit/Xsession %{buildroot}%{_sysconfdir}/gdm/
 # GNOME 51 installs PAM services into the PAM VENDOR directory, not /etc:
 # gdm's meson.build computes
 #   pam_sys_services_dir = pam_prefix / 'lib' / 'pam.d'
-# so every gdm-*.pam lands in /usr/lib/pam.d. All six previously listed
+# so every gdm-*.pam lands in /usr/lib/pam.d. Files previously listed
 # under %%{_sysconfdir}/pam.d were reported missing by rpmbuild for exactly
 # this reason. They are vendor defaults now, so they are no longer %%config
 # (an admin override belongs in /etc/pam.d, which PAM still reads first).
-# The glob also covers the gdm-*-substack files meson generates for the
-# redhat config, which did not exist before.
+# Rawhide's own spec enumerates these individually instead (gdm-autologin,
+# gdm-password(-auth-substack), gdm-smartcard(-auth-substack),
+# gdm-fingerprint(-auth-substack), gdm-switchable-auth(-substack),
+# gdm-launch-environment) -- ten files today, six when this glob was first
+# written here. We keep the glob rather than switching to match: it already
+# absorbed that growth for free, and confirmed via a real local build that
+# all ten current names are still covered by it.
 %{_prefix}/lib/pam.d/gdm-*
 # not config files
 %if %{with x11}
