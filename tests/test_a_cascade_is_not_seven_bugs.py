@@ -244,3 +244,29 @@ def test_a_subpackage_still_counts_as_its_source(tmp_path: pathlib.Path) -> None
         report = classify.analyse_names(["gtk4", "mutter"], logs)
         mutter = next(r for r in report["records"] if r["package"] == "mutter")
         assert mutter["blocked_by"] == "gtk4", spelling
+
+
+def test_an_unreached_package_is_not_counted_as_a_blocker(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A residue is mostly packages the wave never got to.
+
+    The convergence loop hands the classifier every unserved name, not just
+    the ones a shard tried. Measured on the live hummingbird residue, that is
+    101 names of which one had a failure log — so counting `not-reached` as a
+    blocker reports "101 blockers" and buries the one that is real. Nothing is
+    wrong with an unreached package; the next wave builds it.
+    """
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "gtk4.build.log").write_text("Bad exit status from rpm-tmp (%build)")
+    names = ["gtk4"] + [f"never-{i}" for i in range(100)]
+    report = classify.analyse_names(names, logs)
+    assert report["failed"] == 101
+    assert report["blockers"] == 1, "unreached packages were counted as bugs"
+    assert report["unreached"] == 100
+    text = classify.render(report)
+    assert "### gtk4" in text
+    # 100 sections for packages nobody has diagnosed is the noise this avoids.
+    assert text.count("### ") == 1, text.count("### ")
+    assert "Not yet reached (100)" in text

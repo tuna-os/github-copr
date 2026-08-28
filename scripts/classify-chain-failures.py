@@ -291,22 +291,31 @@ def analyse_names(packages: list[str], logs_dir: pathlib.Path | None,
         record["dependents"] = sorted(
             c["package"] for c in cascades if c["blocked_by"] == record["package"]
         )
+    # `not-reached` is NOT a blocker. It is a package the wave ran out of
+    # clock before attempting, and counting it as one is how a residue of 101
+    # unserved names reports "101 blockers" and buries the seven that decide
+    # whether an image can boot. Nothing is wrong with an unreached package;
+    # the next wave builds it.
+    blockers = [r for r in roots if r["class"] != "not-reached"]
+    unreached = [r for r in roots if r["class"] == "not-reached"]
     return {
         "failed": len(packages),
-        "blockers": len(roots),
+        "blockers": len(blockers),
         "dependents": len(cascades),
+        "unreached": len(unreached),
         "records": records,
     }
 
 
 def render(report: dict) -> str:
     lines = [
-        f"{report['failed']} package(s) failed: {report['blockers']} blocker(s), "
-        f"{report['dependents']} dependent(s) that heal for free.",
+        f"{report['failed']} package(s) outstanding: {report['blockers']} "
+        f"blocker(s), {report['dependents']} dependent(s) that heal for free, "
+        f"{report.get('unreached', 0)} not yet reached.",
         "",
     ]
     for record in report["records"]:
-        if record["kind"] != "root":
+        if record["kind"] != "root" or record["class"] == "not-reached":
             continue
         lines.append(f"### {record['package']} — `{record['class']}`")
         lines.append("")
@@ -321,6 +330,17 @@ def render(report: dict) -> str:
             lines.append(
                 "Blocks: " + ", ".join(f"`{d}`" for d in record["dependents"])
             )
+        lines.append("")
+    unreached = [
+        r for r in report["records"] if r.get("class") == "not-reached"
+    ]
+    if unreached:
+        lines.append(
+            f"Not yet reached ({len(unreached)}) — no failure log, so the "
+            "wave never built them; the next one will: "
+            + ", ".join(f"`{r['package']}`" for r in unreached[:25])
+            + (" …" if len(unreached) > 25 else "")
+        )
         lines.append("")
     unclassified = [
         r for r in report["records"]

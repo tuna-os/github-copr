@@ -15,11 +15,22 @@ name: Converge
 # is a measurement between waves (scripts/plan-converge.py) and a rule for
 # what it means:
 #
-#   remaining == 0            done      -- every package in the order is served
-#   remaining <  previous     continue  -- the wave moved the index, go again
-#   remaining >= previous     blocked   -- two waves, no movement: rebuilding
-#                                          cannot fix this
-#   waves spent               budget    -- report the residue and stop
+#   every stage closed  packages-ready -- everything a session needs is served
+#   the open stage advanced  continue   -- the wave moved the STACK, go again
+#   the open stage stood still  blocked -- rebuilding cannot fix this
+#   waves spent              budget     -- report the residue and stop
+#
+# The objective is scripts/stack_readiness.py's ordered stages, not a count
+# over the build order. Measured on the live hummingbird index 2026-08-28, the
+# same repo reads 580/673 over the order and 3/10 over the packages a GNOME
+# session requires; a loop optimising the first spends waves on vdirsyncer and
+# hplip while gdm and gnome-shell are absent.
+#
+# The terminal verdict is `packages-ready`, never `done`. Nothing here proves a
+# desktop boots -- tunaOS's .github/green-criteria.yml defines that, and only
+# its Gate (QEMU boot, TUNAOS_DESKTOP_CONTRACT_OK on ttyS0) can assert it. What
+# this side asserts is the negative that was costing whole runs: while the
+# contract stage is open, an image build CANNOT boot into a session.
 #
 # `blocked` is the interesting verdict and the reason this is a loop rather
 # than a `for`. It is the loop reaching the edge of what rebuilding can fix,
@@ -87,11 +98,10 @@ jobs:
     timeout-minutes: 20
     outputs:
       verdict: ${{ steps.decide.outputs.verdict }}
-      remaining: ${{ steps.decide.outputs.remaining }}
+      open_stage: ${{ steps.decide.outputs.open_stage }}
+      open_remaining: ${{ steps.decide.outputs.open_remaining }}
       served: ${{ steps.decide.outputs.served }}
       wanted: ${{ steps.decide.outputs.wanted }}
-      build_order: ${{ steps.resolve.outputs.build_order }}
-      indexes: ${{ steps.resolve.outputs.indexes }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -106,8 +116,7 @@ jobs:
       - name: Measure the gap against the published index
         id: decide
         env:
-          BUILD_ORDER: ${{ steps.resolve.outputs.build_order }}
-          INDEXES: ${{ steps.resolve.outputs.indexes }}
+          REQUEST: ${{ inputs.request || 'gnome 51 on hummingbird' }}
           WAVE: '1'
           MAX_WAVES: ${{ inputs.max_waves || '3' }}
         run: bash .github/scripts/converge-measure.sh
@@ -134,7 +143,8 @@ jobs:
     timeout-minutes: 20
     outputs:
       verdict: ${{ steps.decide.outputs.verdict }}
-      remaining: ${{ steps.decide.outputs.remaining }}
+      open_stage: ${{ steps.decide.outputs.open_stage }}
+      open_remaining: ${{ steps.decide.outputs.open_remaining }}
       served: ${{ steps.decide.outputs.served }}
       wanted: ${{ steps.decide.outputs.wanted }}
     steps:
@@ -146,11 +156,11 @@ jobs:
       - name: Measure the gap against the published index
         id: decide
         env:
-          BUILD_ORDER: ${{ needs.measure-1.outputs.build_order }}
-          INDEXES: ${{ needs.measure-1.outputs.indexes }}
+          REQUEST: ${{ inputs.request || 'gnome 51 on hummingbird' }}
           WAVE: '2'
           MAX_WAVES: ${{ inputs.max_waves || '3' }}
-          PREVIOUS_REMAINING: ${{ needs.measure-1.outputs.remaining }}
+          PREVIOUS_STAGE: ${{ needs.measure-1.outputs.open_stage }}
+          PREVIOUS_REMAINING: ${{ needs.measure-1.outputs.open_remaining }}
         run: bash .github/scripts/converge-measure.sh
 
   wave-2:
@@ -172,7 +182,8 @@ jobs:
     timeout-minutes: 20
     outputs:
       verdict: ${{ steps.decide.outputs.verdict }}
-      remaining: ${{ steps.decide.outputs.remaining }}
+      open_stage: ${{ steps.decide.outputs.open_stage }}
+      open_remaining: ${{ steps.decide.outputs.open_remaining }}
       served: ${{ steps.decide.outputs.served }}
       wanted: ${{ steps.decide.outputs.wanted }}
     steps:
@@ -184,11 +195,11 @@ jobs:
       - name: Measure the gap against the published index
         id: decide
         env:
-          BUILD_ORDER: ${{ needs.measure-1.outputs.build_order }}
-          INDEXES: ${{ needs.measure-1.outputs.indexes }}
+          REQUEST: ${{ inputs.request || 'gnome 51 on hummingbird' }}
           WAVE: '3'
           MAX_WAVES: ${{ inputs.max_waves || '3' }}
-          PREVIOUS_REMAINING: ${{ needs.measure-2.outputs.remaining }}
+          PREVIOUS_STAGE: ${{ needs.measure-2.outputs.open_stage }}
+          PREVIOUS_REMAINING: ${{ needs.measure-2.outputs.open_remaining }}
         run: bash .github/scripts/converge-measure.sh
 
   wave-3:
@@ -220,11 +231,11 @@ jobs:
       - name: Take the final measurement
         id: final
         env:
-          BUILD_ORDER: ${{ needs.measure-1.outputs.build_order }}
-          INDEXES: ${{ needs.measure-1.outputs.indexes }}
+          REQUEST: ${{ inputs.request || 'gnome 51 on hummingbird' }}
           WAVE: '4'
           MAX_WAVES: ${{ inputs.max_waves || '3' }}
-          PREVIOUS_REMAINING: ${{ needs.measure-3.outputs.remaining || needs.measure-2.outputs.remaining || needs.measure-1.outputs.remaining }}
+          PREVIOUS_STAGE: ${{ needs.measure-3.outputs.open_stage || needs.measure-2.outputs.open_stage || needs.measure-1.outputs.open_stage }}
+          PREVIOUS_REMAINING: ${{ needs.measure-3.outputs.open_remaining || needs.measure-2.outputs.open_remaining || needs.measure-1.outputs.open_remaining }}
         run: bash .github/scripts/converge-measure.sh
       # Failure logs ride inside each cell's cumulative band artifact. Absent
       # ones are fine: a package with no log is classified `not-reached`,
@@ -250,7 +261,7 @@ jobs:
             converge-measurement.json
           if-no-files-found: warn
       - name: File or refresh the blocker issue
-        if: ${{ steps.final.outputs.verdict != 'done' && !inputs.dry_run }}
+        if: ${{ steps.final.outputs.verdict != 'packages-ready' && !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REQUEST: ${{ inputs.request || 'gnome 51 on hummingbird' }}

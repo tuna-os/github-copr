@@ -34,6 +34,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import build_request  # noqa: E402
+import stack_readiness  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -109,10 +110,26 @@ def render(plan: build_request.Plan, measurement: dict | None) -> str:
     if measurement:
         remaining = len(measurement["remaining"])
         lines += [
-            "## Distance to done, measured against the published index",
+            "## Distance to a working stack, measured against the published "
+            "index",
             "",
+        ]
+        lines += stack_readiness.render([
+            stack_readiness.Stage(
+                name=s["name"],
+                wanted=tuple(range(s["wanted"])),
+                remaining=tuple(s["remaining"]),
+            )
+            for s in measurement.get("stages", [])
+        ]) if measurement.get("stages") else [
             f"- served  : {measurement['served']}/{measurement['wanted']}",
             f"- remaining: {remaining}",
+        ]
+        lines += [
+            "",
+            "A closed `contract` stage says those packages EXIST; whether the "
+            "desktop BOOTS is tunaOS's Gate (`.github/green-criteria.yml`), "
+            "not this measurement.",
             "",
         ]
         if measurement["unreachable_indexes"]:
@@ -126,16 +143,7 @@ def render(plan: build_request.Plan, measurement: dict | None) -> str:
                 for u in measurement["unreachable_indexes"]
             ]
             lines += [""]
-        if remaining:
-            shown = measurement["remaining"][:40]
-            lines += [
-                "Still to build"
-                + (f" (first 40 of {remaining})" if remaining > 40 else "")
-                + ":",
-                "",
-                "  " + ", ".join(shown),
-                "",
-            ]
+
     return "\n".join(lines)
 
 
@@ -200,7 +208,8 @@ def main(argv: list[str] | None = None) -> int:
         urls = [u for arch in plan.architectures
                 for u in plan.served_index.get(arch, [])]
         measurement = _converge().measure(
-            order, urls, pathlib.Path(".cache/converge")
+            order, urls, pathlib.Path(".cache/converge"),
+            roots_manifest=plan.roots_manifest, desktop=plan.desktop,
         )
 
     text = render(plan, measurement)

@@ -1,33 +1,28 @@
 #!/usr/bin/env bash
-# Resolve a convergence request into the two things every later wave needs:
-# the build order that defines "everything", and the published indexes that
-# define "served". Both come from the target contract via
-# scripts/build_request.py -- never from this file, so adding a target is a
-# contract block and not a workflow edit.
+# Validate a convergence request before any wave is dispatched.
 #
-# env: REQUEST. Writes build_order and indexes to $GITHUB_OUTPUT.
+# plan-converge.py resolves the request itself, so nothing needs to be threaded
+# through the workflow. What this does is FAIL EARLY and legibly on the two
+# asks that cannot converge at all: a target whose contract declares no
+# gap_measurement (its build order is hand-curated), and one with no published
+# index (convergence is measured against the served index).
+#
+# env: REQUEST.
 set -euo pipefail
-: "${REQUEST:?}" "${GITHUB_OUTPUT:?}"
+: "${REQUEST:?}"
 
 python3 scripts/request.py "$REQUEST" --json /tmp/converge-plan.json
-python3 - << 'PY' >> "$GITHUB_OUTPUT"
-import json, os, sys
+python3 - << 'PY'
+import json, sys
 plan = json.load(open("/tmp/converge-plan.json"))
 if plan["unmeasurable"]:
     sys.exit(f"::error::{plan['unmeasurable']}")
 if not plan["build_order"]:
     sys.exit("::error::the request resolved to no build order")
-urls = [
-    url
-    for arch in plan["architectures"]
-    for url in plan["served_index"].get(arch, [])
-]
-if not urls:
+if not any(plan["served_index"].get(a) for a in plan["architectures"]):
     sys.exit(
         "::error::no published index for any architecture of "
         f"{plan['target']}; convergence is measured against the served "
         "index and cannot run without one"
     )
-print(f"build_order={plan['build_order']}")
-print("indexes=" + " ".join(urls))
 PY

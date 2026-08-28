@@ -19,16 +19,26 @@ The authoritative target and R2-path contract is
 
 ## Asking for a desktop on a target
 
-The build tree is generated from measurement, not curated: the gap engine reads
-the target's live index, closes the desktop's roots over a reference, subtracts
-what the target already ships, and tiers the residue. `scripts/request.py` is
-the front door to that, and `converge.yml` is the loop that runs it until the
-published index carries the whole order or says why it cannot:
+The deliverable is a stack, not a repository. `scripts/request.py` is the front
+door, and it measures distance to a working desktop in ordered stages — the
+packages tunaOS's `desktop` criterion hard-fails without, then what the image
+installs, then the tail:
 
 ```
 just want "gnome 51 on hummingbird"              # what it would build
-just want-measured "gnome 51 on hummingbird"     # served vs wanted, live
+just want-measured "gnome 51 on hummingbird"     # distance to a working stack
 ```
+
+The ordering matters more than the count. Measured 2026-08-28, the hummingbird
+index served 580/673 of the build order and 3/10 of the packages a GNOME
+session requires: a convergence reporting the first number keeps spending waves
+while `gdm` and `gnome-shell` are absent.
+
+Whether it BOOTS is tunaOS's question, not this repo's —
+`.github/green-criteria.yml` there defines green as builds + ships the declared
+desktop + boots under QEMU emitting `TUNAOS_DESKTOP_CONTRACT_OK`. What this
+side answers is the negative that costs whole runs: while the contract stage is
+open, an image build cannot boot into a session.
 
 For the bringup loop on a host that remembers between attempts, see
 [WARM-BUILDER.md](WARM-BUILDER.md). For the design, see

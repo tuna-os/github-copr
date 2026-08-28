@@ -1,11 +1,35 @@
-# RFC 012: One request, one loop, one warm host
+# RFC 012: From the ask to a working stack
 
 **Status:** Proposed
 **Owner:** unassigned
 **Interacts with:** RFC 011 (`docs/rfc/rfc011-unified-gap-driven-factory.md`,
 the gap engine this rides), `docs/PACKAGE_FACTORY.md` (promotion contract),
 `manifests/package-factory.yaml` (target contract),
-`.github/workflows/build-chain-fanout.yml` (the wave)
+`.github/workflows/build-chain-fanout.yml` (the wave),
+tunaOS `.github/green-criteria.yml` (**what "working" means**),
+tunaOS `build_scripts/checks/verify-desktop-experience.sh`,
+tunaOS `.github/workflows/reusable-build-image.yml` (the boot Gate)
+
+## The deliverable is a stack, not a repository
+
+The thing anyone wants from "gnome 51 on hummingbird" is an image that boots
+into a usable session. tunaOS already defines exactly that, per (variant,
+flavor) cell, in `.github/green-criteria.yml`:
+
+| criterion | proves | enforcement |
+| --- | --- | --- |
+| `builds` | the image builds and reaches its published tag | blocking |
+| `desktop` | the declared desktop is present and startable | blocking |
+| `boots` | a QEMU boot emits `TUNAOS_DESKTOP_CONTRACT_OK` on ttyS0 | blocking |
+| `no_silent_omissions` | nothing was dropped without being surfaced | blocking |
+
+**Every stage of the chain already exists.** The packages repo generates the
+build tree, builds it, and publishes to `repo.tunaos.org`;
+tunaOS's `build_scripts/10-base-packages.sh` points the hummingbird image at
+that exact prefix; `build-hummingbird.yml -f flavor=gnome` builds the image;
+the contract sweep and the Gate judge it. Nothing joins them, and — the part
+that costs whole runs — **the packages side has no idea what the image side
+needs.**
 
 ## Problem
 
@@ -29,6 +53,30 @@ hours of build. The third wave then rebuilt from the same 580 served packages
 the first had started from.
 
 Three separable problems, and only one of them is about building:
+
+0. **The objective was the repository, not the stack.** Measured against the
+   live hummingbird index on 2026-08-28, the same repo on the same day reads
+   580/673 (86%) over the build order and **3/10** over the packages a GNOME
+   session requires. A loop optimising the first number spends waves on
+   `vdirsyncer` and `hplip` while `gdm`, `gnome-shell`, `gnome-session` and
+   `nautilus` are absent, and every one of those waves moves 580/673 upward
+   and moves the stack not at all.
+
+   This is not hypothetical. tunaOS's own contract check records the outcome:
+
+   > Measured on tunaOS run 32813037866 (2026-08-25): the image carried 410
+   > packages — `gnome-backgrounds` and `gnome-user-docs`, no `gnome-shell`,
+   > no `gdm`, no `mutter`, no `gtk4` — and this check called it passed. The
+   > boot gate then failed 15 minutes later on a marker that could never be
+   > emitted, because the packages were dropped upstream
+   > (tunaos-packages#519).
+
+   `IS_HUMMINGBIRD` waives every requirement there so hummingbird can
+   bootstrap against incomplete repos — a deliberate policy, and a human's to
+   change. Its consequence is that the image build *cannot* tell you the repo
+   is not ready. It builds an empty desktop and the Gate discovers it a
+   quarter of an hour later. **This side can answer it in seconds, before
+   anything is dispatched.**
 
 1. **There is no way to say the ask.** The gap engine already generates the
    build tree from measurement — it reads the target's live index, takes the
@@ -84,31 +132,71 @@ into three categories, and the difference is load-bearing:
 tracked file naming a live track escapes all three categories, so the table
 cannot silently go stale — which is the only way a move goes partial.
 
-### 2. The loop stops itself
+### 2. The objective is the stack, in ordered stages
+
+`scripts/stack_readiness.py` partitions every wanted name into three ordered
+stages, and **only the first open one decides anything**:
+
+| stage | what it is | why it comes first |
+| --- | --- | --- |
+| `contract` | the desktop's `required_packages` | tunaOS's `desktop` criterion hard-fails without these, and the Gate cannot emit its marker |
+| `session` | `install_packages` minus the contract | the portals, keyring, gvfs backends and session units that make a session *usable* rather than merely startable |
+| `order` | everything else the build order carries | the tail |
+
+Live, 2026-08-28:
+
+```
+contract     3/10    remaining 7   gdm, gnome-control-center, gnome-initial-setup,
+                                   gnome-session, gnome-shell, nautilus,
+                                   xdg-desktop-portal-gnome
+session     30/48    remaining 18
+order      562/638   remaining 76
+```
+
+A stage that is scored but not *ordered* would still let the tail read as
+progress. Judging on the open stage is what makes "580/673 and climbing" stop
+reading as success while gdm is absent.
+
+**The limit of a name.** Readiness is measured by name, and a name is
+necessary but not sufficient: the index serves `gtk4` at 4.22.1 against a
+gnome-shell needing ≥ 4.23, so `gtk4` reads as satisfied while nothing built
+against it can link. That is the pango 1.57/1.58 wall, and it is not peculiar
+to this module — tunaOS's contract check "deliberately validates names", and
+the gap engine resolves by name too. `scripts/simulate-buildroot-resolution.py`
+already evaluates versioned and boolean dependencies against the real
+buildroot repo set; wiring its verdict in as a fourth stage is the natural
+next increment, and until then a closed contract stage must not be read as a
+buildable one.
+
+### 3. The loop stops itself
 
 `.github/workflows/converge.yml` is measure → wave → measure → wave →
 measure → wave → report. Each wave is the *same* fan-out a hand dispatch
 runs (`build-chain-fanout.yml` gained `workflow_call`; its inputs are
 identical, asserted by test). Between waves, `scripts/plan-converge.py`
-measures how much of the build order the **published index** now serves and
-decides:
+measures against the **published index** and decides:
 
 ```
-remaining == 0                 done
-remaining <  previous          continue   the wave moved the index
-remaining >= previous          blocked    two waves, no movement
-waves spent                    budget     report the residue
+every stage closed         packages-ready
+the open stage advanced    continue   the wave moved the STACK
+the open stage stood still blocked    rebuilding cannot fix this
+waves spent                budget     report the residue
 ```
 
 The index, not the wave's own result, because a green shard says its packages
 built — which says nothing about whether anyone can install them, and is
 exactly the direction #519 got wrong.
 
+The terminal verdict is deliberately **not** called `done`. Nothing on this
+side proves a desktop boots; only tunaOS's Gate can. What this side asserts is
+the negative that was costing whole runs: while the contract stage is open, an
+image build *cannot* boot into a session.
+
 `blocked` is the point of the whole design. It is the loop reaching the edge
 of what rebuilding can fix, and it hands over rather than burning runners on a
 wall.
 
-### 3. The handoff is one blocker per root cause
+### 4. The handoff is one blocker per root cause
 
 `scripts/classify-chain-failures.py` turns the residue into blockers. Its one
 non-obvious job is the cascade split, and the 2026-08-28 wave is the
@@ -132,7 +220,12 @@ The residue list comes from the measurement rather than from scraping
 truncated tail is still in the residue, and so is a package no shard ever
 reached.
 
-### 4. The warm host
+That last case is most of it, and it must not be reported as a bug. The live
+hummingbird residue is 101 names of which one had a failure log; counting
+`not-reached` as a blocker reports "101 blockers" and buries the one that is
+real. Nothing is wrong with an unreached package — the next wave builds it.
+
+### 5. The warm host
 
 `scripts/warm-builder.sh` runs a cell on a host that remembers. Nothing new is
 needed in the builder — `build-chain.sh` already skips a package whose exact
@@ -240,15 +333,37 @@ issue carries the served count each run.
 | # | Step | Status |
 | --- | --- | --- |
 | 1 | Request front door + release-move safety | this RFC's change |
-| 2 | Convergence loop with an index-measured stop rule | this RFC's change |
-| 3 | Typed blocker classification and one refreshed issue per request | this RFC's change |
-| 4 | Warm host for the bringup loop | this RFC's change |
-| 5 | Per-band publish, with the concurrency hazard addressed | not started |
-| 6 | `gap_measurement` for el10 in `mode: exhibit` | not started |
-| 7 | Hive autonomy raised per blocker class, starting with `spec-changelog` | not started |
+| 2 | Stack readiness as the objective — ordered stages, contract first | this RFC's change |
+| 3 | Convergence loop stopping on the open stage, terminal `packages-ready` | this RFC's change |
+| 4 | Typed blocker classification and one refreshed issue per request | this RFC's change |
+| 5 | Warm host for the bringup loop | this RFC's change |
+| 6 | **Cross-repo handoff**: `packages-ready` dispatches tunaOS's image build and reads the Gate verdict back | **not started — needs write access to `tuna-os/tunaos`** |
+| 7 | Version-aware readiness: `simulate-buildroot-resolution.py` as a fourth stage, so `gtk4-4.22.1` stops satisfying `>= 4.23` | not started |
+| 8 | Build the contract closure FIRST — the wave currently builds tier order, not stage order | not started |
+| 9 | Per-band publish, with the concurrency hazard addressed | not started |
+| 10 | `gap_measurement` for el10 in `mode: exhibit` | not started |
+| 11 | Hive autonomy raised per blocker class, starting with `spec-changelog` | not started |
+
+Steps 6 and 8 are what remain between this and the literal ask. **6** closes
+the loop across the two repositories: today `packages-ready` prints the
+`gh workflow run "Build Hummingbird" -R tuna-os/tunaos -f flavor=gnome` a human
+or an agent runs, because this session has read-only access to that repo.
+**8** is the ordering consequence of the staged objective — the measurement now
+knows the contract comes first, but a wave still builds in tier order, so the
+loop closes the contract stage eventually rather than deliberately. Pointing
+`build-chain.sh --packages-file` at the open stage's closure would make each
+wave spend its runners on the packages that decide.
 
 ## Risks
 
+- **A closed contract stage read as a buildable one.** Names are not
+  versions; `gtk4-4.22.1` satisfies the name and not `>= 4.23`. Stated in
+  `stack_readiness.py` where it is relied on, and pinned by a test that fails
+  if the limit stops being documented — the alternative is the next reader
+  taking `packages-ready` for "it will boot".
+- **A residue reported as bugs.** Most unserved names are packages the wave
+  never reached. Counting them as blockers buries the one that is real (101
+  vs 1 on the live residue).
 - **A convergence that dispatches into a wall.** Mitigated by the `blocked`
   rule and pinned by `tests/test_convergence_stops_when_it_stops_making_progress.py`:
   a wave whose `if:` does not require the preceding measurement's `continue` is

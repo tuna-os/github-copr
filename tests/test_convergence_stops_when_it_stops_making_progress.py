@@ -1,80 +1,109 @@
-"""A loop that cannot tell "still working" from "stuck" burns runners forever.
+"""A loop that cannot tell "still working" from "stuck" burns runners forever
+— and one that measures the wrong thing burns them on the wrong packages.
 
 scripts/plan-converge.py decides whether a convergence dispatches another
-wave. Everything it decides on is ONE number -- how many of the build order's
-packages the published index does not yet serve -- compared with the same
-number from the previous wave. The rules are cheap; the ways they go wrong
-are not:
+wave. What it decides on is NOT a count over the build order. Measured against
+the live hummingbird index on 2026-08-28, the same repo on the same day reads:
 
-  NEVER STOPS     `remaining >= previous` must end the loop. Three of the four
-                  waves on 2026-08-28 were mechanical "the index moved, go
-                  again"; the fourth was a wall, and a loop without this rule
-                  would still be running.
-  STOPS TOO SOON  a first wave has no previous count. Reading a missing count
-                  as zero makes wave 1 look like a wave that made no progress
-                  and ends the loop before it starts.
-  FALSE DONE      `done` ends the loop, so it must never be reached from an
-                  index that could not be read. An unreachable index
-                  understates `served`, and the ONE verdict where that flips
-                  from cautious to catastrophic is this one.
-  WRONG UNIVERSE  the build order's names must be read the way the index
-                  answers -- by package name, not by our source-tree layout.
+    build order          580/673   (86%)
+    desktop contract       3/10
+
+A loop optimising the first number spends waves on vdirsyncer and hplip while
+gdm and gnome-shell are absent — every one of them moves 580/673 upward and
+moves the stack not at all. So the objective is scripts/stack_readiness.py's
+ordered stages, and only the FIRST OPEN one decides anything.
+
+The ways that goes wrong:
+
+  WRONG NUMBER    judging on the whole order, or on a later stage moving while
+                  the open one stands still. Both read as progress; neither is
+                  progress toward a desktop that comes up.
+  NEVER STOPS     the open stage not moving must end the loop.
+  STOPS TOO SOON  a first wave has no previous count; reading a missing one as
+                  zero ends the loop before it starts.
+  FALSE READY     `packages-ready` ends the loop and green-lights an image
+                  build, so it must never be reached from an index that could
+                  not be read.
+  OVERCLAIM       `packages-ready` must not be spelled `done`. Nothing here
+                  proves a desktop boots; tunaOS's green-criteria Gate does.
 """
 from __future__ import annotations
 
 import importlib.util
 import json
 import pathlib
+import sys
 
 import pytest
 import yaml
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "scripts" / "plan-converge.py"
+sys.path.insert(0, str(REPO / "scripts"))
 
 _spec = importlib.util.spec_from_file_location("plan_converge", SCRIPT)
 converge = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(converge)
 
+import stack_readiness  # noqa: E402
+
 
 @pytest.mark.parametrize(
-    "remaining,previous,wave,expected",
+    "open_stage,open_remaining,prev_stage,prev_remaining,wave,expected",
     [
-        (0, 10, 2, converge.DONE),
-        (0, None, 1, converge.DONE),
-        (5, 10, 2, converge.CONTINUE),
-        (9, 10, 2, converge.CONTINUE),
-        (10, None, 1, converge.CONTINUE),
-        (10, 10, 2, converge.BLOCKED),
-        (11, 10, 2, converge.BLOCKED),
+        ("", 0, "contract", 7, 2, converge.PACKAGES_READY),
+        ("", 0, None, None, 1, converge.PACKAGES_READY),
+        ("contract", 7, None, None, 1, converge.CONTINUE),
+        ("contract", 4, "contract", 7, 2, converge.CONTINUE),
+        ("contract", 7, "contract", 7, 2, converge.BLOCKED),
+        ("contract", 9, "contract", 7, 2, converge.BLOCKED),
+        # The open stage moved on: stages are ordered, so that is progress by
+        # construction — and it is the only signal meaning the STACK advanced
+        # rather than merely the repo.
+        ("session", 18, "contract", 3, 2, converge.CONTINUE),
     ],
 )
-def test_the_rules(remaining, previous, wave, expected) -> None:
-    assert converge.decide(remaining, previous, wave, 8)[0] == expected
+def test_the_rules(open_stage, open_remaining, prev_stage, prev_remaining,
+                   wave, expected) -> None:
+    assert converge.decide(
+        open_stage, open_remaining, prev_stage, prev_remaining, wave, 8
+    )[0] == expected
+
+
+def test_a_later_stage_moving_is_not_progress() -> None:
+    """The whole point: the tail advancing while the contract stands still."""
+    verdict, why = converge.decide("contract", 7, "contract", 7, 2, 8)
+    assert verdict == converge.BLOCKED
+    assert "packaging change" in why
 
 
 def test_a_first_wave_is_never_blocked() -> None:
-    """No previous count is not a zero previous count."""
-    verdict, why = converge.decide(673, None, 1, 3)
+    verdict, why = converge.decide("contract", 7, None, None, 1, 3)
     assert verdict == converge.CONTINUE
     assert "first wave" in why
 
 
 def test_the_budget_ends_it_even_while_it_is_still_moving() -> None:
-    verdict, why = converge.decide(5, 400, 3, 3)
+    verdict, why = converge.decide("order", 5, "order", 400, 3, 3)
     assert verdict == converge.BUDGET
     assert "budget" in why
 
 
-def test_the_budget_does_not_override_done() -> None:
-    """Spending the last wave to close the gap is success, not exhaustion."""
-    assert converge.decide(0, 5, 3, 3)[0] == converge.DONE
+def test_the_budget_does_not_override_readiness() -> None:
+    assert converge.decide("", 0, "session", 5, 3, 3)[0] == (
+        converge.PACKAGES_READY
+    )
 
 
-def test_a_blocked_verdict_says_rebuilding_will_not_help() -> None:
-    """The verdict is a handoff, so it has to say what kind of work is left."""
-    _, why = converge.decide(93, 93, 2, 3)
-    assert "packaging change" in why
+def test_the_terminal_verdict_does_not_claim_the_desktop_boots() -> None:
+    """Only tunaOS's Gate can say `done`; this side says the packages exist."""
+    assert converge.PACKAGES_READY == "packages-ready"
+    assert not hasattr(converge, "DONE"), (
+        "a verdict called `done` on this side of the pipeline claims a "
+        "booting desktop that nothing here measured"
+    )
+    _, why = converge.decide("", 0, None, None, 1, 3)
+    assert "BOOTS" in why and "gate" in why.lower()
 
 
 def test_the_build_order_is_read_the_way_the_index_answers() -> None:
@@ -82,95 +111,136 @@ def test_the_build_order_is_read_the_way_the_index_answers() -> None:
     names = converge.wanted_names(
         REPO / "build-order-hummingbird-desktops.yml"
     )
-    assert names, "the hummingbird build order parsed to nothing"
-    assert not any("/" in name for name in names), [
-        n for n in names if "/" in n
-    ][:5]
+    assert names
+    assert not any("/" in name for name in names)
     assert "gtk4" in names and "mutter" in names
-    assert len(names) == len(set(names)), "a duplicated name double-counts"
+    assert len(names) == len(set(names))
 
 
 def test_a_copr_only_entry_is_still_wanted(tmp_path: pathlib.Path) -> None:
-    """Some tiers carry `copr_name:` with no path; dropping them undercounts.
-
-    An undercount reads as "closer to done than we are", and at the limit as
-    `done` over a build order half of which was never considered.
-    """
+    """Some tiers carry `copr_name:` with no path; dropping them undercounts."""
     order = tmp_path / "order.yml"
     order.write_text(
-        yaml.safe_dump(
-            {
-                "tiers": [
-                    {
-                        "name": "t0",
-                        "packages": [
-                            {"path": "src/deps/meson"},
-                            {"copr_name": "vala"},
-                            {"name": "pango"},
-                            "src/deps/harfbuzz",
-                        ],
-                    }
-                ]
-            }
-        )
+        yaml.safe_dump({"tiers": [{"name": "t0", "packages": [
+            {"path": "src/deps/meson"}, {"copr_name": "vala"},
+            {"name": "pango"}, "src/deps/harfbuzz",
+        ]}]})
     )
     assert converge.wanted_names(order) == [
         "meson", "vala", "pango", "harfbuzz",
     ]
 
 
-def test_an_unreadable_index_can_never_produce_done(
+def test_the_stages_partition_rather_than_overlap() -> None:
+    """An overlapping session stage would report the same missing gdm twice."""
+    required, installed = stack_readiness.desktop_sets(
+        "manifests/hummingbird-desktops.yaml", "gnome"
+    )
+    assert not set(required) & set(installed)
+    order = converge.wanted_names(
+        REPO / "build-order-hummingbird-desktops.yml"
+    )
+    staged = stack_readiness.stages(order, required, installed, set())
+    names = [n for stage in staged for n in stage.wanted]
+    assert len(names) == len(set(names)), "a name landed in two stages"
+
+
+def test_a_contract_package_the_build_order_omits_is_still_counted(
     tmp_path: pathlib.Path, monkeypatch
 ) -> None:
+    """The most important missing package is one nothing plans to build.
+
+    Scoring only the order's own names would report a clean residue for a
+    desktop whose display manager was never in the plan.
+    """
+    order = tmp_path / "order.yml"
+    order.write_text(
+        yaml.safe_dump({"tiers": [{"name": "t0", "packages": [{"name": "gtk4"}]}]})
+    )
+    roots = tmp_path / "roots.yaml"
+    roots.write_text(yaml.safe_dump({
+        "desktops": {"gnome": {"required_packages": ["gdm", "gtk4"],
+                               "install_packages": []}}
+    }))
+    monkeypatch.setattr(stack_readiness, "ROOT", tmp_path)
+    status = converge._load_status()
+    monkeypatch.setattr(
+        status, "index_names", lambda url, cache: ({"gtk4"}, {"baseurl": url})
+    )
+    measurement = converge.measure(
+        order, ["https://x/"], tmp_path,
+        roots_manifest="roots.yaml", desktop="gnome",
+    )
+    assert measurement["open_stage"] == "contract"
+    assert "gdm" in measurement["remaining"], (
+        "gdm is required by the desktop and absent from the build order; a "
+        "residue that omits it reports a plan that can never boot as complete"
+    )
+
+
+def test_no_roots_manifest_degrades_to_one_flat_stage(
+    tmp_path: pathlib.Path, monkeypatch
+) -> None:
+    """A target with no gap_measurement has no contract to stage by."""
+    order = tmp_path / "order.yml"
+    order.write_text(
+        yaml.safe_dump({"tiers": [{"name": "t0", "packages": [
+            {"name": "a"}, {"name": "b"}]}]})
+    )
+    status = converge._load_status()
+    monkeypatch.setattr(
+        status, "index_names", lambda url, cache: ({"a"}, {"baseurl": url})
+    )
+    measurement = converge.measure(order, ["https://x/"], tmp_path)
+    assert measurement["open_stage"] == "order"
+    assert measurement["remaining"] == ["b"]
+
+
+def test_an_unreadable_index_can_never_produce_packages_ready(
+    tmp_path: pathlib.Path, monkeypatch
+) -> None:
+    """The dangerous shape: one prefix answers, another 404s.
+
+    A target may publish through several prefixes (#467). If the readable one
+    happens to carry every name, every stage reads closed and the loop would
+    green-light an image build — on evidence it knows is incomplete. An
+    unreachable index understates nothing here only by luck, and
+    `packages-ready` is the verdict where that stops being tolerable.
+    """
     order = tmp_path / "order.yml"
     order.write_text(
         yaml.safe_dump({"tiers": [{"name": "t0", "packages": [{"name": "a"}]}]})
     )
     status = converge._load_status()
 
-    def explode(url, cache):
-        raise OSError("404")
+    def answer(url, cache):
+        if url == "https://dead/":
+            raise OSError("404")
+        return {"a"}, {"baseurl": url}
 
-    monkeypatch.setattr(status, "index_names", explode)
-    measurement = converge.measure(order, ["https://example.invalid/"], tmp_path)
-    # Nothing was readable, so nothing is served and the residue is the whole
-    # order -- the loop must not conclude anything is done.
-    assert measurement["unreachable_indexes"]
-    assert measurement["remaining"] == ["a"]
-
-
-def test_a_reachable_index_marks_its_packages_served(
-    tmp_path: pathlib.Path, monkeypatch
-) -> None:
-    order = tmp_path / "order.yml"
-    order.write_text(
-        yaml.safe_dump(
-            {"tiers": [{"name": "t0",
-                        "packages": [{"name": "a"}, {"name": "b"}]}]}
-        )
+    monkeypatch.setattr(status, "index_names", answer)
+    report = tmp_path / "r.json"
+    converge.main([
+        "--build-order", str(order),
+        "--served-index", "https://live/", "--served-index", "https://dead/",
+        "--report-json", str(report), "--cache", str(tmp_path / "c"),
+    ])
+    data = json.loads(report.read_text())
+    assert data["open_stage"] == "", "every name was served by the live index"
+    assert data["unreachable_indexes"]
+    assert data["verdict"] == converge.BLOCKED, (
+        "packages-ready green-lights an image build; it must not be reached "
+        "from an index that could not be read"
     )
-    status = converge._load_status()
-    monkeypatch.setattr(
-        status, "index_names", lambda url, cache: ({"a"}, {"baseurl": url})
-    )
-    measurement = converge.measure(order, ["https://example.test/"], tmp_path)
-    assert measurement["served"] == 1
-    assert measurement["remaining"] == ["b"]
+    assert "https://dead/" in data["why"]
 
 
 def test_several_indexes_union(tmp_path: pathlib.Path, monkeypatch) -> None:
-    """A target may publish through more than one prefix (#467).
-
-    Reading only the first is what made every build-chain product invisible
-    to every buildroot; a convergence that did the same would keep rebuilding
-    packages that are already served from the other prefix.
-    """
+    """A target may publish through more than one prefix (#467)."""
     order = tmp_path / "order.yml"
     order.write_text(
-        yaml.safe_dump(
-            {"tiers": [{"name": "t0",
-                        "packages": [{"name": "a"}, {"name": "b"}]}]}
-        )
+        yaml.safe_dump({"tiers": [{"name": "t0", "packages": [
+            {"name": "a"}, {"name": "b"}]}]})
     )
     status = converge._load_status()
     answers = {"https://one/": {"a"}, "https://two/": {"b"}}
@@ -182,6 +252,7 @@ def test_several_indexes_union(tmp_path: pathlib.Path, monkeypatch) -> None:
         order, ["https://one/", "https://two/"], tmp_path
     )
     assert measurement["remaining"] == []
+    assert measurement["open_stage"] == ""
 
 
 def test_the_cli_refuses_to_measure_against_nothing(
@@ -213,7 +284,7 @@ def test_the_report_records_what_it_measured_against(
         "--report-json", str(report), "--cache", str(tmp_path / "c"),
     ])
     data = json.loads(report.read_text())
-    assert data["verdict"] == converge.DONE
+    assert data["verdict"] == converge.PACKAGES_READY
     assert data["index_provenance"][0]["revision"] == "1786016019", (
         "a verdict with no record of which index revision produced it cannot "
         "be re-checked later"

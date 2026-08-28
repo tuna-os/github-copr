@@ -73,8 +73,15 @@ def test_a_measurement_survives_a_wave_with_red_shards(measure: str) -> None:
     )
 
 
-def test_every_measurement_after_the_first_carries_the_previous_count() -> None:
-    """Without it, `blocked` can never be reached: nothing to compare against."""
+def test_every_measurement_after_the_first_carries_the_previous_open_stage(
+) -> None:
+    """The comparison is the OPEN STAGE and its count, not the whole order.
+
+    Carrying the order-wide `remaining` forward is the defect this objective
+    exists to fix: the tail advancing while gdm is still missing would read as
+    progress, and the loop would keep dispatching waves that move 580/673 and
+    move the stack not at all.
+    """
     for measure in MEASURES:
         index = int(measure.split("-")[1])
         step = next(
@@ -86,10 +93,33 @@ def test_every_measurement_after_the_first_carries_the_previous_count() -> None:
                 "the first wave has no previous count; passing one makes it "
                 "look like a wave that already ran"
             )
-        else:
-            assert f"measure-{index - 1}.outputs.remaining" in env.get(
-                "PREVIOUS_REMAINING", ""
-            ), measure
+            continue
+        assert f"measure-{index - 1}.outputs.open_stage" in env.get(
+            "PREVIOUS_STAGE", ""
+        ), measure
+        assert f"measure-{index - 1}.outputs.open_remaining" in env.get(
+            "PREVIOUS_REMAINING", ""
+        ), measure
+
+
+def test_no_job_compares_the_whole_order_between_waves() -> None:
+    """`outputs.remaining` as a wave-to-wave signal is the wrong number."""
+    text = CONVERGE.read_text(encoding="utf-8")
+    assert "outputs.remaining" not in text, (
+        "an order-wide remaining count carried between waves makes the tail "
+        "advancing read as progress toward a desktop that comes up"
+    )
+
+
+def test_the_issue_is_filed_on_anything_short_of_packages_ready() -> None:
+    step = next(
+        s for s in JOBS["report"]["steps"]
+        if "converge-file-issue" in str(s.get("run", ""))
+    )
+    assert "packages-ready" in step["if"], (
+        "the terminal verdict is `packages-ready`; gating the handoff on a "
+        "verdict this loop never emits files an issue on every green run"
+    )
 
 
 def test_the_report_runs_on_every_ending() -> None:
@@ -101,13 +131,25 @@ def test_the_report_runs_on_every_ending() -> None:
 
 
 def test_the_loop_does_not_dispatch_itself() -> None:
+    """A workflow_dispatch made with GITHUB_TOKEN does not start a new run.
+
+    So a loop written as self-dispatch runs exactly once and reports nothing,
+    which is why the waves are jobs. Narrowed to CONVERGE specifically: the
+    report legitimately PRINTS a `gh workflow run` for tunaOS's image build,
+    which is the handoff to the half of the pipeline that can answer whether
+    the desktop boots — text for a human or an agent, not a dispatch.
+    """
     text = CONVERGE.read_text(encoding="utf-8")
     for helper in (REPO / ".github" / "scripts").glob("converge-*.sh"):
         text += helper.read_text(encoding="utf-8")
-    assert "gh workflow run" not in text, (
-        "a workflow_dispatch made with GITHUB_TOKEN does not start a new run, "
-        "so a self-dispatching loop runs exactly once and reports nothing"
-    )
+    for line in text.splitlines():
+        if "workflow run" not in line:
+            continue
+        assert "tuna-os/tunaos" in line, (
+            f"this line dispatches a workflow that is not tunaOS's image "
+            f"build: {line.strip()}"
+        )
+        assert "converge" not in line.lower(), line.strip()
 
 
 def test_a_wave_is_the_same_fanout_a_hand_dispatch_runs() -> None:
