@@ -286,7 +286,6 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_includedir}/*
 %{_libdir}/pkgconfig/*
 %{_bindir}/gtk4-builder-tool
-%{_bindir}/gtk4-encode-symbolic-svg
 %{_bindir}/gtk4-path-tool
 %{_bindir}/gtk4-query-settings
 %{_datadir}/bash-completion/completions/gtk4-builder-tool
@@ -295,7 +294,6 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_datadir}/gtk-4.0/gtk4builder.rng
 %{_datadir}/gtk-4.0/valgrind/
 %{_mandir}/man1/gtk4-builder-tool.1*
-%{_mandir}/man1/gtk4-encode-symbolic-svg.1*
 %{_mandir}/man1/gtk4-path-tool.1*
 %{_mandir}/man1/gtk4-query-settings.1*
 
@@ -309,7 +307,6 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %files devel-tools
 %{_bindir}/gtk4-demo
 %{_bindir}/gtk4-demo-application
-%{_bindir}/gtk4-icon-editor
 %{_bindir}/gtk4-image-tool
 %{_bindir}/gtk4-node-editor
 %{_bindir}/gtk4-print-editor
@@ -318,7 +315,6 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_datadir}/applications/org.gtk.gtk4.NodeEditor.desktop
 %{_datadir}/applications/org.gtk.Demo4.desktop
 %{_datadir}/applications/org.gtk.PrintEditor4.desktop
-%{_datadir}/applications/org.gtk.Shaper.desktop
 %{_datadir}/applications/org.gtk.WidgetFactory4.desktop
 %{_datadir}/bash-completion/completions/gtk4-demo
 %{_datadir}/bash-completion/completions/gtk4-image-tool
@@ -330,7 +326,6 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_datadir}/icons/hicolor/*/apps/org.gtk.gtk4.NodeEditor*.svg
 %{_datadir}/icons/hicolor/*/apps/org.gtk.Demo4*.svg
 %{_datadir}/icons/hicolor/*/apps/org.gtk.PrintEditor4*.svg
-%{_datadir}/icons/hicolor/*/apps/org.gtk.Shaper*.svg
 %{_datadir}/icons/hicolor/*/apps/org.gtk.WidgetFactory4*.svg
 %{_datadir}/glib-2.0/schemas/org.gtk.Demo4.gschema.xml
 %{_metainfodir}/org.gtk.gtk4.NodeEditor.appdata.xml
