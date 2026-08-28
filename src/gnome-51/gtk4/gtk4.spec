@@ -3,7 +3,17 @@
 %endif
 
 %global glib2_version 2.84.0
-%global pango_version 1.56.0
+# 1.58, not 1.56.0: GTK 4.23.3's own meson.build (pango_major_req=1,
+# pango_minor_req=58) requires it. The stale 1.56.0 floor here let this
+# BuildRequires be satisfied by served pango 1.57, so nothing declared the
+# real dependency -- gtk4 silently vendored pango as a meson subproject
+# instead (the tell: libpangoft2-1.0.so.0.5800.0 in the build log) and died
+# under -Werror=unused-but-set-variable in the vendored copy. #567 fixed
+# that failure by bumping SYSTEM pango to 1.58.2; this fixes the spec that
+# should have caught it: with the real floor declared, a buildroot missing
+# pango >= 1.58 fails fast on an unsatisfiable BuildRequires instead of
+# quietly falling back to a subproject build with a different failure mode.
+%global pango_version 1.58
 %global cairo_version 1.18.0
 %global gdk_pixbuf_version 2.30.0
 %global gstreamer_version 1.24.0

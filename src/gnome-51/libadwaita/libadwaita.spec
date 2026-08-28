@@ -1,5 +1,11 @@
 %global apiver  1
-%global gtk_version 4.21.1
+# 4.23.1, not 4.21.1: libadwaita 1.10.beta.1's own meson.build declares
+# gtk_min_version = '>= 4.23.1' (the exact tag this spec packages, verified
+# against gitlab.gnome.org/GNOME/libadwaita, not the main branch, which can
+# have drifted since this beta). The stale 4.21.1 floor was satisfiable by
+# whatever gtk4 build happened to exist, including one still vendoring
+# pango -- see gtk4.spec's pango_version comment for that failure mode.
+%global gtk_version 4.23.1
 %global glib_version 2.80.0
 
 %global tarball_version %%(echo %{version} | tr '~' '.')
