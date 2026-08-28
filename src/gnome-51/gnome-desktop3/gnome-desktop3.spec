@@ -129,10 +129,13 @@ DESTDIR=%{buildroot} ninja -C redhat-linux-build install
 %files -f %{po_package}.lang
 %doc AUTHORS NEWS README.md
 %license COPYING COPYING.LIB
-# gnome-desktop-debug is only installed when legacy_library=true (gtk3); disabled on EL10
-%if !0%{?rhel}
-%{_libexecdir}/gnome-desktop-debug/
-%endif
+# gnome-desktop-debug is installed only when legacy_library=true (the gtk3
+# build). %build passes -Dlegacy_library=false unconditionally -- for every
+# target, not just EL10 -- so this directory never exists and a %{?rhel}
+# guard here was checking the wrong condition: it included the path on
+# every NON-rhel target (this spec's own hummingbird-ci mock config among
+# them), where legacy_library is equally false. Confirmed by an actual
+# build: `error: Directory not found: .../usr/libexec/gnome-desktop-debug`.
 
 %files devel
 %{_datadir}/gtk-doc/html/gnome-desktop3/
