@@ -348,6 +348,21 @@ jobs:
       # Both list paths under .factory/<id>, so upload-artifact roots each
       # zip at that directory either way and the layout a consumer sees is
       # unchanged.
+      # action-key.txt rides along (~70 bytes) so this artifact can be read
+      # back as EVIDENCE and not merely kept as a deliverable: the resume
+      # path accepts a candidate only when the key recorded beside its RPMs
+      # matches the key the reading cell computed, and discards any whose key
+      # is absent.
+      #
+      # That is what lets a merge-queue run skip rebuilding what its own PR
+      # just built. GitHub scopes the Actions cache by ref, so a queue commit
+      # on refs/heads/gh-readonly-queue/... cannot read the cache the PR
+      # wrote on refs/pull/N/merge; the queue rebuilt every src/-touching PR
+      # from zero against a CI timeout of about an hour, and evicted #567
+      # with CI_TIMEOUT on every attempt. Artifacts have no ref scoping.
+      #
+      # NOTE: comments belong HERE, not inside `path:` below -- that is a
+      # YAML block scalar, where a `#` line is a literal path, not a comment.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: success()
         with:
@@ -356,6 +371,7 @@ jobs:
             .factory/${{ matrix.id }}/artifacts/
             .factory/${{ matrix.id }}/metadata/
             .factory/${{ matrix.id }}/action-result.json
+            .factory/${{ matrix.id }}/action-key.txt
           if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
