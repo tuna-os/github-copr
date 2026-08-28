@@ -108,10 +108,4 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/gnome-user-share-w
 %{_userunitdir}/gnome-user-share-webdav.service
 
 %changelog
-* Sun Mar 29 2026 James Reilly <jreilly1821@gmail.com> - 48.1-1
-- Replace %%autorelease/%%autochangelog: Fedora-specific macros not available on EL10
-- Drop mod_dnssd BuildRequires/Requires: not available on EL10/EPEL10; file
-  sharing works without it (mDNS advertisement is simply skipped)
-- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
-  to avoid "fg: no job control" on COPR x86_64_v3 workers
-- Gate cargo-rpm-macros behind %%if !0%%{?rhel}; use rust-toolset on EL10
+%autochangelog

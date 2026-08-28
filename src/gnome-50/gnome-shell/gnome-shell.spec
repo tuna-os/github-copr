@@ -281,10 +281,4 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Porta
 %{_datadir}/glib-2.0/schemas/*.xml
 
 %changelog
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
-- Update to 50.0 (GNOME 50 stable release)
-- Track F44 branch instead of rawhide
-- Update mutter_version minimum to 50.0
-- git BR → git-core (align with F44)
-- EL10: preserve explicit meson setup invocations and EL10-specific BuildRequires
-- Remove %%autochangelog: Fedora-specific macro not available on EL10.
+%autochangelog
