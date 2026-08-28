@@ -73,7 +73,15 @@ Requires: gnome-session >= 51~beta
 Requires: gnome-session-wayland-session >= 51~beta
 Requires: gnome-settings-daemon >= 3.27.90
 Requires: gnome-shell
+# el10-only: it exists only in build-order-gnome51.yml's src/deps/, not in
+# build-order-hummingbird-desktops.yml. Unconditional here made it a hard,
+# unsatisfiable dependency on the hummingbird (Fedora-Rawhide) target --
+# `nothing provides gnome50-el10-compat needed by gdm` broke dnf5 builddep
+# for every consumer, gnome-initial-setup among them, without touching gdm
+# itself: rpmbuild never verifies Requires: satisfiability at build time.
+%if 0%{?rhel}
 Requires:       gnome50-el10-compat
+%endif
 Requires: iso-codes
 # We need 1.0.4-5 since it lets us use "localhost" in auth cookies
 Requires: libXau >= 1.0.4-4
