@@ -19,9 +19,17 @@ Source0:        https://download.gnome.org/sources/gnome-shell/%{major_version}/
 # Replace Epiphany with Firefox in the default favourite apps list
 Patch: gnome-shell-favourite-apps-firefox.patch
 
-# Some users might have a broken PAM config, so we really need this
-# downstream patch to stop trying on configuration errors.
-Patch: 0001-gdm-Work-around-failing-fingerprint-auth.patch
+# The fingerprint-auth workaround this patch targeted (js/gdm/util.js's
+# ShellUserVerifier) was refactored away upstream: verification for the
+# fingerprint service now lives in js/gdm/authServicesLegacy.js, and its
+# _handleOnProblem() already tolerates spurious immediate fprintd failures
+# via a real retry counter (_failCounter/_canRetry(), from the shared
+# AuthServices base in js/gdm/authServices.js) instead of this patch's
+# wall-clock heuristic. Confirmed against gitlab.gnome.org/GNOME/gnome-shell
+# at tag 51.beta: js/gdm/util.js no longer contains ShellUserVerifier at
+# all, so the patch fails every hunk (`error: while searching for:` /
+# `patch failed: js/gdm/util.js:113` etc.) -- it isn't stale context, the
+# code it patches doesn't exist there anymore.
 
 
 %define eds_version 3.45.1
