@@ -1,3 +1,9 @@
+# rpkg (used by COPR SCM builds) fails to evaluate %%(shell) macros in
+# %%global definitions when computing Source URLs -- it resolves to the
+# previous git-derived version (e.g. 50~rc -> 50.rc) rather than the spec
+# Version field. Use static values instead of Rawhide's %%{gnome_major_version}/
+# %%{gnome_tarball_version} (which come from a Fedora-only macro package we
+# don't have) or a shell-computed %%global (which rpkg mishandles). See commit a27622e.
 %global tarball_version 51.beta
 %global major_version 51
 
@@ -7,9 +13,32 @@
 %global portal_helper 1
 %endif
 
+%define eds_version 3.45.1
+%define gnome_desktop_version 44.0-7
+%define glib2_version 2.86.0
+%define gjs_version 1.87.1
+%define gtk4_version 4.0.0
+%define adwaita_version 1.5.0
+%define mutter_version 51~beta
+# Lock the runtime mutter to the exact build the shell was compiled against.
+# mutter ships GObject-Introspection typelibs whose API can change behind a stable
+# version and SONAME (the el10 keymap backport in mutter-49.4-6 did exactly this on
+# gnome-49), so a ">= floor" does not stop a newer mutter drifting in under an
+# unrebuilt shell and crashing it at the introspection boundary. Capture the buildroot
+# EVR instead (mutter-devel pulls the exact mutter), with a ">= floor" fallback when
+# mutter is not installed, e.g. when the spec is parsed outside a buildroot. See issue #27.
+%global mutter_dep %(rpm -q --qf '= %%{version}-%%{release}' mutter 2>/dev/null | grep -q '^= ' && rpm -q --qf '= %%{version}-%%{release}' mutter || echo '>= %{mutter_version}')
+%define polkit_version 0.100
+%define gsettings_desktop_schemas_version 51~beta
+%define ibus_version 1.5.2
+%define gnome_bluetooth_version 1:42.3
+%define gstreamer_version 1.4.5
+%define pipewire_version 0.3.49
+%define gnome_settings_daemon_version 3.37.1
+
 Name:           gnome-shell
 Version:        51~beta
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Window management and application launching for GNOME
 
 License:        GPL-2.0-or-later
@@ -30,30 +59,6 @@ Patch: gnome-shell-favourite-apps-firefox.patch
 # all, so the patch fails every hunk (`error: while searching for:` /
 # `patch failed: js/gdm/util.js:113` etc.) -- it isn't stale context, the
 # code it patches doesn't exist there anymore.
-
-
-%define eds_version 3.45.1
-%define gnome_desktop_version 44.0-7
-%define glib2_version 2.86.0
-%define gjs_version 1.85.90
-%define gtk4_version 4.0.0
-%define adwaita_version 1.5.0
-%define mutter_version 51~beta
-# Lock the runtime mutter to the exact build the shell was compiled against.
-# mutter ships GObject-Introspection typelibs whose API can change behind a stable
-# version and SONAME (the el10 keymap backport in mutter-49.4-6 did exactly this on
-# gnome-49), so a ">= floor" does not stop a newer mutter drifting in under an
-# unrebuilt shell and crashing it at the introspection boundary. Capture the buildroot
-# EVR instead (mutter-devel pulls the exact mutter), with a ">= floor" fallback when
-# mutter is not installed, e.g. when the spec is parsed outside a buildroot. See issue #27.
-%global mutter_dep %(rpm -q --qf '= %%{version}-%%{release}' mutter 2>/dev/null | grep -q '^= ' && rpm -q --qf '= %%{version}-%%{release}' mutter || echo '>= %{mutter_version}')
-%define polkit_version 0.100
-%define gsettings_desktop_schemas_version 51~beta
-%define ibus_version 1.5.2
-%define gnome_bluetooth_version 1:42.3
-%define gstreamer_version 1.4.5
-%define pipewire_version 0.3.49
-%define gnome_settings_daemon_version 3.37.1
 
 BuildRequires:  pkgconfig(bash-completion)
 BuildRequires:  gcc
@@ -87,8 +92,6 @@ BuildRequires:  libXfixes-devel >= 5.0
 BuildRequires:  librsvg2-devel
 BuildRequires:  mutter-devel >= %{mutter_version}
 BuildRequires:  pkgconfig(libpulse)
-BuildRequires:  pkgconfig(atk)
-BuildRequires:  pkgconfig(libcanberra)
 %ifnarch s390 s390x ppc ppc64 ppc64p7
 BuildRequires:  gnome-bluetooth-libs-devel >= %{gnome_bluetooth_version}
 %endif
@@ -178,14 +181,6 @@ Obsoletes:      python2-caribou < 0.4.21-10
 Obsoletes:      python3-caribou < 0.4.21-10
 %endif
 
-# EL10 ships a gnome-shell-common subpackage at version 48.x. This COPR
-# rebuilds gnome-shell as a monolithic package (no split common/) at v50,
-# so the shared data files (org.gnome.shell.gschema.xml, locale files,
-# etc.) now live in gnome-shell itself. Obsolete the older split package
-# so DNF auto-replaces it instead of aborting with a file-conflict.
-Obsoletes:      gnome-shell-common < %{major_version}
-Provides:       gnome-shell-common = %{version}-%{release}
-
 # https://bugzilla.redhat.com/show_bug.cgi?id=1740897
 Conflicts:      gnome-shell-extension-background-logo < 3.34.0
 
@@ -199,6 +194,27 @@ easy to use experience.
 %package common
 Summary: Common files used by %{name}
 Conflicts: %{name} < 48~rc-5
+# EL10 ships a native gnome-shell-common subpackage at version 48.x. This
+# fork has always built a real, split gnome-shell-common subpackage (this
+# one) at the GNOME 49+ track version, so upgrading in place needs an
+# Obsoletes bound below our lowest fork version (49), not below the current
+# %%{major_version} -- a bound of "< %%{major_version}" on *this* subpackage
+# would obsolete its own current build, since RPM's tilde ordering sorts
+# 51~beta below the bare 51 used as the bound.
+#
+# This used to live as `Obsoletes: gnome-shell-common < %%{major_version}` /
+# `Provides: gnome-shell-common = %%{version}-%%{release}` on the *main*
+# gnome-shell package instead (#23 / commit 89bf530). That was only correct
+# for the very first gnome-49 fork, which really was monolithic and had no
+# %%package common at all. Once a real split %%package common came back
+# (gnome-50 onward, matching Rawhide's own layout), those lines were never
+# revisited: the main package ended up simultaneously Requiring,
+# Obsoleting (self-obsoleting, given the tilde comparison above), and
+# re-Providing its own common subpackage -- a latent self-conflict that
+# never actually broke a build here only because DNF happened to prefer
+# the real subpackage. Moved and fixed here; no separate Provides is
+# needed since this subpackage already provides its own name.
+Obsoletes:      gnome-shell-common < 49
 BuildArch: noarch
 
 %description common
@@ -208,7 +224,33 @@ BuildArch: noarch
 %autosetup -S git -n %{name}-%{tarball_version}
 
 %build
-meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build \
+# %%meson for setup (it works: a real build here got a full "Build targets
+# in project: 155" config summary out of it), but NOT %%meson_build/
+# %%meson_install -- this buildroot's macros.meson emits a malformed
+# `meson compile -C redhat-linux-build -jN --verbose/` (note the trailing
+# "/" glued onto --verbose) and meson rejects it outright:
+#   meson: error: unrecognized arguments: --verbose/
+# Driving ninja directly against %%{_vpath_builddir} (the same directory
+# %%meson already configured) sidesteps the broken macro. This isn't a
+# one-off invented for gnome-shell: gnome-desktop3, gdm, gtk4 and
+# gnome-settings-daemon in this same tree all drive ninja directly rather
+# than trust %%meson_build/%%meson_install, each for its own buildroot
+# reason. Verified by a real rebuild against hummingbird-ci.
+#
+# IMPORTANT: every macro name mentioned in a comment anywhere in this spec
+# must be %%-escaped like the above. This buildroot's rpm expands defined
+# macros inside "#" comments too (a "#" has no special meaning to rpm's
+# own preprocessor, only to the shell that runs the resulting scriptlet),
+# so an unescaped "%%meson_build" in prose gets replaced in place by that
+# macro's real, multi-line body -- silently turning a comment into live,
+# unguarded shell text and corrupting everything after it. That is what
+# actually produced every "--verbose/" and "syntax error near unexpected
+# token `(`" failure hit while iterating on this spec: earlier drafts of
+# this very comment named %%meson/%%meson_build/%%meson_install unescaped.
+# -Dextensions_tool=true is kept explicit (upstream's own default) because
+# %%files below hard-requires gnome-extensions and its man page to exist;
+# see the commit that fixed the option rename for the history.
+%meson \
   -Dextensions_tool=true \
 %if %{portal_helper}
   -Dportal_helper=true \
@@ -216,10 +258,10 @@ meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build \
   -Dportal_helper=false \
 %endif
   %{nil}
-meson compile -C build
+ninja -C %{_vpath_builddir} %{?_smp_mflags}
 
 %install
-DESTDIR=%{buildroot} meson install -C build
+DESTDIR=%{buildroot} ninja -C %{_vpath_builddir} install
 
 # Create empty directories where other packages can drop extensions
 mkdir -p %{buildroot}%{_datadir}/gnome-shell/extensions
