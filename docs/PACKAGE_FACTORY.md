@@ -17,6 +17,23 @@ targets, and publishes only validated repositories to Cloudflare R2.
 The authoritative target and R2-path contract is
 [`manifests/package-factory.yaml`](https://github.com/tuna-os/tunaos-packages/blob/main/manifests/package-factory.yaml).
 
+## Asking for a desktop on a target
+
+The build tree is generated from measurement, not curated: the gap engine reads
+the target's live index, closes the desktop's roots over a reference, subtracts
+what the target already ships, and tiers the residue. `scripts/request.py` is
+the front door to that, and `converge.yml` is the loop that runs it until the
+published index carries the whole order or says why it cannot:
+
+```
+just want "gnome 51 on hummingbird"              # what it would build
+just want-measured "gnome 51 on hummingbird"     # served vs wanted, live
+```
+
+For the bringup loop on a host that remembers between attempts, see
+[WARM-BUILDER.md](WARM-BUILDER.md). For the design, see
+[RFC 012](rfc/rfc012-request-driven-convergence.md).
+
 ## Upstream source policy
 
 Bluefin, Aurora, Fedora dist-git, and other upstream projects are inputs for
