@@ -130,11 +130,49 @@ def unexpired_partials(repository: str, name: str, token: str) -> list[dict]:
     The artifacts endpoint filters by name across the whole repository and
     returns newest first, so this is one request rather than a walk over runs.
 
+    ACROSS THE WHOLE REPOSITORY is the property that makes this work where
+    the action cache cannot. GitHub scopes caches by ref: a run on
+    `refs/pull/N/merge` writes entries only that PR can read, and a merge
+    QUEUE run lives on `refs/heads/gh-readonly-queue/...`, which sees main's
+    caches and never the PR's. The artifacts API has no such scoping, so an
+    artifact is reachable from any run in the repository.
+
     Newest FIRST, deliberately not newest-only: see the walk in main().
     """
     url = f"{API}/repos/{repository}/actions/artifacts?name={name}&per_page=30"
     listing = api_get(url, token)
     return [a for a in (listing.get("artifacts") or []) if not a.get("expired")]
+
+
+def reusable_outputs(repository: str, names: list[str], token: str) -> list[dict]:
+    """Candidates from every name that can carry this cell's packages.
+
+    Two artifacts can: the `-partial` an interrupted attempt banks, and the
+    plain `<cell-id>` a SUCCESSFUL one uploads. Both contain `artifacts/`
+    and, once the success upload carries it, the key that says which inputs
+    produced them -- and the key is the whole basis on which either is
+    accepted, so where the RPMs came from does not matter. A complete
+    attempt is simply a better partial: more packages, same guarantee.
+
+    Reading the success artifact is what lets a merge-queue run reuse the
+    evidence its own PR already produced. The PR's gate builds the cell and
+    stores it in a ref-scoped cache the queue commit cannot read, so the
+    queue rebuilt every `src/`-touching PR from zero -- hours of work
+    against a merge-queue CI timeout of about an hour, which evicted PR #567
+    with CI_TIMEOUT on every attempt and made such PRs unmergeable no matter
+    how green they were.
+
+    Merged newest-first across names, because "newest" is the useful
+    ordering and which name it came from is not.
+    """
+    found: list[dict] = []
+    for name in names:
+        for artifact in unexpired_partials(repository, name, token):
+            artifact = dict(artifact)
+            artifact["_source_name"] = name
+            found.append(artifact)
+    found.sort(key=lambda a: a.get("created_at") or "", reverse=True)
+    return found
 
 
 def extract(blob: bytes, destination: pathlib.Path) -> tuple[str | None, int]:
@@ -187,14 +225,15 @@ def main() -> int:
         log("no token or repository in the environment; building from scratch")
         return 0
 
-    name = f"{args.cell_id}-partial"
+    names = [f"{args.cell_id}-partial", args.cell_id]
     try:
-        candidates = unexpired_partials(args.repository, name, token)
+        candidates = reusable_outputs(args.repository, names, token)
     except (urllib.error.URLError, ValueError, OSError) as error:
         log(f"could not list artifacts ({error}); building from scratch")
         return 0
     if not candidates:
-        log(f"no unexpired `{name}` artifact; building from scratch")
+        log(f"no unexpired {' or '.join(f'`{n}`' for n in names)} artifact; "
+            "building from scratch")
         return 0
 
     # Extract somewhere disposable first. A key mismatch must leave the cell
@@ -212,7 +251,8 @@ def main() -> int:
     # prevent. So walk down the list until one actually carries packages.
     # Downloading a useless candidate is cheap precisely because it is empty.
     for artifact in candidates[:MAX_CANDIDATES]:
-        log(f"found `{name}` from {artifact.get('created_at')} "
+        log(f"found `{artifact.get('_source_name')}` from "
+            f"{artifact.get('created_at')} "
             f"({artifact.get('size_in_bytes', 0) / 1e6:.0f} MB)")
         shutil.rmtree(staging, ignore_errors=True)
         staging.mkdir(parents=True, exist_ok=True)
@@ -234,8 +274,8 @@ def main() -> int:
         break
 
     if source is None:
-        log("no unexpired partial carries usable packages; "
-            "building from scratch")
+        log("no unexpired artifact carries usable packages with a "
+            "matching key; building from scratch")
         shutil.rmtree(staging, ignore_errors=True)
         return 0
 

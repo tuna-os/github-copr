@@ -155,6 +155,15 @@ def test_success_uploads_the_output_and_failure_uploads_the_build_tree():
         ".factory/${{ matrix.id }}/artifacts/",
         ".factory/${{ matrix.id }}/metadata/",
         ".factory/${{ matrix.id }}/action-result.json",
+        # ~70 bytes, and the reason this artifact is EVIDENCE and not merely a
+        # deliverable: GitHub scopes the Actions cache by ref, so a
+        # merge-queue run cannot read the caches its PR wrote, but the
+        # artifacts API is repo-wide. restore-partial-chain-output.py accepts
+        # a candidate only when the key inside the zip matches this cell's, so
+        # without the key riding along the RPMs here can never be reused --
+        # which is what made every src/-touching PR hit the queue's CI
+        # timeout. See test_the_merge_queue_reuses_the_prs_evidence.py.
+        ".factory/${{ matrix.id }}/action-key.txt",
     ]
     # On failure the build tree is exactly what a person debugging wants.
     assert by_condition["failure()"]["with"]["path"].strip() == ".factory/${{ matrix.id }}/"
