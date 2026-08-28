@@ -219,3 +219,28 @@ def test_a_declaration_that_moved_under_us_stops_the_rewrite(
     with pytest.raises(br.RequestError, match="refusing a partial rewrite"):
         br.adopt(stale, apply=True)
     assert target.read_text() == "src/gnome-51\n", "the file was rewritten anyway"
+
+
+def test_renovate_follows_the_track_it_is_meant_to_watch() -> None:
+    """A move that leaves Renovate behind stops upstream tracking silently.
+
+    renovate.json pins each managed spec by an anchored path
+    (`^src/gnome-51/gtk4/gtk4\\.spec$`), so a track that moves without it
+    watches nothing and reports nothing — no error, no PR, just a stack
+    quietly falling behind upstream.
+
+    This is not a hypothetical failure mode; it is a recorded one, on this
+    file. Its own description says src/gnome-51 forked from src/gnome-50
+    without carrying its Renovate coverage, "so gtk4/libadwaita/gnome-shell
+    etc. drifted silently until #580 caught it by hand". The guard above
+    caught its re-introduction automatically, four hours after it landed on
+    main.
+    """
+    assert "renovate.json" in br.TRACK_DECLARATIONS
+    text = (REPO / "renovate.json").read_text(encoding="utf-8")
+    tracks = live_tracks()
+    watched = {track for track in tracks if track in text}
+    assert watched == tracks, (
+        "these live release tracks have no Renovate manager, so nothing "
+        f"tells us when upstream moves: {sorted(tracks - watched)}"
+    )

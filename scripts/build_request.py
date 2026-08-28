@@ -259,6 +259,14 @@ TRACK_DECLARATIONS = (
     "manifests/package-builds.yaml",
     "manifests/catalog.yaml",
     ".github/workflows/build-chain-fanout.yml",
+    # renovate.json pins 22 `fileMatch` patterns to ^src/gnome-51/... A move
+    # that left them behind would keep Renovate watching a dead tree and stop
+    # it watching the live one -- which is not a hypothetical: renovate.json's
+    # own comment records that src/gnome-51 forked from src/gnome-50 without
+    # carrying its Renovate coverage, so "gtk4/libadwaita/gnome-shell etc.
+    # drifted silently until #580 caught it by hand". That is this table's
+    # failure mode, found the expensive way, on this very file.
+    "renovate.json",
 )
 
 TRACK_DECISIONS = (
