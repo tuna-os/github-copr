@@ -7,7 +7,7 @@
 %global pipewire_version 0.2.90
 
 Name:    xdg-desktop-portal
-Version: 1.21.1
+Version: 1.22.1
 Release: %autorelease
 Summary: Portal frontend service to flatpak
 
@@ -79,31 +79,12 @@ The pkg-config file for %{name}.
 
 
 %build
-mkdir -p redhat-linux-build
-meson setup \
-    --prefix=%{_prefix} \
-    --libdir=%{_libdir} \
-    --libexecdir=%{_libexecdir} \
-    --bindir=%{_bindir} \
-    --sbindir=%{_sbin} \
-    --includedir=%{_includedir} \
-    --datadir=%{_datadir} \
-    --mandir=%{_mandir} \
-    --infodir=%{_infodir} \
-    --localedir=%{_datadir}/locale \
-    --sysconfdir=%{_sysconfdir} \
-    --localstatedir=%{_localstatedir} \
-    --sharedstatedir=%{_sharedstatedir} \
-    --wrap-mode=nodownload \
-    --auto-features=enabled \
-    --buildtype=plain \
-    %{!?with_docs:-Ddocumentation=disabled} \
-    redhat-linux-build
+%meson %{!?with_docs:-Ddocumentation=disabled}
+%meson_build
 
-ninja -C redhat-linux-build %{?_smp_mflags} -v
 
 %install
-DESTDIR=%{buildroot} ninja -C redhat-linux-build install
+%meson_install
 install -dm 755 %{buildroot}/%{_pkgdocdir}
 install -pm 644 README.md %{buildroot}/%{_pkgdocdir}
 # This directory is used by implementations such as xdg-desktop-portal-gtk.
