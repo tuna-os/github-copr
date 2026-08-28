@@ -216,6 +216,12 @@ def select_cells(
         return [cell for cell in graph_cells if cell["id"] in changed_graph_ids]
     changed_packages = {match.group(1) for path in changed if (match := RECIPE_CHANGE.match(path))}
     selected = []
+    # Cells pulled in ONLY because a renderer script moved -- build-chain.sh,
+    # parse-build-order.py, import-fedora-distgit.py. Nothing about the
+    # packages themselves changed, so on a PR these are bounded to their first
+    # tier rather than rebuilding every family end to end. See
+    # bound_to_canary_tiers() for why that is the right depth.
+    renderer_only = []
     for cell in cells:
         if cell["engine"] == "tideforge" and cell["package"] in changed_packages:
             selected.append(cell)
@@ -223,18 +229,56 @@ def select_cells(
         if formats and cell["format"] in formats:
             selected.append(cell)
             continue
-        if changed & NATIVE_INPUTS and cell["engine"] == "build-chain":
-            selected.append(cell)
-            continue
-        if changed & DISTGIT_INPUTS and cell["engine"] == "build-chain" and cell["uses_distgit"]:
-            selected.append(cell)
-            continue
+        # Checked BEFORE the renderer rules: a cell whose own manifest or
+        # sources moved must build for real, however it was also selected.
         if cell["engine"] == "build-chain" and any(
             path == cell["manifest"] or any(path.startswith(prefix) for prefix in cell["source_paths"])
             for path in changed
         ):
             selected.append(cell)
-    return selected
+            continue
+        if changed & NATIVE_INPUTS and cell["engine"] == "build-chain":
+            renderer_only.append(cell)
+            continue
+        if changed & DISTGIT_INPUTS and cell["engine"] == "build-chain" and cell["uses_distgit"]:
+            renderer_only.append(cell)
+    if canary_common:
+        renderer_only = bound_to_canary_tiers(renderer_only)
+    return selected + renderer_only
+
+
+def bound_to_canary_tiers(cells: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Same cells, each bounded to the FIRST tier of its own chain.
+
+    For a renderer-script change there is no package to attribute the edit to,
+    so every build-chain family gets selected and each one rebuilds its entire
+    chain. Measured on #576's gate, a two-line build-chain.sh fix pulled in 36
+    cells: xfce-el10-x86_64 took 51m, xfce-el10-aarch64 38m, and gnome50/51 ran
+    past 50m without finishing -- for a change that could not alter what any of
+    those packages compile to.
+
+    This is deliberately NOT canary_cells(). That collapses to one cell per
+    (engine, target, format, architecture), and every el10 rpm family shares
+    that coordinate -- gnome50, gnome51, xfce and fprintd would become a single
+    representative, so a renderer bug that only bites the gnome51 chain would
+    sail through. Keeping every family and cutting the DEPTH preserves the
+    coverage that matters here while removing the hours.
+
+    Setting `tiers` also drops the -c1/-c2 continuations, which exist to resume
+    a long chain and have nothing to resume from a single tier.
+
+    The nightly, the publish legs and the fan-out never pass canary_common, so
+    they are unaffected and still build every family end to end.
+    """
+    bounded = []
+    for cell in cells:
+        candidate = dict(cell)
+        tiers = candidate.get("canary_tiers")
+        if tiers:
+            candidate["id"] += "-canary"
+            candidate["tiers"] = tiers
+        bounded.append(candidate)
+    return bounded
 
 
 def canary_cells(cells: list[dict[str, Any]]) -> list[dict[str, Any]]:
