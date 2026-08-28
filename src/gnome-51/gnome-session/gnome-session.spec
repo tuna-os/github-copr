@@ -1,18 +1,28 @@
-%global major_version 51
-%global tarball_version 51.beta
 %define po_package gnome-session
 
 Name:           gnome-session
 Version:        51~beta
-Release:        1%{?dist}
+Release:        %autorelease
 Summary:        GNOME session manager
 
 License:        GPL-2.0-or-later
 URL:            https://gitlab.gnome.org/GNOME/gnome-session
-Source:         https://download.gnome.org/sources/gnome-session/%{major_version}/%{name}-%{tarball_version}.tar.xz
+# %%{gnome_major_version}/%%{gnome_tarball_version}/%%gnome_check_version come
+# from /usr/lib/rpm/macros.d/macros.gnome, confirmed present in our own
+# hummingbird-ci (centos-stream-10) mock buildroot -- not Fedora-only, so we
+# use Rawhide's exact macros instead of re-deriving the same values locally.
+Source:         https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+
+%gnome_check_version
 
 # For https://fedoraproject.org/w/index.php?title=Changes/HiddenGrubMenu
 # This should go upstream once systemd has a generic interface for this
+#
+# Verified against Rawhide (2026-08-28): byte-identical to Rawhide's own
+# 0001-Fedora-Set-grub-boot-flags-on-shutdown-reboot.patch, and Rawhide's
+# current gnome-session.spec still carries this same Patch: line. This is a
+# live Fedora-standard patch, not something only we are keeping alive -- keep
+# it in lockstep with upstream.
 Patch:          0001-Fedora-Set-grub-boot-flags-on-shutdown-reboot.patch
 
 BuildRequires:  meson
@@ -32,7 +42,6 @@ Requires: gsettings-desktop-schemas >= 0.1.7
 
 Requires: dbus
 
-Obsoletes: gnome-session < 50.0
 Conflicts: gnome-desktop3 < 44.4-2
 Conflicts: shared-mime-info < 2.0-4
 Requires: shared-mime-info
@@ -58,29 +67,14 @@ Obsoletes: gnome-session-xsession < %{version}-%{release}
 Desktop file to add GNOME on wayland to display manager session menu.
 
 %prep
-%autosetup -p1 -n %{name}-%{tarball_version}
+%autosetup -p1 -n %{name}-%{gnome_tarball_version}
 
 %build
-meson setup _build \
-    --buildtype=plain \
-    --prefix=%{_prefix} \
-    --libdir=%{_libdir} \
-    --libexecdir=%{_libexecdir} \
-    --bindir=%{_bindir} \
-    --sbindir=%{_sbindir} \
-    --includedir=%{_includedir} \
-    --datadir=%{_datadir} \
-    --mandir=%{_mandir} \
-    --infodir=%{_infodir} \
-    --localedir=%{_datadir}/locale \
-    --sysconfdir=%{_sysconfdir} \
-    --localstatedir=%{_localstatedir} \
-    --sharedstatedir=%{_sharedstatedir} \
-    --wrap-mode=nodownload
-ninja -C _build -j%{_smp_build_ncpus}
+%meson
+%meson_build
 
 %install
-DESTDIR=%{buildroot} ninja -C _build install
+%meson_install
 
 %find_lang %{po_package}
 
