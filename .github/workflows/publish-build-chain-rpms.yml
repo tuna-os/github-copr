@@ -194,9 +194,32 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           python3 scripts/restore-partial-chain-output.py             --cell-id '${{ matrix.id }}'             --action-key '${{ steps.identity.outputs.key }}'             --out-dir '.factory/${{ matrix.id }}'
+      # What the published index already serves, so the chain skips it.
+      #
+      # Without this, "already built" means only the local repo, seeded from
+      # an action-key-MATCHED partial -- and the key moves whenever the mock
+      # runner image is rebuilt, which every mock/*.cfg merge does. Leg
+      # 33113528651 is the measurement: dispatched minutes after #565 edited
+      # a cfg, it spent its whole 4.5h budget rebuilding packages the repo
+      # had served for hours, and published an index byte-identical to the
+      # one before it (8397 binaries, 580/673 sources, same NVRs). That is
+      # #544's deeper half, and it costs a leg every time a fix lands.
+      #
+      # An unreachable index prints nothing and the file is empty: the chain
+      # then behaves exactly as it did before this step.
+      - name: List what the published index already serves
+        if: steps.verdict.outputs.hit != 'true'
+        env:
+          R2_PATH: ${{ matrix.r2_path }}
+        run: |
+          set -euo pipefail
+          python3 scripts/list-served-nvrs.py \
+            "https://repo.tunaos.org/${R2_PATH}/" > /tmp/served-nvrs-${{ matrix.id }}.txt
+          echo "served NVRs for ${{ matrix.id }}: $(wc -l < /tmp/served-nvrs-${{ matrix.id }}.txt)"
       - name: Build the cell
         id: build
         env:
+          CHAIN_SERVED_NVRS: /tmp/served-nvrs-${{ matrix.id }}.txt
           CELL_ID: ${{ matrix.id }}
           ENGINE: build-chain
           # No RECIPE or FORMAT: the build-chain branch of the runner exits

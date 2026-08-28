@@ -76,14 +76,21 @@ def test_the_section_parser_finds_the_install_body():
     assert "python3 -m install" in body, body
 
 
+# The two variables need OPPOSITE spellings, and that asymmetry is load-
+# bearing: pip parses env values for NEGATIVE options (--no-*) through an
+# inversion (pypa/pip#5735), so PIP_NO_BUILD_ISOLATION=1 turns isolation
+# back ON -- the gnome50-el10 gate proved it live, with PIP_NO_INDEX=1
+# correctly starving the very download that =1 had re-enabled ("from
+# versions: none"). PIP_NO_INDEX is a positive-style option and 1 works.
 @pytest.mark.parametrize(
-    "var", ["PIP_NO_BUILD_ISOLATION", "PIP_NO_INDEX"]
+    "var,value", [("PIP_NO_BUILD_ISOLATION", "false"), ("PIP_NO_INDEX", "1")]
 )
-def test_pip_is_kept_off_the_network_in_install(var):
+def test_pip_is_kept_off_the_network_in_install(var, value):
     body = section("%install")
-    assert f"export {var}=1" in body, (
-        f"{var} is not exported in the %install body; a mention in a comment "
-        "or changelog does not reach pip"
+    assert f"export {var}={value}" in body, (
+        f"{var} must be exported as {value!r} in the %install body; a mention "
+        "in a comment or changelog does not reach pip, and for the negative "
+        "option the wrong boolean spelling re-enables what it names"
     )
 
 
