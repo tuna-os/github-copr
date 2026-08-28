@@ -5,20 +5,36 @@
 # have drifted since this beta). The stale 4.21.1 floor was satisfiable by
 # whatever gtk4 build happened to exist, including one still vendoring
 # pango -- see gtk4.spec's pango_version comment for that failure mode.
+# #580 fixed this by hand; Rawhide's own spec has since caught up to the
+# same 4.23.1 floor, so this fork now inherits it directly instead of
+# needing a standing correction -- comment kept for the institutional memory.
 %global gtk_version 4.23.1
-%global glib_version 2.80.0
-
-%global tarball_version %%(echo %{version} | tr '~' '.')
+# 2.84.0, not 2.80.0: matches Rawhide's current floor, and gtk4.spec's own
+# glib2_version in this tree (see gtk4.spec's comment for why that one was
+# bumped) -- the stale 2.80.0 here was satisfiable by an older glib2 than
+# what actually gets built alongside it.
+%global glib_version 2.84.0
 
 Name:           libadwaita
 Version:        1.10~beta.1
-Release:        1%{?dist}
+Release:        %autorelease
 Summary:        Building blocks for modern GNOME applications
 
 # part of src/adw-spring-animation.c is MIT
 License:        LGPL-2.1-or-later AND MIT
 URL:            https://gitlab.gnome.org/GNOME/libadwaita
-Source0:        https://download.gnome.org/sources/%{name}/1.10/%{name}-%{tarball_version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{gnome_tarball_version}.tar.xz
+
+# https://gitlab.gnome.org/GNOME/libadwaita/-/merge_requests/1802
+# Fixes stylesheet/meson.build to check for gtk.css (what tarball releases
+# actually ship) instead of base.css (only present in git checkouts), so
+# tarball builds stop being told they need sassc at all -- verified against
+# the 1.10.beta.1 tarball, which does ship src/stylesheet/gtk.css. With this
+# applied the sassc BuildRequires below is no longer needed; Rawhide's
+# current spec has already dropped it for the same reason.
+Patch0:         fix-sassc-requirement-for-tarball-builds.patch
+
+%gnome_check_version
 
 BuildRequires:  desktop-file-utils
 BuildRequires:  gcc
@@ -27,7 +43,6 @@ BuildRequires:  gi-docgen
 BuildRequires:  libappstream-glib
 BuildRequires:  meson >= 0.63.0
 BuildRequires:  vala
-BuildRequires:  /usr/bin/sassc
 BuildRequires:  pkgconfig(appstream)
 BuildRequires:  pkgconfig(fribidi)
 BuildRequires:  pkgconfig(glib-2.0) >= %{glib_version}
@@ -78,10 +93,16 @@ Demo files for %{name}.
 
 
 %prep
-%autosetup -p1 -n %{name}-%{tarball_version}
+%autosetup -p1 -n %{name}-%{gnome_tarball_version}
 
 
 %build
+# Explicit meson setup/ninja, not the meson RPM macros (meson, meson_build,
+# meson_install) that Rawhide's current spec uses: glib2.spec in this tree
+# (see its changelog) had to revert away from those macros because "fg: no
+# job control" fails the build under COPR-style builders that run rpmbuild
+# under --console=pipe non-interactive bash. Keeping the explicit form here
+# avoids reintroducing that failure mode.
 meson setup _build \
     --buildtype=plain \
     --prefix=%{_prefix} \
