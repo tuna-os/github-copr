@@ -1,4 +1,4 @@
-FROM fedora:45
+FROM fedora:46
 
 RUN dnf -y install \
     dnf-plugins-core \
