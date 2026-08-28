@@ -1,10 +1,34 @@
+# Forked from Fedora Rawhide's gnome-desktop3.spec (fetched 2026-08-28) to
+# stop this file from silently drifting the way it had: the gtk4 floor below
+# had rotted to 4.4.0 against upstream's actual >= 4.12.0 (verified against
+# gnome-desktop's own meson.build at the 51.alpha tag we build), the same
+# class of bug #580 fixed in gtk4.spec/libadwaita.spec. Rawhide's build and
+# install steps now use the standard %%meson/%%meson_build/%%meson_install
+# macros (already proven working in this repo's hummingbird-ci mock config
+# by the xdg-desktop-portal fork) instead of a hand-rolled meson invocation,
+# so we adopt that structure too.
+#
+# Hummingbird-specific deltas kept on top of Rawhide's structure, each
+# commented at its point of use below:
+#   - No use of the %%gnome_check_version / %%{gnome_major_version} /
+#     %%{gnome_tarball_version} macros.
+#     Nothing else in this repo's gnome-51 tree uses those macros (checked:
+#     zero hits across src/gnome-51/*/*.spec, including the other already-
+#     rebased forks), so they are not assumed present in the hummingbird-ci
+#     buildroot. We keep our own %%{tarball_version} global instead.
+#   - -Dlegacy_library=false (drops the gtk3-era libgnome-desktop-3.so and
+#     its gtk3 runtime dependency -- per af46f91, hummingbird's desktop
+#     stack is GTK4-only and does not want this library, regardless of
+#     whether gtk3 itself is otherwise present in the tree for other
+#     consumers).
+#   - %files trimmed to match what legacy_library=false actually builds
+#     (this is the #580 fix -- see the comment above %files for the story).
+
 %global gdk_pixbuf2_version               2.36.5
-%global gtk3_version                      3.3.6
-%global gtk4_version                      4.4.0
+%global gtk4_version                      4.12.0
 %global glib2_version                     2.53.0
 %global gsettings_desktop_schemas_version 3.27.0
 %global po_package                        gnome-desktop-3.0
-%global _localedir                        %{_datadir}/locale
 
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
@@ -27,6 +51,10 @@ BuildRequires: pkgconfig(gio-2.0) >= %{glib2_version}
 BuildRequires: pkgconfig(glib-2.0) >= %{glib2_version}
 BuildRequires: pkgconfig(gobject-introspection-1.0)
 BuildRequires: pkgconfig(gsettings-desktop-schemas) >= %{gsettings_desktop_schemas_version}
+# No pkgconfig(gtk+-3.0) BuildRequires: -Dlegacy_library=false below makes
+# gtk3_dep non-required in gnome-desktop's own meson.build, and the gtk3-only
+# library it would build is exactly what hummingbird does not want (see the
+# top-of-file note).
 BuildRequires: pkgconfig(gtk4) >= %{gtk4_version}
 BuildRequires: pkgconfig(iso-codes)
 BuildRequires: pkgconfig(libseccomp)
@@ -68,6 +96,8 @@ developing applications that use %{name}.
 %package -n gnome-desktop4
 Summary: Library with common API for various GNOME modules
 License: GPL-2.0-or-later AND LGPL-2.0-or-later
+# Depend on base package for translations, help, and version.
+Requires: %{name}%{?_isa} = %{version}-%{release}
 
 %description -n gnome-desktop4
 gnome-desktop4 contains the libgnome-desktop library.
@@ -98,31 +128,11 @@ the functionality of the installed %{name} package.
 %autosetup -p1 -n gnome-desktop-%{tarball_version}
 
 %build
-mkdir -p redhat-linux-build
-meson setup \
-    --prefix=%{_prefix} \
-    --libdir=%{_libdir} \
-    --libexecdir=%{_libexecdir} \
-    --bindir=%{_bindir} \
-    --sbindir=%{_sbin} \
-    --includedir=%{_includedir} \
-    --datadir=%{_datadir} \
-    --mandir=%{_mandir} \
-    --infodir=%{_infodir} \
-    --localedir=%{_localedir} \
-    --sysconfdir=%{_sysconfdir} \
-    --localstatedir=%{_localstatedir} \
-    --sharedstatedir=%{_sharedstatedir} \
-    --wrap-mode=nodownload \
-    --buildtype=plain \
-    -Dgtk_doc=true -Dinstalled_tests=true \
-    -Dlegacy_library=false \
-    redhat-linux-build
-
-ninja -C redhat-linux-build %{?_smp_mflags} -v
+%meson -Dgtk_doc=true -Dinstalled_tests=true -Dlegacy_library=false
+%meson_build
 
 %install
-DESTDIR=%{buildroot} ninja -C redhat-linux-build install
+%meson_install
 
 %find_lang %{po_package} --all-name --with-gnome
 
@@ -136,9 +146,14 @@ DESTDIR=%{buildroot} ninja -C redhat-linux-build install
 # every NON-rhel target (this spec's own hummingbird-ci mock config among
 # them), where legacy_library is equally false. Confirmed by an actual
 # build: `error: Directory not found: .../usr/libexec/gnome-desktop-debug`.
+# For the same reason, this package also carries none of the legacy 3.x
+# runtime files (libgnome-desktop-3.so.*, its typelib) that Rawhide's
+# upstream spec ships -- they are never built here either.
 
 %files devel
-%{_datadir}/gtk-doc/html/gnome-desktop3/
+%dir %{_datadir}/gtk-doc/
+%dir %{_datadir}/gtk-doc/html/
+%doc %{_datadir}/gtk-doc/html/gnome-desktop3/
 
 %files -n gnome-desktop4
 %doc AUTHORS NEWS README.md
