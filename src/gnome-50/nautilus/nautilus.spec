@@ -160,19 +160,4 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %doc %{_datadir}/doc/nautilus/
 
 %changelog
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-4
-- Add explicit -Ddocs=true (docs option defaults to disabled, not auto-detect)
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
-- Enable docs (gi-docgen is now available in COPR); restore unconditional man pages
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
-- EL10: gate man pages behind %%if !0%%{?rhel} (-Ddocs=false also disables man page generation)
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
-- Update to 50.0 (GNOME 50 stable release)
-- Track F44 branch instead of rawhide
-- Add man pages to %%files
-- Properly wire %%bcond cloudproviders into meson -Dcloudproviders= argument
-- EL10: keep -Ddocs=false (gi-docgen not available on EL10)
-- Remove %%autorelease/%%autochangelog: Fedora-specific macros not available on EL10.
+%autochangelog

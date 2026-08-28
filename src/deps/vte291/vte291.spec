@@ -221,9 +221,4 @@ rm %{buildroot}/%{_datadir}/applications/org.gnome.Vte.App.Gtk4.desktop
 
 
 %changelog
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 0.84.0-4
-- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
-  to avoid non-deterministic "fg: no job control" on COPR builders with
-  --console=pipe (non-interactive bash, especially x86-64-v3 workers).
-- Replace %%autorelease/%%autochangelog with explicit Release and changelog.
-- Based on Fedora rawhide vte291 0.84.0-3.
+%autochangelog

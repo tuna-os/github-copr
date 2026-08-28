@@ -131,11 +131,4 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/*.desktop
 
 
 %changelog
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.9.0-2
-- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
-  to avoid "fg: no job control" on COPR builders (non-interactive bash).
-- Remove %%autochangelog: Fedora-specific macro not available on EL10.
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.9.0-1
-- Update to 1.9.0 (libadwaita stable release for GNOME 50)
-- Track F44 branch instead of rawhide
+%autochangelog

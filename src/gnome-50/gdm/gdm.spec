@@ -248,19 +248,4 @@ ln -sf ../X11/xinit/Xsession %{buildroot}%{_sysconfdir}/gdm/
 %{_libdir}/pkgconfig/gdm-pam-extensions.pc
 
 %changelog
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
-- Add explicit BuildRequires: gcc (COPR EL10 minimal buildroot does not
-  pre-install gcc unlike Fedora; meson compiler detection fails without it)
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
-- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
-  to avoid "fg: no job control" on COPR builders (non-interactive bash).
-- Remove %%autorelease/%%autochangelog: Fedora-specific macros not available on EL10.
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
-- Update to 50.0 (GNOME 50 stable release)
-- Track F44 branch instead of rawhide
-- Drop gcc BuildRequires (pulled in transitively)
-- Drop dbus-daemon Requires (covered by dbus-common)
-- EL10: gate libcanberra-gtk3 BR behind %%if !0%%{?rhel} (no gtk3 on EL10)
-- EL10: retain gnome50-el10-compat Requires (SELinux/PAM compat)
+%autochangelog
