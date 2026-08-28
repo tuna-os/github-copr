@@ -402,10 +402,32 @@ record_buildroot_manifest() {
 
 update_local_repo() {
     log "Updating local repo metadata"
+    # createrepo_c stages into `.repodata/` and renames it to `repodata/` when
+    # it finishes, and it REFUSES to start if that temp directory is already
+    # there:
+    #
+    #     Temporary repodata directory .../.repodata/ already exists!
+    #     (Another createrepo process is running?)
+    #
+    # Nothing else is running -- update_local_repo is called only from
+    # wait_one(), a nested function the dispatch loop calls synchronously, so
+    # there is never a second createrepo_c in this process. The directory is
+    # the debris of an INTERRUPTED one: a cell that hit its deadline mid-index,
+    # a cancelled shard, an OOM. It then poisons the workspace permanently,
+    # because the retry below used to `rm -rf repodata` -- the FINISHED
+    # directory -- and leave the temp one that is actually doing the blocking,
+    # so the fallback re-ran into the identical error and the chain died at
+    # `createrepo_c "${LOCAL_REPO}"`.
+    #
+    # Fanout run 33134251127 lost 14 of 30 shards to this, 7 of 8 in band1-x86.
+    # The served-NVR skip is what exposed it: skips return in milliseconds, so
+    # a shard now reaches its first metadata update almost immediately, and
+    # every one of those shards died having built nothing (`new RPMs: 0`).
+    rm -rf "${LOCAL_REPO}/.repodata"
     # Attempt to update existing metadata first (faster)
     if ! createrepo_c --update "${LOCAL_REPO}"; then
         warn "createrepo_c --update failed, attempting full re-index"
-        rm -rf "${LOCAL_REPO}/repodata"
+        rm -rf "${LOCAL_REPO}/.repodata" "${LOCAL_REPO}/repodata"
         createrepo_c "${LOCAL_REPO}"
     fi
 
