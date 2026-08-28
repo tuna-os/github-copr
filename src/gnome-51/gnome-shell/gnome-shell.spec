@@ -209,7 +209,7 @@ BuildArch: noarch
 
 %build
 meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build \
-  -Dextensions_app=false \
+  -Dextensions_tool=true \
 %if %{portal_helper}
   -Dportal_helper=true \
 %else
@@ -243,6 +243,10 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Porta
 %{_bindir}/gnome-shell-test-tool
 %{_datadir}/glib-2.0/schemas/00_org.gnome.shell.gschema.override
 %{_datadir}/applications/org.gnome.Shell.Extensions.desktop
+# data/meson.build installs this unconditionally (not gated behind
+# have_portal_helper like org.gnome.Shell.PortalHelper.desktop below) --
+# confirmed against gitlab.gnome.org/GNOME/gnome-shell at tag 51.beta.
+%{_datadir}/applications/org.gnome.Shell.CalendarServer.desktop
 %{_datadir}/bash-completion/completions/gnome-extensions
 %{_datadir}/gnome-control-center/keybindings/50-gnome-shell-launchers.xml
 %{_datadir}/gnome-control-center/keybindings/50-gnome-shell-screenshots.xml
