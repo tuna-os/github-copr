@@ -74,3 +74,32 @@ def test_the_previously_stale_floor_is_gone(spec, name, stale):
         f"{spec} regressed to the stale {name}={stale} that let gtk4 vendor "
         f"pango instead of failing its BuildRequires"
     )
+
+
+# Two tools GTK removed between whatever version this spec last built clean
+# and 4.23.3, confirmed absent from tools/meson.build and demos/meson.build
+# at the exact 4.23.3 tag (no source file, no install rule, no tools/ or
+# demos/ subdirectory of that name). A stale %files entry for either fails
+# the whole package at the very end of the build with "File not found" --
+# reproduced live iterating this chain locally: %files -> gtk4-encode-symbolic-svg
+# first, then gtk4-icon-editor plus its org.gtk.Shaper.desktop and
+# org.gtk.Shaper*.svg, each one only surfacing after the previous was removed
+# and the package rebuilt.
+REMOVED_UPSTREAM_FILES = (
+    "%{_bindir}/gtk4-encode-symbolic-svg",
+    "%{_mandir}/man1/gtk4-encode-symbolic-svg.1*",
+    "%{_bindir}/gtk4-icon-editor",
+    "%{_datadir}/applications/org.gtk.Shaper.desktop",
+    "%{_datadir}/icons/hicolor/*/apps/org.gtk.Shaper*.svg",
+)
+
+
+@pytest.mark.parametrize("stale_file", REMOVED_UPSTREAM_FILES)
+def test_gtk4_files_does_not_reference_a_tool_upstream_removed(stale_file):
+    text = GTK4_SPEC.read_text(encoding="utf-8")
+    assert stale_file not in text, (
+        f"{stale_file!r} does not exist in GTK 4.23.3 (verified against "
+        f"gitlab.gnome.org/GNOME/gtk tools/meson.build and demos/meson.build "
+        f"at that tag) -- referencing it in %files fails the whole package "
+        f"build with 'File not found', at the very end of a from-scratch build"
+    )
