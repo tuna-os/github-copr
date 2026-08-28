@@ -199,3 +199,40 @@ def test_bands_continue_past_red_shards(fanout):
                 f"band{i}-{arch}: default gating skips the rest of the chain "
                 "after one red shard, stranding the collected band"
             )
+
+
+# --- the single-runner publisher must skip served packages too ---------------
+
+PUBLISHER = ROOT / ".github" / "workflows" / "publish-build-chain-rpms.yml"
+
+
+@pytest.fixture(scope="module")
+def publisher():
+    return yaml.safe_load(PUBLISHER.read_text(encoding="utf-8"))
+
+
+def test_publisher_lists_the_served_index(publisher):
+    steps = publisher["jobs"]["build"]["steps"]
+    lister = [s for s in steps if "list-served-nvrs.py" in str(s.get("run", ""))]
+    assert lister, (
+        "leg 33113528651 burned its whole 4.5h budget rebuilding served "
+        "packages and republished a byte-identical index: without this the "
+        "publisher restarts at tier 0 on every mock-cfg merge (#544)"
+    )
+
+
+def test_publisher_feeds_the_served_list_to_the_chain(publisher):
+    steps = publisher["jobs"]["build"]["steps"]
+    build = [s for s in steps if s.get("id") == "build"]
+    assert build, "the build step must keep its id"
+    assert "CHAIN_SERVED_NVRS" in build[0]["env"], (
+        "listing the served NVRs is useless unless the chain is told to read them"
+    )
+
+
+def test_the_served_list_is_per_cell(publisher):
+    text = PUBLISHER.read_text(encoding="utf-8")
+    assert "/tmp/served-nvrs-${{ matrix.id }}.txt" in text, (
+        "both arches share a runner-local /tmp in the matrix; one filename "
+        "would let x86_64's list decide what aarch64 skips"
+    )
