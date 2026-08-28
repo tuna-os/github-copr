@@ -1,11 +1,21 @@
+# Kept as our own %%global instead of Rawhide's newer %%gnome_check_version /
+# %%{gnome_major_version} / %%{gnome_tarball_version} macro trio: zero other
+# specs in src/gnome-51/*/*.spec use those macros (including every sibling
+# already re-forked from Rawhide this session -- gnome-desktop3,
+# gnome-control-center, gnome-online-accounts), so they are not assumed
+# present in the hummingbird-ci buildroot.
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
-# src/meson.build: dependency('xdg-desktop-portal', version: '>= 1.21.1')
+# src/meson.build: dependency('xdg-desktop-portal', version: '>= 1.21.1').
+# Rawhide's own live spec already carries this same 1.21.1 floor (fetched
+# 2026-08-28), so #580's fix (e918d72) is no longer a local-only delta -- it
+# has since landed upstream too. Kept explicit here regardless, since dnf5
+# builddep only enforces what this file states, not what meson.build states.
 %global xdg_desktop_portal_version 1.21.1
 
 Name:           xdg-desktop-portal-gnome
 Version:        51~alpha
-Release:        1%{?dist}
+Release:        %autorelease
 Summary:        Backend implementation for xdg-desktop-portal using GNOME
 
 License:        LGPL-2.1-or-later
@@ -45,27 +55,18 @@ org.gnome.SessionManager D-Bus interfaces.
 
 
 %build
-meson setup _build \
-    --buildtype=plain \
-    --prefix=%{_prefix} \
-    --libdir=%{_libdir} \
-    --libexecdir=%{_libexecdir} \
-    --bindir=%{_bindir} \
-    --sbindir=%{_sbindir} \
-    --includedir=%{_includedir} \
-    --datadir=%{_datadir} \
-    --mandir=%{_mandir} \
-    --infodir=%{_infodir} \
-    --localedir=%{_datadir}/locale \
-    --sysconfdir=%{_sysconfdir} \
-    --localstatedir=%{_localstatedir} \
-    --sharedstatedir=%{_sharedstatedir} \
-    --wrap-mode=nodownload \
-    -Dsystemduserunitdir=%{_userunitdir}
-ninja -C _build -j%{_smp_build_ncpus}
+# Rawhide's current spec has since collapsed the hand-rolled `meson setup`
+# (every path flag spelled out, pre-%%meson-macro Fedora packaging style) plus
+# `DESTDIR=%%{buildroot} ninja -C _build install` down to the %%meson /
+# %%meson_build / %%meson_install macro trio. Adopted here too: the same form
+# already proven in this repo's hummingbird-ci mock config by the
+# xdg-desktop-portal fork (src/gnome-51/xdg-desktop-portal/xdg-desktop-portal.spec)
+# and by gnome-desktop3's re-fork.
+%meson -Dsystemduserunitdir=%{_userunitdir}
+%meson_build
 
 %install
-DESTDIR=%{buildroot} ninja -C _build install
+%meson_install
 desktop-file-validate %{buildroot}/%{_datadir}/applications/%{name}.desktop
 %find_lang %{name}
 
