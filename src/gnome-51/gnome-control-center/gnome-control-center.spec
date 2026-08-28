@@ -204,9 +204,10 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %{_datadir}/gnome-shell/search-providers/org.gnome.Settings.search-provider.ini
 %{_datadir}/icons/gnome-logo-text*.svg
 %{_datadir}/icons/hicolor/*/*/*
-%if !0%{?rhel}
-%{_mandir}/man1/gnome-control-center.1*
-%endif
+# man/meson.build (and the gnome-control-center.1 it builds) is only entered
+# via `if get_option('documentation')` in the top-level meson.build; %build
+# passes -Ddocumentation=false unconditionally for every target, so this page
+# is never produced and packaging it fails with "File not found".
 %{_metainfodir}/org.gnome.Settings.metainfo.xml
 %{_datadir}/pixmaps/faces
 %{_datadir}/pkgconfig/gnome-keybindings.pc
