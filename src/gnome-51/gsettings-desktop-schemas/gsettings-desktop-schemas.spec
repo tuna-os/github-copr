@@ -4,15 +4,29 @@
 
 Name:           gsettings-desktop-schemas
 Version:        51~beta
-Release:        1%{?dist}
+# Rawhide fork: adopt %%autorelease like our other src/gnome-51 packages
+# (xdg-desktop-portal, gnome-desktop3, ptyxis, vte291, gobject-introspection)
+# instead of the stale hand-bumped Release: 1%%{?dist}.
+Release:        %autorelease
 Summary:        A collection of GSettings schemas
 
 License:        LGPL-2.1-or-later
 # no homepage exists for this component
 URL:            https://gitlab.gnome.org/GNOME/gsettings-desktop-schemas
 Source0:        https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
+# RHEL/EL10 default-font override (font-name, document-font-name,
+# monospace-font-name in org.gnome.desktop.interface). This isn't a
+# hummingbird-local invention -- it matches Fedora's own rawhide spec
+# byte-for-byte, including the %{?rhel} >= 10 install guard below. Verified
+# the three keys are unrenamed/unmoved in gsettings-desktop-schemas 51
+# (checked schemas/org.gnome.desktop.interface.gschema.xml.in on the GNOME
+# gsettings-desktop-schemas main branch), so kept as-is.
 Source1:        org.gnome.desktop.interface.rhel.gschema.override
 
+# Rawhide's own spec replaces this block with a bare "%%gnome_check_version"
+# macro call. We don't have that macro (or %%gnome_major_version /
+# %%gnome_tarball_version) verified in the hummingbird-ci buildroot, so -- same
+# as our other src/gnome-51 forks -- we keep BuildRequires explicit instead.
 BuildRequires:  gcc
 BuildRequires:  gettext
 BuildRequires:  glib2-devel >= 2.31.0
@@ -49,27 +63,16 @@ and header files for developing applications that use %{name}.
 
 
 %build
-meson setup _build \
-    --buildtype=plain \
-    --prefix=%{_prefix} \
-    --libdir=%{_libdir} \
-    --libexecdir=%{_libexecdir} \
-    --bindir=%{_bindir} \
-    --sbindir=%{_sbindir} \
-    --includedir=%{_includedir} \
-    --datadir=%{_datadir} \
-    --mandir=%{_mandir} \
-    --infodir=%{_infodir} \
-    --localedir=%{_datadir}/locale \
-    --sysconfdir=%{_sysconfdir} \
-    --localstatedir=%{_localstatedir} \
-    --sharedstatedir=%{_sharedstatedir} \
-    --wrap-mode=nodownload \
-    -Dintrospection=true
-ninja -C _build -j%{_smp_build_ncpus}
+# Rawhide fork: use the standard %%meson/%%meson_build macros (same pattern
+# already verified working for xdg-desktop-portal and gobject-introspection
+# in this repo) instead of the hand-rolled meson setup + ninja invocation.
+# -Dintrospection=true is dropped because it's the meson_options.txt default
+# upstream (verified against GNOME gsettings-desktop-schemas main branch).
+%meson
+%meson_build
 
 %install
-DESTDIR=%{buildroot} ninja -C _build install
+%meson_install
 
 %if 0%{?rhel} && 0%{?rhel} >= 10
 cp %{SOURCE1} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas

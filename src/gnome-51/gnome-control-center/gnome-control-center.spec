@@ -1,16 +1,22 @@
-%global blueprint_compiler_version 0.17
+%global blueprint_compiler_version 0.19
 %global gcr_version 4.1.0
 %global gnome_online_accounts_version 3.51.0
 %global glib2_version 2.76.6
 %global gnome_desktop_version 44.0-7
 %global gsd_version 48~rc
-%global gsettings_desktop_schemas_version 48~alpha-2
+%global gsettings_desktop_schemas_version 50~alpha
 %global upower_version 1.90.6
-%global gtk4_version 4.15.2
+%global gtk4_version 4.23.0
 %global gnome_bluetooth_version 42~alpha
 %global libadwaita_version 1.8~alpha
 %global nm_version 1.52.0
 
+# Rawhide's current spec sources %%{gnome_tarball_version}/%%{gnome_major_version}
+# from the gnome-rpm-macros package and asserts freshness with
+# %%gnome_check_version. Nothing else in this tree's gnome-50/gnome-51 forks
+# depends on that macro set (see gnome-desktop3, which hand-rolls the same
+# tr '~' '.' trick below), so we keep our own local macro rather than take on
+# an unverified new build dependency for this one package.
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 # Disable parental control for RHEL builds
@@ -18,7 +24,7 @@
 
 Name:           gnome-control-center
 Version:        51~beta
-Release:        1%{?dist}
+Release:        %autorelease
 Summary:        Utilities to configure the GNOME desktop
 
 License:        GPL-2.0-or-later AND CC0-1.0
@@ -34,11 +40,10 @@ BuildRequires:  meson
 BuildRequires:  pkgconfig(accountsservice)
 BuildRequires:  pkgconfig(colord)
 BuildRequires:  pkgconfig(colord-gtk4)
-BuildRequires:  pkgconfig(tecla)
 BuildRequires:  pkgconfig(cups)
 BuildRequires:  pkgconfig(gcr-4) >= %{gcr_version}
 BuildRequires:  pkgconfig(gdk-pixbuf-2.0)
-# gdk-wayland-3.0 is gtk3; not available on EL10
+# gdk-wayland-3.0 is gtk3; not available on our EL10/CentOS-Stream target
 %if !0%{?rhel}
 BuildRequires:  pkgconfig(gdk-wayland-3.0)
 %endif
@@ -68,6 +73,7 @@ BuildRequires:  pkgconfig(mm-glib)
 BuildRequires:  pkgconfig(polkit-gobject-1)
 BuildRequires:  pkgconfig(pwquality)
 BuildRequires:  pkgconfig(smbclient)
+BuildRequires:  pkgconfig(tecla)
 BuildRequires:  pkgconfig(udisks2)
 BuildRequires:  pkgconfig(upower-glib) >= %{upower_version}
 BuildRequires:  pkgconfig(x11)
@@ -110,7 +116,6 @@ Recommends: malcontent-control
 %endif
 # For the network panel
 Recommends: NetworkManager-wifi
-Recommends: nm-connection-editor
 # For Show Details in the color panel
 Recommends: gnome-color-manager
 # For the sharing panel
@@ -162,18 +167,21 @@ utilities.
 %autosetup -p1 -n %{name}-%{tarball_version}
 
 %build
-export PKG_CONFIG_PATH=/usr/share/pkgconfig:/usr/lib64/pkgconfig
-meson setup --prefix=/usr --libdir=%{_libdir} --buildtype=plain --wrap-mode=nodownload build \
-  -Ddocumentation=false \
+%meson \
+  -Ddocumentation=true \
   -Dlocation-services=enabled \
   -Ddistributor_logo=%{_datadir}/pixmaps/fedora-logo.png \
   -Ddark_mode_distributor_logo=%{_datadir}/pixmaps/system-logo-white.png \
+%if %{with malcontent}
+  -Dmalcontent=true \
+%else
   -Dmalcontent=false \
+%endif
   %{nil}
-meson compile -C build
+%meson_build
 
 %install
-DESTDIR=%{buildroot} meson install -C build
+%meson_install
 
 # We do want this
 mkdir -p $RPM_BUILD_ROOT%{_datadir}/gnome/wm-properties
@@ -183,9 +191,6 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/autostart
 rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 
 %find_lang %{name} --all-name --with-gnome
-
-%check
-# desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Extensions.desktop
 
 %files -f %{name}.lang
 %license COPYING
@@ -204,10 +209,12 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %{_datadir}/gnome-shell/search-providers/org.gnome.Settings.search-provider.ini
 %{_datadir}/icons/gnome-logo-text*.svg
 %{_datadir}/icons/hicolor/*/*/*
-# man/meson.build (and the gnome-control-center.1 it builds) is only entered
-# via `if get_option('documentation')` in the top-level meson.build; %build
-# passes -Ddocumentation=false unconditionally for every target, so this page
-# is never produced and packaging it fails with "File not found".
+# man/meson.build only needs xsltproc (libxslt) + docbook-style-xsl, both
+# already in BuildRequires above -- the itstool/yelp-tools gap #580 worked
+# around no longer applies, so -Ddocumentation is back on and the man page
+# is real again. Keep this line and the %%build flag in lock-step: that
+# consistency, not documentation=false specifically, is what #580 fixed.
+%{_mandir}/man1/gnome-control-center.1*
 %{_metainfodir}/org.gnome.Settings.metainfo.xml
 %{_datadir}/pixmaps/faces
 %{_datadir}/pkgconfig/gnome-keybindings.pc
@@ -224,38 +231,4 @@ rm -rf $RPM_BUILD_ROOT%{_datadir}/gnome/cursor-fonts
 %dir %{_datadir}/gnome/wm-properties
 
 %changelog
-* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
-- Update to 51.beta (GNOME 51 beta cycle)
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-4
-- Restore -Ddocumentation=false: gcc docs need yelp-tools/itstool not currently
-  wired in; gate man page behind %%if !0%%{?rhel} to avoid packaging missing file
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
-- Enable documentation (drop -Ddocumentation=false); gnome-control-center uses
-  docbook/xslt for man pages which are already in BuildRequires
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
-- EL10: gate man page behind %%if !0%%{?rhel} (-Ddocumentation=false disables man pages)
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
-- Update to 50.0 (GNOME 50 stable release)
-- Track F44 branch instead of rawhide
-- Drop libcanberra BuildRequires (removed upstream in 50.0)
-- Drop epoxy BuildRequires (removed upstream in 50.0)
-- Drop version floor on tecla BR (aligned with F44)
-- Add manpage to %%files
-- Add ppd-service Recommends block (gated on rhel >= 9, aligns with F44)
-- EL10: retain gdk-wayland-3.0 guard (no gtk3 on EL10)
-- EL10: retain manual meson setup with PKG_CONFIG_PATH and -Ddocumentation=false
-
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-10
-- Revert hacks and use real tecla >= 47.0 dependency
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-9
-- Revert tecla hacks and use pkgconfig(tecla) provided by libcanberra-devel
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-8
-- Brute-force skip tecla check in panels/keyboard/meson.build
-- Re-add epoxy build dependency
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-2
-- EL10: gate gdk-wayland-3.0 (gtk3) and gsound (pulls libcanberra→gtk3)
-  BuildRequires behind %if !0%?rhel
+%autochangelog

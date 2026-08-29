@@ -1,12 +1,25 @@
-%global glib2_version 2.68.0
+%global glib2_version 2.86.0
 %global gobject_introspection_version 1.72.0
-%global mozjs140_version 140.1.0
+# Rawhide's gjs-1.89.2 currently floors mozjs140 at 140.13.0, but
+# src/deps/mozjs140/mozjs140.spec in this repo only builds 140.6.0 as of
+# 2026-08-28. Pinning to Rawhide's floor here would make gjs's own
+# BuildRequires/Requires unsatisfiable against our own mozjs140 once the full
+# hummingbird chain builds gjs against the local repo (a plain `--package gjs`
+# verify build won't catch this: it resolves mozjs140 from the real Fedora
+# Rawhide repo in the buildroot instead of our local one, which quietly hides
+# the gap). Bump this to 140.13.0 in lockstep with mozjs140, not before.
+%global mozjs140_version 140.6.0
 
+# xwfb-run + mutter GUI tests (Rawhide's %check) don't have a working
+# compositor in our mock/COPR builders -- same reason gtk4/nautilus/mutter's
+# forks in this repo skip GUI-heavy %check content. Default tests off; the
+# tests subpackage and its BuildRequires stay available for anyone who wants
+# to opt in locally.
 %bcond_with tests
 
 Name:           gjs
 Version:        1.89.2
-Release:        1%{?dist}
+Release:        %autorelease
 Summary:        Javascript Bindings for GNOME
 
 # The following files contain code from Mozilla which
@@ -17,7 +30,7 @@ Summary:        Javascript Bindings for GNOME
 # modules/script/tweener/equations.js is BSD-3-Clause
 License:        MIT AND BSD-3-Clause AND (MIT OR LGPL-2.0-or-later) AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later)
 URL:            https://wiki.gnome.org/Projects/Gjs
-Source0:        https://download.gnome.org/sources/%{name}/1.89/%{name}-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{version}.tar.xz
 
 BuildRequires:  gcc-c++
 BuildRequires:  meson
@@ -29,10 +42,14 @@ BuildRequires:  pkgconfig(gobject-introspection-1.0) >= %{gobject_introspection_
 BuildRequires:  pkgconfig(gtk4)
 BuildRequires:  pkgconfig(mozjs-140) >= %{mozjs140_version}
 BuildRequires:  pkgconfig(sysprof-capture-4)
+# gjs's meson.build probes for dbus-run-session at configure time regardless
+# of -Dinstalled_tests, so this has to stay outside the %%{with tests} guard
+# below or configure fails even with tests disabled.
 BuildRequires:  /usr/bin/dbus-run-session
 
 %if %{with tests}
 BuildRequires:  gtk3
+BuildRequires:  dbus-x11
 BuildRequires:  mesa-dri-drivers
 BuildRequires:  mutter
 BuildRequires:  xwayland-run
@@ -73,6 +90,9 @@ Tests are disabled.
 %autosetup -p1
 
 %build
+# Explicit meson setup/ninja/DESTDIR install instead of %%meson/%%meson_build/
+# %%meson_install: repo-wide convention (see gtk4, libadwaita) because the
+# macro-based flow hit "fg: no job control" on our COPR/mock-runner builders.
 meson setup _build \
     --buildtype=plain \
     --prefix=%{_prefix} \
@@ -96,61 +116,38 @@ ninja -C _build -j%{_smp_build_ncpus}
 DESTDIR=%{buildroot} ninja -C _build install
 
 %files
-%exclude %{_libdir}/debug/
+# gjs's meson.build installs the installed-tests support libraries
+# (libgimarshallingtests.so, libregress.so, libutility.so, libwarnlib.so and
+# their typelibs) unconditionally -- -Dinstalled_tests=false above does NOT
+# suppress them. With tests off by default (%%bcond_with tests, see the top of
+# this spec) nothing claims them, so rpmbuild's unpackaged-files check fails
+# without this exclude. Confirmed against a real build in this repo
+# (2026-08-28): dropping this line reproduces
+# "error: Installed (but unpackaged) file(s) found" for exactly these paths.
 %exclude %{_libexecdir}/installed-tests/
 %exclude %{_datadir}/installed-tests/
 %license COPYING
-%doc README.md
-%doc NEWS
+%doc NEWS README.md
 %{_bindir}/gjs
 %{_bindir}/gjs-console
-%{_libdir}/libgjs.so.*
 %{_libdir}/gjs/
-%dir %{_datadir}/gjs-1.0
-%dir %{_datadir}/gjs-1.0/lsan
-%dir %{_datadir}/gjs-1.0/valgrind
-%{_datadir}/gjs-1.0/lsan/lsan.supp
-%{_datadir}/gjs-1.0/valgrind/gjs.supp
+%{_libdir}/libgjs.so.0*
 
 %files devel
-%dir %{_includedir}/gjs-1.0
-%{_includedir}/gjs-1.0/*
-%{_libdir}/libgjs.so
+%doc examples/*
+%{_includedir}/gjs-1.0
 %{_libdir}/pkgconfig/gjs-1.0.pc
+%{_libdir}/libgjs.so
+%dir %{_datadir}/gjs-1.0
+%{_datadir}/gjs-1.0/lsan/
+%{_datadir}/gjs-1.0/valgrind/
 
 %files tests
 %if %{with tests}
-%{_libexecdir}/installed-tests/gjs/
-%{_datadir}/installed-tests/gjs/
+%{_libexecdir}/installed-tests/
 %{_datadir}/glib-2.0/schemas/org.gnome.GjsTest.gschema.xml
+%{_datadir}/installed-tests/
 %endif
 
 %changelog
-* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 1.89.2-1
-- Update to 1.89.2 (GNOME 51 beta cycle)
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.88.0-3
-- Move /usr/bin/dbus-run-session BR outside %%if %%{with tests}: GJS 1.88
-  meson.build:319 checks for it unconditionally at configure time regardless
-  of -Dinstalled_tests=false, causing build failure when dbus-daemon is absent.
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.88.0-2
-- Replace %%meson/%%meson_build/%%meson_install macros with explicit meson setup,
-  ninja, and DESTDIR install to avoid "fg: no job control" on COPR builders.
-- Add -Dinstalled_tests=false to meson configure: GJS meson.build requires
-  dbus-run-session at configure time even without %%bcond_with tests;
-  passing the flag skips that check entirely.
-- Guard %%files tests content with %%if %%{with tests} to avoid missing-file
-  errors when installed_tests=false.
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.88.0-1
-- Update to 1.88.0 (GNOME 50 stable release)
-- Track F44 branch instead of rawhide
-- Adopt %meson build macros
-- Remove no-op %ldconfig_scriptlets
-- Remove dbus-daemon BR (pulled in transitively)
-- Fix %%files tests subpackage to be populated unconditionally
-- EL10: keep %%bcond_with tests guard; xwfb-run/mutter tests not usable in COPR
-
-* Thu Mar 12 2026 Conductor <james@conductor.local> - 1.87.90-1
-- Clean build for GNOME 50 against mozjs140
+%autochangelog
