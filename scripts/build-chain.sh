@@ -140,7 +140,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Backend implementations are sourced as modules so they can be reviewed,
-# shellchecked, and tested independently from orchestration.
+# tested, and shellchecked independently from orchestration.
+#
+# ("shellchecked" must not start this comment line: shellcheck parses any
+# comment beginning with "shellcheck" as a directive and fails with SC1073.)
+# shellcheck source-path=SCRIPTDIR
 # shellcheck source=lib/build-chain/native.sh
 source "${SCRIPT_DIR}/lib/build-chain/native.sh"
 
