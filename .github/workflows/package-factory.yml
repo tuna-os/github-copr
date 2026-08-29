@@ -1,7 +1,20 @@
 name: Package Factory
 
 on:
+  # `closed` added alongside the default [opened, synchronize, reopened] so a
+  # merged (or simply closed) PR gets ONE MORE event on this exact
+  # concurrency group (see below: pull_request's group key is
+  # refs/pull/N/merge, stable across the PR's whole lifetime). That new run
+  # does no real work (the `plan` job short-circuits to zero packages for a
+  # closed action) but its mere queuing is what makes `cancel-in-progress`
+  # kill the PR's own still-running build -- which otherwise runs to
+  # completion or its 360m timeout for a result nothing will ever read,
+  # since nothing re-triggers this workflow once a PR has no more commits.
+  # Measured: PRs #590-#609 this session left 18 such runs alive for hours
+  # after merging, several still mid-build, holding runners a genuinely
+  # queued nightly family build then waited behind for over an hour.
   pull_request:
+    types: [opened, synchronize, reopened, closed]
   # NOT merge_group. A cell build takes ~2.5h; the merge queue's CI timeout is
   # about an hour, so the queue would evict src/-touching PRs before completion.
   # The PR gate already builds refs/pull/N/merge -- the merge result -- and the
@@ -138,10 +151,30 @@ jobs:
           REQUESTED_CELL: ${{ inputs.cell || '' }}
           REQUESTED_SELECTOR: ${{ inputs.selector || '' }}
           EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action || '' }}
           SCHEDULE: ${{ github.event.schedule || '' }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           set -euo pipefail
+          # This run's only job is to occupy the refs/pull/N/merge concurrency
+          # group so cancel-in-progress kills whatever build the PR's last
+          # real (opened/synchronize/reopened) event left running -- see the
+          # `on.pull_request.types` comment above. Emit the same zero-package
+          # shape plan-package-factory.py would for an empty selection and
+          # stop, rather than spending a checkout+plan invocation to arrive
+          # at the same answer.
+          if [ "$EVENT_NAME" = pull_request ] && [ "$EVENT_ACTION" = closed ]; then
+            {
+              echo "count=0"
+              echo 'matrix_0={"include":[]}'
+              echo "count_0=0"
+              echo 'matrix_1={"include":[]}'
+              echo "count_1=0"
+              echo 'matrix_2={"include":[]}'
+              echo "count_2=0"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           args=(--github-output "$GITHUB_OUTPUT")
           [ ! -f changed-files.txt ] || args+=(--changed-files changed-files.txt)
           [ -z "${BASE_SHA:-}" ] || args+=(--base "$BASE_SHA")
