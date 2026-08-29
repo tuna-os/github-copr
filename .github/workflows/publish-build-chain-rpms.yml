@@ -83,6 +83,9 @@ jobs:
 
   build:
     needs: plan
+    permissions:
+      contents: read
+      packages: write
     # The planner's matrix.runner is a GitHub-hosted label; on the runs-on
     # path it is translated to the equivalent AWS pool entry rather than
     # threaded through the planner (the planner's output is arch selection,
@@ -238,6 +241,41 @@ jobs:
           CHAIN_BUDGET_SECONDS: ${{ inputs.runner != 'runs-on' && 16200 || 34200 }}
         if: steps.verdict.outputs.hit != 'true'
         run: bash scripts/run-package-factory-cell.sh
+      # Stage whatever this leg banked in ORAS, so an independent one-off
+      # dispatch (built to fill a single missing package, say) doesn't have
+      # to become the one process serialized on the R2 bucket to be useful
+      # -- the publish job's own "pull-all" step picks this up before its
+      # normal sync. See scripts/oras-stage-artifacts.py's module docstring
+      # for why concurrent pushes here are safe where concurrent `rclone
+      # sync`s are not.
+      #
+      # always(), same reasoning as the partial-chain upload below: a leg
+      # that built 40 of 50 packages before its budget ran out banked 40
+      # real, already-verified RPMs, and staging them must not depend on
+      # the leg's own overall outcome.
+      - name: Install oras
+        if: always()
+        run: |
+          set -euo pipefail
+          arch="${{ matrix.architecture == 'aarch64' && 'arm64' || 'amd64' }}"
+          version=1.3.4
+          curl -fsSLO "https://github.com/oras-project/oras/releases/download/v${version}/oras_${version}_linux_${arch}.tar.gz"
+          case "$arch" in
+            amd64) echo "f27adb935022d94df8dc77719c322dda592c78a0d57a6f7dcdd8d900b248c454  oras_${version}_linux_${arch}.tar.gz" | sha256sum -c ;;
+            arm64) echo "15702c6e3a4a56a8bd8ac5c17efdbcab56d9bada661ccbcf017f5b10c1d89399  oras_${version}_linux_${arch}.tar.gz" | sha256sum -c ;;
+          esac
+          sudo tar -xzf "oras_${version}_linux_${arch}.tar.gz" -C /usr/local/bin oras
+          rm "oras_${version}_linux_${arch}.tar.gz"
+      - name: Log in to ghcr.io for ORAS
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Stage banked RPMs in ORAS
+        if: always()
+        env:
+          BUILD_CHAIN_ORAS_PUSH: "1"
+        run: python3 scripts/oras-stage-artifacts.py push ".factory/${{ matrix.id }}/artifacts"
       # always(): the wave is every RPM the chain banked, and a chain that
       # failed ONE package out of 674 still banked the rest. Without it this
       # upload skips on any build failure, the publish job starves, and the
@@ -294,6 +332,9 @@ jobs:
 
   publish:
     needs: [plan, build]
+    permissions:
+      contents: read
+      packages: read
     # Publish whatever the build banked, even when the build job itself is
     # red: one failed package must not hold the other built packages hostage,
     # or the chain can never accumulate across legs (#544). cancelled() still
@@ -378,6 +419,26 @@ jobs:
         with:
           name: publish-rpm-${{ matrix.id }}
           path: staged
+      # Pull in whatever ANY leg staged to ORAS -- not just this run's own
+      # `build` job above, but any independent one-off dispatch that pushed
+      # results in the meantime (scripts/oras-stage-artifacts.py's module
+      # docstring explains why those can run concurrently while only this
+      # publish job stays serialized). publish-rpm-wave.sh globs `staged/`
+      # recursively, so landing pulls in a subdirectory is picked up the
+      # same as the artifact download above.
+      - name: Install oras
+        run: |
+          set -euo pipefail
+          curl -fsSLO "https://github.com/oras-project/oras/releases/download/v1.3.4/oras_1.3.4_linux_amd64.tar.gz"
+          echo "f27adb935022d94df8dc77719c322dda592c78a0d57a6f7dcdd8d900b248c454  oras_1.3.4_linux_amd64.tar.gz" | sha256sum -c
+          sudo tar -xzf oras_1.3.4_linux_amd64.tar.gz -C /usr/local/bin oras
+          rm oras_1.3.4_linux_amd64.tar.gz
+      - name: Log in to ghcr.io for ORAS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Pull everything staged in ORAS
+        run: python3 scripts/oras-stage-artifacts.py pull-all staged/oras
       - name: Sign and index
         run: |
           set -euo pipefail
