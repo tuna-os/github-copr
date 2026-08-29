@@ -5,6 +5,46 @@ export R2_BUCKET := "bluefin"
 default:
     @just --list
 
+# Ask the factory for a desktop on a target, in words.
+#
+#   just want "gnome 51 on hummingbird"
+#
+# Resolves the ask against the target contract and says what it would build,
+# what a release move would touch, and -- with `just want-measured` -- how far
+# the published index already is. See docs/rfc/rfc012-request-driven-convergence.md.
+want request:
+    python3 scripts/request.py "{{request}}"
+
+# The same ask, measured against the live published index: served vs wanted
+# over the generated build order. Needs network.
+want-measured request:
+    python3 scripts/request.py "{{request}}" --measure
+
+# Move every declaration onto a new release track: the roots manifest, the
+# cells' source_paths, the catalog and the fan-out's epoch derivation all name
+# the old tree, and missing one silently ships the previous release. Fails
+# rather than half-renaming, and reports what it deliberately did not touch.
+adopt request:
+    python3 scripts/request.py "{{request}}" --adopt
+
+# Build a cell on a host that REMEMBERS: the local repo, the mock root cache
+# and the served-NVR list persist between runs, so a failed package costs one
+# package rather than a run.
+#
+#   just warm hummingbird-x86_64
+#   just warm-status hummingbird-x86_64
+#   just warm-forget hummingbird-x86_64 gtk4
+#
+# See docs/WARM-BUILDER.md for provisioning the host.
+warm cell *args:
+    bash scripts/warm-builder.sh --cell {{cell}} {{args}}
+
+warm-status cell:
+    bash scripts/warm-builder.sh --cell {{cell}} --status
+
+warm-forget cell package:
+    bash scripts/warm-builder.sh --cell {{cell}} --forget {{package}} --status
+
 # Fast, deterministic validation that mirrors the non-build portions of CI.
 # Keep the distributed Hummingbird/package builds in their dedicated workflows:
 # they are intentionally not a developer-machine prerequisite.

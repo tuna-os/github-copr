@@ -38,6 +38,41 @@ on:
         type: boolean
         required: false
         default: false
+  # Additive, so a hand dispatch behaves exactly as before. converge.yml
+  # calls this as one WAVE of a convergence loop: it measures the gap, runs
+  # a wave, re-measures, and decides whether another wave can close it. The
+  # inputs are identical to the dispatch ones on purpose -- a wave is not a
+  # different kind of run, it is the same run with a caller that knows when
+  # to stop.
+  workflow_call:
+    inputs:
+      shards:
+        required: false
+        default: "8"
+        type: string
+      dry_run:
+        required: false
+        default: false
+        type: boolean
+    # Declared rather than left to the caller's `secrets: inherit`. A called
+    # workflow only sees secrets that are inherited or declared, and an
+    # undeclared one resolves to the empty string -- so an unsigned, unsynced
+    # wave would look like a successful dry run. Naming them also states what
+    # a wave costs to run for real. `required: false` because the dry-run
+    # path genuinely syncs nothing.
+    secrets:
+      GPG_PRIVATE_KEY:
+        required: false
+      GPG_PASSPHRASE:
+        required: false
+      R2_ACCESS_KEY_ID:
+        required: false
+      R2_SECRET_ACCESS_KEY:
+        required: false
+      R2_ENDPOINT:
+        required: false
+      R2_BUCKET:
+        required: false
 
 permissions:
   contents: read
