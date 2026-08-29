@@ -50,7 +50,7 @@ target:
   id: hummingbird-20251124-x86_64
   baseurl: https://packages.redhat.com/api/pulp-content/public-hummingbird/$arch/
   r2_path: hummingbird/20251124-x86_64
-  dist: .fc43
+  dist: .bfin1
   # Sources come from Fedora Rawhide dist-git, imported at build time by
   # scripts/import-fedora-distgit.py.  Rawhide is the right branch and this is
   # measured, not assumed: of 38 core packages present in both indexes, 30 are
@@ -59,12 +59,15 @@ target:
   # 6.11.1-5, rust 1.97.1-2, meson 1.11.2-2, …).  Fedora 43 ships glib2 2.86.5
   # and systemd 258.10; the target is nowhere near it.
   reference: fedora-rawhide
-  # The target's own packages carry .hum1, not .fc43 — every one of the 16506
-  # (name, evr, arch) tuples in its primary.xml ends in .hum1.  `.fc43` above
-  # is what build-chain.sh stamps on OUR rebuilds; it is deliberately distinct
-  # from the target's own tag so a rebuild is identifiable, but note it sorts
-  # BELOW .hum1 for the same version, so it can never shadow a package the
-  # target later starts shipping itself.
+  # The target's own packages carry .hum1, not .bfin1 — every one of the 16506
+  # (name, evr, arch) tuples in its primary.xml ends in .hum1.  `.bfin1` above
+  # is what build-chain.sh stamps on OUR rebuilds (named for the Bluefin
+  # parity this desktop targets, was .fc43 through 2026-08-29 -- retired for
+  # reading as a real Fedora 43 tie-in, which it never was); it is
+  # deliberately distinct from the target's own tag so a rebuild is
+  # identifiable, but note it sorts BELOW .hum1 for the same version
+  # ('b' < 'h'), so it can never shadow a package the target later starts
+  # shipping itself.
 
 desktops:
   gnome:
