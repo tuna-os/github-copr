@@ -276,30 +276,3 @@ jobs:
             fi
           done
           echo "$COUNT package action(s) planned; occupied shards: ${counts[*]}."
-
-  # Transitional aliases keep existing branch-protection contexts reporting
-  # while their former workflows are removed. They execute no builds and can
-  # be removed after the repository ruleset requires Package factory gate.
-  compatibility-tideforge:
-    name: Tideforge gate
-    if: ${{ always() }}
-    needs: gate
-    runs-on: ubuntu-24.04
-    steps:
-      - run: test '${{ needs.gate.result }}' = success
-
-  compatibility-arch:
-    name: Tideforge gate (arch)
-    if: ${{ always() }}
-    needs: gate
-    runs-on: ubuntu-24.04
-    steps:
-      - run: test '${{ needs.gate.result }}' = success
-
-  compatibility-el10:
-    name: el10-release-gate
-    if: ${{ always() }}
-    needs: gate
-    runs-on: ubuntu-24.04
-    steps:
-      - run: test '${{ needs.gate.result }}' = success
