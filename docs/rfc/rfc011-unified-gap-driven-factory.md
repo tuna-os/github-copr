@@ -241,6 +241,26 @@ auxiliary workflows (`lint.yml`, `validate-package-factory.yml`, the legacy
 `build.yml`/`build-distributed.yml` dispatch, `publish-tideforge-debs.yml`,
 `r2-inventory.yml`, and the non-factory scheduled jobs).
 
+### Post-#487 workflow census (2026-08-31)
+
+The remaining auxiliary workflows are intentional, but they do not all have
+the same status. This table records the dormant-workflow inventory requested
+by [#487](https://github.com/tuna-os/tunaos-packages/issues/487):
+
+| Workflow | Verdict | Boundary / follow-up |
+|---|---|---|
+| `build.yml` | **Break-glass, expiry 2026-12-31** | Retained only for manually recovering a pre-factory RPM build; normal work must use `package-factory.yml`. Revisit at the RFC 011 Q4 review. |
+| `build-distributed.yml` | **Break-glass, expiry 2026-12-31** | Retained because `scripts/generate-distributed-workflow.py` still generates and audits its topology; it is not a supported publishing path. Delete after the generator and its historical consumers are retired. |
+| `validate-hummingbird-desktops.yml` | **Retained validation** | The hummingbird catalog is still a separate measured input to the factory. Its PR/push check is a validation boundary, not a second build path. |
+| `seed-tideforge-source-cache.yml` | **Retained auxiliary** | Seeds the content-addressed source cache consumed by factory cells; it does not build or publish packages. |
+| `bump-stable-package-sources.yml` | **Retained auxiliary** | Updates source pins, not build output. A future catalog-driven source-update pass may replace its per-stack jobs. |
+| `upstream-drift.yml` | **Folded/parameterized** | One matrix workflow reads `gap_measurement.drift` blocks from `manifests/package-factory.yaml`; adding a target requires data, not a copied workflow. |
+
+This is deliberately a partial cleanup: deleting the two break-glass files
+before their generator/consumer boundary is removed would make the repository's
+own topology tooling unusable. The expiry makes that debt visible rather than
+letting the legacy path become an unbounded second factory.
+
 ## Risks
 
 - **The catalog becomes a second source of truth that drifts.** Mitigation:
