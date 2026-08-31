@@ -686,6 +686,11 @@ build_package_podman() {
     # of it drifting out of sync with this one.
     _run_mock_container() {
         local mock_extra_args="${1:-}"
+        # A failed dynamic-BuildRequires pass can leave the reused uniqueext
+        # chroot wedged (mock's --no-clean is otherwise intentional so the
+        # package's buildroot survives for diagnostics). The retry caller can
+        # request a clean chroot without duplicating this invocation.
+        local mock_clean_flag="${2:---no-clean}"
         podman run --rm --privileged \
             --pull=always \
             -v "${builddir}:/builddir:Z" \
@@ -809,7 +814,7 @@ build_package_podman() {
                         --resultdir=/builddir/results \\
                         --define 'dist ${DIST}' \\
                         ${mock_check_flag} ${MOCK_BCOND_ARGS} \\
-                        --no-clean \\
+                        ${mock_clean_flag} \\
                         --no-cleanup-after ${mock_extra_args} || {
                             echo 'ERROR: mock failed. Printing build.log:';
                             cat /builddir/results/build.log || true;
@@ -840,10 +845,16 @@ build_package_podman() {
     # error being matched is dnf5's own statement that the packages are
     # already present, so the loop has nothing left to install. Every other
     # failure keeps the original behavior and fails loud on the first try.
+    #
+    # The first attempt uses --no-clean so failed build logs and the chroot
+    # remain available for diagnosis. If this exact dnf5 failure occurred,
+    # however, the retry must discard that chroot: the failed dynamic-
+    # BuildRequires transaction can leave its rpm/dnf state wedged, and the
+    # second mock invocation otherwise hangs during create skeleton dirs.
     if ! _run_mock_container ""; then
         if grep -qs "is already installed" "${builddir}/results/root.log"; then
-            echo "==> [${pkg_name}] mock hit the dnf5 already-installed dynamic-BuildRequires bug; retrying with dynamic_buildrequires=False"
-            _run_mock_container "--config-opts=dynamic_buildrequires=False"
+            echo "==> [${pkg_name}] mock hit the dnf5 already-installed dynamic-BuildRequires bug; cleaning chroot and retrying with dynamic_buildrequires=False"
+            _run_mock_container "--config-opts=dynamic_buildrequires=False" "--clean"
         else
             return 1
         fi
