@@ -5970,7 +5970,7 @@
       "unresolved_capabilities": {}
     }
   },
-  "measured_at": "2026-09-02T10:05:34.782254+00:00",
+  "measured_at": "2026-09-02T11:06:35.268629+00:00",
   "membership": "runtime",
   "reference_index": {
     "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/",
