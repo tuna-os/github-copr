@@ -134,7 +134,15 @@ def test_a_declared_desktop_source_is_a_prefix_the_resolver_searches(
 def test_the_fixpoint_check_can_actually_fail():
     """Against a resolver that always agrees, the test above passes for the
     wrong reason. Point hummingbird's search at the track it was on before
-    this commit and the 19 GNOME packages must be reported as moving."""
+    this commit and the GNOME packages still built from src/gnome-51 must be
+    reported as moving.
+
+    That set was 19 until 2026-09-02; it is 8 now (gjs, nautilus,
+    gnome-initial-setup, gobject-introspection, vte291, ptyxis,
+    gnome-online-accounts and a libnotify), because gnome-shell, gdm and the
+    rest of the stack are consumed from utah-packages (#629) and no longer
+    appear in the order at all. The hazard is unchanged: every one of those
+    8 has a src/gnome-50 twin the stale search would silently prefer."""
     order = "build-order-hummingbird-desktops.yml"
     paths = referenced_paths(order)
     assert paths, "the walker found no paths at all"
@@ -148,11 +156,11 @@ def test_the_fixpoint_check_can_actually_fail():
         return f"src/hummingbird/{name}"
 
     moved = [p for p in paths if stale(p.rsplit("/", 1)[1]) != p]
-    assert len(moved) >= 15, (
-        "searching src/gnome-50 first moved fewer packages than the 19 "
+    assert len(moved) >= 5, (
+        "searching src/gnome-50 first moved fewer packages than the 8 "
         f"measured, so this check is not exercising the real hazard: {moved}")
-    assert any(p.endswith("/gnome-shell") for p in moved), moved
-    assert any(p.endswith("/gdm") for p in moved), moved
+    assert any(p.endswith("/nautilus") for p in moved), moved
+    assert any(p.endswith("/gjs") for p in moved), moved
 
 
 def test_prefer_distgit_names_a_real_collision():

@@ -9,6 +9,20 @@ parity before it replaces any native EL10 GNOME packaging."* The promotion contr
 buildroot, pass package tests, install from the staged repository, and complete a
 desktop/runtime smoke test where the package affects a session."*
 
+> **Addendum, 2026-09-02.** The strategy question this note kept open is
+> settled in `docs/PACKAGE_FACTORY.md` ("One contract, one build engine per
+> target"): Tideforge stays the recipe renderer for the targets whose
+> coverage is complete (COSMIC and Niri on EL10 and deb; the Niri/DMS stack
+> on Tumbleweed and Arch), each engine builds in its own root, and the
+> contract -- roots, gates, status board, promotion rule -- is what is
+> shared.  A BuildStream-style "build once, package at the end" was
+> measured and rejected for anything compiled
+> (`experiments/tideforge-universal-intermediate.md`).  GNOME on Hummingbird
+> is consumed from utah-packages rather than built (`HUMMINGBIRD-TARGET.md`
+> §7-8); GNOME on DEB is its own measured chain (`gnome51-deb.yaml`), not a
+> Tideforge rollout step.  The runtime-gate table below is still the open
+> work.
+
 ## Verdict
 
 **The switch as usually framed — "move TunaOS packaging to Tideforge" — is not

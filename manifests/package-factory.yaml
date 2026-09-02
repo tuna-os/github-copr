@@ -236,6 +236,22 @@ targets:
         mode: propose
         build_order: build-order-hummingbird-desktops.yml
         report_json: docs/hummingbird-desktop-gap.json
+      # Repositories a consumer image enables NEXT TO the target and our
+      # prefix. Whatever they ship is counted as already had by the gap
+      # engine (never rebuilt here) and enabled by the installability walk.
+      # They are not references: nothing is ordered through their
+      # BuildRequires.
+      #
+      # utah-packages is Bluefin's GNOME 51 for Hummingbird, built in
+      # Hummingbird's own root, shipped as an OCI image whose one layer is a
+      # createrepo_c tree (/repository) -- read straight out of the registry
+      # by scripts/oci_repository.py. tunaOS's hummingbird:gnome consumes
+      # this exact digest (its image-versions.yaml `utah-packages`); keep the
+      # two pins moving together. Decided in #629; docs/HUMMINGBIRD-TARGET.md.
+      consumed_indexes:
+        - id: utah-packages
+          index: oci://ghcr.io/projectbluefin/utah-packages@sha256:9cb667291a1a0b112c39d3c6a69116bb52cb1a10c7df12290b9c298b5682426c
+          serves: [gnome]
     # Buildroot inputs only, never repositories on a produced image. Fedora
     # Rawhide supplies -devel headers and build backends Hummingbird has no
     # build of yet; Fedora 44 supplies the Python namespace at the target's
@@ -264,7 +280,15 @@ targets:
   arch:
     status: scaffold
     format: pkg.tar.zst
-    architectures: [x86_64, aarch64]
+    # x86_64 only. aarch64 was declared here with no build leg, no published
+    # index and no consumer (marlin, the Arch variant, is x86_64-only in
+    # tunaOS's build-config), so every planner that reads `architectures`
+    # emitted an aarch64 cell that nothing could run and factory-status
+    # reported an arch it could not measure. Re-add it with a leg, an index
+    # and a consumer, in that order -- the same rule the deb targets' arm64
+    # met (both flat apt repos serve arm64 debs, measured 2026-09-02) and
+    # opensuse-tumbleweed's aarch64 met (served index on both arches).
+    architectures: [x86_64]
     r2_path: pacman/arch/{arch}
     repository: pacman
     probe_image: docker.io/library/archlinux:latest
