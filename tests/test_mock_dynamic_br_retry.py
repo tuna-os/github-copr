@@ -60,7 +60,7 @@ pkg_name=demo
 CALLS={calls!s}
 : > "$CALLS"
 _run_mock_container() {{
-    printf '%s\\n' "${{1-<none>}}" >> "$CALLS"
+    printf '%s|%s\\n' "${{1-<none>}}" "${{2-<none>}}" >> "$CALLS"
     {fail_logic}
 }}
 run_guard() {{
@@ -87,8 +87,8 @@ def test_already_installed_failure_retries_once_with_the_override(tmp_path):
     status, calls = run_case(tmp_path, root_log=ALREADY, first_call_fails=True)
     assert status == 0, "the retry should carry the build to success"
     assert len(calls) == 2, f"expected exactly one retry, got {calls}"
-    assert calls[0] == "", "the first attempt must be unmodified"
-    assert calls[1] == "--config-opts=dynamic_buildrequires=False"
+    assert calls[0] == "|<none>", "the first attempt must be unmodified"
+    assert calls[1] == "--config-opts=dynamic_buildrequires=False|--clean"
 
 
 def test_unrelated_failure_does_not_retry(tmp_path):
@@ -117,7 +117,7 @@ builddir={tmp!s}
 pkg_name=demo
 CALLS={calls!s}
 : > "$CALLS"
-_run_mock_container() {{ printf '%s\\n' "${{1-<none>}}" >> "$CALLS"; return 1; }}
+_run_mock_container() {{ printf '%s|%s\\n' "${{1-<none>}}" "${{2-<none>}}" >> "$CALLS"; return 1; }}
 run_guard() {{
 {retry_block()}
 }}
