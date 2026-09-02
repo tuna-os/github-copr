@@ -16,9 +16,9 @@
 # from the buildroot's inherited Rawhide fallback at priority 99
 # (the target's mock config), never from this build order.
 #
-# Measured 2026-08-29T05:27:36.965970+00:00
-# target primary.xml   sha256 aebd0d9863f17bf3b2dd903b2af8c540f75c4444b12874c0b6fca88c001eaf1d
-# reference primary.xml sha256 f623cd97d2e8b8ad2ae1c684094f654c025a9df54628e7026d3a07884e6a729d
+# Measured 2026-09-02T13:42:37.443339+00:00
+# target primary.xml   sha256 3f8c4b86227d350ec0fe9dfe5bb5e739a7d9ee0d23ed4cb36d8c955edcaee61a
+# reference primary.xml sha256 a91e40ccab3a123bfba90d0cbaab79b17385af0ce4b2145f94d134a4543ab75b
 #
 # `distgit:` means the packaging is imported from Fedora Rawhide
 # dist-git at build time (scripts/import-fedora-distgit.py).  A package
