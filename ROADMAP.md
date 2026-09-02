@@ -53,7 +53,7 @@ transition; #488 carries the reasoning behind each row.
 | 1 | Ruleset requires `Package factory gate`; drop the compatibility aliases | 🔴 Not started — aliases still live | #483 |
 | 2 | Promotion behind the factory boundary (leased R2 ActionResult/blob publication) | 🟡 Symptom half done in #476; structural boundary open | #484 |
 | 3 | Native queue packages → first-class per-package recipe actions | 🟡 In progress — ledger row 1 done, row 2 blocked on engine version-awareness, rows 3–5 unstarted | #418, #426 |
-| 4 | Workflow consolidation — fold publishers, parameterize gap-drift, retire dormant builders | 🔴 Not started — census 19 files at the 08-22 audit, **21 today** | #487 |
+| 4 | Workflow consolidation — fold publishers, parameterize gap-drift, retire dormant builders | 🟡 In progress — `upstream-drift.yml` is now the parameterized matrix; `build.yml`/`build-distributed.yml` remain break-glass until 2026-12-31 (census recorded in RFC 011) | #487 |
 | 5 | Report-only CAS reachability / GC | 🔴 Not started | #485 |
 | 6 | Sampled reproducibility rebuilds + policy reporting | 🔴 Not started | #486 |
 
