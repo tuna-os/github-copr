@@ -1,5 +1,5 @@
 Name:           gnome50-el10-compat
-Version:        1.2.9
+Version:        1.2.10
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
@@ -40,6 +40,11 @@ It provides:
   the GLibUnix-2.0 GI namespace. EL10's python3-gobject 3.46 does not know
   this mapping, breaking GLib.unix_signal_add consumers (firewalld, etc.).
   This patches gi/overrides/GLib.py to shim GLib.unix_signal_add from GLibUnix.
+- A `useradd` wrapper, installed via `alternatives`, working around EL10
+  shadow-utils 4.15's fatal E_HOMEDIR exit when `-m` targets a home
+  directory that already exists (e.g. preserved /var/home on reinstall).
+  See the %%post scriptlet and issue #17 for the failure mode, and #392 for
+  the condition under which this wrapper can be deleted.
 
 %prep
 cp %{SOURCE1} gdm-gnome50.te
@@ -82,6 +87,15 @@ fi
 
 %post
 # Install useradd wrapper alternative (#17: handle EEXIST on existing home dir).
+#
+# Expiry condition (#392): delete this wrapper once EL10 shadow-utils
+# carries upstream's tolerant create_home() behavior. Upstream master
+# (src/useradd.c) returns early via access(F_OK) when the target home
+# directory already exists, and only warns -- not fails -- under -m.
+# Re-check on each EL10 point release with:
+#   useradd -m -d <existing-dir> <user>; echo $?
+# Exit 0 means the wrapper can be removed; see the useradd-wrapper
+# script header for the full failure-mode writeup.
 if [ $1 -ge 1 ]; then
     alternatives --install /usr/sbin/useradd useradd %{_libexecdir}/%{name}/useradd 50
 fi
@@ -147,6 +161,17 @@ fi
 %{_libexecdir}/%{name}/useradd
 
 %changelog
+* Wed Sep 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.10-1
+- useradd-wrapper: document an expiry condition for the workaround
+  (tunaos-packages#392). The wrapper is still needed -- EL10 4.15's
+  shadow-utils empirically still hits E_HOMEDIR on a pre-existing home
+  dir even though upstream master's create_home() tolerates it -- so
+  this does not remove it. It adds a %%description bullet and a
+  %%post comment giving a concrete, checkable removal condition
+  (`useradd -m -d <existing-dir> <user>; echo $?` returning 0 on the
+  target release) so the workaround doesn't linger indefinitely without
+  a re-evaluation trigger, per the architect finding in #392.
+
 * Fri Aug 14 2026 James Reilly <jreilly1821@gmail.com> - 1.2.9-1
 - useradd-wrapper: fix `local: can only be used in a function` crash.
   The -m/existing-home-dir branch used `local add_M=true` at the
