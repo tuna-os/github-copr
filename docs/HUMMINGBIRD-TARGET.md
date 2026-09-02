@@ -257,7 +257,12 @@ so it stays declared -- with the note that no tunaOS manifest consumes it
 yet (sailfin's niri reads Tumbleweed's own repositories); the flat apt
 repositories serve amd64 **and** arm64 debs, so the deb targets keep both;
 EL10, Fedora and Hummingbird have aarch64 legs.  The only architecture
-removed is `arch`'s aarch64: no leg, no index, no consumer.  GNOME-on-DEB
-was not removed either: it is its own measured chain now
+that fails the bar is `arch`'s aarch64: no leg, no index, no consumer.
+Narrowing it is decided but ships separately: editing `architectures`
+schedules every Arch cell, and the Arch engine cannot yet build a cell
+whose runtime dependencies are sibling recipes (`dms-cli` needs `dms` and
+`quickshell`; `makepkg` has no repository to find them in), so that PR
+waits on same-wave sibling staging for the Arch engine.  GNOME-on-DEB was
+not removed either: it is its own measured chain now
 (`manifests/gnome51-deb.yaml`, `docs/gnome51-deb-gap.json`), not the
 1-of-9 recipe gap the July readiness note described.

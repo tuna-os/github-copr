@@ -280,15 +280,15 @@ targets:
   arch:
     status: scaffold
     format: pkg.tar.zst
-    # x86_64 only. aarch64 was declared here with no build leg, no published
-    # index and no consumer (marlin, the Arch variant, is x86_64-only in
-    # tunaOS's build-config), so every planner that reads `architectures`
-    # emitted an aarch64 cell that nothing could run and factory-status
-    # reported an arch it could not measure. Re-add it with a leg, an index
-    # and a consumer, in that order -- the same rule the deb targets' arm64
-    # met (both flat apt repos serve arm64 debs, measured 2026-09-02) and
-    # opensuse-tumbleweed's aarch64 met (served index on both arches).
-    architectures: [x86_64]
+    # aarch64 is declared with no build leg, no published index and no
+    # consumer (marlin, the Arch variant, is x86_64-only in tunaOS's
+    # build-config). Narrowing this to [x86_64] is measured and decided
+    # (docs/PACKAGE_FACTORY.md, "one contract"), but it ships in its own PR:
+    # touching `architectures` schedules every Arch cell, and the Arch
+    # engine cannot yet build a cell whose runtime deps are sibling recipes
+    # (dms-cli needs dms and quickshell; makepkg has no repo to find them
+    # in). That staging gap is the prerequisite; see tunaos-packages#631.
+    architectures: [x86_64, aarch64]
     r2_path: pacman/arch/{arch}
     repository: pacman
     probe_image: docker.io/library/archlinux:latest

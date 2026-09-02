@@ -57,9 +57,11 @@ are whole-OS images built in their own repositories; they are products in
 tunaOS's family, not package sources for any target here.
 
 A target is declared only with a build leg, a served index and a consumer.
-Measured 2026-09-02: every declared architecture but `arch`'s aarch64 met
-that bar (it had none of the three and was removed); openSUSE meets the
-first two and is waiting on the third.
+Measured 2026-09-02: every declared architecture but `arch`'s aarch64 meets
+that bar (it has none of the three; narrowing it waits on the Arch engine
+learning to stage sibling recipes at build time, because editing the
+declaration schedules every Arch cell); openSUSE meets the first two and is
+waiting on the third.
 
 ## Asking for a desktop on a target
 
