@@ -17,7 +17,7 @@ clean-install, and smoke validation still run on hits.
 
 GitHub Actions cache is an acceleration transport. Workflows restore before
 compilation and save only after all validation; the cache action never saves
-implicitly. R2 uses actions/sha256/<action-key>.json as the authoritative
-result index and blobs/sha256/<artifact-digest> for immutable content. Protected
+implicitly. R2 uses `actions/sha256/<action-key>.json` as the authoritative
+result index and `blobs/sha256/<artifact-digest>` for immutable content. Protected
 main jobs alone may publish trusted R2 results, writing blobs first and the
 ActionResult last.
