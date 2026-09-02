@@ -1,6 +1,6 @@
 Name:           gnome49-el10-compat
 Version:        1.2.5
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        GNOME 49 Compatibility workarounds for EL10
 
 License:        MIT
@@ -13,9 +13,11 @@ Source4:        useradd-wrapper
 BuildArch:      noarch
 BuildRequires:  checkpolicy
 BuildRequires:  policycoreutils
-# SELinux policy backport for GDM userdb architecture support
-Requires:       selinux-policy >= 43.3
-Requires:       selinux-policy-targeted >= 43.3
+# SELinux policy backport for GDM userdb architecture support (matches
+# gnome50-el10-compat and the src/deps/selinux-policy backport, both
+# pinned at 43.1; see #400).
+Requires:       selinux-policy >= 43.1
+Requires:       selinux-policy-targeted >= 43.1
 Requires(post): policycoreutils
 Requires(post): shadow-utils
 # Conflicts with systemd versions that have the Patch0254 regression.
@@ -116,6 +118,17 @@ fi
 %{_libexecdir}/%{name}/useradd
 
 %changelog
+* Wed Sep 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.5-3
+- Revert selinux-policy/selinux-policy-targeted Requires from >= 43.3 back
+  to >= 43.1. The 43.3 floor was introduced incidentally in 1.2.5-2 (a
+  restorecon fix, unrelated to the SELinux dependency) and is not
+  justified by any change to the shipped policy modules. CentOS Stream 10
+  and the src/deps/selinux-policy backport (COPR jreilly1821/c10s-gnome-49)
+  only carry 43.1, so the unresolved 43.3 floor broke dnf resolution and
+  failed the CS10 smoke test on every incremental build (#400).
+  gnome50-el10-compat ships the same GDM userdb architecture support and
+  has always required only >= 43.1.
+
 * Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.5-2
 - Add useradd wrapper via alternatives(8) to handle existing home
   directory gracefully. EL10 shadow-utils 4.15 treats mkdir()→EEXIST
