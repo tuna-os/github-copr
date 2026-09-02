@@ -2216,7 +2216,7 @@ packages:
       rpm:
         native: src/deps/flatpak
     upstream:
-      version: 1.16.0
+      version: 1.17.3
       source: https://github.com/flatpak/flatpak/releases/download/%{version}/%{name}-%{version}.tar.xz
       spec: src/deps/flatpak/flatpak.spec
     targets:
@@ -3037,7 +3037,7 @@ packages:
         native: src/gnome-51/gnome-online-accounts
     upstream:
       version: 3.58.1
-      source: https://download.gnome.org/sources/%{name}/3.58/%{name}-%{version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{version}.tar.xz
       spec: src/gnome-51/gnome-online-accounts/gnome-online-accounts.spec
     targets:
       - hummingbird
@@ -3089,7 +3089,7 @@ packages:
         native: src/gnome-51/gnome-session
     upstream:
       version: 51~beta
-      source: https://download.gnome.org/sources/gnome-session/%{major_version}/%{name}-%{tarball_version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
       spec: src/gnome-51/gnome-session/gnome-session.spec
     targets:
       - el10
@@ -3103,7 +3103,7 @@ packages:
         native: src/gnome-51/gnome-session
     upstream:
       version: 51~beta
-      source: https://download.gnome.org/sources/gnome-session/%{major_version}/%{name}-%{tarball_version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
       spec: src/gnome-51/gnome-session/gnome-session.spec
     targets:
       - hummingbird
@@ -3141,7 +3141,7 @@ packages:
         native: src/gnome-51/gnome-settings-daemon
     upstream:
       version: 51~beta
-      source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
       spec: src/gnome-51/gnome-settings-daemon/gnome-settings-daemon.spec
     targets:
       - el10
@@ -3155,7 +3155,7 @@ packages:
         native: src/gnome-51/gnome-settings-daemon
     upstream:
       version: 51~beta
-      source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
       spec: src/gnome-51/gnome-settings-daemon/gnome-settings-daemon.spec
     targets:
       - hummingbird
@@ -3756,7 +3756,7 @@ packages:
         native: src/gnome-51/gtk4
     upstream:
       version: 4.23.3
-      source: https://download.gnome.org/sources/gtk/4.23/gtk-%{version}.tar.xz
+      source: https://download.gnome.org/sources/gtk/%{gnome_major_minor_version}/gtk-%{version}.tar.xz
       spec: src/gnome-51/gtk4/gtk4.spec
     targets:
       - el10
@@ -3770,7 +3770,7 @@ packages:
         native: src/gnome-51/gtk4
     upstream:
       version: 4.23.3
-      source: https://download.gnome.org/sources/gtk/4.23/gtk-%{version}.tar.xz
+      source: https://download.gnome.org/sources/gtk/%{gnome_major_minor_version}/gtk-%{version}.tar.xz
       spec: src/gnome-51/gtk4/gtk4.spec
     targets:
       - hummingbird
@@ -5632,9 +5632,11 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        distgit: langtable
+        native: src/hummingbird/langtable
     upstream:
-      distgit: langtable
+      version: 0.0.71
+      source: https://github.com/mike-fabian/langtable/releases/download/%{version}/%{name}-%{version}.tar.gz
+      spec: src/hummingbird/langtable/langtable.spec
     targets:
       - hummingbird
     membership: runtime
@@ -5913,7 +5915,7 @@ packages:
         native: src/gnome-51/libadwaita
     upstream:
       version: 1.10~beta.1
-      source: https://download.gnome.org/sources/%{name}/1.10/%{name}-%{tarball_version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{gnome_tarball_version}.tar.xz
       spec: src/gnome-51/libadwaita/libadwaita.spec
     targets:
       - el10
@@ -5927,7 +5929,7 @@ packages:
         native: src/gnome-51/libadwaita
     upstream:
       version: 1.10~beta.1
-      source: https://download.gnome.org/sources/%{name}/1.10/%{name}-%{tarball_version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{gnome_tarball_version}.tar.xz
       spec: src/gnome-51/libadwaita/libadwaita.spec
     targets:
       - hummingbird
@@ -8426,7 +8428,7 @@ packages:
       rpm:
         native: src/deps/mozjs140
     upstream:
-      version: 140.6.0
+      version: 140.13.0
       source: https://ftp.mozilla.org/pub/firefox/releases/%{version}esr/source/firefox-%{version}esr.source.tar.xz
       spec: src/deps/mozjs140/mozjs140.spec
     targets:
@@ -8440,7 +8442,7 @@ packages:
       rpm:
         native: src/deps/mozjs140
     upstream:
-      version: 140.6.0
+      version: 140.13.0
       source: https://ftp.mozilla.org/pub/firefox/releases/%{version}esr/source/firefox-%{version}esr.source.tar.xz
       spec: src/deps/mozjs140/mozjs140.spec
     targets:
@@ -8454,7 +8456,7 @@ packages:
       rpm:
         native: src/deps/mozjs140
     upstream:
-      version: 140.6.0
+      version: 140.13.0
       source: https://ftp.mozilla.org/pub/firefox/releases/%{version}esr/source/firefox-%{version}esr.source.tar.xz
       spec: src/deps/mozjs140/mozjs140.spec
     targets:
@@ -10089,6 +10091,18 @@ packages:
         distgit: python-pyproject-hooks
     upstream:
       distgit: python-pyproject-hooks
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+  - name: python-pytest-asyncio
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: python-pytest-asyncio
+    upstream:
+      distgit: python-pytest-asyncio
     targets:
       - hummingbird
     membership: runtime
@@ -11868,7 +11882,7 @@ packages:
         native: src/gnome-51/vte291
     upstream:
       version: 0.84.1
-      source: https://download.gnome.org/sources/vte/%{major_minor_version}/vte-%{version}.tar.xz
+      source: https://download.gnome.org/sources/vte/%{gnome_major_minor_version}/vte-%{version}.tar.xz
       spec: src/gnome-51/vte291/vte291.spec
     targets:
       - el10
@@ -11882,7 +11896,7 @@ packages:
         native: src/gnome-51/vte291
     upstream:
       version: 0.84.1
-      source: https://download.gnome.org/sources/vte/%{major_minor_version}/vte-%{version}.tar.xz
+      source: https://download.gnome.org/sources/vte/%{gnome_major_minor_version}/vte-%{version}.tar.xz
       spec: src/gnome-51/vte291/vte291.spec
     targets:
       - hummingbird
@@ -12225,7 +12239,7 @@ packages:
       rpm:
         native: src/gnome-51/xdg-desktop-portal
     upstream:
-      version: 1.21.0
+      version: 1.22.1
       source: https://github.com/flatpak/xdg-desktop-portal/releases/download/%{version}/%{name}-%{version}.tar.xz
       spec: src/gnome-51/xdg-desktop-portal/xdg-desktop-portal.spec
     targets:
@@ -12239,7 +12253,7 @@ packages:
       rpm:
         native: src/gnome-51/xdg-desktop-portal
     upstream:
-      version: 1.21.0
+      version: 1.22.1
       source: https://github.com/flatpak/xdg-desktop-portal/releases/download/%{version}/%{name}-%{version}.tar.xz
       spec: src/gnome-51/xdg-desktop-portal/xdg-desktop-portal.spec
     targets:

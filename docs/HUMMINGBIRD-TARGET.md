@@ -206,3 +206,48 @@ accompanies this document):
 
 That is the model utah-packages proved: right root, one contract, a gate
 that asks the consumer's question.  Not a bigger build order.
+
+## 8. What the first legs on this root failed, and why it was not the root
+
+Run 33597624514 (this branch, both architectures, 2026-09-02) was the first
+full build on the Fedora 44 root.  Both legs hit the four-hour deadline with
+the chain healthy -- x86_64 built 132 packages and deferred 646, aarch64
+built 189 and deferred 622 -- and failed three:
+
+| package | leg | what dnf or rpmbuild said | on main's Rawhide root |
+|---|---|---|---|
+| `langtable` | both | `%check`: `xmllint: command not found` | identical (runs 33580878734, both legs) |
+| `python-dbus-next` | aarch64 | builddep: `python3-pytest-asyncio-1.1.0-3.fc44 requires python3.14dist(pytest) < 9`, `cannot install both python3-pytest-9.1.1-1.1.hum1 and python3-pytest-8.4.2-3.2.hum1` | never reached (deferred) |
+| `python-aiohappyeyeballs` | aarch64 | same | never reached (deferred) |
+
+**langtable** is Fedora's spec calling a tool it never names: Koji's
+buildroot carries libxml2, Hummingbird's does not.  It is now a vendored spec
+in `src/hummingbird/langtable/` differing from Rawhide's by one
+`BuildRequires: libxml2`, and the build order no longer re-imports it.
+
+**pytest-asyncio** is the shape of failure this root will keep producing and
+the one to recognise: a BuildRequires-only tool that Fedora 44 ships in a
+version window Hummingbird's own packages have moved out of.  Hummingbird
+publishes pytest 9.1.1 (with 8.4.2 and 9.0.3 beside it in the same Pulp
+repository); F44's pytest-asyncio wants `< 9`; mock's `best=1` will not settle
+for the older pytest, so the transaction fails rather than degrades.  Three
+answers were possible:
+
+- `best=0`, which is what utah-packages effectively runs (plain `dnf builddep`
+  in a container, where `best` defaults off).  It fixes this and every case
+  like it silently -- including the ones where "the older candidate" is a C
+  library's `-devel` and the produced binary then wants a soname the image no
+  longer ships.  Rejected: this file's own rule is fail closed.
+- an `excludepkgs=` for the newer pytest, the by-name precedent
+  `mock/hummingbird-ci.cfg` already uses for docutils/sphinx.  Rejected: it
+  would build every consumer against a pytest the target no longer installs.
+- build Rawhide's pytest-asyncio 1.4.0 (`pytest < 10`) first, so local-build
+  (priority 1) masks Fedora's by name.  Taken: `bootstrap-04` in
+  `manifests/hummingbird-desktops.yaml`, next to the PEP-517 backends the
+  measurement cannot discover for the same reason (they appear only in
+  BuildRequires).
+
+The rule that falls out: **a BuildRequires-only tool whose Fedora 44 copy
+cannot install beside the target's own packages is built here from the
+Rawhide reference.**  `tests/test_the_first_fedora44_legs_taught_two_buildroot_gaps.py`
+pins both fixes to the files the chain reads.
