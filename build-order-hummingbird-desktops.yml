@@ -16,8 +16,8 @@
 # from the buildroot's inherited Rawhide fallback at priority 99
 # (the target's mock config), never from this build order.
 #
-# Measured 2026-09-02T16:42:09.579791+00:00
-# target primary.xml   sha256 bcfba10035d226e0008088eb9299b0f6376d2b389f07e84e77ba33ffbf4cbe88
+# Measured 2026-09-02T18:53:13.659572+00:00
+# target primary.xml   sha256 e13fd80e80e189f0db0694380c79678c0ede052d6e2a2d6eed63f19ac3e5f1ab
 # reference primary.xml sha256 a91e40ccab3a123bfba90d0cbaab79b17385af0ce4b2145f94d134a4543ab75b
 # consumed utah-packages  oci://ghcr.io/projectbluefin/utah-packages@sha256:9cb667291a1a0b112c39d3c6a69116bb52cb1a10c7df12290b9c298b5682426c (primary sha256 38da5357b241, 421 binaries counted as had)
 #
