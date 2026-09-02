@@ -82,7 +82,7 @@ jobs:
       - name: Ask dnf, with the consumer's repositories and nothing else
         run: |
           set -euo pipefail
-          scripts/check-hummingbird-installability-container.sh --report consumer-transaction.md
+          bash scripts/check-hummingbird-installability-container.sh --report consumer-transaction.md
           cat consumer-transaction.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with:
