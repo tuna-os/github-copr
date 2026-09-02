@@ -38,17 +38,36 @@ def test_repos_come_from_the_real_mock_config():
     # that no longer exists.
     assert "*+*" in by_id["tunaos-hummingbird"]["excludepkgs"]
     assert "libcdio-paranoia*" in by_id["tunaos-hummingbird"]["excludepkgs"]
-    # includepkgs pins confine the F44 repos; without them the simulator
-    # would let all of F44 shadow Rawhide at priority 50.
-    assert "python3-*" in by_id["fedora-44-python"]["includepkgs"]
+    # The Fedora 44 base comes from the include()d template, not from a
+    # literal section, so it must NOT appear here (template_repos models it)
+    # -- and no includepkgs pin may remain: the pins existed to patch F44
+    # back in over a Rawhide base that is gone.
+    assert not any(r["id"].startswith("fedora-44-") for r in repos), by_id
+    assert not any(r["includepkgs"] for r in repos), by_id
     # local-build is file:// and modeled through the build set instead.
     assert "local-build" not in by_id
 
 
-def test_metalink_repos_resolve_to_a_concrete_baseurl():
-    repos = sim.parse_mock_repos(ROOT / "mock" / "hummingbird-ci.cfg")
-    f44 = next(r for r in repos if r["id"] == "fedora-44-python")
-    assert f44["baseurl"].startswith("https://dl.fedoraproject.org/")
+def test_the_inherited_template_is_fedora_44_at_the_rewritten_priority():
+    """mock/hummingbird-ci.cfg rewrites the template's [fedora]/[updates] in
+    place; the simulator must model the result, or it resolves against a
+    buildroot that no longer exists."""
+    repos = sim.template_repos(ROOT / "mock" / "hummingbird-ci.cfg")
+    by_id = {r["id"]: r for r in repos}
+    assert set(by_id) == {"fedora", "updates"}, by_id
+    for repo in repos:
+        assert repo["baseurl"].startswith("https://dl.fedoraproject.org/pub/fedora/linux/")
+        assert "/releases/44/" in repo["baseurl"] or "/updates/44/" in repo["baseurl"], repo
+        assert repo["priority"] == 50, repo
+        assert "ruby-default-gems" in repo["excludepkgs"], repo
+
+
+def test_a_rawhide_template_is_still_understood(tmp_path):
+    cfg = tmp_path / "old.cfg"
+    cfg.write_text("include('/etc/mock/fedora-rawhide-x86_64.cfg')\n")
+    repos = sim.template_repos(cfg)
+    assert [r["id"] for r in repos] == ["fedora"]
+    assert "rawhide" in repos[0]["baseurl"] and repos[0]["priority"] == 99
 
 
 # ---- rich dependency parsing ----------------------------------------------

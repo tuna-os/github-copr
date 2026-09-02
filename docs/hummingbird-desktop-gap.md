@@ -1,5 +1,16 @@
 # What Hummingbird's repository actually ships, and what it does not
 
+> **2026-09-02 addendum.**  Finding 1 below ("Hummingbird is Fedora
+> Rawhide") is half right and the half it got wrong set the build root for
+> a month.  Hummingbird *rebuilds* at Rawhide's versions but its ABI --
+> glibc, openssl, python, perl -- is Fedora 44's, and its own build root is
+> Fedora 44 plus its Pulp repository.  Three packages this factory
+> published carry Rawhide's `GLIBC_2.44` and cannot install on the target.
+> The measured table, the corrected root, and what the published prefix
+> resolves today are in [HUMMINGBIRD-TARGET.md](HUMMINGBIRD-TARGET.md);
+> the gap numbers below are unchanged by the correction (re-measured
+> 2026-09-02: gnome 301 sources against Rawhide, 311 against Fedora 44).
+
 Measured 2026-08-06.  Every number below came out of a real rpm-md index, not
 out of a name, a release number or a base-image string.  Reproduce with:
 

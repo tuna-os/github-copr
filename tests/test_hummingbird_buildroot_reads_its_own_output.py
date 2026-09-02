@@ -95,10 +95,17 @@ def test_the_base_os_still_outranks_our_rebuilds(config):
     ours = int(setting(repo_block(text, REPO_ID), "priority"))
     base = int(setting(repo_block(text, "hummingbird"), "priority"))
     local = int(setting(repo_block(text, "local-build"), "priority"))
-    pinned = int(setting(repo_block(text, "fedora-44-python"), "priority"))
-    assert local < base < ours < pinned, (
+    # Fedora 44's [fedora]/[updates] come from the included mock template and
+    # are re-prioritised in place by the config (see
+    # test_hummingbird_buildroot_is_fedora44_plus_hummingbird.py); read the
+    # priority the rewrite assigns.
+    match = re.search(r'\\npriority=(\d+)\\n', text)
+    assert match, f"{config.name}: no in-place Fedora priority rewrite found"
+    fedora = int(match.group(1))
+    assert local < base < ours < fedora, (
         f"{config.name}: priorities must order local-build({local}) < "
-        f"hummingbird({base}) < {REPO_ID}({ours}) < fedora-44-python({pinned}). "
+        f"hummingbird({base}) < {REPO_ID}({ours}) < fedora({fedora}). "
         "Above the base OS would shadow Hummingbird's own packages with our "
-        "rebuilds; below the Fedora pins would leave Rawhide winning."
+        "rebuilds; below Fedora would leave the build root's own packages "
+        "winning over the desktop stack we exist to supply."
     )
