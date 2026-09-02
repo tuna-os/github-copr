@@ -1,6 +1,6 @@
 # tunaos-packages Roadmap
 
-**Last updated**: 2026-08-23 | **Maintainer**: tuna-os (hanthor) / packaging maintainers
+**Last updated**: 2026-09-02 | **Maintainer**: tuna-os (hanthor) / packaging maintainers
 
 ---
 
@@ -16,7 +16,7 @@ only and is being retired (#439).
 
 ---
 
-## Current Status (2026-08-23)
+## Current Status (2026-09-02)
 
 - **The unified factory landed** (#430, merged 08-19). One planner and one cell
   boundary replaced the per-family build paths; gated artifacts are
@@ -32,11 +32,30 @@ only and is being retired (#439).
 - **All three formats now have a planner-driven publisher** (#476). Arch had
   none at all, so its packages were gated, built, verified and unreachable.
   Publishers now restore the gate's ActionResult instead of rebuilding, which
-  closes the symptom half of #484.
-- **Hummingbird desktops are not building**: zero packages compiled since
-  2026-08-09 (#406); every full run is cancelled at the 360-minute job ceiling
-  (#412, #401). A weekly `engine=build-chain` cron now gives the desktops a
-  scheduled run at all (#476), but the timeout is unresolved.
+  closes the symptom half of #484. The structural remainder is open: the deb
+  publisher is still the only hand-listed matrix (#479) and publishers still
+  rebuild what the gate cached (#481, 14/14 cache hits measured).
+- **Served-index correctness is half closed.** The worker now percent-decodes
+  request paths (#458, closed 09-02). The stale-metadata half is open: the
+  el10 repo still carries a `glib2-2.87.3-1` pair with versioned
+  self-`Obsoletes` (#456), and #519 reports repo/10/x86_64 losing ~160 served
+  package names since 08-20.
+- **Fedora ELN (EL11) is a new target lane with no disposition here.** tunaOS
+  merged the `wahoo` preview lane on 08-25 (tunaos#2042, desktops in
+  tunaos#2048). The enabling build target is #559; the Niri and XFCE gaps
+  behind it are #560 and #561; the H.264/H.265 sourcing decision is #562.
+  Whether this factory commits to ELN this quarter or defers it is undecided —
+  see the Q4 table below.
+- **Hummingbird desktops still do not complete a full run.** #406 ("zero
+  packages since 08-09") closed 09-02 as *not planned*: its root cause was
+  already fixed in `f7185db` (#407) before the issue's evidence was gathered,
+  and the workflow it quoted has since been replaced by the selector-driven
+  cells (`package-factory-cell.yml` / `build-chain-fanout.yml`). What remains
+  open is the ceiling itself — every full run is cancelled at the 360-minute
+  job limit (#412) and convergence needs automation (#401). A weekly
+  `engine=build-chain` cron gives the desktops a scheduled run at all (#476);
+  the timeout is unresolved. #629 proposes consuming utah-packages for GNOME
+  and building the other desktops in the Fedora root.
 - **Desktop parity has no valid tracker.** #133 was closed COMPLETED on 08-11
   with its own unexamined list open; the confirmed defect (`marlin:kde` ships
   338 packages against its base's 480, zero KDE packages, no session file) has
@@ -50,10 +69,10 @@ transition; #488 carries the reasoning behind each row.
 
 | # | Step | Status | Tracking |
 |---|------|--------|----------|
-| 1 | Ruleset requires `Package factory gate`; drop the compatibility aliases | 🔴 Not started — aliases still live | #483 |
+| 1 | Ruleset requires `Package factory gate`; drop the compatibility aliases | ✅ Done — cutover landed 09-02 | #483 |
 | 2 | Promotion behind the factory boundary (leased R2 ActionResult/blob publication) | 🟡 Symptom half done in #476; structural boundary open | #484 |
 | 3 | Native queue packages → first-class per-package recipe actions | 🟡 In progress — ledger row 1 done, row 2 blocked on engine version-awareness, rows 3–5 unstarted | #418, #426 |
-| 4 | Workflow consolidation — fold publishers, parameterize gap-drift, retire dormant builders | 🟡 In progress — `upstream-drift.yml` is now the parameterized matrix; `build.yml`/`build-distributed.yml` remain break-glass until 2026-12-31 (census recorded in RFC 011) | #487 |
+| 4 | Workflow consolidation — fold publishers, parameterize gap-drift, retire dormant builders | ✅ Done — closed 09-02; `upstream-drift.yml` is the parameterized matrix, and `build.yml`/`build-distributed.yml` stay break-glass until 2026-12-31 (census in RFC 011) | #487 |
 | 5 | Report-only CAS reachability / GC | 🔴 Not started | #485 |
 | 6 | Sampled reproducibility rebuilds + policy reporting | 🔴 Not started | #486 |
 
@@ -62,11 +81,11 @@ transition; #488 carries the reasoning behind each row.
 | Priority | Item | Tracking | Status |
 |----------|------|----------|--------|
 | P0 | Desktop parity: successor tracker for the confirmed `marlin:kde` defect, and per-edition installed package sets so parity is diffable | #507, tunaos#1294 | 🔴 Open — #133 closed COMPLETED with the ask unmet |
-| P0 | Hummingbird desktops build at all — 6-hour cell ceiling, zero packages since 08-09 | #406, #412, #401 | 🔴 Broken |
-| P0 | Finish the #430 transition in #488's order — start with the ruleset cutover | #488, #483, #484 | 🟡 In progress |
+| P0 | Hummingbird desktops complete a full run — 6-hour cell ceiling | #412, #401, #629 | 🔴 Broken — #406 closed *not planned*, root cause already fixed in #407; the ceiling is the live defect |
+| P0 | Finish the #430 transition in #488's order — steps 2, 3, 5, 6 remain | #488, #484, #485, #486 | 🟡 In progress — steps 1 (#483) and 4 (#487) closed 09-02 |
 | P1 | aarch64 parity: resolve the two packaging decisions behind the red gnome cells | #480 | 🟡 In progress |
 | P1 | Retire COPR, including the personal unpinned COPR that Mock CI still depends on | #439, #391 | 🔴 Open |
-| P1 | Served-index correctness on repo.tunaos.org | #456, #458 | 🔴 Open |
+| P1 | Served-index correctness on repo.tunaos.org | #456, #519 | 🔴 Open — #458 (path decoding) closed 09-02; stale metadata and the ~160 lost package names remain |
 | P2 | RFC 011 conversion ledger rows 3–5 | #426 | ⬜ Not started |
 
 ---
@@ -77,11 +96,18 @@ transition; #488 carries the reasoning behind each row.
 
 **Theme**: One factory, publishing what it gated.
 
+**Quarter closes 2026-09-30.** One of the five goals below is done. The
+unfinished four are tracked by issue but not by any dated commitment in GitHub —
+this repository has no milestones, so "what must land before Q3 closes" is not a
+query anyone can run. #646 proposes a `2026-Q3 exit` milestone carrying #479,
+#481, #439, #391, #507 and #480, and moving whatever cannot land into a
+`2026-Q4` milestone in the same pass rather than carrying it silently.
+
 | Goal | Owner | Tracking | Status |
 |------|-------|----------|--------|
 | Unified factory with exact reuse + attestations | packaging | #430 | ✅ Done — merged 08-19 |
 | Every build-chain family builds on both arches | packaging | #480, #476 | 🟡 Landed with gnome aarch64 cells deliberately red pending two packaging decisions |
-| Planner-driven publisher for every format | packaging | #476, #479, #481 | 🟡 All three formats have one and promote gated bytes; the structural boundary is #484 |
+| Planner-driven publisher for every format | packaging | #476, #479, #481 | 🟡 All three formats have one and promote gated bytes; #479 and #481 are both still open, and the structural boundary is #484 |
 | Retire COPR in favour of GitHub/R2 | packaging | #439, #391, COPR-AUDIT.md | 🔴 Open — Mock CI still consumes a personal unpinned COPR |
 | Desktop-completeness parity floor for every published edition | packaging | #507, tunaos#1294, [docs/desktop-parity-audit.md](./docs/desktop-parity-audit.md) | 🔴 Open — measurement retired without a replacement |
 
@@ -93,6 +119,7 @@ transition; #488 carries the reasoning behind each row.
 | Parity as a *release gate*, not a manual check | #507, tunaos#1270 | Per-edition package sets make the variant admission gate mechanisable |
 | Sign every published artifact (RPM/DEB + SBOM attestation) | tunaos#1187 | Ties to the tunaOS Q4 supply-chain goal |
 | Package signing key rotation + disaster-recovery docs | INCIDENT-repo-wipe-gnome.md | — |
+| **Fedora ELN (EL11) — decide, then schedule** | #559, #560, #561, #562, #648 | Undecided, not yet committed. #559 is the enabler every other ELN gap blocks on. #562 (no working H.264/H.265 on ELN) is a maintainer sourcing decision and should be answered before any packaging work is authorized. If ELN proceeds, #560's COPR-sourced Niri stack must route through #439 rather than re-acquiring the dependency the factory is retiring. |
 
 ---
 
@@ -117,20 +144,27 @@ or comment on a goal you would like to own. The RFC 011 conversion ledger
 (#426, `docs/rfc011-conversions.md`) is the most self-contained entry point:
 each row is one target family, measurable on its own.
 
+Newcomers currently have no labelled entry path — the repository has no open
+`good first issue` or `help wanted` items, so contributor-discovery surfaces
+return nothing for it even though much of the open queue is single-package work
+with a clear pass/fail. #647 proposes seeding an initial batch.
+
 ---
 
 ## Roadmap Governance
 
-This roadmap is maintained by the strategist agent. Updates are published after
-major milestones or quarterly. Propose changes via PR to this file with an issue
+This roadmap is maintained by the packaging maintainers. Updates are published
+after major milestones or quarterly. Propose changes via PR to this file with an issue
 reference.
 
 **Currency rule** (#506): a tracker cited in this file that closes must move its
 row in the same PR, or the row must name a successor tracker. This repo closes
 issues faster than a quarterly cadence can track — the 08-10 revision of this
-file reported six closed trackers as open work.
+file reported six closed trackers as open work, and the 08-23 revision went
+stale within ten days (four cited trackers closed on 09-02, over 148 commits).
+The rule has held twice and failed twice, which is what a convention does
+without an instrument: #645 proposes a CI check that resolves every `#NNN` in
+this file and fails when a cited tracker is closed and its row neither moved nor
+named a successor.
 
 See [SECURITY.md](./SECURITY.md) for vulnerability reporting.
-
----
-*Generated by strategist agent at ACMM L6. Updated 2026-08-23.*
