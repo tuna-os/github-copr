@@ -86,7 +86,16 @@ mkdir -p "$work/consumed"
 for id in "${!consumed_ref[@]}"; do
 	ref="${consumed_ref[$id]#oci://}"
 	echo "==> materialising consumed repository ${id} from ${ref}"
-	container="$(podman create --pull=always "$ref")"
+	# `true` is never executed — `podman create` only records an argv — but
+	# without one it refuses an image that declares no CMD or ENTRYPOINT:
+	#
+	#     Error: no command or entrypoint provided, and no CMD or ENTRYPOINT
+	#     from image
+	#
+	# and exits 125 AFTER pulling the whole 500 MB (run 33656777961). A
+	# repository-only image like utah-packages has no entrypoint by design:
+	# it is a createrepo_c tree, not something anyone runs.
+	container="$(podman create --pull=always "$ref" true)"
 	# podman cp needs the host directory to exist: on the first CI run it did
 	# not, and the copy died with "could not be found on the host" after the
 	# 500 MB pull (run 33619237851).

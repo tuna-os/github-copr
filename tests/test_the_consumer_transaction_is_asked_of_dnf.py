@@ -84,6 +84,13 @@ def test_the_gate_materialises_consumed_repositories_from_their_digests():
     text = GATE.read_text()
     assert 'ref="${consumed_ref[$id]#oci://}"' in text
     assert "podman create --pull=always" in text and "podman cp" in text
+    # A repository-only image declares no CMD or ENTRYPOINT, and `podman
+    # create` refuses one without an argv -- after pulling all 500 MB of it
+    # (run 33656777961). The argv is recorded, never executed.
+    assert 'podman create --pull=always "$ref" true' in text, (
+        "podman create needs an explicit command for an image that declares "
+        "no entrypoint"
+    )
     # podman cp does not create the host directory; the first CI run died on
     # exactly that after pulling 500 MB (run 33619237851).
     assert text.index('mkdir -p "$work/consumed/${id}"') < text.index('podman cp "${container}:/repository/."')
