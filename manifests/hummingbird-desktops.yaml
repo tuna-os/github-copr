@@ -72,7 +72,15 @@ target:
 desktops:
   gnome:
     release: "51"
-    sources: [{local: src/gnome-51}, {local: src/deps}]
+    # Not built here. tunaOS's hummingbird:gnome takes GNOME 51 from
+    # projectbluefin/utah-packages by digest, and the factory counts that
+    # repository as part of what the target already has
+    # (package-factory.yaml gap_measurement.consumed_indexes). The roots stay
+    # declared so the base-image audit and the installability walk still
+    # cover them, and whatever utah does NOT ship is measured as gap like any
+    # other desktop's. The GNOME 51 spec tree stays, as EL10's `next` track.
+    # Decided in #629; docs/HUMMINGBIRD-TARGET.md §7.
+    consumed_from: utah-packages
     required_packages: [gdm, gjs, gnome-control-center, gnome-initial-setup, gnome-session, gnome-settings-daemon, gnome-shell, mutter, nautilus, xdg-desktop-portal-gnome]
     # Contract surface tunaOS's desktop gate checks by command/path/unit, which
     # the required_packages list above does not name: gnome-keyring-daemon,

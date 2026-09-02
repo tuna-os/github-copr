@@ -207,7 +207,67 @@ accompanies this document):
 That is the model utah-packages proved: right root, one contract, a gate
 that asks the consumer's question.  Not a bigger build order.
 
-## 8. What the first legs on this root failed, and why it was not the root
+## 8. Taken, 2026-09-02, and what it measured
+
+The split in §7 is implemented, on both sides:
+
+- **tunaOS** (`hummingbird:gnome`): `image-versions.yaml` pins
+  `ghcr.io/projectbluefin/utah-packages` by digest, `Containerfile.el10`
+  bind-mounts its `/repository` at `/run/utah-packages` for the gnome
+  stage's install, and `manifests/desktops/gnome.yaml`'s hummingbird
+  section enables it as a `file://` repo at priority 4, above the
+  `tunaos-hummingbird` prefix (5).
+- **This factory**: the same digest is a `consumed_indexes` entry on the
+  hummingbird target (`manifests/package-factory.yaml`), read straight out
+  of the registry by `scripts/oci_repository.py` (token, manifest, one
+  streamed layer; only `repository/repodata/*` is kept).  The gap engine
+  counts everything utah ships as already had; the installability walk
+  enables it; the container gate (`scripts/check-hummingbird-installability-container.sh`,
+  utah's `dnf --assumeno` step verbatim in shape, inside the pinned
+  bootc-os image) materialises it from the digest and asks dnf.  The
+  catalog's gnome desktop is `consumed_from: utah-packages`; its roots stay
+  declared so the audit and both gates still cover them.
+
+Measured on the regeneration that landed with it (target primary
+`3f8c4b86…`, utah primary `38da5357…`, 421 binaries counted as had):
+
+| desktop | sources to build, before | after | Δ |
+|---|---|---|---|
+| gnome | 301 | 248 | −53 |
+| kde | 375 | 353 | −22 |
+| cosmic | 175 | 115 | −60 |
+| niri | 297 | 252 | −45 |
+| xfce | 268 | 115 | −153 |
+| bluefin (parity set) | 392 | 186 | −206 |
+| **build order, packages** | **778** | **664** | **−114** |
+
+Two readings.  The GNOME row is the smallest shrink, not the largest:
+utah's 421 binaries are Bluefin's contract, and this catalog's 58 GNOME
+roots reach past it (the `fedora` list's extras -- `gnome-initial-setup`,
+`ptyxis`, `gjs`, `nautilus` and five more are still built here from
+`src/gnome-51`).  The other four desktops shrink because utah ships the
+platform every desktop stands on -- gtk4, glib2, pipewire, mesa, the
+portals -- and that is the part of the closure this factory no longer has
+to build twice.  The reference is unchanged (Rawhide, §5).
+
+What was NOT cut, because measurement said otherwise (§7's "scope
+decision"): openSUSE Tumbleweed serves a resolvable index on both
+architectures (`rpm/opensuse-tumbleweed/{x86_64,aarch64}`, 2026-09-02),
+so it stays declared -- with the note that no tunaOS manifest consumes it
+yet (sailfin's niri reads Tumbleweed's own repositories); the flat apt
+repositories serve amd64 **and** arm64 debs, so the deb targets keep both;
+EL10, Fedora and Hummingbird have aarch64 legs.  The only architecture
+that fails the bar is `arch`'s aarch64: no leg, no index, no consumer.
+Narrowing it is decided but ships separately: editing `architectures`
+schedules every Arch cell, and the Arch engine cannot yet build a cell
+whose runtime dependencies are sibling recipes (`dms-cli` needs `dms` and
+`quickshell`; `makepkg` has no repository to find them in), so that PR
+waits on same-wave sibling staging for the Arch engine.  GNOME-on-DEB was
+not removed either: it is its own measured chain now
+(`manifests/gnome51-deb.yaml`, `docs/gnome51-deb-gap.json`), not the
+1-of-9 recipe gap the July readiness note described.
+
+## 9. What the first legs on this root failed, and why it was not the root
 
 Run 33597624514 (this branch, both architectures, 2026-09-02) was the first
 full build on the Fedora 44 root.  Both legs hit the four-hour deadline with

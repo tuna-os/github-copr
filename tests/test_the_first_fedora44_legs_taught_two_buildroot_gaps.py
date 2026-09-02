@@ -24,6 +24,7 @@ from __future__ import annotations
 import pathlib
 import re
 
+import pytest
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -62,7 +63,14 @@ def test_langtable_names_the_xmllint_its_check_runs():
 def test_langtable_is_built_from_the_vendored_spec_not_reimported():
     """A `distgit:` key would make run-package-factory-cell.sh import
     Fedora's spec over the vendored one and lose the BuildRequires."""
-    tier, entry = entries()["langtable"]
+    order = entries()
+    if "langtable" not in order:
+        # Only the bluefin parity desktop reaches langtable; with GNOME
+        # consumed from utah-packages it can drop out of the order entirely,
+        # and then there is nothing to re-import.  The vendored spec stays
+        # for the day a root pulls it back in.
+        pytest.skip("langtable is not in the current build order")
+    tier, entry = order["langtable"]
     assert entry["path"] == "src/hummingbird/langtable"
     assert "distgit" not in entry, entry
     assert tier.startswith("layer-")

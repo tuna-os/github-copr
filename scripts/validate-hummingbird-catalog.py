@@ -13,6 +13,11 @@ def fail(message: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("catalog", type=pathlib.Path)
+    parser.add_argument("--factory", type=pathlib.Path,
+                        help="package-factory.yaml whose target declares the consumed_indexes "
+                             "a desktop may name in consumed_from (default: manifests/package-factory.yaml "
+                             "next to the catalog)")
+    parser.add_argument("--target", default="hummingbird")
     args = parser.parse_args()
     root = args.catalog.resolve().parents[1]
     data = yaml.safe_load(args.catalog.read_text())
@@ -21,9 +26,29 @@ def main() -> None:
     for field in ("id", "baseurl", "r2_path", "dist"):
         if not data.get("target", {}).get(field):
             fail(f"target.{field} is required")
+    # A desktop is either BUILT here (sources) or CONSUMED from a repository
+    # the target contract declares (consumed_from -> gap_measurement.
+    # consumed_indexes[].id), never both and never neither. GNOME on
+    # hummingbird is consumed from utah-packages (#629).
+    factory_path = args.factory or (root / "manifests" / "package-factory.yaml")
+    consumable: set[str] = set()
+    if factory_path.exists():
+        factory = yaml.safe_load(factory_path.read_text())
+        measurement = ((factory.get("targets") or {}).get(args.target) or {}).get("gap_measurement") or {}
+        consumable = {entry["id"] for entry in measurement.get("consumed_indexes") or []}
     for desktop, definition in data.get("desktops", {}).items():
-        if not definition.get("required_packages") or not definition.get("sources"):
-            fail(f"{desktop} needs packages and sources")
+        if not definition.get("required_packages"):
+            fail(f"{desktop} needs required_packages")
+        consumed = definition.get("consumed_from")
+        if consumed:
+            if definition.get("sources"):
+                fail(f"{desktop}: consumed_from and sources are exclusive -- a desktop is built here or consumed, not both")
+            if consumed not in consumable:
+                fail(f"{desktop}: consumed_from {consumed!r} is not a consumed_indexes id on the "
+                     f"{args.target} target in {factory_path} (have: {sorted(consumable) or 'none'})")
+            definition = {**definition, "sources": []}
+        elif not definition.get("sources"):
+            fail(f"{desktop} needs packages and sources (or consumed_from)")
         # install_packages is what tunaOS actually installs; required_packages
         # is only the contract surface its desktop gate checks. The gap
         # measurement resolves both, and a required package missing from the

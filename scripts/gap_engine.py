@@ -111,8 +111,27 @@ def decompress(name: str, data: bytes) -> bytes:
     return data
 
 
-def primary_of(baseurl: str, cache: pathlib.Path) -> tuple[bytes, dict]:
-    """Return decompressed primary.xml plus the provenance of the index."""
+def _oci():
+    """scripts/oci_repository.py, loaded by path: scripts/ is not a package,
+    and every consumer of this engine loads IT by path too."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "oci_repository", pathlib.Path(__file__).resolve().parent / "oci_repository.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def primary_of(baseurl: str, cache: pathlib.Path, arch: str = "x86_64") -> tuple[bytes, dict]:
+    """Return decompressed primary.xml plus the provenance of the index.
+
+    `oci://host/path@sha256:...` names a repository that ships INSIDE an OCI
+    image (utah-packages' layout); it is read straight out of the registry by
+    scripts/oci_repository.py and comes back in this same shape.
+    """
+    if baseurl.startswith("oci://"):
+        return _oci().primary_of(baseurl, cache, arch)
     base = baseurl.rstrip("/") + "/"
     repomd = fetch(base + "repodata/repomd.xml", cache)
     root = ET.fromstring(repomd)
@@ -541,6 +560,28 @@ def strongly_connected(nodes, edges):
     return result
 
 
+def consumed_indexes(measurement: dict | None, arch: str, cache: pathlib.Path) -> list[dict]:
+    """Parse every `consumed_indexes` entry of a gap_measurement contract.
+
+    Each entry is {id, index[, note]} where `index` is an https:// rpm-md
+    baseurl or an oci://…@sha256:… reference; `$arch` is substituted. Returns
+    one dict per entry with the index's provenance, its binary count, and a
+    private `_have` set (provides ∪ names) for the caller to fold in.
+    """
+    out = []
+    for spec in (measurement or {}).get("consumed_indexes") or []:
+        url = spec["index"].replace("$arch", arch).replace("$basearch", arch)
+        blob, provenance = primary_of(url, cache, arch)
+        index = parse_primary(blob)
+        out.append({
+            "id": spec["id"],
+            **provenance,
+            "binary_packages": len(index["packages"]),
+            "_have": set(index["provides"]) | set(index["packages"]),
+        })
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -649,6 +690,20 @@ def main() -> None:
         f"{len(target_index['provides'])} capabilities",
         file=sys.stderr,
     )
+    # Repositories a consumer image enables NEXT TO the target, declared in
+    # the target contract as `consumed_indexes` (utah-packages for
+    # hummingbird's GNOME). Whatever they ship is not a gap: the closure
+    # treats it as already had, exactly like the target's own index. It is
+    # NOT added to the reference, so nothing in the build order is ever
+    # resolved through a consumed repository's BuildRequires.
+    consumed = consumed_indexes(measurement, args.arch, args.cache)
+    for entry in consumed:
+        have |= entry.pop("_have")
+        print(
+            f"consumed     {entry['id']}: {entry['binary_packages']} binary "
+            f"packages counted as had ({entry['baseurl']})",
+            file=sys.stderr,
+        )
     print(
         f"reference has {len(reference_index['packages'])} binary packages",
         file=sys.stderr,
@@ -664,6 +719,7 @@ def main() -> None:
         "tier_ordering": "buildrequires" if source_index else "runtime-requires",
         "membership": membership,
         "target_binary_packages": len(target_index["packages"]),
+        "consumed_indexes": consumed,
         "desktops": {},
     }
     build_tiers: dict[str, list[list[str]]] = {}
@@ -836,6 +892,9 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root,
         f"# Measured {report['measured_at']}",
         f"# target primary.xml   sha256 {report['target_index']['primary_sha256']}",
         f"# reference primary.xml sha256 {report['reference_index']['primary_sha256']}",
+        *[f"# consumed {c['id']:<14} {c['baseurl']} (primary sha256 {c['primary_sha256'][:12]}, "
+          f"{c['binary_packages']} binaries counted as had)"
+          for c in report.get("consumed_indexes", [])],
         "#",
         "# `distgit:` means the packaging is imported from Fedora Rawhide",
         "# dist-git at build time (scripts/import-fedora-distgit.py).  A package",

@@ -22,6 +22,12 @@ dependencies:
       debian: [gcc, meson, ninja-build, pkg-config, libsystemd-dev]
       opensuse-tumbleweed: [gcc, meson, ninja, pkgconf-pkg-config, systemd-devel]
       arch: [gcc, meson, ninja, pkgconf, systemd]
+  runtime:
+    targets:
+      # libseat.so links libsystemd (the logind backend); RPM and deb derive
+      # that from the ELF, pacman does not, and the Arch runtime-closure
+      # assertion caught it (tideforge-libseat-arch-x86_64, run 33618862181).
+      arch: [systemd-libs]
 files:
   common: [usr/lib64/libseat.so.*, usr/bin/seatd, usr/bin/seatd-launch]
 outputs:
@@ -52,4 +58,9 @@ verify:
   targets:
     ubuntu: {install_name: libseat-dev}
     debian: {install_name: libseat-dev}
+    # The PKGBUILD is one package named after the recipe (tideforge renders
+    # pkgname=<name>; Arch does not split -devel), so the RPM subpackage name
+    # is not a target pacman can find: "error: target not found:
+    # libseat-devel" (tideforge-libseat-arch-x86_64, run 33618510747).
+    arch: {install_name: libseat}
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]

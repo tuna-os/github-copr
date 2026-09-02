@@ -236,6 +236,22 @@ targets:
         mode: propose
         build_order: build-order-hummingbird-desktops.yml
         report_json: docs/hummingbird-desktop-gap.json
+      # Repositories a consumer image enables NEXT TO the target and our
+      # prefix. Whatever they ship is counted as already had by the gap
+      # engine (never rebuilt here) and enabled by the installability walk.
+      # They are not references: nothing is ordered through their
+      # BuildRequires.
+      #
+      # utah-packages is Bluefin's GNOME 51 for Hummingbird, built in
+      # Hummingbird's own root, shipped as an OCI image whose one layer is a
+      # createrepo_c tree (/repository) -- read straight out of the registry
+      # by scripts/oci_repository.py. tunaOS's hummingbird:gnome consumes
+      # this exact digest (its image-versions.yaml `utah-packages`); keep the
+      # two pins moving together. Decided in #629; docs/HUMMINGBIRD-TARGET.md.
+      consumed_indexes:
+        - id: utah-packages
+          index: oci://ghcr.io/projectbluefin/utah-packages@sha256:9cb667291a1a0b112c39d3c6a69116bb52cb1a10c7df12290b9c298b5682426c
+          serves: [gnome]
     # Buildroot inputs only, never repositories on a produced image. Fedora
     # Rawhide supplies -devel headers and build backends Hummingbird has no
     # build of yet; Fedora 44 supplies the Python namespace at the target's
@@ -264,6 +280,14 @@ targets:
   arch:
     status: scaffold
     format: pkg.tar.zst
+    # aarch64 is declared with no build leg, no published index and no
+    # consumer (marlin, the Arch variant, is x86_64-only in tunaOS's
+    # build-config). Narrowing this to [x86_64] is measured and decided
+    # (docs/PACKAGE_FACTORY.md, "one contract"), but it ships in its own PR:
+    # touching `architectures` schedules every Arch cell, and the Arch
+    # engine cannot yet build a cell whose runtime deps are sibling recipes
+    # (dms-cli needs dms and quickshell; makepkg has no repo to find them
+    # in). That staging gap is the prerequisite; see tunaos-packages#631.
     architectures: [x86_64, aarch64]
     r2_path: pacman/arch/{arch}
     repository: pacman

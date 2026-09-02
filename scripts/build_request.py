@@ -10,7 +10,7 @@ engine that generates the build order from live indexes. What did not exist
 was a way to *say* the ask. Naming a desktop and a release meant knowing, and
 hand-editing, every file that mentions the release track:
 
-    manifests/hummingbird-desktops.yaml     desktops.<d>.release + .sources
+    manifests/hummingbird-desktops.yaml     desktops.<d>.release (+ .sources, or consumed_from)
     manifests/package-builds.yaml           each cell's source_paths
     manifests/catalog.yaml                  every entry's source path
     manifests/dependency-trees/gnome.yaml   the family's tree
@@ -255,6 +255,11 @@ def _sources_of(definition: dict) -> list[str]:
 # file naming a track is in exactly one category, so a new declaration cannot
 # be added without being classified.
 TRACK_DECLARATIONS = (
+    # Still here after gnome became `consumed_from: utah-packages` (#629):
+    # the catalog's source_paths keep naming the src/gnome-51 tree, because
+    # what utah does NOT ship (gjs, nautilus, gnome-initial-setup, ... --
+    # 8 packages on 2026-09-02) is still built from those reviewed specs
+    # for the other desktops.
     "manifests/hummingbird-desktops.yaml",
     "manifests/package-builds.yaml",
     "manifests/catalog.yaml",

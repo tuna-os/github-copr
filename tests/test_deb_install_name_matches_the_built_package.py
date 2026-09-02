@@ -74,3 +74,25 @@ def test_every_renamed_deb_output_is_verified_under_that_name():
             if resolved != deb_name:
                 offenders.append((path.parent.name, target, resolved, deb_name))
     assert not offenders, offenders
+
+
+def test_every_arch_recipe_is_verified_under_its_pkgname():
+    """Arch has no subpackage split: tideforge renders one PKGBUILD whose
+    pkgname is the recipe name, so a verify install_name inherited from the
+    RPM side (libseat -> libseat-devel) is a name pacman cannot find. The
+    package builds clean and verification fails on "target not found"
+    (tideforge-libseat-arch-x86_64, run 33618510747). Same sweep as the deb
+    one, for the format where the answer is always the recipe name."""
+    offenders = []
+    for path in sorted((ROOT / "packages").glob("*/package.yaml")):
+        recipe = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if "arch" not in (recipe.get("targets") or []):
+            continue
+        resolved = tideforge.verify_metadata(recipe, "arch")["install_name"]
+        if resolved != recipe["name"]:
+            offenders.append((path.parent.name, resolved))
+    assert not offenders, (
+        "these recipes verify their Arch output under a name the PKGBUILD "
+        f"does not produce: {offenders}"
+    )
+

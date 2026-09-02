@@ -17,6 +17,52 @@ targets, and publishes only validated repositories to Cloudflare R2.
 The authoritative target and R2-path contract is
 [`manifests/package-factory.yaml`](https://github.com/tuna-os/tunaos-packages/blob/main/manifests/package-factory.yaml).
 
+## One contract, one build engine per target
+
+The contract is shared; the engines are not.  A package counts only when it
+builds in **its target's own root**, installs from the staged repository on
+**that target**, and (where it touches a session) starts one.  Nothing built
+for one target is ever repackaged for another: the build root is an ABI
+input, and reusing binaries across roots trades build time for silent ABI
+failures (measured twice -- `docs/experiments/tideforge-universal-intermediate.md`,
+and the Rawhide-root `GLIBC_2.44` leak in `docs/HUMMINGBIRD-TARGET.md` §2).
+
+| Target | Engine | Root | Runtime gate |
+|---|---|---|---|
+| EL10 | mock + native specs (`src/gnome-5x`, `src/deps`, `src/xfce-wayland`) | `centos-stream-10-ci` (+CRB, EPEL as build inputs) | `build-gnome50-verify.yml` (Lima VM, GDM) |
+| Fedora | mock + native specs | `fedora-44-ci` | clean-install cell |
+| Hummingbird | mock + Rawhide dist-git imports | Fedora 44 + public-hummingbird by priority (`hummingbird-ci*.cfg`) | static installability walk + `dnf --assumeno` inside the pinned bootc-os image |
+| Ubuntu, Debian | Tideforge → `debian/` + container build | the target's own container | clean-install cell; session smokes declared, not yet implemented |
+| openSUSE Tumbleweed | Tideforge → spec + zypper build | Tumbleweed container | clean-install cell |
+| Arch | Tideforge/native PKGBUILD + makepkg | archlinux container | clean-install cell |
+
+What every engine shares -- and what "one contract" means:
+
+- **the roots**: a desktop manifest names what a tunaOS image installs;
+  the gap engine measures the closure against the target's own index;
+- **the gates**: install from the staged repository on the target, then
+  the installability walk and (Hummingbird today, the rest to follow) the
+  consumer transaction inside the target's image;
+- **the status board** (`docs/FACTORY-STATUS.md`): built-vs-needed per
+  target and architecture, from live indexes, so a target that publishes
+  nothing says so;
+- **the promotion rule** below.
+
+Two things are deliberately *not* built here.  **GNOME on Hummingbird** is
+consumed from `projectbluefin/utah-packages`, pinned by digest on the
+hummingbird target as a `consumed_indexes` entry: whatever it ships is
+counted as already had, never rebuilt (`docs/HUMMINGBIRD-TARGET.md` §7-8).
+**tromso and xfce-linux** (KDE and XFCE on freedesktop-sdk, BuildStream)
+are whole-OS images built in their own repositories; they are products in
+tunaOS's family, not package sources for any target here.
+
+A target is declared only with a build leg, a served index and a consumer.
+Measured 2026-09-02: every declared architecture but `arch`'s aarch64 meets
+that bar (it has none of the three; narrowing it waits on the Arch engine
+learning to stage sibling recipes at build time, because editing the
+declaration schedules every Arch cell); openSUSE meets the first two and is
+waiting on the third.
+
 ## Asking for a desktop on a target
 
 The deliverable is a stack, not a repository. `scripts/request.py` is the front

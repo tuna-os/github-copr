@@ -68,9 +68,19 @@ def roots_of(catalog: dict, desktop: str) -> list[str]:
 
 
 def check(catalog: dict, target_index: dict, published_index: dict,
-          desktops: list[str]) -> dict:
-    """Per desktop: roots absent from both repos, closure size, unresolved caps."""
-    universe = merge_indexes(published_index, target_index)
+          desktops: list[str], consumed: list[dict] | None = None) -> dict:
+    """Per desktop: roots absent from all repos, closure size, unresolved caps.
+
+    `consumed` are the parsed indexes of repositories a consumer image enables
+    next to the target and our prefix (utah-packages for GNOME). On a name
+    collision they WIN: tunaOS enables utah at priority 4, our prefix at 5
+    and the base's own repository at 10 (manifests/desktops/gnome.yaml
+    there), so a name utah ships masks the prefix's copy exactly as dnf's
+    by-name priority filter would. The target still provides, and a needer
+    that lives in a consumed repo is attributed to `consumed`.
+    """
+    consumed = consumed or []
+    universe = merge_indexes(*consumed, published_index, target_index)
     report = {}
     for desktop in desktops:
         roots = roots_of(catalog, desktop)
@@ -84,8 +94,13 @@ def check(catalog: dict, target_index: dict, published_index: dict,
         for cap, needers in sorted(unresolved.items()):
             detail[cap] = {
                 "needed_by": sorted(needers)[:5],
+                # Same precedence as the universe: a name a consumed repo
+                # ships is that repo's package, whatever the prefix also
+                # carries under the name.
                 "needer_from": sorted({
-                    "published" if n in published_index["packages"] else "target"
+                    "consumed" if any(n in c["packages"] for c in consumed)
+                    else "published" if n in published_index["packages"]
+                    else "target"
                     for n in needers
                 }),
             }
@@ -126,6 +141,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--arch", default="x86_64")
     ap.add_argument("--target-index", help="override the target's gap_measurement.target_index")
     ap.add_argument("--published-index", help="override the target's published_index for --arch")
+    ap.add_argument("--consumed-index", action="append", dest="consumed_indexes", metavar="URL",
+                    help="repository a consumer image enables next to the target (https:// "
+                         "rpm-md or oci://…@sha256:…); overrides the target's "
+                         "gap_measurement.consumed_indexes. Repeatable.")
     ap.add_argument("--desktop", action="append", dest="desktops")
     ap.add_argument("--cache", type=pathlib.Path, default=pathlib.Path(".cache/target-gap"))
     ap.add_argument("--json", action="store_true", dest="as_json")
@@ -143,13 +162,24 @@ def main(argv: list[str] | None = None) -> int:
     published_blob, published_prov = gap.primary_of(published_url, args.cache)
     target_index = gap.parse_primary(target_blob)
     published_index = gap.parse_primary(published_blob)
+    if args.consumed_indexes:
+        measurement = {"consumed_indexes": [
+            {"id": f"consumed-{i}", "index": url} for i, url in enumerate(args.consumed_indexes)]}
+    else:
+        measurement = target.get("gap_measurement") or {}
+    consumed_meta = gap.consumed_indexes(measurement, args.arch, args.cache)
+    consumed = [gap.parse_primary(gap.primary_of(
+        c["baseurl"], args.cache, args.arch)[0]) for c in consumed_meta]
+    for c in consumed_meta:
+        c.pop("_have", None)
     desktops = args.desktops or [d for d in catalog["desktops"] if d != "bluefin"]
-    report = check(catalog, target_index, published_index, desktops)
+    report = check(catalog, target_index, published_index, desktops, consumed)
     out = {
         "measured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "arch": args.arch,
         "target_index": target_prov,
         "published_index": published_prov,
+        "consumed_indexes": consumed_meta,
         "desktops": report,
     }
     if args.as_json:
@@ -157,6 +187,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(f"target    {target_url}  ({len(target_index['packages'])} binaries)")
         print(f"published {published_url}  ({len(published_index['packages'])} binaries)")
+        for c in consumed_meta:
+            print(f"consumed  {c['baseurl']}  ({c['binary_packages']} binaries, {c['id']})")
         print()
         print(render(report))
     if args.fail_on_unresolved and not all(r["resolvable"] for r in report.values()):

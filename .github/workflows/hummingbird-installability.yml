@@ -24,7 +24,11 @@ on:
     paths:
       - scripts/check-hummingbird-installability.py
       - scripts/gap_engine.py
+      - scripts/oci_repository.py
+      - scripts/check-hummingbird-installability-container.sh
+      - scripts/hummingbird-desktop-roots.py
       - manifests/hummingbird-desktops.yaml
+      - manifests/package-factory.yaml
       - .github/workflows/hummingbird-installability.yml
 
 permissions:
@@ -60,4 +64,28 @@ jobs:
         with:
           name: hummingbird-installability-${{ matrix.arch }}
           path: installability-${{ matrix.arch }}.*
+          retention-days: 30
+
+  # The other half: dnf's answer, inside the bootc-os image tunaOS builds
+  # from, with only public-hummingbird, our prefix and the consumed
+  # repositories enabled -- utah-packages' publish gate, verbatim in shape.
+  # x86_64 only (the runner's arch, and the arch the consumed repositories
+  # exist for). Advisory like the static walk: `--fail-on-unresolved` is
+  # the switch for the day a desktop first resolves.
+  container:
+    name: dnf --assumeno inside bootc-os
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: pip install --disable-pip-version-check PyYAML
+      - name: Ask dnf, with the consumer's repositories and nothing else
+        run: |
+          set -euo pipefail
+          bash scripts/check-hummingbird-installability-container.sh --report consumer-transaction.md
+          cat consumer-transaction.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hummingbird-consumer-transaction
+          path: consumer-transaction.md
           retention-days: 30
