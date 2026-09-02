@@ -24,9 +24,12 @@ When adding or updating a package, prefer sources in this order:
 
 Both recipes default to the `jreilly1821/c10s-gnome-50` COPR project
 (`jreilly1821/c10s-gnome-49` for the GNOME 49 recipes) — a personal,
-unpinned namespace with no fallback mirror; see tunaos-packages#391 for the
-supply-chain risk this carries and the CI freshness check added for the
-GNOME 49 build.
+unpinned namespace; see tunaos-packages#391 for the supply-chain risk this
+carries and the CI freshness check added for the GNOME 49 build. The GNOME
+49 mock CI config (`mock/centos-stream-10-ci-gnome49.cfg`) now also
+consults the org-owned `[tunaos-gnome49]` R2 mirror ahead of the personal
+COPR, but that mirror only covers part of the stack today, so the COPR
+stays enabled as a fallback until it's fully migrated.
 
 ## ICU 77 isolation ("repo poisoning")
 
