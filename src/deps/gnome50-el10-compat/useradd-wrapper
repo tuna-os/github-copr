@@ -18,6 +18,14 @@
 # then chowns and restorecons the existing directory.
 #
 # See: https://github.com/tuna-os/tunaos-packages/issues/17
+#
+# Expiry condition (issue #392): delete this wrapper once EL10
+# shadow-utils' create_home() actually honors the access(F_OK)
+# early-return described above (upstream master returns early / only
+# warns under -m when the home dir exists, instead of exiting
+# E_HOMEDIR). Re-check on each EL10 point release with:
+#   useradd -m -d <existing-dir> <user>; echo $?
+# Exit 0 on the target release means this wrapper can be removed.
 
 set -euo pipefail
 
