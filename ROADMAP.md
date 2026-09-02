@@ -39,7 +39,13 @@ only and is being retired (#439).
   request paths (#458, closed 09-02). The stale-metadata half is open: the
   el10 repo still carries a `glib2-2.87.3-1` pair with versioned
   self-`Obsoletes` (#456), and #519 reports repo/10/x86_64 losing ~160 served
-  package names since 08-20.
+  package names since 08-20. A third gap is open on hummingbird: #525 counts
+  17 packages we serve at an older build than upstream now ships, and because
+  the desktop manifests add our repository at `priority: 5` — absolute in dnf,
+  not a tie-break — ours wins and upstream's fix is shadowed on every image.
+  `check-upstream-shadowing.py` names what to withdraw and deliberately
+  performs no withdrawal; nothing else does either, and the count has grown
+  from 16 since 08-25.
 - **Fedora ELN (EL11) is a new target lane with no disposition here.** tunaOS
   merged the `wahoo` preview lane on 08-25 (tunaos#2042, desktops in
   tunaos#2048). The enabling build target is #559; the Niri and XFCE gaps
@@ -129,7 +135,7 @@ query anyone can run. #646 proposes a `2026-Q3 exit` milestone carrying #479,
 |------|-------|----------|--------|
 | Hummingbird cell exceeds the 6-hour job ceiling | #412, #401 | P0 | L |
 | Desktop parity measured by image size, which demonstrably misleads — needs per-edition package sets | #507 | P1 | M |
-| Dormant pre-factory builders still in tree (`build-distributed.yml`, ~1.4K lines) | #487 | P1 | M |
+| Dormant pre-factory builders still in tree (`build-distributed.yml`, 1,403 lines) | #487 (closed 09-02 — kept break-glass to 2026-12-31, not deleted; revisit at the RFC 011 Q4 review) | P1 | M |
 | Determinism substrate unverified — `SOURCE_DATE_EPOCH` and cache-key bugs caught by log-reading | #486, #477 | P1 | M |
 | Mock CI depends on a personal unpinned COPR | #391 | P1 | S |
 | COPR bootstrap infra to retire | #439, COPR-AUDIT.md | P2 | M |
