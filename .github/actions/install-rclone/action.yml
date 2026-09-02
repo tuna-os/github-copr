@@ -1,0 +1,71 @@
+name: Install rclone
+description: >-
+  Install a pinned rclone release, verified against a committed SHA-256 before
+  anything from it executes.
+
+# Every workflow that touches R2 currently installs rclone with
+#
+#     curl -fsSL https://rclone.org/install.sh | sudo bash
+#
+# which is unpinned, unverified, remote code executed as root — in jobs that
+# hold R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY and, for the publishers, the RPM
+# and APT signing key. Whatever that URL serves at the moment the job runs is
+# what runs, so an upstream or CDN compromise reads the package-signing key out
+# of the agent it was just handed.
+#
+# The pin is what makes this reviewable: the version and its digest are values
+# in the repository, changed by a commit someone reads, rather than whatever a
+# third party happens to be serving. dpkg refuses to install anything whose
+# hash does not match, and the step fails before rclone has run once.
+#
+# Bumping: read the new digest from
+# https://downloads.rclone.org/v<version>/SHA256SUMS and update BOTH the
+# default version and the matching arch digest below in the same commit.
+
+inputs:
+  version:
+    description: rclone release to install, without the leading "v"
+    required: false
+    default: "1.75.0"
+  sha256-amd64:
+    description: SHA-256 of rclone-v<version>-linux-amd64.deb
+    required: false
+    default: "266598b5c66a42b821571332013cc85a88ffcff8939cf0643861c8d033dd3a4a"
+  sha256-arm64:
+    description: SHA-256 of rclone-v<version>-linux-arm64.deb
+    required: false
+    default: "081c605cbf47ade3114e78db2130766a23281a12b79cdd5774b11dad6c6c0931"
+
+runs:
+  using: composite
+  steps:
+    - name: Install pinned rclone
+      shell: bash
+      env:
+        RCLONE_VERSION: ${{ inputs.version }}
+        SHA256_AMD64: ${{ inputs.sha256-amd64 }}
+        SHA256_ARM64: ${{ inputs.sha256-arm64 }}
+      run: |
+        set -euo pipefail
+
+        case "$(uname -m)" in
+          x86_64)  arch=amd64; want="$SHA256_AMD64" ;;
+          aarch64) arch=arm64; want="$SHA256_ARM64" ;;
+          *) echo "::error::no pinned rclone for $(uname -m)"; exit 1 ;;
+        esac
+
+        deb="rclone-v${RCLONE_VERSION}-linux-${arch}.deb"
+        tmp="$(mktemp -d)"
+        trap 'rm -rf "$tmp"' EXIT
+
+        curl -fsSL --retry 3 --retry-delay 2 \
+          -o "$tmp/$deb" \
+          "https://downloads.rclone.org/v${RCLONE_VERSION}/${deb}"
+
+        # Fatal, and before dpkg: a mismatch means the bytes are not the ones
+        # this repository reviewed, and the only safe thing to do with them is
+        # nothing at all.
+        echo "${want}  ${tmp}/${deb}" | sha256sum -c -
+
+        sudo dpkg -i "$tmp/$deb"
+        rclone version
