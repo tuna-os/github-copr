@@ -270,6 +270,14 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
             {'name': 'Import GPG key', 'id': 'import-gpg', 'uses': 'crazy-max/ghaction-import-gpg@v7', 'with': {'gpg_private_key': '${{ secrets.GPG_PRIVATE_KEY }}', 'passphrase': '${{ secrets.GPG_PASSPHRASE }}', 'git_committer_name': 'RPM Builder', 'git_committer_email': 'rpm-signing@tunaos.org'}},
             {'name': 'Configure RPM macros', 'run': 'echo "%_signature gpg" > ~/.rpmmacros\necho "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros\necho "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \\"%{_gpg_name}\\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros\n'},
             {'name': 'Sign RPMs', 'run': 'find local-repo -name "*.rpm" -exec rpmsign --addsign {} \\;\ncreaterepo_c --update local-repo\n'},
+            # The upload below is `rclone sync`, which makes the served prefix
+            # MATCH local-repo. A publisher that re-indexes without signing
+            # therefore does not merely skip a step -- it DELETES the
+            # repomd.xml.asc that publish-rpm-wave.sh wrote into the same
+            # prefix, and repo_gpgcheck=1 can never be turned on. Signing here
+            # is what keeps the metadata signature durable across publishers.
+            # See #509.
+            {'name': 'Sign repository metadata', 'run': 'bash scripts/sign-repomd.sh local-repo\n'},
             {'name': 'Configure rclone', 'run': _rclone_conf(r2_state)},
             {'name': 'Upload to R2', 'run': _build_upload_run(r2_path, secondary_r2_path, install_script, install_r2_dest)}
         ]
