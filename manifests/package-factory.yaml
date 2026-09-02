@@ -240,7 +240,11 @@ targets:
     # Rawhide supplies -devel headers and build backends Hummingbird has no
     # build of yet; Fedora 44 supplies the Python namespace at the target's
     # own ABI (3.14, where Rawhide is 3.15).
-    build_repositories: [fedora-rawhide, fedora-44-python]
+    # Fedora 44 plus public-hummingbird is Hummingbird's own build-root
+    # composition (redhat/hummingbird/containers images/variables.yml); the
+    # Rawhide root this used to name leaked GLIBC_2.44 into three served
+    # packages.  Mirrors mock/hummingbird-ci*.cfg; docs/HUMMINGBIRD-TARGET.md.
+    build_repositories: [fedora-44, fedora-44-updates]
   opensuse-tumbleweed:
     status: supported
     format: rpm

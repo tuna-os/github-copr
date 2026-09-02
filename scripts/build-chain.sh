@@ -370,10 +370,12 @@ derive_dist() {
         # equally safe, this just says what the rebuild actually is.)
         #
         # It is not a claim about ABI. The buildroot ABI comes from
-        # mock/hummingbird-ci.cfg, which tracks Fedora Rawhide because that is
-        # what the target measurably tracks: glib2 2.89.3-1, systemd 261.2-1
-        # and gcc 16.1.1 are Rawhide's versions, not F43's 2.86.5 / 258.10 /
-        # 15.3.1. See docs/hummingbird-desktop-gap.md.
+        # mock/hummingbird-ci.cfg: Fedora 44 plus Hummingbird's own repository
+        # at higher priority, the composition Hummingbird itself builds in.
+        # (It tracked Rawhide until 2026-09-02, on the strength of glib2 /
+        # systemd / gcc matching Rawhide's versions; glibc, openssl, python
+        # and perl -- the ABI -- are Fedora 44's, and three served packages
+        # carried Rawhide's GLIBC_2.44 as a result. docs/HUMMINGBIRD-TARGET.md.)
         hummingbird-20251124*)   echo ".bfin1" ;;
         fedora-*)                 echo ".fc${target#fedora-}" | sed 's/-.*//' ;;
         centos-stream-10*|epel-10*|almalinux*-10*) echo ".el10" ;;

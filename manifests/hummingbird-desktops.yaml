@@ -199,3 +199,22 @@ bootstrap:
         distgit: python-hatch-vcs
       - path: src/hummingbird/python-hatch-fancy-pypi-readme
         distgit: python-hatch-fancy-pypi-readme
+  # Not a backend: a test tool the buildroot cannot supply in a version
+  # Hummingbird's own pytest accepts.  Hummingbird ships python3-pytest 9.1.1
+  # (and 8.4.2, 9.0.3 beside it); Fedora 44's python3-pytest-asyncio 1.1.0
+  # requires pytest < 9, and mock's best=1 refuses to settle for the older
+  # pytest, so every package that BuildRequires pytest-asyncio with checks on
+  # (python-dbus-next, python-aiohappyeyeballs, run 33597624514) dies in
+  # builddep:
+  #     package python3-pytest-asyncio-1.1.0-3.fc44.noarch from fedora
+  #     requires (python3.14dist(pytest) < 9~~ with >= 8.2), but none of the
+  #     providers can be installed
+  # Rawhide's 1.4.0 accepts pytest < 10.  Building it here puts a copy in
+  # local-build (priority 1) that masks Fedora's by name.  This is the general
+  # shape of a Fedora 44 root under a Hummingbird that has moved past it:
+  # a BuildRequires-only tool whose F44 copy cannot install beside the
+  # target's own packages is built from the Rawhide reference.
+  - name: bootstrap-04
+    packages:
+      - path: src/hummingbird/python-pytest-asyncio
+        distgit: python-pytest-asyncio

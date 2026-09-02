@@ -155,28 +155,23 @@ def test_caret_family_globs_do_not_overreach(config, name):
 @pytest.mark.parametrize("name", [
     "asciidoc", "go-vendor-tools", "xwayland-run", "blueprint-compiler",
     "marshalparser", "xcb-proto", "lirc-devel", "glad2", "python3-glad2",
+    "opencv-devel", "openexr", "fontforge", "gnuplot",
 ])
-def test_python315_buildtools_are_pinned_to_f44(config, name):
-    """Rawhide is mid python-3.15 transition: these build tools require
-    python(abi) = 3.15, which no repo in the set provides. Their F44 builds
-    run on python 3.14 (which the base serves), so they are pinned via
-    includepkgs -- the same pattern as the python3-*/perl-*/mpich* pins.
-    Measured with the simulator: 630 -> 642 OK, 12 sources unblocked, no
-    regressions."""
-    patterns = section_field(config, "fedora-44-python", "includepkgs")
-    assert any(fnmatch.fnmatch(name, p) for p in patterns), (
-        f"{config}: {name!r} not pinned -- its Rawhide build needs "
-        f"python(abi) = 3.15 and blocks its consumers")
+def test_no_includepkgs_pin_survives_the_fedora_44_root(config, name):
+    """These names used to be juggled one at a time through an includepkgs
+    pin on a [fedora-44-python] section: the first nine pinned IN because
+    their Rawhide builds needed python(abi) = 3.15, the last four kept OUT
+    because their F44 builds needed libraries the base masks by name
+    (F44 fontforge wants libxml2.so.2; the base ships 2.15's .so.16).
 
-
-@pytest.mark.parametrize("config", CONFIGS)
-@pytest.mark.parametrize("name", ["opencv-devel", "openexr", "fontforge", "gnuplot"])
-def test_dead_end_f44_pins_stay_out(config, name):
-    """Verified NOT to help before being left out: F44 opencv needs F44's
-    OpenEXR, which the base's newer openexr masks by name; F44 fontforge
-    needs the old libxml2.so.2 the base no longer ships; F44 gnuplot did
-    not unblock leptonica. Pinning them would mask working Rawhide copies
-    for nothing."""
-    patterns = section_field(config, "fedora-44-python", "includepkgs")
-    assert not any(fnmatch.fnmatch(name, p) for p in patterns), (
-        f"{config}: {name!r} pinned despite being a verified dead end")
+    With Fedora 44 as the base (2026-09-02) there is no pin to maintain:
+    the nine come from [fedora] like everything else the base lacks, and
+    the four are exactly the name-masking class docs/HUMMINGBIRD-TARGET.md
+    §6 records as the overlay's inherent cost, to be handled per package
+    (exclude the F44 name, or build it) rather than by a global pin list."""
+    text = (ROOT / config).read_text(encoding="utf-8")
+    assert not re.search(r"^\[fedora-44-[a-z]+\]$", text, re.M), (
+        f"{config}: an includepkgs pin section is back; the Fedora 44 base "
+        "makes it either redundant (a name F44 already serves) or wrong "
+        "(a name the base masks, which a pin cannot fix)")
+    assert not re.search(r"^includepkgs=", text, re.M), config

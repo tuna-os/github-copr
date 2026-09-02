@@ -1,0 +1,63 @@
+name: Hummingbird installability
+
+# Does what we publish for Hummingbird resolve on Hummingbird?
+#
+# The chain reports "built"; the gap engine reports "missing from the
+# target"; nothing reported the thing a consumer image needs: with ONLY
+# public-hummingbird and our published prefix enabled, do the desktop roots
+# resolve?  utah-packages gates its publish on that question inside the
+# bootc-os image; this is the static half (two primary.xml downloads, no
+# container), so it can run on every relevant change and daily.
+#
+# Advisory: it never fails the run.  Measured 2026-09-02, no desktop
+# resolved (GNOME: 30 unresolved capabilities, three of them a Rawhide-root
+# GLIBC_2.44 leak), so a hard gate today would be permanent red; the report
+# in the job summary is the product, and `--fail-on-unresolved` is there for
+# the day a desktop first goes green and should stay so.
+# docs/HUMMINGBIRD-TARGET.md.
+
+on:
+  schedule:
+    - cron: "15 7 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/check-hummingbird-installability.py
+      - scripts/gap_engine.py
+      - manifests/hummingbird-desktops.yaml
+      - .github/workflows/hummingbird-installability.yml
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: resolve every desktop root on hummingbird
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: {python-version: "3.14"}
+      - run: pip install --disable-pip-version-check PyYAML zstandard
+      - name: Resolve the desktop roots over target + published
+        run: |
+          set -euo pipefail
+          python3 scripts/check-hummingbird-installability.py --arch "${{ matrix.arch }}" \
+            | tee installability-${{ matrix.arch }}.md
+          python3 scripts/check-hummingbird-installability.py --arch "${{ matrix.arch }}" --json \
+            > installability-${{ matrix.arch }}.json
+          {
+            echo "### Hummingbird installability (${{ matrix.arch }})"
+            echo ""
+            cat installability-${{ matrix.arch }}.md
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hummingbird-installability-${{ matrix.arch }}
+          path: installability-${{ matrix.arch }}.*
+          retention-days: 30

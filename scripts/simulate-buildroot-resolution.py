@@ -81,9 +81,11 @@ RPM = "{http://linux.duke.edu/metadata/rpm}"
 REPOMD = "{http://linux.duke.edu/metadata/repo}"
 FLAG_OPS = {"EQ": "=", "GE": ">=", "LE": "<=", "GT": ">", "LT": "<"}
 
-# The stock fedora-rawhide mock config reaches Rawhide through a metalink;
-# this is the same tree, pinned to the master mirror -- identical to the
-# reference_index gap_engine measures against.
+# Rawhide, pinned to the master mirror: the source index is still the
+# BuildRequires: reference (the recipes are Rawhide dist-git), and the binary
+# index is what a rawhide-template mock config would inherit.  The buildroot
+# itself has been Fedora 44 plus Hummingbird since 2026-09-02
+# (template_repos below reads which off the config).
 RAWHIDE = "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/$basearch/os/"
 RAWHIDE_SRC = "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/source/tree/"
 F44 = "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Everything/$basearch/os/"
@@ -106,6 +108,41 @@ vercmp = load_module("rpm_vercmp")
 
 # --------------------------------------------------------------------------
 # Repo set, from the same file mock reads.
+
+def template_repos(cfg_path: pathlib.Path) -> list[dict]:
+    """The repos the mock config INHERITS from its include()d template.
+
+    mock/hummingbird-ci.cfg includes the fedora-44 template and rewrites its
+    [fedora]/[updates] sections in place (priority 50, ruby-default-gems
+    excluded) -- see the config and
+    tests/test_hummingbird_buildroot_is_fedora44_plus_hummingbird.py.  Those
+    sections never appear literally in the file, so parse_mock_repos cannot
+    see them; this models what the rewrite produces.  A rawhide include is
+    still understood, at the template's default priority, so the simulator
+    describes whatever the config actually says rather than what it used to.
+    """
+    text = cfg_path.read_text(encoding="utf-8")
+    match = re.search(r"include\('/etc/mock/(fedora-(?:\d+|rawhide))-[a-z0-9_]+\.cfg'\)", text)
+    release = match.group(1) if match else "fedora-rawhide"
+    if release == "fedora-rawhide":
+        return [{"id": "fedora", "baseurl": RAWHIDE, "priority": 99,
+                 "includepkgs": [], "excludepkgs": []}]
+    priority = 99
+    excludes: list[str] = []
+    rewrite = re.search(
+        r'_section \+ "\\npriority=(\d+)\\n(?:metadata_expire=[^\\]*\\n)?"\s*"excludepkgs=([^\\]*)\\n"',
+        text)
+    if rewrite:
+        priority = int(rewrite.group(1))
+        excludes = _patterns(rewrite.group(2))
+    number = release.split("-", 1)[1]
+    return [
+        {"id": "fedora", "baseurl": METALINK_BASEURL[f"fedora-{number}"],
+         "priority": priority, "includepkgs": [], "excludepkgs": list(excludes)},
+        {"id": "updates", "baseurl": METALINK_BASEURL[f"updates-released-f{number}"],
+         "priority": priority, "includepkgs": [], "excludepkgs": list(excludes)},
+    ]
+
 
 def parse_mock_repos(cfg_path: pathlib.Path) -> list[dict]:
     """The dnf repo sections embedded in a mock config, as dicts."""
@@ -548,8 +585,7 @@ def main() -> int:
     if args.no_excludes:
         for repo in repos:
             repo["excludepkgs"] = []
-    repos.append({"id": "fedora", "baseurl": RAWHIDE, "priority": 99,
-                  "includepkgs": [], "excludepkgs": []})
+    repos.extend(template_repos(root / args.mock_config))
     for repo in repos:
         repo["baseurl"] = repo["baseurl"].replace("$basearch", args.arch).replace("$arch", args.arch)
 
