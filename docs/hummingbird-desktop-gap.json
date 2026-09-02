@@ -5970,7 +5970,7 @@
       "unresolved_capabilities": {}
     }
   },
-  "measured_at": "2026-09-02T16:42:09.579791+00:00",
+  "measured_at": "2026-09-02T18:53:13.659572+00:00",
   "membership": "runtime",
   "reference_index": {
     "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/",
@@ -5999,11 +5999,11 @@
   "target_binary_packages": 3510,
   "target_index": {
     "baseurl": "https://packages.redhat.com/api/pulp-content/public-hummingbird/x86_64/",
-    "primary_bytes": 4305186,
-    "primary_href": "repodata/bcfba10035d226e0008088eb9299b0f6376d2b389f07e84e77ba33ffbf4cbe88-primary.xml.gz",
-    "primary_sha256": "bcfba10035d226e0008088eb9299b0f6376d2b389f07e84e77ba33ffbf4cbe88",
-    "primary_sha256_declared": "bcfba10035d226e0008088eb9299b0f6376d2b389f07e84e77ba33ffbf4cbe88",
-    "revision": "1788366381"
+    "primary_bytes": 4364289,
+    "primary_href": "repodata/e13fd80e80e189f0db0694380c79678c0ede052d6e2a2d6eed63f19ac3e5f1ab-primary.xml.gz",
+    "primary_sha256": "e13fd80e80e189f0db0694380c79678c0ede052d6e2a2d6eed63f19ac3e5f1ab",
+    "primary_sha256_declared": "e13fd80e80e189f0db0694380c79678c0ede052d6e2a2d6eed63f19ac3e5f1ab",
+    "revision": "1788374272"
   },
   "tier_ordering": "buildrequires"
 }
