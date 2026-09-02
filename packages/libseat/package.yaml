@@ -52,4 +52,9 @@ verify:
   targets:
     ubuntu: {install_name: libseat-dev}
     debian: {install_name: libseat-dev}
+    # The PKGBUILD is one package named after the recipe (tideforge renders
+    # pkgname=<name>; Arch does not split -devel), so the RPM subpackage name
+    # is not a target pacman can find: "error: target not found:
+    # libseat-devel" (tideforge-libseat-arch-x86_64, run 33618510747).
+    arch: {install_name: libseat}
 targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
