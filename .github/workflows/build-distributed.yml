@@ -19,27 +19,22 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
       - name: Configure rclone
-        run: 'curl -fsSL https://rclone.org/install.sh | sudo bash
-
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
           mkdir -p ~/.config/rclone
-
+          umask 077
           cat > ~/.config/rclone/rclone.conf << EOF
-
           [r2]
-
           type = s3
-
           provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
-
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
           EOF
-
-          '
       - name: Seed local repo from R2
         run: 'mkdir -p local-repo
 
@@ -1369,25 +1364,21 @@ jobs:
 
           '
       - name: Configure rclone
-        run: 'mkdir -p ~/.config/rclone
-
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          mkdir -p ~/.config/rclone
+          umask 077
           cat > ~/.config/rclone/rclone.conf << EOF
-
           [r2]
-
           type = s3
-
           provider = Cloudflare
-
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-          endpoint = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
-
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
           EOF
-
-          '
       - name: Refuse to publish an empty result
         run: 'RPM_COUNT=$(find local-repo -name "*.rpm" ! -name "*.src.rpm" | wc -l)
 
