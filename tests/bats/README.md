@@ -1,7 +1,7 @@
-# BATS Tests for tuna-os/github-copr
+# BATS Tests for tuna-os/tunaos-packages
 
 This directory contains BATS (Bash Automated Testing System) tests for
-the github-copr build and CI scripts.
+the tunaos-packages build and CI scripts (formerly the `github-copr` repo).
 
 ## Running
 

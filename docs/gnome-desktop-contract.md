@@ -5,7 +5,7 @@ the session can start while file dialogs, screenshots, removable media,
 portals, and keyring-backed credentials remain unusable.
 
 The package repository now provides
-[`verify-gnome-desktop-experience.py`](../scripts/verify-gnome-desktop-experience.py),
+[`verify-gnome-desktop-experience.py`](https://github.com/tuna-os/tunaos-packages/blob/main/scripts/verify-gnome-desktop-experience.py),
 a package-manager-neutral hard-fail check. It requires the core session,
 file-manager, portal, and keyring packages:
 

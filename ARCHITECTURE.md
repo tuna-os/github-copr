@@ -30,7 +30,7 @@ This project implements a Copr-like RPM build and hosting system using:
 │                        Mock Container                                    │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │  Isolated chroot environments per target                        │   │
-│  │  - fedora-43-x86_64                                             │   │
+│  │  - fedora-44-x86_64                                             │   │
 │  │  - almalinux-10-x86_64                                          │   │
 │  │  - centos-stream-10-x86_64                                      │   │
 │  │  - (ARM64 targets)                                              │   │
@@ -42,7 +42,7 @@ This project implements a Copr-like RPM build and hosting system using:
 │                        Cloudflare R2                                    │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐ │
 │  │  /repo/         │  │  /sources/      │  │  /public.gpg           │ │
-│  │  ├── fedora-43/ │  │  ├── glib/      │  │  (GPG public key)      │ │
+│  │  ├── fedora-44/ │  │  ├── glib/      │  │  (GPG public key)      │ │
 │  │  ├── almalinux/ │  │  ├── gtk4/      │  │                        │ │
 │  │  └── centos/    │  │  └── ...        │  │                        │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────────────┘ │
@@ -71,7 +71,7 @@ This project implements a Copr-like RPM build and hosting system using:
  Manual workflow### 2. Container Build
 
 ```dockerfile
-FROM fedora:43
+FROM fedora:44
 
 # Install build tools
 RUN dnf install -y mock createrepo_c rpm-sign rpm-build ...
@@ -93,8 +93,8 @@ rpmbuild -bs my-package.spec  # Creates .src.rpm
 ### 5. RPM Build
 
 ```bash
-mock -r fedora-43-x86_64 --srpm my-package.src.rpm
-mock -r fedora-43-x86_64 --build my-package.src.rpm
+mock -r fedora-44-ci-x86_64 --srpm my-package.src.rpm
+mock -r fedora-44-ci-x86_64 --build my-package.src.rpm
 ```
 
 ### 6. Signing
@@ -107,7 +107,11 @@ rpmsign --addsign *.rpm
 
 ```bash
 aws s3 sync output/ s3://bucket/repo/
-createrepo_c --update .
+# Regenerate metadata from the actual files — never `--update` against
+# repodata seeded from the published repo: --update carries pre-existing
+# entries forward without re-hashing, so a drifted checksum is republished
+# forever (#358).
+rm -rf repodata && createrepo_c .
 ```
 
 ## Storage Layout
@@ -116,8 +120,8 @@ createrepo_c --update .
 r2://repo-james-rc/
 ├── public.gpg                          # GPG public key
 ├── repo/
-│   ├── fedora-43-x86_64/
-│   │   ├── my-package-1.0.0-1.fc43.x86_64.rpm
+│   ├── fedora-44-x86_64/
+│   │   ├── my-package-1.0.0-1.fc44.x86_64.rpm
 │   │   └── repodata/
 │   │       ├── repomd.xml
 │   │       ├── primary.xml.gz
@@ -182,7 +186,7 @@ The cleanup script (`scripts/cleanup.py`):
 
 ```bash
 # Build single target
-just build fedora-43-x86_64
+just build fedora-44-ci
 
 # Build all x86_64
 just build-x86_64
@@ -191,7 +195,7 @@ just build-x86_64
 just build-all
 
 # Publish to R2
-just publish fedora-43-x86_64
+just publish fedora-44-ci
 ```
 
 ### Using Container Script

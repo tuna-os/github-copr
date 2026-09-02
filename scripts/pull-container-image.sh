@@ -25,17 +25,39 @@ fi
 attempts=5
 
 for image in "$@"; do
-    delay=5
-    for attempt in $(seq 1 "$attempts"); do
-        if docker pull "$image"; then
-            break
-        fi
-        if [ "$attempt" -eq "$attempts" ]; then
-            echo "pull-container-image: giving up on $image after $attempts attempts" >&2
-            exit 1
-        fi
-        echo "pull-container-image: attempt $attempt/$attempts failed for $image; retrying in ${delay}s" >&2
-        sleep "$delay"
-        delay=$((delay * 2))
+    # Fallback list for image pull: if pulling from docker.io fails or is rate-limited,
+    # fallback to ghcr.io/tuna-os mirror if applicable.
+    pull_targets=("$image")
+    if [[ "$image" =~ ^(docker\.io/library/|docker\.io/)?(ubuntu|debian|archlinux)(:.*)?$ ]]; then
+        prefix_clean="${image#docker.io/}"
+        prefix_clean="${prefix_clean#library/}"
+        # E.g. ubuntu:26.04 -> ghcr.io/tuna-os/ubuntu:26.04
+        pull_targets=("$image" "ghcr.io/tuna-os/$prefix_clean")
+    fi
+
+    success=0
+    for target in "${pull_targets[@]}"; do
+        delay=5
+        for attempt in $(seq 1 "$attempts"); do
+            if docker pull "$target"; then
+                if [ "$target" != "$image" ]; then
+                    docker tag "$target" "$image"
+                fi
+                success=1
+                break 2
+            fi
+            if [ "$attempt" -eq "$attempts" ]; then
+                echo "pull-container-image: attempt $attempts failed for $target" >&2
+            else
+                echo "pull-container-image: attempt $attempt/$attempts failed for $target; retrying in ${delay}s" >&2
+                sleep "$delay"
+                delay=$((delay * 2))
+            fi
+        done
     done
+
+    if [ "$success" -ne 1 ]; then
+        echo "pull-container-image: giving up on $image after trying all mirrors" >&2
+        exit 1
+    fi
 done

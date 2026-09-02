@@ -1,0 +1,107 @@
+# What a deb suite would have to rebuild to carry GNOME 51.
+#
+# GNOME 51.0 ships 2026-09-12 (issue #107), so today's donor suites carry
+# alpha/beta. That is the point of measuring now rather than in September:
+# the closure shape is already visible, and re-running this after 51.0 lands
+# changes versions, not structure.
+#
+# Only the ROOTS are declared. Everything else is computed by closing over
+# Build-Depends and keeping only what the target suite cannot already
+# satisfy, so this file does not rot the way a hand-curated build order does
+# (RFC 011's "system-repos-first becomes computed, not remembered").
+#
+# openSUSE Tumbleweed is deliberately absent: it is rpm-md, not deb, so it
+# belongs to the rpm gap engine (measure-target-gap.py), not this one.
+stack: gnome-51
+
+roots:
+  - gnome-shell
+  - mutter
+  - gnome-session
+  - gnome-settings-daemon
+  - gnome-control-center
+  - gnome-initial-setup
+  - gdm3
+  - nautilus
+  - xdg-desktop-portal-gnome
+  # accountsservice is a root because the closure engine cannot see why it is
+  # needed. gnome-control-center 1:51~beta-1ubuntu1 declares only
+  # `libaccountsservice-dev (>= 23.11.69)` in debian/control, which resolute's
+  # 23.13.9-8ubuntu5 satisfies -- so no edge enters the closure. Its
+  # meson.build asks for a different number:
+  #
+  #   ../meson.build:228:15: ERROR: Dependency lookup for accountsservice with
+  #   method 'pkgconfig' failed: Invalid version, need 'accountsservice'
+  #   ['>= 26.27.3'] found '23.13.9'.
+  #
+  # (run 32678956022, the only failure in an otherwise 17/18 chain.) The donor
+  # carries 26.27.3-0ubuntu1; the packaging simply never tightened the
+  # declared minimum alongside the upstream bump. That is a bug in the donor's
+  # metadata, not in the engine: closing over declared Build-Depends is the
+  # correct rule, and widening it to "rebuild every build-dep the donor has
+  # newer" would drag in the whole toolchain.
+  #
+  # So it is named here, with the evidence, rather than inferred. The engine
+  # still computes its version gap and its own build-deps; only the fact that
+  # it is wanted is stated by hand. scripts/build-deb-chain.sh prints a HINT
+  # naming the source to add whenever a build fails this same way, so the next
+  # instance costs a log line rather than a two-hour chain.
+  - accountsservice
+
+targets:
+  # The only PERMANENT gap of the three deb/rpm targets. resolute is 26.04
+  # LTS: frozen at GNOME 50 for its support life, exactly the situation that
+  # justifies the EL10 backport. stonking (26.10) already carries the whole
+  # 51 stack, so this is a rebuild of existing packaging, not an authoring job.
+  ubuntu:
+    target_suite: resolute
+    # -proposed is included DELIBERATELY, and it is a trade rather than an
+    # obvious win.
+    #
+    # Without it the chain is blocked: wayland-protocols 1.49-1 in stonking
+    # build-depends libwayland-dev (>= 1.25.0), and `wayland` is 1.24.0-2 in
+    # BOTH stonking and resolute -- 1.26.0-1 is sitting in stonking-proposed,
+    # unmigrated. So stonking's own wayland-protocols cannot be rebuilt from
+    # stonking, by us or by anyone (run 32643256826).
+    #
+    # What it costs: -proposed is a staging area. Packages there can be
+    # removed or superseded, so a measured order can name a version that is
+    # gone by the time the chain runs, and the closure will churn more than
+    # one computed from a released suite would. That is acceptable HERE
+    # because GNOME 51.0 has not shipped yet (2026-09-12, #107) -- this whole
+    # target is preparatory, and -proposed is precisely where the 51 work
+    # lands first. Revisit after release: once 51 is in stonking proper,
+    # dropping these two URLs should change versions and nothing else.
+    donor_suites:
+      - stonking
+      - stonking-proposed
+    target_index:
+      - https://archive.ubuntu.com/ubuntu/dists/resolute/main/source/Sources.xz
+      - https://archive.ubuntu.com/ubuntu/dists/resolute/universe/source/Sources.xz
+    donor_index:
+      - https://archive.ubuntu.com/ubuntu/dists/stonking/main/source/Sources.xz
+      - https://archive.ubuntu.com/ubuntu/dists/stonking/universe/source/Sources.xz
+      - https://archive.ubuntu.com/ubuntu/dists/stonking-proposed/main/source/Sources.xz
+      - https://archive.ubuntu.com/ubuntu/dists/stonking-proposed/universe/source/Sources.xz
+
+  # sid is unstable and will take GNOME 51 on its own within weeks of release,
+  # so this measurement is early-access only. Kept because the engine's own
+  # rule retires it automatically: once sid carries 51, every root drops out
+  # and the answer becomes zero packages without anyone editing this file.
+  #
+  # It is most of the way there already. Measured 2026-08-23: every root
+  # resolves, nothing is unattributable, and the whole gap is ONE package --
+  # mutter, 51~beta-1 in experimental against 50.4-1 in sid. It was a much
+  # larger and messier answer when this target was added; nobody changed
+  # this file, sid caught up. Ubuntu resolute needs 18 because it is an LTS
+  # and cannot.
+  debian:
+    target_suite: sid
+    donor_suites:
+      - experimental
+      - sid
+    target_index:
+      - https://deb.debian.org/debian/dists/sid/main/source/Sources.xz
+    donor_index:
+      - https://deb.debian.org/debian/dists/experimental/main/source/Sources.xz
+      - https://deb.debian.org/debian/dists/sid/main/source/Sources.xz

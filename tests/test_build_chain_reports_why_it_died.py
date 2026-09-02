@@ -130,3 +130,167 @@ def test_a_failed_package_does_not_claim_the_script_died(tmp_path: Path) -> None
         f"worker failure went unreported: {proc.stderr!r}"
     )
     assert "package     : somepkg" in proc.stderr
+
+
+def test_the_reason_is_pulled_out_of_the_middle_of_root_log(tmp_path: Path) -> None:
+    """A tail of root.log is the dnf summary, not the reason.
+
+    dnf prints the "Problem:" chain when it gives up resolving, then keeps
+    going for hundreds of lines of transaction bookkeeping. `tail -n 40`
+    therefore reliably returns the part that says nothing. Getting at the real
+    line meant downloading the run's whole log archive -- which, for one
+    Hummingbird run, was a multi-megabyte zip that failed to transfer twice
+    before being abandoned.
+
+    So the handler greps the reasons out and prints them ahead of the tail.
+    """
+    builddir = tmp_path / "build"
+    (builddir / "results").mkdir(parents=True)
+    (builddir / "results" / "root.log").write_text(
+        "\n".join(
+            ["DEBUG util.py:1 preparing transaction"]
+            + ["Problem: conflicting requests"]
+            + ["  - nothing provides perl(:MODULE_COMPAT_5.42.0) needed by libfoo-1.0"]
+            # Enough bookkeeping after it to push the reason clear of any tail.
+            + [f"DEBUG util.py:{i} Installing : filler-{i}.noarch" for i in range(200)]
+        )
+    )
+
+    proc = _drive_handler(tmp_path, f"""
+        FILTER_TIER=demo
+        builddir={builddir}
+        pkg_name=libfoo
+        false
+    """)
+
+    assert proc.returncode != 0
+    assert "why" in proc.stderr and "root.log" in proc.stderr, (
+        f"no reason section emitted: {proc.stderr!r}"
+    )
+    assert "nothing provides perl(:MODULE_COMPAT_5.42.0)" in proc.stderr, (
+        "the handler printed a tail but not the line that explains the "
+        f"failure: {proc.stderr!r}"
+    )
+    assert "Problem: conflicting requests" in proc.stderr
+
+
+def test_a_tail_alone_would_have_missed_it(tmp_path: Path) -> None:
+    """Guards the premise of the test above rather than assuming it.
+
+    If the filler ever stops being long enough to push the reason out of the
+    last 40 lines, the test above would pass on a handler that only tails, and
+    silently stop testing anything.
+    """
+    builddir = tmp_path / "build"
+    (builddir / "results").mkdir(parents=True)
+    log = builddir / "results" / "root.log"
+    log.write_text(
+        "\n".join(
+            ["Problem: conflicting requests"]
+            + [f"DEBUG util.py:{i} Installing : filler-{i}.noarch" for i in range(200)]
+        )
+    )
+    tail = log.read_text().splitlines()[-40:]
+    assert not any("Problem:" in line for line in tail), (
+        "the reason is inside the last 40 lines, so this fixture no longer "
+        "distinguishes a grep from a tail"
+    )
+
+
+def test_a_log_with_no_reason_in_it_still_gets_its_tail(tmp_path: Path) -> None:
+    """grep exits 1 on no match, and it must not cost us the tail.
+
+    Note what does NOT protect this: `_on_error` runs `set +e` on its first
+    line, so `set -e` is already off by the time the grep runs. The `|| true`
+    on that line is defence for a future edit that removes the `set +e`, not
+    the thing keeping this green today -- removing it changes nothing
+    observable, so this test deliberately does not claim to pin it.
+
+    What this does pin is the shape of the output when a log holds no
+    recognised reason, which is the common case for a package that failed at
+    compile time rather than in the buildroot: the tail still appears, and no
+    empty "why" banner appears above it promising an explanation that is not
+    there.
+    """
+    builddir = tmp_path / "build"
+    (builddir / "results").mkdir(parents=True)
+    (builddir / "results" / "build.log").write_text("everything was fine here\n")
+
+    proc = _drive_handler(tmp_path, f"""
+        FILTER_TIER=demo
+        builddir={builddir}
+        false
+    """)
+    assert "build-chain.sh FAILED" in proc.stderr
+    assert "tail of" in proc.stderr, (
+        f"handler stopped short after an empty grep: {proc.stderr!r}"
+    )
+    assert "why" not in proc.stderr, (
+        "an empty reason section was printed for a log with no reason in it, "
+        f"which reads as 'the cause is nothing': {proc.stderr!r}"
+    )
+
+
+def test_a_failed_package_keeps_its_logs_not_only_a_tail(tmp_path: Path) -> None:
+    """Printing 40 lines into the job log is not keeping the evidence.
+
+    The GNOME 51.beta bump failed 25 packages in one chain. Each printed its
+    own tail at its own time, hours apart, into a 590KB job log -- and every
+    practical retrieval path serves only the END of that log, so none of the
+    25 errors could be read back afterwards. That is the same archaeology
+    BUILDROOT_MANIFESTS exists to end, and mock had already written the answer
+    into build.log and root.log both times.
+
+    So when FAILURE_LOGS is set, the handler KEEPS those files, named for the
+    package, where the cell's artifact will carry them.
+    """
+    kept = tmp_path / "kept"
+    builddir = tmp_path / "bd" / "results"
+    builddir.mkdir(parents=True)
+    (builddir / "build.log").write_text("error: Bad exit status from %build\n")
+    (builddir / "root.log").write_text("Problem: nothing provides libfoo\n")
+    proc = _drive_handler(tmp_path, f"""
+        FAILURE_LOGS={kept}
+        builddir={tmp_path / "bd"}
+        pkg_name=pango
+        ( false ) &
+        wait $! || true
+        echo "reached the end" >&2
+    """)
+    assert proc.returncode == 0, proc.stderr
+    assert (kept / "pango.build.log").read_text() == (
+        "error: Bad exit status from %build\n")
+    assert (kept / "pango.root.log").read_text() == (
+        "Problem: nothing provides libfoo\n")
+
+
+def test_keeping_logs_is_opt_in_and_never_fatal(tmp_path: Path) -> None:
+    """Unset FAILURE_LOGS keeps today's behaviour; an unwritable one must not
+    change how the build failed -- a diagnostic that turns a package failure
+    into a different failure is worse than none."""
+    builddir = tmp_path / "bd" / "results"
+    builddir.mkdir(parents=True)
+    (builddir / "build.log").write_text("error: boom\n")
+
+    proc = _drive_handler(tmp_path, f"""
+        builddir={tmp_path / "bd"}
+        pkg_name=pango
+        ( false ) &
+        wait $! || true
+        echo "reached the end" >&2
+    """)
+    assert proc.returncode == 0 and "reached the end" in proc.stderr
+
+    blocked = tmp_path / "blocked"
+    blocked.write_text("I am a file, not a directory")
+    proc = _drive_handler(tmp_path, f"""
+        FAILURE_LOGS={blocked / "sub"}
+        builddir={tmp_path / "bd"}
+        pkg_name=pango
+        ( false ) &
+        wait $! || true
+        echo "reached the end" >&2
+    """)
+    assert proc.returncode == 0, (
+        f"an unwritable FAILURE_LOGS changed the outcome: {proc.stderr!r}")
+    assert "reached the end" in proc.stderr

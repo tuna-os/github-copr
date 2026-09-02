@@ -18,6 +18,12 @@ build:
 dependencies:
   build:
     capabilities: [rust, pam-dev]
+  runtime:
+    # greetd links libpam and libsystemd.  RPM and DEB tooling derive these
+    # from the ELF headers; makepkg does not, so every linked library must
+    # be hand-declared here (#118).
+    targets:
+      arch: [pam, systemd-libs, libgcc, audit, libcap-ng]
 files:
   common:
     - usr/bin/greetd

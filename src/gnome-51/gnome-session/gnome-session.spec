@@ -1,18 +1,28 @@
-%global major_version 50
-%global tarball_version 50.0
 %define po_package gnome-session
 
 Name:           gnome-session
-Version:        50.0
-Release:        3%{?dist}
+Version:        51~beta
+Release:        %autorelease
 Summary:        GNOME session manager
 
 License:        GPL-2.0-or-later
 URL:            https://gitlab.gnome.org/GNOME/gnome-session
-Source:         https://download.gnome.org/sources/gnome-session/%{major_version}/%{name}-%{tarball_version}.tar.xz
+# %%{gnome_major_version}/%%{gnome_tarball_version}/%%gnome_check_version come
+# from /usr/lib/rpm/macros.d/macros.gnome, confirmed present in our own
+# hummingbird-ci (centos-stream-10) mock buildroot -- not Fedora-only, so we
+# use Rawhide's exact macros instead of re-deriving the same values locally.
+Source:         https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+
+%gnome_check_version
 
 # For https://fedoraproject.org/w/index.php?title=Changes/HiddenGrubMenu
 # This should go upstream once systemd has a generic interface for this
+#
+# Verified against Rawhide (2026-08-28): byte-identical to Rawhide's own
+# 0001-Fedora-Set-grub-boot-flags-on-shutdown-reboot.patch, and Rawhide's
+# current gnome-session.spec still carries this same Patch: line. This is a
+# live Fedora-standard patch, not something only we are keeping alive -- keep
+# it in lockstep with upstream.
 Patch:          0001-Fedora-Set-grub-boot-flags-on-shutdown-reboot.patch
 
 BuildRequires:  meson
@@ -32,7 +42,6 @@ Requires: gsettings-desktop-schemas >= 0.1.7
 
 Requires: dbus
 
-Obsoletes: gnome-session < 50.0
 Conflicts: gnome-desktop3 < 44.4-2
 Conflicts: shared-mime-info < 2.0-4
 Requires: shared-mime-info
@@ -58,29 +67,14 @@ Obsoletes: gnome-session-xsession < %{version}-%{release}
 Desktop file to add GNOME on wayland to display manager session menu.
 
 %prep
-%autosetup -p1 -n %{name}-%{tarball_version}
+%autosetup -p1 -n %{name}-%{gnome_tarball_version}
 
 %build
-meson setup _build \
-    --buildtype=plain \
-    --prefix=%{_prefix} \
-    --libdir=%{_libdir} \
-    --libexecdir=%{_libexecdir} \
-    --bindir=%{_bindir} \
-    --sbindir=%{_sbindir} \
-    --includedir=%{_includedir} \
-    --datadir=%{_datadir} \
-    --mandir=%{_mandir} \
-    --infodir=%{_infodir} \
-    --localedir=%{_datadir}/locale \
-    --sysconfdir=%{_sysconfdir} \
-    --localstatedir=%{_localstatedir} \
-    --sharedstatedir=%{_sharedstatedir} \
-    --wrap-mode=nodownload
-ninja -C _build -j%{_smp_build_ncpus}
+%meson
+%meson_build
 
 %install
-DESTDIR=%{buildroot} ninja -C _build install
+%meson_install
 
 %find_lang %{po_package}
 
@@ -108,17 +102,4 @@ DESTDIR=%{buildroot} ninja -C _build install
 %{_userunitdir}/app-gnome-.scope.d/override.conf
 
 %changelog
-* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
-- Add Obsoletes: gnome-session < 50.0 to ensure EL10's stock gnome-session
-  46.0 is replaced; without this the old gnome-session-init-worker binary
-  (which references the removed org.gnome.Shell.target) could remain on
-  disk alongside GNOME 50 packages (tuna-os/tunaOS#80)
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
-- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
-  to avoid "fg: no job control" on COPR builders (non-interactive bash).
-- Remove %%autochangelog: Fedora-specific macro not available on EL10.
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
-- Update to 50.0 (GNOME 50 stable release)
-- Track F44 branch instead of rawhide
+%autochangelog

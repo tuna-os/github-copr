@@ -23,6 +23,8 @@ dependencies:
     capabilities: [rust, c-compiler, pkg-config, dbus-dev, bluez-dev, lmdb-dev]
   runtime:
     capabilities: [dbus, bluez, lmdb]
+    targets:
+      arch: [libgcc, systemd-libs]
 files:
   common: [usr/bin/kairpodsd, usr/lib/systemd/user/kairpodsd.service, usr/share/plasma/plasmoids/org.kairpods.plasma]
 install:

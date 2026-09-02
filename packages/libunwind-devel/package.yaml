@@ -1,7 +1,31 @@
 schema: 1
 name: libunwind-devel
 version: "1.8.1"
-release: 1
+# release 2, not 1. The LIBS: -lgcc_s fix below changes the bytes but not the
+# version, so republishing at release 1 would ship a different artifact under
+# an identical NVR: dnf would see no upgrade, consumers holding the old one
+# would keep it, and two distinct builds would claim the same
+# name-version-release. That reasoning stands on its own and is why the bump
+# is here.
+#
+# What this comment USED to say, and which is NOT true: that the published
+# libunwind-devel-1.8.1-1 at rpm/el10/aarch64 is the broken build, carrying
+# four undefined __aarch64_* symbols and no libgcc_s in NEEDED (#469).
+#
+# Measured against the served artifact after the 1.8.1-2 wave, by extracting
+# both RPMs and reading the ELF rather than the requires metadata (which does
+# not discriminate — BOTH releases declare libgcc_s.so.1()(64bit), because the
+# auto-dependency fires if ANY binary in the package needs it):
+#
+#   libunwind.so.8.1.0 and libunwind-aarch64.so.8.1.0, in BOTH 1.8.1-1 and
+#   1.8.1-2: libgcc_s.so.1 present in NEEDED, and zero undefined __aarch64_*
+#   symbols.
+#
+# So the served 1.8.1-1 already carries the fix. The likely history is that a
+# publish wave ran after #470 merged while the recipe still said release 1,
+# producing a corrected artifact under the old NVR — exactly the same-NVR
+# ambiguity described above, which is the real argument for the bump.
+release: 2
 summary: Portable stack-unwinding library development files
 description: Headers and shared libraries required to build cpptrace with signal-safe stack unwinding.
 license: MIT
@@ -13,6 +37,17 @@ build_system: autotools
 build:
   autoreconf: true
   configure_options: [--disable-tests]
+  environment:
+    # aarch64 GCC emits outline-atomics calls (__aarch64_cas8_acq_rel and
+    # friends) that live in libgcc. libunwind's link line does not pull it in,
+    # so the shipped libunwind.so.8 carried four UNDEFINED symbols and every
+    # consumer died at load: "symbol lookup error: /lib64/libunwind.so.8"
+    # (#469, seen on tideforge-quickshell-el10-aarch64).
+    #
+    # LIBS rather than LDFLAGS: LDFLAGS is already set by the distro's
+    # hardened build macros, and replacing it would silently drop relro,
+    # -z now and the annobin specs. LIBS appends to the link line instead.
+    LIBS: -lgcc_s
 dependencies:
   build:
     # No common list: it held RPM names (gcc-c++) that leaked into the deb
@@ -24,6 +59,9 @@ dependencies:
       debian: [build-essential, autoconf, automake, libtool]
       opensuse-tumbleweed: [gcc-c++, autoconf, automake, libtool]
       arch: [base-devel, autoconf, automake, libtool]
+  runtime:
+    targets:
+      arch: [xz]
 files:
   common: [usr/include/libunwind.h, usr/include/unwind.h]
 outputs:

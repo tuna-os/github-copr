@@ -1,4 +1,4 @@
-%global commit 96ab4bf0b46fe37a335e3ef78afba72147ee1844
+%global commit 8b972efdf98526213f8f24f4be27c1fb2ee39a28
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: libxfce4ui
 Version: 4.21.7
@@ -64,5 +64,5 @@ building against libxfce4ui.
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
-- Packaged for the XFCE Wayland stack (tuna-os/github-copr#65)
+- Packaged for the XFCE Wayland stack (tuna-os/tunaos-packages#65)
 

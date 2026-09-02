@@ -33,7 +33,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location(
-    "gap", REPO / "scripts" / "measure-hummingbird-gap.py"
+    "gap", REPO / "scripts" / "gap_engine.py"
 )
 GAP = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(GAP)

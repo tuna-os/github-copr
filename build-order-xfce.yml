@@ -3,7 +3,7 @@
 # Packages within a tier build in parallel; tiers are sequential.
 # Each package entry is a path relative to the repo root.
 #
-# Resolves issue: https://github.com/tuna-os/github-copr/issues/65
+# Resolves issue: https://github.com/tuna-os/tunaos-packages/issues/65
 #
 # Target: almalinux-kitten-10-x86_64 (also centos-stream-10-x86_64)
 # R2 path: repo/10/x86_64 (same as main GNOME 50 repo — XFCE packages
@@ -82,6 +82,12 @@ tiers:
       - path: src/xfce-wayland/gtkgreet
 
   # Tier 5: Applications that depend on xfce4-panel / desktop-core.
+  #
+  # mousepad, ristretto and xfce4-whiskermenu-plugin (#121) are spec-based
+  # packages like every other app here — libxfce4ui-devel, xfconf-devel,
+  # xfce4-panel-devel, garcon-devel and exo-devel exist in no CentOS Stream 10,
+  # CRB or EPEL 10 repository and are built by the earlier tiers of this very
+  # chain.
   - name: xfce-apps
     packages:
       - path: src/xfce-wayland/xfce4-terminal
@@ -90,6 +96,8 @@ tiers:
       - path: src/xfce-wayland/xfce4-appfinder
       - path: src/xfce-wayland/xfce4-screenshooter
       - path: src/xfce-wayland/xfce4-taskmanager
+      - path: src/xfce-wayland/mousepad
+      - path: src/xfce-wayland/ristretto
 
   # Tier 6: Panel plugins — all depend on xfce4-panel from tier 3.
   - name: xfce-panel-plugins
@@ -102,6 +110,7 @@ tiers:
       - path: src/xfce-wayland/xfce4-cpugraph-plugin
       - path: src/xfce-wayland/xfce4-datetime-plugin
       - path: src/xfce-wayland/xfce4-genmon-plugin
+      - path: src/xfce-wayland/xfce4-whiskermenu-plugin
 
   # Tier 7: Meta package — requires all of the above.
   - name: xfce-meta

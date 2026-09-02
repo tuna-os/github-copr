@@ -1,5 +1,5 @@
 Name:           gnome50-el10-compat
-Version:        1.2.8
+Version:        1.2.9
 Release:        1%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
@@ -147,6 +147,18 @@ fi
 %{_libexecdir}/%{name}/useradd
 
 %changelog
+* Fri Aug 14 2026 James Reilly <jreilly1821@gmail.com> - 1.2.9-1
+- useradd-wrapper: fix `local: can only be used in a function` crash.
+  The -m/existing-home-dir branch used `local add_M=true` at the
+  script's top level (not inside a function); under `set -euo
+  pipefail` that error exits the wrapper with status 1 before it ever
+  calls the real useradd, silently breaking every `useradd -m` call
+  that hits the exact scenario the wrapper exists to handle (#17).
+  Also fixed an SC2015 `A && B || C` pattern shellcheck flagged in the
+  same function. Added tests/bats/test_gnome50_el10_compat_useradd_wrapper.bats
+  (tunaos-packages#392) so a regression like this fails in CI instead
+  of only in a live gnome-initial-setup run.
+
 * Thu Jul 24 2026 James Reilly <jreilly1821@gmail.com> - 1.2.8-1
 - gdm-gnome50.te: add unix_stream_socket bind+listen permissions for xdm_t.
   GDM 50 registers a systemd-userdb Varlink socket and calls bind()/listen()
@@ -163,13 +175,13 @@ fi
   Fixes gnome-initial-setup failure on preserved /var/home (#17).
 
 * Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.7-2
-- %post: drop ineffective restorecon -RF /var/home (see #22). The
-  compose-time %post cannot fix preserved-/var scenarios on deployed
+- %%post: drop ineffective restorecon -RF /var/home (see #22). The
+  compose-time %%post cannot fix preserved-/var scenarios on deployed
   systems; the actual fix for useradd exit 12 belongs at the runtime
   or shadow-utils level (#17).
 
 * Thu Apr 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.7-1
-- %post: add restorecon -RF /var/home to fix default_t/unlabeled_t labeling
+- %%post: add restorecon -RF /var/home to fix default_t/unlabeled_t labeling
   in reinstall/upgrade scenarios where /var is not wiped. Fixes useradd
   exit 12 (E_HOMEDIR) during gnome-initial-setup (issues #16, #17).
 
@@ -184,7 +196,7 @@ fi
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 1.2.5-1
 - Add PyGObject GLib→GLibUnix compat shim: GLib 2.87+ moved g_unix_signal_add
   to the GLibUnix-2.0 GI namespace; EL10's python3-gobject 3.46 does not know
-  this mapping. Patch gi/overrides/GLib.py via %post and %filetriggerin so
+  this mapping. Patch gi/overrides/GLib.py via %%post and %filetriggerin so
   GLib.unix_signal_add works again, fixing firewalld startup crash and any
   other Python GI consumer using GLib.unix_signal_add or unix_signal_add_full.
 
@@ -200,11 +212,11 @@ fi
 * Mon Mar 23 2026 James <james@example.com> - 1.2.2-1
 - Add %filetriggerin on orca-autostart.desktop to reliably write Hidden=true
   regardless of package install order. Fixes race in image builds where orca
-  installs in a later transaction after our %post already ran.
+  installs in a later transaction after our %%post already ran.
 
 * Sun Mar 23 2026 James <james@example.com> - 1.2.1-1
 - Fix orca-autostart.desktop file conflict with orca package: write the
-  Hidden=true override via %post scriptlet instead of shipping the file,
+  Hidden=true override via %%post scriptlet instead of shipping the file,
   since orca owns /etc/xdg/autostart/orca-autostart.desktop.
 
 * Sun Mar 22 2026 James <james@example.com> - 1.2.0-1

@@ -1,0 +1,500 @@
+name: Publish build-chain RPMs
+
+# The native build chain builds and has never had a publisher.
+#
+# publish-tideforge-rpms.yml (#451) covers tideforge cells only. Nothing takes
+# `.factory/<cell>/artifacts/*.rpm` from a build-chain cell to R2 -- so
+# gnome50 can produce 55 packages across 19 tiers and a 497 MB artifact
+# (run 32429674500) and none of it is installable by anything.
+#
+# That gap is what every remaining el10 blocker outside cosmic-session
+# collapses to: xfwl4 wants libxfce4ui-devel and cosmic-settings-daemon wants
+# adw-gtk3-theme, both build-chain products, both built, neither served
+# (tuna-os/tunaos-packages#459).
+#
+# Deliberately NOT a copy of the tideforge publisher. The sign/place/index
+# half lives in scripts/publish-rpm-wave.sh and is shared by both, because
+# every safety rule in it was learned from an incident and a hand-copied
+# second publisher would have to learn each one again.
+on:
+  workflow_dispatch:
+    inputs:
+      cells:
+        description: >-
+          Comma-separated build-chain cell IDs, e.g.
+          "xfce-el10-x86_64,gnome51-el10-x86_64". Deliberately no default:
+          see the destination-collision guard below.
+        required: true
+        type: string
+      dry_run:
+        description: "Build and index, but do not sync to R2"
+        required: false
+        default: false
+        type: boolean
+      runner:
+        # `hosted` is the default so an input-less dispatch (and every
+        # existing caller) behaves exactly as before. `runs-on` routes the
+        # build job to the AWS pool in .github/runs-on.yml: 16 vCPU, so
+        # build-chain.sh's JOBS = nproc/2 becomes 8 parallel mocks instead
+        # of 2, and self-hosted jobs may exceed the hosted 6h ceiling, so
+        # the timeout and CHAIN_BUDGET_SECONDS stretch with it -- one leg
+        # can cover what took four.
+        #
+        # If the RunsOn app turns out not to serve this repo, the run sits
+        # `queued` with zero jobs. The recovery is to dispatch again with
+        # `hosted`: this workflow's shared concurrency group keeps at most
+        # one PENDING run, so the newer dispatch cancels the stuck one,
+        # while cancel-in-progress: false still protects a RUNNING leg.
+        description: "Runner pool: hosted (GitHub) or runs-on (AWS, 16 vCPU)"
+        required: false
+        default: hosted
+        type: choice
+        options:
+          - hosted
+          - runs-on
+
+permissions:
+  contents: read
+
+concurrency:
+  # SHARED with publish-tideforge-rpms.yml, not a group of its own. Both
+  # publishers `rclone sync` into the same bucket, and sync makes the
+  # destination match the source -- two of them running at once can delete
+  # each other's packages (#124 / INCIDENT-repo-wipe-gnome). Serialising
+  # them is the only thing that makes the sync-down/sync-up dance safe.
+  group: publish-rpms
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Resolve the requested cells
+        id: plan
+        env:
+          CELLS: ${{ inputs.cells }}
+        run: |
+          set -euo pipefail
+          python3 scripts/plan-build-chain-publish.py \
+            --cells "$CELLS" --github-output "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    permissions:
+      contents: read
+      packages: write
+    # The planner's matrix.runner is a GitHub-hosted label; on the runs-on
+    # path it is translated to the equivalent AWS pool entry rather than
+    # threaded through the planner (the planner's output is arch selection,
+    # not a capacity decision).
+    runs-on: ${{ inputs.runner != 'runs-on' && matrix.runner
+      || format('runs-on={0}/runner={1}', github.run_id,
+                matrix.runner == 'ubuntu-24.04-arm' && 'chain-arm64' || 'chain-amd64') }}
+    # Build-chain cells are tiered source builds: gnome50 is 19 tiers and
+    # hours, not the minutes a tideforge cell takes. Hosted runners cap a
+    # job at 6h; the AWS pool does not, so the ceiling stretches and
+    # CHAIN_BUDGET_SECONDS (in the build step) stretches inside it.
+    timeout-minutes: ${{ inputs.runner != 'runs-on' && 360 || 660 }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install native build tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q createrepo-c podman rpm
+          # Ubuntu 24.04 ships kernel.apparmor_restrict_unprivileged_userns=1;
+          # GitHub's hosted images turn it off, the RunsOn AMIs keep the OS
+          # default -- and rootless podman then dies at its first clone():
+          # "cannot clone: Permission denied / cannot re-exec process", which
+          # is how run 33040673914 failed every package in under 2 minutes.
+          # -e: absent on kernels without AppArmor userns confinement, and
+          # that absence is fine, not an error.
+          sudo sysctl -e -w kernel.apparmor_restrict_unprivileged_userns=0
+      # --- Bridge to the nightly's banked work -------------------------------
+      # This job used to rebuild every cell from ZERO on every dispatch: no
+      # action-cache restore, no partial resume. That made nightly
+      # convergence useless to publication -- a chain the nightly had
+      # completed was rebuilt for hours here, and a chain the nightly had
+      # deferred restarted at tier 0. These three steps are the same
+      # identity/restore/resume trio package-factory-cell.yml runs, computing
+      # the SAME native action key, so:
+      #   * a chain the nightly COMPLETED cache-hits and stages in seconds;
+      #   * a chain the nightly DEFERRED resumes its newest partial and
+      #     extends it under this job's own CHAIN_BUDGET_SECONDS before
+      #     publishing the additive increment (publish-rpm-wave.sh merges
+      #     against the synced-down repo, so partial publishes only grow it).
+      - name: Pull the declared build image
+        run: docker pull -q '${{ matrix.image }}'
+      - id: identity
+        name: Resolve immutable inputs and action key
+        env:
+          SOURCE_PATHS: ${{ toJSON(matrix.source_paths) }}
+        run: |
+          set -euo pipefail
+          image=$(docker image inspect --format '{{json .RepoDigests}}' '${{ matrix.image }}' | jq -r 'sort | .[0]')
+          mapfile -t source_paths < <(jq -r '.[]' <<<"$SOURCE_PATHS")
+          # %at, not %ct -- author date survives rebases; the nightly's key
+          # uses it and this key must MATCH the nightly's or the bridge is a
+          # mirage (package-factory-cell.yml carries the full incident).
+          #
+          # The manifest is NOT in this list, and that is the whole point.
+          # #529 dropped it from package-factory-cell.yml so a manifest edit
+          # stops re-keying every cell -- and left this copy alone, so the two
+          # halves of the bridge computed different keys from that moment on.
+          # Measured on 2026-08-26: manifests/package-factory.yaml last moved
+          # at 1787654862 and the hummingbird sources at 1787527705, so the
+          # nightly and the publisher disagreed by 127157 seconds -- 35 hours.
+          # The epoch is an action-key input, so the publisher could neither
+          # cache-hit the nightly's completed chain nor accept its partial:
+          # restore-partial-chain-output.py rejects a partial whose key
+          # differs, and the chain restarts at bootstrap-00.
+          #
+          # This is #529's own lesson one file over -- a fix that closed one
+          # of two paths and was named for both.
+          if [ "${#source_paths[@]}" -eq 0 ]; then
+            echo "::error::cell '${{ matrix.id }}' declares no source_paths, so" \
+                 "SOURCE_DATE_EPOCH cannot be derived from them; refusing rather" \
+                 "than falling back to the repository's last commit, which would" \
+                 "re-key this cell on EVERY commit"
+            exit 1
+          fi
+          epoch=$(git log -1 --format=%at -- "${source_paths[@]}")
+          args=()
+          for path in "${source_paths[@]}"; do args+=(--input "$path"); done
+          payload=$(python3 scripts/tideforge-action-cache.py native-key             --identity '${{ matrix.id }}' --manifest '${{ matrix.manifest }}'             "${args[@]}" --target '${{ matrix.target }}'             --arch '${{ matrix.architecture }}' --image "$image"             --dependency-tree '${{ matrix.dependency_tree }}'             --target-queue '${{ matrix.target_queue }}'             --track '${{ matrix.track }}' --series '${{ matrix.series }}'             --source-date-epoch "$epoch")
+          echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
+          echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
+          mkdir -p '.factory/${{ matrix.id }}'
+          jq -r .action_key <<<"$payload" > '.factory/${{ matrix.id }}/action-key.txt'
+      - id: restore
+        uses: ./.github/actions/tideforge-action-cache
+        with:
+          operation: restore
+          action-key: ${{ steps.identity.outputs.key }}
+          path: |
+            .factory/${{ matrix.id }}/artifacts
+            .factory/${{ matrix.id }}/action-result.json
+            .factory/${{ matrix.id }}/package-info.txt
+      - id: verdict
+        name: Verify restored output
+        run: |
+          set -euo pipefail
+          hit=false
+          if [ '${{ steps.restore.outputs.cache-hit }}' = true ]; then
+            python3 scripts/tideforge-action-cache.py verify               --result '.factory/${{ matrix.id }}/action-result.json'               --artifact-dir '.factory/${{ matrix.id }}/artifacts'               --expected-action-key '${{ steps.identity.outputs.key }}'
+            hit=true
+          fi
+          echo "hit=$hit" >> "$GITHUB_OUTPUT"
+          echo "::notice title=action-cache::$([ "$hit" = true ] && echo hit || echo miss) ${{ matrix.id }}"
+      - name: Resume from a previous attempt's partial output
+        if: steps.verdict.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/restore-partial-chain-output.py             --cell-id '${{ matrix.id }}'             --action-key '${{ steps.identity.outputs.key }}'             --out-dir '.factory/${{ matrix.id }}'
+      # What the published index already serves, so the chain skips it.
+      #
+      # Without this, "already built" means only the local repo, seeded from
+      # an action-key-MATCHED partial -- and the key moves whenever the mock
+      # runner image is rebuilt, which every mock/*.cfg merge does. Leg
+      # 33113528651 is the measurement: dispatched minutes after #565 edited
+      # a cfg, it spent its whole 4.5h budget rebuilding packages the repo
+      # had served for hours, and published an index byte-identical to the
+      # one before it (8397 binaries, 580/673 sources, same NVRs). That is
+      # #544's deeper half, and it costs a leg every time a fix lands.
+      #
+      # An unreachable index prints nothing and the file is empty: the chain
+      # then behaves exactly as it did before this step.
+      - name: List what the published index already serves
+        if: steps.verdict.outputs.hit != 'true'
+        env:
+          R2_PATH: ${{ matrix.r2_path }}
+        run: |
+          set -euo pipefail
+          python3 scripts/list-served-nvrs.py \
+            "https://repo.tunaos.org/${R2_PATH}/" > /tmp/served-nvrs-${{ matrix.id }}.txt
+          echo "served NVRs for ${{ matrix.id }}: $(wc -l < /tmp/served-nvrs-${{ matrix.id }}.txt)"
+      - name: Build the cell
+        id: build
+        env:
+          CHAIN_SERVED_NVRS: /tmp/served-nvrs-${{ matrix.id }}.txt
+          CELL_ID: ${{ matrix.id }}
+          ENGINE: build-chain
+          # No RECIPE or FORMAT: the build-chain branch of the runner exits
+          # before either is read (they belong to the tideforge path).
+          TARGET: ${{ matrix.target }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          IMAGE: ${{ matrix.image }}
+          MANIFEST: ${{ matrix.manifest }}
+          MOCK_CONFIG: ${{ matrix.mock_config }}
+          SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
+          # run-package-factory-cell.sh defaults this to 16200 (4.5h of
+          # building inside the hosted 6h ceiling). The AWS pool has no 6h
+          # ceiling and timeout-minutes is 660 there, so give the chain
+          # 9.5h of building and the same ~1.5h to drain the longest
+          # in-flight package and run validate/checksum/SBOM/upload.
+          CHAIN_BUDGET_SECONDS: ${{ inputs.runner != 'runs-on' && 16200 || 34200 }}
+        if: steps.verdict.outputs.hit != 'true'
+        run: bash scripts/run-package-factory-cell.sh
+      # Stage whatever this leg banked in ORAS, so an independent one-off
+      # dispatch (built to fill a single missing package, say) doesn't have
+      # to become the one process serialized on the R2 bucket to be useful
+      # -- the publish job's own "pull-all" step picks this up before its
+      # normal sync. See scripts/oras-stage-artifacts.py's module docstring
+      # for why concurrent pushes here are safe where concurrent `rclone
+      # sync`s are not.
+      #
+      # always(), same reasoning as the partial-chain upload below: a leg
+      # that built 40 of 50 packages before its budget ran out banked 40
+      # real, already-verified RPMs, and staging them must not depend on
+      # the leg's own overall outcome.
+      - name: Install oras
+        if: always()
+        run: |
+          set -euo pipefail
+          arch="${{ matrix.architecture == 'aarch64' && 'arm64' || 'amd64' }}"
+          version=1.3.4
+          curl -fsSLO "https://github.com/oras-project/oras/releases/download/v${version}/oras_${version}_linux_${arch}.tar.gz"
+          case "$arch" in
+            amd64) echo "f27adb935022d94df8dc77719c322dda592c78a0d57a6f7dcdd8d900b248c454  oras_${version}_linux_${arch}.tar.gz" | sha256sum -c ;;
+            arm64) echo "15702c6e3a4a56a8bd8ac5c17efdbcab56d9bada661ccbcf017f5b10c1d89399  oras_${version}_linux_${arch}.tar.gz" | sha256sum -c ;;
+          esac
+          sudo tar -xzf "oras_${version}_linux_${arch}.tar.gz" -C /usr/local/bin oras
+          rm "oras_${version}_linux_${arch}.tar.gz"
+      - name: Log in to ghcr.io for ORAS
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Stage banked RPMs in ORAS
+        if: always()
+        env:
+          BUILD_CHAIN_ORAS_PUSH: "1"
+        run: python3 scripts/oras-stage-artifacts.py push ".factory/${{ matrix.id }}/artifacts"
+      # always(): the wave is every RPM the chain banked, and a chain that
+      # failed ONE package out of 674 still banked the rest. Without it this
+      # upload skips on any build failure, the publish job starves, and the
+      # same 85 packages are rebuilt every leg while the served index never
+      # moves -- legs 32914264044, 32991216265 and 33022688689 all ended
+      # exactly that way. warn not error: a cell torn down before its first
+      # RPM has nothing to upload, and that must not mask the build step's
+      # own failure as an upload failure.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: publish-rpm-${{ matrix.id }}
+          path: .factory/${{ matrix.id }}/artifacts/*.rpm
+          if-no-files-found: warn
+
+      # Bank the partial, so hours spent here are not thrown away.
+      #
+      # This job resumes the nightly's partial and extends it, and until now it
+      # could only ever READ one. Its sole upload is the success artifact
+      # above, which has no `always()`, so a run torn down at the 360-minute
+      # cap uploaded nothing at all and the next run resumed from a partial as
+      # old as whatever the nightly last banked. Six hours of chain, discarded
+      # silently, on a job whose whole purpose is to accumulate.
+      #
+      # Everything here is copied deliberately from package-factory-cell.yml,
+      # which paid for each rule:
+      #
+      #   always()      a job that exhausts timeout-minutes is torn down, and
+      #                 always() is the only condition GitHub documents as
+      #                 still running steps then. failure()/cancelled() is a
+      #                 guess about which one a timeout satisfies.
+      #   an ALLOWLIST  written as `!= 'success'` it also fires on an exact
+      #                 cache hit, where the build never ran, and uploads a
+      #                 redundant ~500MB copy beside the real artifact.
+      #   chain_deferred  the soft deadline exits 0, so the outcome is
+      #                 `success` — but "ran and did not finish" is exactly
+      #                 its state, and it is the upload the next run resumes.
+      #
+      # The name is `${{ matrix.id }}-partial` and that is not arbitrary:
+      # restore-partial-chain-output.py queries `f"{cell_id}-partial"` and this
+      # job passes `--cell-id '${{ matrix.id }}'`, while the nightly writes
+      # `${{ matrix.base_id || matrix.id }}-partial` and reads the same. The
+      # publish planner emits no base_id and its cell id IS the base, so both
+      # sides land on one shared name per family cell.
+      - uses: actions/upload-artifact@v7
+        if: always() && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled' || steps.build.outputs.chain_deferred == 'true')
+        with:
+          name: ${{ matrix.id }}-partial
+          overwrite: true
+          path: |
+            .factory/${{ matrix.id }}/artifacts/
+            .factory/${{ matrix.id }}/action-key.txt
+          if-no-files-found: warn
+
+  publish:
+    needs: [plan, build]
+    permissions:
+      contents: read
+      packages: read
+    # Publish whatever the build banked, even when the build job itself is
+    # red: one failed package must not hold the other built packages hostage,
+    # or the chain can never accumulate across legs (#544). cancelled() still
+    # aborts -- a torn-down run must not race a fresh one for the bucket.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      # Serial: every cell talks to the same bucket and rclone config.
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install tooling
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q createrepo-c rpm gpg gpgconf
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+      - name: Import GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Configure rpmsign and rclone
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          echo "%_signature gpg" > ~/.rpmmacros
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
+          mkdir -p ~/.config/rclone
+          umask 077
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = ${R2_ENDPOINT}
+          EOF
+      - name: Sync down the existing repo
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          mkdir -p repo
+          # NOT `|| true`. The sync-up later in this job makes the bucket MATCH
+          # repo/, so any object that failed to come down here is DELETED from
+          # the bucket there. Swallowing a partial sync-down is precisely how
+          # repo/10/x86_64 lost ~160 served package names between 2026-08-20
+          # and 2026-08-25 (#519) -- gdk-pixbuf2, harfbuzz, gnome-desktop3 and
+          # malcontent among them. Those are dependencies, not leaves, so dnf
+          # then reported gtk4 and 17 others as BROKEN rather than missing, and
+          # tunaOS shipped a hummingbird:gnome image containing no GNOME at all
+          # (410 packages: wallpapers and docs). Same shape as #124 /
+          # INCIDENT-repo-wipe-gnome, one prefix at a time.
+          #
+          # publish-rpm-wave.sh's NEVER SHRINK guard cannot catch this: it
+          # counts RPMs in the local tree, and these files were never synced
+          # down to be counted.
+          #
+          # rclone exit 3 is "directory not found" -- the legitimate
+          # first-publish case for a new prefix. Every other non-zero status is
+          # a real failure and must stop the job BEFORE the destructive
+          # sync-up, not after.
+          set +e
+          rclone sync "r2:${R2_BUCKET}/${{ matrix.r2_path }}/" repo/ \
+            --exclude "repodata/**"
+          _sync_rc=$?
+          set -e
+          if ((_sync_rc == 3)); then
+            echo "::notice::no existing objects at ${{ matrix.r2_path }} — treating as first publish"
+          elif ((_sync_rc != 0)); then
+            echo "::error::sync-down of ${{ matrix.r2_path }} failed (rclone rc=${_sync_rc}); refusing to continue — the sync-up in this job would DELETE every object that failed to come down"
+            exit 1
+          fi
+          echo "synced down $(find repo -name '*.rpm' | wc -l) RPM(s) from ${{ matrix.r2_path }}"
+      - uses: actions/download-artifact@v8
+        with:
+          name: publish-rpm-${{ matrix.id }}
+          path: staged
+      # Pull in whatever ANY leg staged to ORAS -- not just this run's own
+      # `build` job above, but any independent one-off dispatch that pushed
+      # results in the meantime (scripts/oras-stage-artifacts.py's module
+      # docstring explains why those can run concurrently while only this
+      # publish job stays serialized). publish-rpm-wave.sh globs `staged/`
+      # recursively, so landing pulls in a subdirectory is picked up the
+      # same as the artifact download above.
+      - name: Install oras
+        run: |
+          set -euo pipefail
+          curl -fsSLO "https://github.com/oras-project/oras/releases/download/v1.3.4/oras_1.3.4_linux_amd64.tar.gz"
+          echo "f27adb935022d94df8dc77719c322dda592c78a0d57a6f7dcdd8d900b248c454  oras_1.3.4_linux_amd64.tar.gz" | sha256sum -c
+          sudo tar -xzf oras_1.3.4_linux_amd64.tar.gz -C /usr/local/bin oras
+          rm oras_1.3.4_linux_amd64.tar.gz
+      - name: Log in to ghcr.io for ORAS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Pull everything staged in ORAS
+        run: python3 scripts/oras-stage-artifacts.py pull-all staged/oras
+      - name: Sign and index
+        run: |
+          set -euo pipefail
+          bash scripts/publish-rpm-wave.sh \
+            --staged staged --repo repo --subdir build-chain
+      - name: Sync up
+        if: ${{ !inputs.dry_run }}
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          rclone sync repo/ "r2:${R2_BUCKET}/${{ matrix.r2_path }}/"
+      - name: Report a dry run honestly
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "::notice::dry run — built, signed and indexed ${{ matrix.id }} but synced nothing to ${{ matrix.r2_path }}"
+
+  # The #179 job, and the one this publisher shipped without.
+  #
+  # publish-tideforge-rpms.yml has carried a verify job from its first
+  # publish, for the reason its own comment gives: "a repo that was never
+  # actually published can never sit behind a green workflow". Every step
+  # here can succeed -- build, sign, index, rclone sync -- and the packages
+  # still not be reachable, because "the workflow exited 0" and "dnf can
+  # install it" are different claims and only the second one matters.
+  #
+  # It earned its place immediately. Run against the live indexes while being
+  # written, it showed libxfce4ui-devel already served at
+  # xfce/10-stream-x86_64 and entirely absent from repo/10/x86_64 -- the el10
+  # target's published_index, the repo tideforge buildroots actually read. The
+  # package was never unpublished; it was published where nothing looks
+  # (tuna-os/tunaos-packages#466).
+  #
+  # ON THE URL. Derived from r2_path, which is safe for the build-chain
+  # families and NOT in general: manifests/package-factory.yaml records that
+  # the el10 tideforge target writes rpm/el10/x86_64 and serves
+  # repo/10/x86_64. Confirmed by request that xfce/10-stream-x86_64,
+  # xfce/44-x86_64 and hummingbird/20251124-* each serve at their own
+  # r2_path. A family whose read path diverges must gain an explicit key
+  # rather than being quietly mis-verified against a URL that 404s.
+  verify:
+    needs: [plan, publish]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: publish-rpm-${{ matrix.id }}
+          path: staged
+      - name: Assert every published package is in the served index
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-published-wave.py \
+            --served-url "https://repo.tunaos.org/${{ matrix.r2_path }}/" \
+            --staged staged

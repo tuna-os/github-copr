@@ -2,10 +2,12 @@ schema: 1
 tree: gnome-latest
 targets: [el10, ubuntu, debian]
 roots: [gnome-shell, mutter, gdm, gnome-session, uupd, bazaar]
+# Release tracks are data, not workflows. Common graph edits affect both;
+# track-only edits invalidate only the selected series.
+tracks:
+  stable: {series: "50", source_path: src/gnome-50/}
+  next: {series: "51", source_path: src/gnome-51/, prerelease: true}
 nodes:
-  # Shared upstream source graph. EL10 consumes its existing native RPM specs
-  # plus compatibility overlays; Debian/Ubuntu consume generated Debian source
-  # packages and never inherit EL10 scriptlets, SELinux policy, or triggers.
   glib2: {source: GNOME/glib, needs: [gobject-introspection-bootstrap]}
   gobject-introspection-bootstrap: {source: GNOME/gobject-introspection, needs: [glib2-bootstrap]}
   glib2-bootstrap: {source: GNOME/glib, needs: []}

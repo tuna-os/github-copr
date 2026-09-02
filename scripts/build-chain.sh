@@ -89,12 +89,46 @@ _on_error() {
     echo "tier filter : ${FILTER_TIER:-<all>}" >&2
     echo "package     : ${pkg_name:-<none in scope>}" >&2
     # The build logs mock leaves behind, if this died during a package build.
-    local log
+    #
+    # A bare tail is not enough. root.log ends with dnf's transaction summary,
+    # and the line that explains a buildroot failure -- the "Problem:" chain,
+    # or "nothing provides X needed by Y" -- sits hundreds of lines above it.
+    # Retrieving those hundreds of lines from CI meant downloading the whole
+    # run's log archive, which for one Hummingbird run was a multi-megabyte
+    # zip that failed to transfer twice. So grep the reasons out first and
+    # print them before the tail, where the tail is all anyone gets.
+    #
+    # WHY_FAILED_PATTERN is a local, not a file-scope global: the tests for
+    # this handler run its body under the script's own `set -u`, and a global
+    # declared further down the file reads as unbound there.
+    local log why WHY_FAILED_PATTERN
+    WHY_FAILED_PATTERN='nothing provides|but none of the providers|conflicting requests|Problem: |Failed to resolve|No match for argument|Unable to find a match|is already installed|hunk FAILED|No such file or directory|Bad exit status from|error:'
     for log in "${builddir:-/nonexistent}/results/build.log" \
                "${builddir:-/nonexistent}/results/root.log"; do
         if [[ -r "$log" ]]; then
+            why="$(grep -E "$WHY_FAILED_PATTERN" "$log" | tail -n 20)" || true
+            if [[ -n "$why" ]]; then
+                echo "--- why ${log} says it failed ---" >&2
+                printf '%s\n' "$why" >&2
+            fi
             echo "--- tail of ${log} ---" >&2
             tail -n 40 "$log" >&2 || true
+            # KEEP the log, do not only print it. A 40-line tail in a job log
+            # is not a diagnosis: on a long chain the run prints one of these
+            # per failed package, hours apart, and the API only serves the
+            # tail of a multi-hundred-kilobyte log -- so the 25 failures of
+            # the GNOME 51.beta bump were unreadable after the fact, exactly
+            # the archaeology BUILDROOT_MANIFESTS was added to end (#480).
+            # Copied beside the buildroot manifests, inside artifacts/, so
+            # the cell's artifact carries every failure's full build.log and
+            # root.log. Never fatal: a log that cannot be copied must not
+            # change how the build failed.
+            if [[ -n "${FAILURE_LOGS:-}" ]]; then
+                mkdir -p "$FAILURE_LOGS" 2>/dev/null \
+                    && cp "$log" \
+                       "${FAILURE_LOGS}/${pkg_name:-chain}.$(basename "$log")" \
+                    || echo "--- ${log} not kept (non-fatal) ---" >&2
+            fi
         fi
     done
     echo "=============================================================" >&2
@@ -104,6 +138,15 @@ trap _on_error ERR
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Backend implementations are sourced as modules so they can be reviewed,
+# tested, and shellchecked independently from orchestration.
+#
+# ("shellchecked" must not start this comment line: shellcheck parses any
+# comment beginning with "shellcheck" as a directive and fails with SC1073.)
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/build-chain/native.sh
+source "${SCRIPT_DIR}/lib/build-chain/native.sh"
 
 MANIFEST="${REPO_ROOT}/build-order.yml"
 BACKEND="podman"
@@ -119,9 +162,54 @@ JOBS=$(( $(nproc) / 2 ))
 [[ $JOBS -lt 1 ]] && JOBS=1
 FILTER_TIER=""
 FILTER_PACKAGE=""
+FILTER_TIERS=""
+# --packages-file: build ONLY the paths listed (one src/... path per line,
+# blank lines and #-comments ignored). The shard runner in
+# build-chain-fanout.yml is the intended caller: packages within a tier are
+# dependency-independent, so disjoint shards of one tier can build on
+# separate runners against the same inputs. Unset = no behavior change.
+FILTER_PACKAGES_FILE=""
+declare -A FILTER_PACKAGES_SET=()
+# --served-nvrs: NVRs the published index already serves (one per line).
+# check_package_exists skips a package whose computed NVR is listed, exactly
+# as it skips one whose RPM sits in the local repo. Without this, "already
+# built" was ONLY the local repo -- seeded from action-key-matched partials
+# -- so any key move (a mock cfg edit rebuilds the image, the image digest
+# is a key input) sent the next leg back to tier 0 to rebuild packages the
+# repo has SERVED for days. Legs 32914264044/32991216265/33022688689 each
+# rebuilt the same ~85 packages for exactly this reason (#544). The served
+# index is the durable record of what exists; keys only guard partials.
+SERVED_NVRS_FILE=""
+declare -A SERVED_NVRS_SET=()
 DRY_RUN=false
 FORCE=false
 WITH_CHECKS=false
+STREAM=false
+
+# --- Soft deadline -----------------------------------------------------------
+# CHAIN_BUDGET_SECONDS, when set, is a clean stopping point INSIDE the job's
+# hard ceiling. The nightly hummingbird-desktops cells die at
+# `timeout-minutes: 360` -- reported as CANCELLED -- with every step after the
+# build skipped, so six hours of mock output reaches only the resume partial
+# and the SERVED repo never gains a package (every scheduled run 08-19..08-24,
+# e.g. job 97441135486: killed at 5h59m29s still inside the python bootstrap
+# tiers). A chain that stops itself BEFORE the ceiling finishes its current
+# packages, drains, and exits normally -- so validation, checksums, SBOM,
+# attestation and the publish artifact all run on what DID build.
+#
+# Deferring is not failing: remaining packages are counted and named in the
+# summary, and the caller learns about it through CHAIN_DEFERRED_MARKER (a
+# file written on deadline, carrying the count) -- which the workflow uses to
+# keep a partial OUT of the action cache. Recording a deferred chain as a
+# completed ActionResult would make every later run cache-hit on the partial
+# and freeze the chain at it forever.
+CHAIN_START_EPOCH=$(date +%s)
+DEADLINE_HIT=false
+DEFERRED_COUNT=0
+_past_deadline() {
+    [[ -n "${CHAIN_BUDGET_SECONDS:-}" ]] || return 1
+    (( $(date +%s) - CHAIN_START_EPOCH >= CHAIN_BUDGET_SECONDS ))
+}
 
 usage() {
     echo "Usage: $0 [options]"
@@ -136,7 +224,9 @@ usage() {
     echo "  --local-repo <path>  Path to local repo directory (default: ./local-repo)"
     echo "  --jobs <N>           Parallel jobs within a tier (default: nproc/2)"
     echo "  --tier <name>        Only build a specific tier"
+    echo "  --tiers <list>       Comma-separated tiers to build (used with --stream)"
     echo "  --package <path>     Only build a specific package path"
+    echo "  --stream             Stream all tiers as one wavefront (no tier barriers)"
     echo "  --with-checks        Run the RPM %check section"
     echo "  --dry-run            Print what would be built without building"
     echo "  --force              Force rebuild even if package exists in repo"
@@ -158,16 +248,58 @@ while [[ $# -gt 0 ]]; do
         --local-repo)  LOCAL_REPO="$2";  shift 2 ;;
         --jobs)        JOBS="$2";        shift 2 ;;
         --tier)        FILTER_TIER="$2"; shift 2 ;;
+        --tiers)       FILTER_TIERS="$2"; shift 2 ;;
         --package)     FILTER_PACKAGE="$2"; shift 2 ;;
+        --packages-file) FILTER_PACKAGES_FILE="$2"; shift 2 ;;
+        --served-nvrs)   SERVED_NVRS_FILE="$2"; shift 2 ;;
         --with-checks)  WITH_CHECKS=true; shift ;;
         --dry-run)     DRY_RUN=true;     shift ;;
         --force)       FORCE=true;       shift ;;
+        --stream)      STREAM=true;      shift ;;
         *)
             echo "Unknown option: $1" >&2
             exit 1
             ;;
     esac
 done
+
+if [[ -n "$FILTER_PACKAGES_FILE" ]]; then
+    if [[ ! -f "$FILTER_PACKAGES_FILE" ]]; then
+        echo "ERROR: --packages-file '$FILTER_PACKAGES_FILE' does not exist" >&2
+        exit 1
+    fi
+    while IFS= read -r _line; do
+        _line="${_line%%#*}"
+        _line="${_line//[$'\t\r ']/}"
+        [[ -n "$_line" ]] && FILTER_PACKAGES_SET["$_line"]=1
+    done < "$FILTER_PACKAGES_FILE"
+    if [[ ${#FILTER_PACKAGES_SET[@]} -eq 0 ]]; then
+        echo "ERROR: --packages-file '$FILTER_PACKAGES_FILE' lists no packages" >&2
+        exit 1
+    fi
+fi
+
+if [[ -n "$SERVED_NVRS_FILE" ]]; then
+    if [[ ! -f "$SERVED_NVRS_FILE" ]]; then
+        echo "ERROR: --served-nvrs '$SERVED_NVRS_FILE' does not exist" >&2
+        exit 1
+    fi
+    while IFS= read -r _line; do
+        _line="${_line%%#*}"
+        _line="${_line//[$'\t\r ']/}"
+        [[ -n "$_line" ]] && SERVED_NVRS_SET["$_line"]=1
+    done < "$SERVED_NVRS_FILE"
+    # An empty list is legal: a first publish has nothing served yet.
+fi
+
+# True when filters say this package is NOT ours to build. Deferral/skip
+# accounting deliberately does not count these: another shard owns them.
+_package_filtered_out() {
+    local pkg_path="$1"
+    [[ -n "$FILTER_PACKAGE" && "$pkg_path" != "$FILTER_PACKAGE" ]] && return 0
+    [[ ${#FILTER_PACKAGES_SET[@]} -gt 0 && -z "${FILTER_PACKAGES_SET[$pkg_path]:-}" ]] && return 0
+    return 1
+}
 
 # Without --with-checks the build already passes --nocheck, so %check never
 # runs -- but its BuildRequires: are still installed, and they are not free.
@@ -229,17 +361,20 @@ derive_dist() {
             ;;
         # Hummingbird's own packages carry .hum1 — every one of the 16506
         # (name, evr, arch) tuples in its primary.xml does, measured
-        # 2026-08-06. .fc43 here is deliberately NOT that tag: it marks a
-        # TunaOS rebuild, and because "fc43" sorts below "hum1" for the same
-        # version, a rebuild can never shadow a package Hummingbird later
-        # starts shipping itself.
+        # 2026-08-06. .bfin1 here is deliberately NOT that tag: it marks a
+        # TunaOS/Bluefin rebuild, and because "bfin1" sorts below "hum1" for
+        # the same version ('b' < 'h'), a rebuild can never shadow a package
+        # Hummingbird later starts shipping itself. (Was .fc43 through
+        # 2026-08-29 -- changed because it read as a real Fedora 43 tie-in,
+        # which it never was; any alpha prefix sorting before "hum" is
+        # equally safe, this just says what the rebuild actually is.)
         #
         # It is not a claim about ABI. The buildroot ABI comes from
         # mock/hummingbird-ci.cfg, which tracks Fedora Rawhide because that is
         # what the target measurably tracks: glib2 2.89.3-1, systemd 261.2-1
         # and gcc 16.1.1 are Rawhide's versions, not F43's 2.86.5 / 258.10 /
         # 15.3.1. See docs/hummingbird-desktop-gap.md.
-        hummingbird-20251124*)   echo ".fc43" ;;
+        hummingbird-20251124*)   echo ".bfin1" ;;
         fedora-*)                 echo ".fc${target#fedora-}" | sed 's/-.*//' ;;
         centos-stream-10*|epel-10*|almalinux*-10*) echo ".el10" ;;
         centos-stream-9*|epel-9*) echo ".el9" ;;
@@ -263,12 +398,48 @@ ensure_local_repo() {
     fi
 }
 
+# Opt-in: record what the buildroot resolved for each package, so a red run
+# can be diffed against a green one (scripts/diff-buildroots.py) instead of
+# reconstructed from issue comments — #480's libnotify hunt took a day of
+# archaeology for an answer mock had already written into root.log.
+# Enabled by exporting BUILDROOT_MANIFESTS=<dir>; never fatal: a manifest
+# that cannot be written must not fail a build that succeeded.
+record_buildroot_manifest() {
+    local resultdir="$1" pkg_name="$2"
+    [[ -n "${BUILDROOT_MANIFESTS:-}" ]] || return 0
+    python3 "${REPO_ROOT}/scripts/extract-buildroot-manifest.py" "$resultdir" \
+        --output "${BUILDROOT_MANIFESTS}/${pkg_name}.buildroot.txt" \
+        || echo "==> [${pkg_name}] buildroot manifest not recorded (non-fatal)"
+}
+
 update_local_repo() {
     log "Updating local repo metadata"
+    # createrepo_c stages into `.repodata/` and renames it to `repodata/` when
+    # it finishes, and it REFUSES to start if that temp directory is already
+    # there:
+    #
+    #     Temporary repodata directory .../.repodata/ already exists!
+    #     (Another createrepo process is running?)
+    #
+    # Nothing else is running -- update_local_repo is called only from
+    # wait_one(), a nested function the dispatch loop calls synchronously, so
+    # there is never a second createrepo_c in this process. The directory is
+    # the debris of an INTERRUPTED one: a cell that hit its deadline mid-index,
+    # a cancelled shard, an OOM. It then poisons the workspace permanently,
+    # because the retry below used to `rm -rf repodata` -- the FINISHED
+    # directory -- and leave the temp one that is actually doing the blocking,
+    # so the fallback re-ran into the identical error and the chain died at
+    # `createrepo_c "${LOCAL_REPO}"`.
+    #
+    # Fanout run 33134251127 lost 14 of 30 shards to this, 7 of 8 in band1-x86.
+    # The served-NVR skip is what exposed it: skips return in milliseconds, so
+    # a shard now reaches its first metadata update almost immediately, and
+    # every one of those shards died having built nothing (`new RPMs: 0`).
+    rm -rf "${LOCAL_REPO}/.repodata"
     # Attempt to update existing metadata first (faster)
     if ! createrepo_c --update "${LOCAL_REPO}"; then
         warn "createrepo_c --update failed, attempting full re-index"
-        rm -rf "${LOCAL_REPO}/repodata"
+        rm -rf "${LOCAL_REPO}/.repodata" "${LOCAL_REPO}/repodata"
         createrepo_c "${LOCAL_REPO}"
     fi
 
@@ -578,9 +749,22 @@ check_package_exists() {
 
     # Query the spec file inside the container to get the expected NVR
     # We do this inside the container to ensure macro expansion (%autorelease, %dist, etc.)
+    #
+    # --pull=missing, not --pull=always. BUILD_IMAGE is a fixed tag, and the
+    # workflow already pulls it once in its own "Pull mock runner" step, so
+    # --pull=always bought nothing but a GHCR round-trip -- and this function
+    # runs for EVERY package the tier considers, before the skip decision, so
+    # it was paid for packages that were about to be skipped too. That cost
+    # grows as the R2 seed grows, which is backwards: the further hummingbird
+    # converges, the more of each 6-hour run goes on confirming there is
+    # nothing to do (tunaos-packages#410, #401).
+    #
+    # It is also more correct. The NVR this computes is compared against RPMs
+    # an earlier run built; re-resolving the tag mid-run could answer from a
+    # different image than the one that produced them.
     local nvr
     nvr=$(podman run --rm \
-        --pull=always \
+        --pull=missing \
         -v "$(dirname "$spec"):/specdir:Z" \
         "${BUILD_IMAGE}" \
         rpmspec -q "/specdir/${spec_basename}" \
@@ -595,6 +779,15 @@ check_package_exists() {
     # We check for $nvr.rpm or $nvr.*.rpm
     if ls "${LOCAL_REPO}/${nvr}"*.rpm &>/dev/null; then
         echo "==> [${pkg_name}] Skipping: ${nvr} already exists in local repo"
+        return 0
+    fi
+
+    # The published index is the durable record: a served NVR was built,
+    # signed and synced by an earlier leg, and consumers resolve it from the
+    # repo at priority 11 -- rebuilding it buys nothing. This is what makes
+    # legs incremental ACROSS action-key moves, which partials cannot be.
+    if [[ -n "${SERVED_NVRS_SET[$nvr]:-}" ]]; then
+        echo "==> [${pkg_name}] Skipping: ${nvr} already served by the published index"
         return 0
     fi
 
@@ -667,15 +860,71 @@ build_package_podman() {
 
     echo "==> [${pkg_name}] Running mock inside podman (${BUILD_IMAGE})..."
 
-    # Optional persistent mock cache (dnf package downloads + chroot state).
-    # CI sets MOCK_CACHE_DIR to a host path wrapped in actions/cache, keyed
-    # per package, so a rebuild of the SAME package (Renovate bump, retry)
-    # reuses its already-resolved BuildRequires instead of re-downloading
-    # them from the CentOS/EPEL mirrors. No-op locally when unset.
+    # Persistent mock ROOT CACHE, shared by every package in the run.
+    #
+    # Without it each package pays "installing minimal buildroot with dnf5" in
+    # full and then tars a root cache that is thrown away with its container.
+    # docs/hummingbird-throughput.md Finding 2 counted it across five real
+    # runs: `Start: creating root cache` once per package, `unpacking root
+    # cache` ZERO times, and 43 s -- the floor observed anywhere in the corpus
+    # -- paid 194 times, 2.32 h of 6.80 h, 34.1%.
+    #
+    # Sharing one cache between concurrent builds is what mock is built for.
+    # buildroot.py keys cachedir on shared_root_name, the config's root from
+    # BEFORE --uniqueext is appended, and plugins/root_cache.py guards it with
+    # an fcntl lock (shared to unpack, exclusive to rebuild). Correctness
+    # against the local repo growing mid-run is equally by design: the tarball
+    # holds only the MINIMAL buildroot, BuildRequires resolve after the unpack
+    # against the live repos, and the Rawhide template these configs include
+    # sets metadata_expire=0.
+    #
+    # Only <config>/root_cache, not all of /var/cache/mock. The sibling
+    # yum_cache accumulates every BuildRequires RPM the chain downloads, which
+    # for a desktop closure is unbounded in a way this directory is not (one
+    # tarball, rewritten rather than appended). Filling the runner's disk now
+    # costs more than it used to: the chain runs 4.5 h and its partial output
+    # is what the continuation shards resume from, so an ENOSPC in hour three
+    # poisons the whole night rather than one package. Widen it if a measured
+    # run shows the headroom.
+    #
+    # <config> is MOCK_CONFIG because every profile in mock/ sets
+    # config_opts['root'] to its own filename stem; a mismatch would mount a
+    # path mock never looks at and be silent about it, so
+    # tests/test_the_mock_root_cache_is_actually_shared.py pins it.
     MOCK_CACHE_ARGS=()
     if [[ -n "${MOCK_CACHE_DIR:-}" ]]; then
-        mkdir -p "${MOCK_CACHE_DIR}"
-        MOCK_CACHE_ARGS=(-v "${MOCK_CACHE_DIR}:/var/cache/mock:Z")
+        mkdir -p "${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache"
+        # Mode, because the leaf is now created on the HOST rather than by
+        # mock inside the container. Run 31268488082 mounted the parent and
+        # let mock create this directory itself, so its owner was whatever
+        # the container decided; mounting the leaf hands it a directory owned
+        # by the runner user, which rootless podman maps to container root
+        # while mock drops to builder:mock and has to write the tarball. Same
+        # reason `chmod -R a+rX /tmp/mock-configdir` is a few lines below --
+        # this is an ephemeral single-tenant runner directory, not a shared
+        # host path.
+        chmod 0777 "${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache"
+        # A TRUNCATED tarball is worse than no tarball: every later package in
+        # the job fails to unpack it, so one bad write would cost the whole
+        # chain rather than one package. It can happen -- the timeout(1) around
+        # this container SIGKILLs a wedged build, and a kill landing in the
+        # seconds mock spends tarring the buildroot leaves a partial file
+        # behind, with the fcntl lock released by the dead process.
+        #
+        # Age-gated, and that gate is the load-bearing part. Testing a file
+        # another worker is writing RIGHT NOW would read it as corrupt and
+        # delete it, and with several workers that ping-pongs forever: the
+        # cache would never survive long enough to be used and the whole
+        # optimisation would silently do nothing. Tarring a minimal buildroot
+        # takes under a minute; ten minutes cannot be an in-flight write.
+        _root_cache_tarball="${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache/cache.tar.gz"
+        if [[ -f "$_root_cache_tarball" ]] \
+           && [[ -z "$(find "$_root_cache_tarball" -mmin -10 2>/dev/null)" ]] \
+           && ! gzip -t "$_root_cache_tarball" 2>/dev/null; then
+            log "  discarding a corrupt mock root cache: ${_root_cache_tarball}"
+            rm -f "$_root_cache_tarball"
+        fi
+        MOCK_CACHE_ARGS=(-v "${MOCK_CACHE_DIR}/${MOCK_CONFIG}/root_cache:/var/cache/mock/${MOCK_CONFIG}/root_cache:Z")
     fi
 
     local mock_check_flag="--nocheck"
@@ -684,6 +933,23 @@ build_package_podman() {
     # Wrapped in a function so the retry below re-runs the IDENTICAL
     # invocation with one extra mock argument, rather than a second copy
     # of it drifting out of sync with this one.
+    #
+    # timeout(1) around the whole container, because a wedged mock hangs
+    # the tier SILENTLY: runs 31732589290 and 31757583258 each sat 2+
+    # hours with zero further log output after netcdf's builddep retry
+    # entered chroot init, held the workflow's concurrency lock the whole
+    # time, and only died when a human cancelled them. GitHub's own
+    # step timeout cannot help here -- the runner agent stays healthy, it
+    # is the container that never returns. An external bound converts the
+    # hang into a visible per-package failure (exit 124) that the tier
+    # retry logic treats like any other failed package and moves past.
+    #
+    # 180 minutes default: generous enough for the largest single package
+    # a desktop tier carries on a 4-core runner, an order of magnitude
+    # above the tier median, and still a third of the 6-hour job budget a
+    # single hung package used to consume. MOCK_TIMEOUT_MINUTES overrides
+    # it for a known-slow rebuild. --kill-after covers a container that
+    # ignores SIGTERM.
     _run_mock_container() {
         local mock_extra_args="${1:-}"
         # A failed dynamic-BuildRequires pass can leave the reused uniqueext
@@ -691,6 +957,7 @@ build_package_podman() {
         # package's buildroot survives for diagnostics). The retry caller can
         # request a clean chroot without duplicating this invocation.
         local mock_clean_flag="${2:---no-clean}"
+        timeout --kill-after=60s "${MOCK_TIMEOUT_MINUTES:-180}m" \
         podman run --rm --privileged \
             --pull=always \
             -v "${builddir}:/builddir:Z" \
@@ -801,11 +1068,25 @@ build_package_podman() {
                 #   * /var/lib/mock lives INSIDE this container and is thrown
                 #     away with it, so two concurrent builds cannot see each
                 #     other's chroots at all;
-                #   * /var/cache/mock is only bind-mounted when MOCK_CACHE_DIR
-                #     is set, and the Hummingbird workflow does not set it.
+                #   * the one thing concurrent builds now DO share is the
+                #     root cache under /var/cache/mock/<config>/root_cache,
+                #     and mock guards that itself with an fcntl lock (shared
+                #     to unpack, exclusive to rebuild) -- repo.lock never
+                #     protected it and could not have.
                 # So the exclusive lock protected nothing, while serialising
                 # the single most expensive step in the run: --jobs N started N
                 # workers that then took turns compiling one at a time.
+                # Both directories, and both matter. Only the LEAF is
+                # bind-mounted, so podman creates the <config> parent itself,
+                # root-owned and 0755 -- and mock runs as builder:mock two
+                # lines below, so without this it cannot create its siblings
+                # (yum_cache) under a directory it does not own. In the image
+                # /var/cache/mock is root:mock 2775 and mock makes the whole
+                # subtree itself; introducing a mount point is what changes
+                # that. || true because a missing cache must never be worse
+                # than a slow build, which is the whole point of the mount.
+                chmod 0777 /var/cache/mock/${MOCK_CONFIG} \
+                           /var/cache/mock/${MOCK_CONFIG}/root_cache 2>/dev/null || true
                 flock -s /local-repo/repo.lock -c \"
                     setpriv --reuid=builder --regid=mock --init-groups \\
                     mock --configdir /tmp/mock-configdir -r '${MOCK_CONFIG}' \\
@@ -867,6 +1148,8 @@ build_package_podman() {
         echo "==> [${pkg_name}] -> $(basename "$rpm")"
         rpm_count=$(( rpm_count + 1 ))
     done < <(find "$resultdir" -name "*.rpm" ! -name "*.src.rpm" -print0)
+
+    record_buildroot_manifest "$resultdir" "$pkg_name"
 
     if [[ $rpm_count -eq 0 ]]; then
         echo "ERROR: No RPMs produced for ${pkg_name}" >&2
@@ -953,114 +1236,14 @@ build_package_mock() {
         rpm_count=$(( rpm_count + 1 ))
     done < <(find "$resultdir" -name "*.rpm" ! -name "*.src.rpm" -print0)
 
+    record_buildroot_manifest "$resultdir" "$pkg_name"
+
     if [[ $rpm_count -eq 0 ]]; then
         echo "ERROR: No RPMs produced for ${pkg_name}" >&2
         return 1
     fi
 
     echo "==> [${pkg_name}] Built ${rpm_count} RPM(s)"
-}
-
-# --- Native rpmbuild backend ---
-#
-# Runs directly in the current environment (no container). Intended for use
-# inside a CentOS Stream 10 GitHub Actions container job where rpmbuild,
-# spectool, and dnf are all available natively.
-build_package_native() {
-    local pkg_dir="$1"
-    local spec_override="$2"
-
-    local spec pkg_name abs_pkg_dir
-    spec="$(find_spec "$pkg_dir" "$spec_override")"
-    pkg_name="$(basename "$spec" .spec)"
-    abs_pkg_dir="${REPO_ROOT}/${pkg_dir}"
-
-    if ! $FORCE; then
-        local nvr
-        nvr=$(rpm -q --specfile "$spec" \
-            --define "dist ${DIST}" \
-            --queryformat "%{NAME}-%{VERSION}-%{RELEASE}\n" 2>/dev/null | head -1)
-        if [[ -n "$nvr" ]] && ls "${LOCAL_REPO}/${nvr}"*.rpm &>/dev/null 2>&1; then
-            log "[${pkg_name}] Skipping: ${nvr} already in local repo"
-            return 0
-        fi
-    fi
-
-    log "[${pkg_name}] Building (native rpmbuild) from ${pkg_dir}"
-
-    local builddir
-    builddir="$(mktemp -d)"
-    # shellcheck disable=SC2064
-    trap "rm -rf '${builddir}'" RETURN
-
-    mkdir -p "${builddir}"/{BUILD,BUILDROOT,RPMS,SOURCES,SRPMS,SPECS}
-
-    local spec_basename
-    spec_basename="$(basename "$spec")"
-    cp "$spec" "${builddir}/SPECS/"
-
-    # Copy local patches/sources
-    find "$abs_pkg_dir" -maxdepth 1 -type f \
-        ! -name "*.spec" \
-        ! -name "sources" \
-        ! -name "changelog" \
-        ! -name "rpminspect.yaml" \
-        ! -name "*.md" \
-        -exec cp {} "${builddir}/SOURCES/" \;
-
-    # Download remote sources (use $RPM_SOURCES_CACHE if set for cross-run caching)
-    log "[${pkg_name}] Downloading sources..."
-    local sources_cache="${RPM_SOURCES_CACHE:-}"
-    if [[ -n "$sources_cache" ]]; then
-        mkdir -p "$sources_cache"
-        spectool -g -C "$sources_cache" "${builddir}/SPECS/${spec_basename}" || {
-            err "spectool failed for ${pkg_name}"
-            return 1
-        }
-        # Hard-link cached sources into builddir (fall back to copy)
-        find "$sources_cache" -maxdepth 1 -type f \
-            -exec ln -f {} "${builddir}/SOURCES/" \; 2>/dev/null \
-            || cp "$sources_cache"/* "${builddir}/SOURCES/" 2>/dev/null || true
-    else
-        spectool -g -C "${builddir}/SOURCES/" "${builddir}/SPECS/${spec_basename}" || {
-            err "spectool failed for ${pkg_name}"
-            return 1
-        }
-    fi
-
-    # Install BuildRequires from spec
-    log "[${pkg_name}] Installing BuildRequires..."
-    dnf builddep -y \
-        --define "dist ${DIST}" \
-        "${builddir}/SPECS/${spec_basename}" || {
-        err "dnf builddep failed for ${pkg_name}"
-        return 1
-    }
-
-    # Build binary RPMs
-    log "[${pkg_name}] Running rpmbuild..."
-    rpmbuild -bb \
-        --define "_topdir ${builddir}" \
-        --define "dist ${DIST}" \
-        "${builddir}/SPECS/${spec_basename}" || {
-        err "rpmbuild failed for ${pkg_name}"
-        return 1
-    }
-
-    # Copy resulting RPMs to local repo
-    local rpm_count=0
-    while IFS= read -r -d '' rpm; do
-        cp "$rpm" "${LOCAL_REPO}/"
-        log "[${pkg_name}] -> $(basename "$rpm")"
-        rpm_count=$(( rpm_count + 1 ))
-    done < <(find "${builddir}/RPMS" -name "*.rpm" -print0)
-
-    if [[ $rpm_count -eq 0 ]]; then
-        err "No RPMs produced for ${pkg_name}"
-        return 1
-    fi
-
-    log "[${pkg_name}] Built ${rpm_count} RPM(s)"
 }
 
 # Dispatch to the selected backend
@@ -1154,7 +1337,19 @@ build_tier() {
     }
 
     while IFS=$'\t' read -r pkg_path spec_override; do
-        if [[ -n "$FILTER_PACKAGE" && "$pkg_path" != "$FILTER_PACKAGE" ]]; then
+        if _package_filtered_out "$pkg_path"; then
+            continue
+        fi
+
+        # Past the soft deadline: stop DISPATCHING, keep draining. Checked at
+        # the package boundary so a package in flight always completes; only
+        # work that has not started is deferred.
+        if $DEADLINE_HIT || _past_deadline; then
+            if ! $DEADLINE_HIT; then
+                DEADLINE_HIT=true
+                log "  CHAIN_BUDGET_SECONDS=${CHAIN_BUDGET_SECONDS:-} reached; deferring the rest of the chain"
+            fi
+            DEFERRED_COUNT=$(( DEFERRED_COUNT + 1 ))
             continue
         fi
 
@@ -1207,7 +1402,7 @@ build_tier() {
     # a retry could need has appeared, so retrying is just a second identical
     # failure at twice the cost. That gate is what keeps this from being a
     # blanket "try everything twice".
-    if ((${#_tier_failed[@]})) && [[ "$(_repo_rpm_count)" -gt "$_tier_start_rpms" ]]; then
+    if ((${#_tier_failed[@]})) && ! $DEADLINE_HIT && [[ "$(_repo_rpm_count)" -gt "$_tier_start_rpms" ]]; then
         local retry=("${_tier_failed[@]}")
         _tier_failed=()
         log "  ${#retry[@]} package(s) failed but the repo grew during this tier;"
@@ -1219,6 +1414,134 @@ build_tier() {
             else
                 err "Failed: ${path}"
                 _tier_failed+=("${path}")
+            fi
+        done
+    fi
+}
+
+# --- Stream (wavefront) scheduler ---
+#
+# Builds every package from every tier as one continuous wavefront.
+# Packages are dispatched in manifest order, which is a topological order
+# over BuildRequires, so most dependencies are already in the local repo
+# by the time a consumer starts.  The retry path below catches the few
+# that race — the same logic that already handles intra-tier edges.
+build_stream() {
+    local -n _pkg_total="$1"
+    local -n _failed="$2"
+
+    local logdir
+    logdir="$(mktemp -d)"
+    # shellcheck disable=SC2064
+    trap "rm -rf '${logdir}'" RETURN
+
+    local pids=()
+    local pkg_paths=()
+    local started_at=()
+    local last_heartbeat=()
+    local heartbeat_interval=60
+    local active=0
+    local _stream_start_rpms
+    _stream_start_rpms="$(_repo_rpm_count)"
+
+    wait_one() {
+        while true; do
+            local now
+            now=$(date +%s)
+            for i in "${!pids[@]}"; do
+                local pid="${pids[$i]}"
+                local path="${pkg_paths[$i]}"
+                if ! kill -0 "$pid" 2>/dev/null; then
+                    local logfile
+                    logfile="${logdir}/$(basename "$path").log"
+                    cat "$logfile"
+                    if wait "$pid"; then
+                        : # success
+                    else
+                        err "Failed: ${path}"
+                        _failed+=("${path}")
+                    fi
+                    unset 'pids[$i]' 'pkg_paths[$i]' 'started_at[$i]' 'last_heartbeat[$i]'
+                    active=$(( active - 1 ))
+                    # The repo grew; anything still waiting may now have its
+                    # dependencies satisfied.  Updating metadata here lets the
+                    # next dispatch see freshly built RPMs immediately.
+                    if ! $DRY_RUN; then
+                        update_local_repo
+                    fi
+                    return
+                fi
+
+                if (( now - last_heartbeat[i] >= heartbeat_interval )); then
+                    local elapsed=$(( now - started_at[i] ))
+                    log "  Still building ${path} (pid ${pid}, elapsed ${elapsed}s)"
+                    last_heartbeat[i]=$now
+                fi
+            done
+            sleep 0.5
+        done
+    }
+
+    while IFS=$'\t' read -r pkg_path spec_override; do
+        if _package_filtered_out "$pkg_path"; then
+            continue
+        fi
+
+        # Same soft deadline as build_tier: stop dispatching, keep draining.
+        if $DEADLINE_HIT || _past_deadline; then
+            if ! $DEADLINE_HIT; then
+                DEADLINE_HIT=true
+                log "  CHAIN_BUDGET_SECONDS=${CHAIN_BUDGET_SECONDS:-} reached; deferring the rest of the stream"
+            fi
+            DEFERRED_COUNT=$(( DEFERRED_COUNT + 1 ))
+            continue
+        fi
+
+        _pkg_total=$(( _pkg_total + 1 ))
+
+        if $DRY_RUN; then
+            build_package "$pkg_path" "$spec_override"
+            continue
+        fi
+
+        while [[ $active -ge $JOBS ]]; do
+            wait_one
+        done
+
+        local logfile
+        logfile="${logdir}/$(basename "$pkg_path").log"
+        build_package "$pkg_path" "$spec_override" > "$logfile" 2>&1 &
+        local pid=$!
+        local now
+        now=$(date +%s)
+        pids+=("$pid")
+        pkg_paths+=("$pkg_path")
+        started_at+=("$now")
+        last_heartbeat+=("$now")
+        active=$(( active + 1 ))
+        log "  Queued ${pkg_path} (pid ${pid})"
+
+    done < <(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --all ${FILTER_TIERS:+--tiers-filter "${FILTER_TIERS}"})
+
+    while [[ $active -gt 0 ]]; do
+        wait_one
+    done
+
+    # Retry failures once, if anything was built during this stream.
+    # Same gate as build_tier: if the repo grew, a failed package may
+    # have been missing a dependency that has since landed.
+    if ((${#_failed[@]})) && ! $DEADLINE_HIT && [[ "$(_repo_rpm_count)" -gt "$_stream_start_rpms" ]]; then
+        local retry=("${_failed[@]}")
+        _failed=()
+        log "  ${#retry[@]} package(s) failed but the repo grew during the stream;"
+        log "  retrying them once in case they lost a dependency race"
+        local path
+        for path in "${retry[@]}"; do
+            if build_package "$path" ""; then
+                log "  [retry] ${path} built on the second pass"
+            else
+                err "Failed: ${path}"
+                _failed+=("${path}")
             fi
         done
     fi
@@ -1236,8 +1559,10 @@ main() {
     log "  Local repo: ${LOCAL_REPO}"
     log "  Jobs:       ${JOBS}"
     [[ -n "$FILTER_TIER" ]]    && log "  Tier filter: ${FILTER_TIER}"
+    [[ -n "$FILTER_TIERS" ]]   && log "  Tiers:       ${FILTER_TIERS}"
     [[ -n "$FILTER_PACKAGE" ]] && log "  Pkg filter:  ${FILTER_PACKAGE}"
     $WITH_CHECKS && log "  RPM %check: enabled"
+    $STREAM && log "  Stream mode: no tier barriers"
 
     if ! $DRY_RUN; then
         case "$BACKEND" in
@@ -1249,34 +1574,59 @@ main() {
 
     ensure_local_repo
 
-    local tiers
-    tiers="$(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --tiers)"
-
     local tier_count=0
     local pkg_total=0
     local failed=()
 
-    while IFS= read -r tier_name; do
-        if [[ -n "$FILTER_TIER" && "$tier_name" != "$FILTER_TIER" ]]; then
-            continue
-        fi
-
-        tier_count=$(( tier_count + 1 ))
+    if $STREAM && [[ -z "$FILTER_TIER" ]]; then
+        # Stream mode: dispatch all packages across all tiers as one wavefront.
+        # The manifest is topologically ordered, so most dependencies are
+        # satisfied by the time a package starts.  The retry logic below
+        # catches the few that race (same intra-tier retry that already
+        # handles BuildRequires edges that fall inside a single tier).
         log ""
-        log "===== Tier: ${tier_name} (backend=${BACKEND}, jobs=${JOBS}) ====="
+        log "===== Stream (all tiers, backend=${BACKEND}, jobs=${JOBS}) ====="
+        build_stream pkg_total failed
+        tier_count=1
+    else
+        local tiers
+        tiers="$(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --tiers)"
 
-        build_tier "$tier_name" pkg_total failed
+        while IFS= read -r tier_name; do
+            if [[ -n "$FILTER_TIER" && "$tier_name" != "$FILTER_TIER" ]]; then
+                continue
+            fi
 
-        if ! $DRY_RUN; then
-            update_local_repo
-        fi
+            tier_count=$(( tier_count + 1 ))
+            log ""
+            log "===== Tier: ${tier_name} (backend=${BACKEND}, jobs=${JOBS}) ====="
 
-    done <<< "$tiers"
+            build_tier "$tier_name" pkg_total failed
+
+            if ! $DRY_RUN; then
+                update_local_repo
+            fi
+
+        done <<< "$tiers"
+    fi
 
     log ""
     log "===== Summary ====="
     log "Tiers processed: ${tier_count}"
     log "Packages built:  ${pkg_total}"
+    if $DEADLINE_HIT; then
+        log "Deferred (deadline): ${DEFERRED_COUNT}"
+        # The marker is how the CALLER learns this run is partial. It must be
+        # written before the failure exit below: a deferred run with failures
+        # is still partial, and a consumer that only checks the exit code
+        # would otherwise record it as a complete red rather than a truncated
+        # one.
+        if [[ -n "${CHAIN_DEFERRED_MARKER:-}" ]]; then
+            printf 'deferred=%s\nbudget_seconds=%s\n' \
+                "${DEFERRED_COUNT}" "${CHAIN_BUDGET_SECONDS:-}" \
+                > "${CHAIN_DEFERRED_MARKER}"
+        fi
+    fi
 
     if [[ ${#failed[@]} -gt 0 ]]; then
         err "Failed packages (${#failed[@]}):"
@@ -1284,6 +1634,15 @@ main() {
             err "  - ${f}"
         done
         exit 1
+    fi
+
+    if $DEADLINE_HIT; then
+        # NOT "all packages built". Exit 0 on purpose: the point of stopping
+        # cleanly is that validation, checksums, SBOM, attestation and the
+        # publish artifact all run on what DID build. The marker above is what
+        # keeps this partial out of the action cache.
+        log "Chain stopped at the soft deadline with ${DEFERRED_COUNT} package(s) deferred; partial output is complete and valid as far as it goes."
+        return 0
     fi
 
     log "All packages built successfully!"

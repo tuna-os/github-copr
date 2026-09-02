@@ -11,7 +11,7 @@
 #   podman tag mock-runner:local ghcr.io/tuna-os/mock-runner:centos-stream-10
 #   podman push ghcr.io/tuna-os/mock-runner:centos-stream-10
 
-FROM fedora:45
+FROM fedora:46
 
 RUN dnf install -y \
         mock \
@@ -39,7 +39,34 @@ RUN dnf install -y \
 # newer distribution-gpg-keys (>= 1.117) than F41 ships, so plain rpm -i
 # cannot resolve that — dnf against the F44 repos does, and --best keeps it
 # from silently settling for an older, still-broken candidate.
-RUN dnf --releasever=44 install -y --best mock-core-configs \
+#
+# --exclude=openssl-libs,fips-provider,mock: without it, dnf's depsolver treats
+# the switch to F44 repos as license to reconcile *other* already-installed
+# packages too, not just install mock-core-configs itself. It offers an
+# F44-tagged openssl-libs (already satisfied by the F45 base image) as an
+# "upgrade", which ships /usr/lib64/ossl-modules/fips.so — a file the F45
+# fips-provider package already owns. Two RPMs claiming the same file path
+# fails the transaction outright (`Rpm transaction failed`), not just a
+# resolvable dependency conflict. Excluding both keeps the base image's F45
+# openssl-libs/fips-provider untouched; mock-core-configs does not need a
+# newer openssl-libs, only the newer distribution-gpg-keys the comment above
+# describes.
+#
+# --exclude=mock + --disablerepo='updates*': with F44's updates repo live,
+# mock 6.8-1.fc44 (a newer build than the F45 base image's mock) requires
+# python(abi) = 3.14, which the F44 repos do not provide (F44 ships python
+# 3.13). The depsolver offers mock-6.8-1.fc44 as an "upgrade" and the
+# transaction dies with `Problem: package mock-6.8-1.fc44.noarch from updates
+# requires python(abi) = 3.14, but none of the providers can be installed`.
+# Worse, updates' mock-core-configs-45.1-1.fc44 then requires mock >= 6.8,
+# and with mock excluded there is no provider at all (`filtered out by
+# exclude filtering`). The F45 mock is already correct for the image;
+# mock-core-configs is all this step is for. Disabling the updates repos
+# removes both broken candidates: the depsolver then settles on the F44 base
+# mock-core-configs (real fedora-44-x86_64.cfg, not a rawhide symlink) or
+# keeps the already-installed F45-era 44.4-2.fc45 — either way the guard
+# below passes.
+RUN dnf --releasever=44 --disablerepo='updates*' install -y --best --exclude=openssl-libs --exclude=fips-provider --exclude=mock mock-core-configs \
     && rm -rf /var/cache/dnf \
     && test ! -L /etc/mock/fedora-44-x86_64.cfg
 
@@ -53,6 +80,7 @@ COPY centos-stream-10-ci-gnome50.cfg /etc/mock/centos-stream-10-ci-gnome50.cfg
 # invisible to the build; it has to be baked in like the others.
 COPY fedora-44-ci.cfg /etc/mock/fedora-44-ci.cfg
 COPY hummingbird-ci.cfg /etc/mock/hummingbird-ci.cfg
+COPY hummingbird-ci-aarch64.cfg /etc/mock/hummingbird-ci-aarch64.cfg
 
 # mock refuses to run as root outright — even `mock --version` exits with
 # "Insufficient rights." It expects an unprivileged user in the mock group and

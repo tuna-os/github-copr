@@ -19,7 +19,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ROOT / "manifests" / "package-factory.yaml"
-VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data", "custom"}
+VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data", "custom", "python"}
 DIST_GIT_RAW_REF = re.compile(r"https://src\.fedoraproject\.org/rpms/[^/]+/raw/([^/]+)/f/")
 
 
@@ -56,14 +56,62 @@ def resolve_capabilities(capabilities: list[str], target: str) -> list[str]:
     return packages
 
 
+def implied_capabilities(recipe: dict) -> list[str]:
+    """Capabilities a recipe's build settings require without naming them.
+
+    `build.cmake_generator: Ninja` makes ninja a build-time requirement on
+    every target, but nothing made that automatic: each target list had to
+    remember it by hand, and openSUSE's did not (#478). Its cells installed
+    no ninja, configured a Ninja tree anyway, and died in %cmake_build.
+    Deriving the dependency from the setting that causes it stops the two
+    drifting apart again -- and the catalog supplies the per-distro spelling
+    (`ninja-build` on EL and Debian, `ninja` on openSUSE and Arch), which is
+    the other half of what each list had to get right by hand.
+    """
+    if recipe.get("build_system") != "cmake":
+        return []
+    return ["ninja"] if recipe.get("build", {}).get("cmake_generator") == "Ninja" else []
+
+
+def deduplicate(names: list[str]) -> list[str]:
+    """Drop repeats, keeping first occurrence.
+
+    An implied capability can name a package a target list already carries
+    explicitly. Emitting it twice is harmless to every package manager here
+    but noisy in the rendered spec/control/PKGBUILD, and a duplicated
+    Build-Depends reads like a mistake to anyone auditing one.
+    """
+    seen: set[str] = set()
+    return [name for name in names if not (name in seen or seen.add(name))]
+
+
 def target_dependencies(recipe: dict, target: str) -> list[str]:
     build = recipe.get("dependencies", {}).get("build", {})
-    return list(build.get("common", [])) + resolve_capabilities(list(build.get("capabilities", [])), target) + list(build.get("targets", {}).get(target, []))
+    capabilities = list(build.get("capabilities", [])) + implied_capabilities(recipe)
+    return deduplicate(
+        list(build.get("common", []))
+        + resolve_capabilities(capabilities, target)
+        + list(build.get("targets", {}).get(target, []))
+    )
 
 
 def target_runtime_dependencies(recipe: dict, target: str) -> list[str]:
     runtime = recipe.get("dependencies", {}).get("runtime", {})
     return list(runtime.get("common", [])) + resolve_capabilities(list(runtime.get("capabilities", [])), target) + list(runtime.get("targets", {}).get(target, []))
+
+
+def provides_entries(recipe: dict) -> list[str]:
+    """Names this recipe's artifact also provides.
+
+    A recipe may declare `provides:` to alias an upstream name that runtime
+    Requires are written against -- cosmic-icon-theme provides `cosmic-icons`
+    (#169). Rendered into the RPM spec, the deb control file, and the Arch
+    PKGBUILD so the alias holds on every format.
+    """
+    provides = recipe.get("provides") or []
+    if isinstance(provides, str):
+        provides = [provides]
+    return [str(item) for item in provides]
 
 
 def generated_file_content_argument(content: str) -> str:
@@ -259,10 +307,11 @@ def go_module_mode(recipe: dict) -> str:
     return mode
 
 
-def go_build_command(recipe: dict, binary: str, package: str) -> str:
+def go_build_command(recipe: dict, binary: str, package: str, *, buildmode: str = "pie") -> str:
     """Render the portable Go build invocation for a recipe."""
     tags, ldflags = go_options(recipe)
-    return f"go build -buildmode=pie -trimpath -mod={go_module_mode(recipe)}{tags}{ldflags} -o {binary} {package}"
+    mode = f" -buildmode={buildmode}" if buildmode else ""
+    return f"go build{mode} -trimpath -mod={go_module_mode(recipe)}{tags}{ldflags} -o {binary} {package}"
 
 
 def with_build_environment(recipe: dict, command: str) -> str:
@@ -458,6 +507,32 @@ def validate_verify(recipe: dict) -> None:
             fail(f"unknown verify.targets.{name} key(s): {sorted(unknown)}")
 
 
+def portable_payload_contract(recipe: dict) -> dict | None:
+    """Detect recipes the handler can safely build independently of a distro.
+
+    This is deliberately a property of Tideforge's implementation, not a
+    promise copied into each package manifest.  Data installs contain no ABI,
+    while the standardized Go handler can attempt a CGO-disabled build and
+    prove the resulting ELF is fully static before it is reused.  Anything the
+    carrier cannot faithfully represent stays on the existing native path.
+    """
+    outputs = recipe.get("outputs", {})
+    if len(outputs.get("deb", {}).get("packages", [])) > 1 or outputs.get("rpm", {}).get("subpackages"):
+        return None
+    if recipe.get("build_system") == "data":
+        return {"mode": "portable-payload", "architecture": "noarch"}
+    if recipe.get("build_system") == "go":
+        environment = recipe.get("build", {}).get("environment", {})
+        if str(environment.get("CGO_ENABLED", "0")) != "0":
+            return None
+        return {
+            "mode": "portable-payload",
+            "architecture": "per-arch",
+            "probe": "fully-static-elf",
+        }
+    return None
+
+
 def validate(recipe: dict, target: str | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
@@ -528,7 +603,19 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
         options = meson_options(recipe or {})
         return f"%meson {options}\n%meson_build".rstrip(), "%meson_install"
     if build_system == "autotools":
-        prefix = "autoreconf -fi\n" if autoreconf_enabled(recipe or {}) else ""
+        # build.environment was wired into the cargo and go paths only, so an
+        # autotools recipe had no way to influence its own link line:
+        # configure_options rejects anything not starting with "--", and
+        # nothing prefixed %configure. libunwind needed LIBS=-lgcc_s and could
+        # express it nowhere (#469), shipping an aarch64 library with four
+        # undefined outline-atomics symbols.
+        #
+        # Exported on their own lines rather than prefixed onto %configure:
+        # that macro expands to a multi-line script, so `VAR=x %configure`
+        # would apply the assignment to its first command only.
+        exports = build_environment_exports(recipe or {})
+        prefix = f"{exports}\n" if exports else ""
+        prefix += "autoreconf -fi\n" if autoreconf_enabled(recipe or {}) else ""
         options = configure_options(recipe or {})
         # Delete libtool archives explicitly. EL10's rpm strips them in
         # brp-remove-la-files, so the el10 gate never sees them; openSUSE's
@@ -545,10 +632,63 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
         return go_build_command(recipe or {}, "%{name}", "."), "install -Dm0755 %{name} %{buildroot}%{_bindir}/%{name}"
     if build_system == "data":
         return ":", ":"
+    if build_system == "python":
+        return "%pyproject_wheel", "%pyproject_install"
     if build_system == "custom":
         return custom_commands(recipe or {}, "build"), custom_commands(recipe or {}, "install", "%{buildroot}")
     options = " ".join(filter(None, [cmake_generator(recipe or {}), cmake_options(recipe or {})]))
     return f"%cmake {options}\n%cmake_build".rstrip(), "%cmake_install"
+
+
+def ships_a_shared_library(paths: list[str]) -> bool:
+    """Whether a file list installs a versioned shared library.
+
+    Matches `libfoo.so.1`, `libfoo.so.1.0.4` and the globs recipes write for
+    them (`usr/lib64/libcpptrace.so*`), while ignoring a bare `libfoo.so`
+    development symlink on its own -- that alone needs no ldconfig.
+    """
+    for path in paths:
+        name = path.rsplit("/", 1)[-1]
+        if ".so" not in name:
+            continue
+        tail = name.split(".so", 1)[1]
+        if tail.startswith(".") or tail.startswith("*"):
+            return True
+    return False
+
+
+def rpm_ldconfig_scriptlets(recipe: dict) -> str:
+    """`%post`/`%postun` ldconfig for every RPM subpackage shipping a library.
+
+    Fedora and EL do not need these: their glibc carries RPM FILE TRIGGERS
+    that run ldconfig for anything landing in a library directory, so a spec
+    omitting them still ends up with a correct cache. openSUSE has no such
+    trigger. cpptrace-devel installed cleanly on Tumbleweed and then failed
+    its own smoke contract:
+
+        ldconfig -p | grep -F libcpptrace.so.1     -> no match, exit 1
+
+    while both el10 cells passed the identical assertion. rpmlint had been
+    reporting the cause on every openSUSE build all along:
+
+        E: library-without-ldconfig-postin  /usr/lib64/libcpptrace.so.1.0.4
+        E: library-without-ldconfig-postun  /usr/lib64/libcpptrace.so.1.0.4
+
+    Written as `%post -p /sbin/ldconfig` rather than Fedora's
+    `%ldconfig_scriptlets`, because that macro is not defined on openSUSE --
+    using it would leave the literal text in the spec on the one distro that
+    actually needs the scriptlet.
+    """
+    rpm_output = recipe.get("outputs", {}).get("rpm", {})
+    blocks: list[str] = []
+    if ships_a_shared_library(list(rpm_output.get("files", recipe["files"]["common"]))):
+        blocks.append("%post -p /sbin/ldconfig")
+        blocks.append("%postun -p /sbin/ldconfig")
+    for subpackage in rpm_output.get("subpackages", []):
+        if ships_a_shared_library(list(subpackage.get("files", []))):
+            blocks.append(f"%post {subpackage['name']} -p /sbin/ldconfig")
+            blocks.append(f"%postun {subpackage['name']} -p /sbin/ldconfig")
+    return "\n".join(blocks)
 
 
 def rpm_subpackage_block(subpackage: dict) -> str:
@@ -592,6 +732,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         install = custom_commands(recipe, "install", "%{buildroot}")
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
+    provides = "\n".join(f"Provides:       {dep}" for dep in provides_entries(recipe))
     rpm_output = recipe.get("outputs", {}).get("rpm", {})
     files = "\n".join(f"/{path.lstrip('/')}" for path in rpm_output.get("files", recipe["files"]["common"]))
     subpackage_definitions = "\n".join(
@@ -632,16 +773,40 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     # rpmbuild with "Empty %files file debugsourcefiles.list". Cargo builds
     # retain debuginfo so native RPM debug packages can be generated normally.
     rpm_preamble = ""
-    if recipe["build_system"] in {"go", "data", "custom"} or not debug_package_enabled(recipe):
+    if recipe["build_system"] in {"go", "data", "custom", "python"} or not debug_package_enabled(recipe):
         rpm_preamble = "%global debug_package %{nil}\n"
+    # openSUSE derives the CMake generator FROM %__builder rather than from
+    # anything the spec passes: its %cmake emits -G"Unix Makefiles" unless
+    # %__builder differs from %__make, and its %cmake_build expands to plain
+    # `%__builder ... %{?_smp_mflags}`. A recipe asking for Ninja therefore
+    # got a Ninja tree (our -G wins, being last) that %cmake_build then drove
+    # with make -- "No targets specified and no makefile found. Stop." (#478).
+    #
+    # Setting %__builder fixes the whole chain at once: %cmake emits -GNinja
+    # itself, %__builder_verbose becomes -v, %cmake_build runs `ninja -v`, and
+    # %cmake_install runs `ninja install -C build`.
+    #
+    # Emitted for every RPM target rather than gated on the target name.
+    # Fedora and EL never read %__builder -- zero references in both
+    # cmake's macros.cmake.in and redhat-rpm-config/macros, checked against
+    # rawhide -- so it is inert there, and a mechanism-driven emit cannot
+    # regress the way a name list would when the next openSUSE-family target
+    # is added. %__ninja is the sanctioned spelling and both distributions'
+    # ninja packages define it; implied_capabilities guarantees one is
+    # installed whenever this line is emitted.
+    if recipe["build_system"] == "cmake" and cmake_generator(recipe):
+        rpm_preamble += "%global __builder %__ninja\n"
+    ldconfig_scriptlets = rpm_ldconfig_scriptlets(recipe)
+    auxiliary_sources_str = "".join(f"Source{index}:        {rpm_source_field(source, index)}\n" for index, source in enumerate(auxiliary_sources, start=1))
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
 Release:        {recipe.get('release', 1)}%{{?dist}}
 Summary:        {recipe['summary']}
 License:        {recipe['license']}
 Source0:        {rpm_source_field(recipe['source'], 0)}
-{''.join(f"Source{index}:        {rpm_source_field(source, index)}\n" for index, source in enumerate(auxiliary_sources, start=1))}{requires}
+{auxiliary_sources_str}{requires}
 {runtime_requires}
+{provides}
 
 %description
 {recipe['description']}
@@ -657,6 +822,8 @@ Source0:        {rpm_source_field(recipe['source'], 0)}
 %install
 {install}
 {extra_install}
+
+{ldconfig_scriptlets}
 
 %files
 {files}
@@ -687,11 +854,12 @@ def render_deb(recipe: dict, target: str) -> dict[str, str]:
     deb_output = recipe.get("outputs", {}).get("deb", {})
     binary_packages = deb_output.get("packages", [{"name": recipe["name"], "summary": recipe["summary"], "description": recipe["description"], "files": recipe["files"]["common"]}])
     recipe_runtime_dependencies = target_runtime_dependencies(recipe, target)
+    provides_field = "".join(f"Provides: {provided}\n" for provided in provides_entries(recipe))
     package_stanzas = "\n".join(
         f"""Package: {package['name']}
 Architecture: any
 Depends: {', '.join(['${shlibs:Depends}', '${misc:Depends}', *recipe_runtime_dependencies, *package.get('depends', [])])}
-Description: {package.get('summary', recipe['summary'])}
+{provides_field}Description: {package.get('summary', recipe['summary'])}
  {package.get('description', recipe['description'])}
 """
         for package in binary_packages
@@ -706,7 +874,22 @@ Rules-Requires-Root: no
 
 {package_stanzas}
 """
-    buildsystem = {"meson": "meson", "autotools": "autoconf", "cmake": "cmake"}.get(recipe["build_system"])
+    buildsystem = {"meson": "meson", "autotools": "autoconf", "cmake": "cmake", "python": "pybuild"}.get(recipe["build_system"])
+    # debhelper's `cmake` buildsystem runs `make` in dh_auto_build regardless of
+    # the generator. Passing -G Ninja through dh_auto_configure therefore wrote
+    # build.ninja and then ran make against it, for every deb cell of a recipe
+    # that asked for Ninja (run 32556308211):
+    #
+    #     cd obj-x86_64-linux-gnu && make -j4 ...
+    #     make[1]: *** No targets specified and no makefile found.  Stop.
+    #
+    # cmake+ninja is debhelper's own generator-aware variant: it passes -GNinja
+    # at configure time AND builds with ninja. The generator must then NOT be
+    # passed by hand as well -- the configure line already carried debhelper's
+    # "-GUnix Makefiles" plus our "-G Ninja", and two -G flags is exactly the
+    # ambiguity that produced this.
+    if recipe["build_system"] == "cmake" and cmake_generator(recipe):
+        buildsystem = "cmake+ninja"
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
@@ -740,7 +923,8 @@ Rules-Requires-Root: no
         # the same recipe built on el10 and failed on debian/ubuntu.
         rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem=none\n\noverride_dh_auto_build:\n\t:\n\noverride_dh_auto_install:\n\t:\n"
     else:
-        options = " ".join(filter(None, [cmake_generator(recipe), cmake_options(recipe)])) if recipe["build_system"] == "cmake" else meson_options(recipe) if recipe["build_system"] == "meson" else ""
+        cmake_configure_options = [cmake_options(recipe)] if buildsystem == "cmake+ninja" else [cmake_generator(recipe), cmake_options(recipe)]
+        options = " ".join(filter(None, cmake_configure_options)) if recipe["build_system"] == "cmake" else meson_options(recipe) if recipe["build_system"] == "meson" else ""
         if options:
             configure = f"\noverride_dh_auto_configure:\n\tdh_auto_configure -- {options}\n"
         elif recipe["build_system"] == "autotools" and autoreconf_enabled(recipe):
@@ -761,7 +945,7 @@ Rules-Requires-Root: no
     # (tideforge emits no %check), so skip them here too for RPM/DEB parity. The
     # cargo/go/data/custom branches already replace dh_auto_build/install and do
     # not auto-detect a testable build system, so they need no override.
-    if recipe["build_system"] in {"meson", "cmake", "autotools"}:
+    if recipe["build_system"] in {"meson", "cmake", "autotools", "python"}:
         rules = rules.rstrip() + "\n\noverride_dh_auto_test:\n\t:\n"
     # Delete libtool archives after staging, mirroring the rpm renderer's
     # cleanup after %make_install. A libtool build ships .la files whose
@@ -812,7 +996,7 @@ License: {recipe['license']}
     # xfconf and libseat do stage through debian/tmp, so they keep their
     # .install lists to carve it up between the binary packages.
     direct_install = (
-        recipe["build_system"] in {"cargo", "go", "data", "custom"}
+        recipe["build_system"] in {"cargo", "go", "data", "custom", "python"}
         or bool(recipe.get("install"))
         or len(binary_packages) == 1
     )
@@ -831,6 +1015,7 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     source_directory = recipe["source"].get("directory", f"{recipe['name']}-{recipe['version']}")
     makedepends = " ".join(f"'{dependency}'" for dependency in target_dependencies(recipe, target))
     depends = " ".join(f"'{dependency}'" for dependency in target_runtime_dependencies(recipe, target))
+    provides = " ".join(f"'{dependency}'" for dependency in provides_entries(recipe))
     sources = source_entries(recipe)
     source = recipe["source"]["url"]
     if recipe["build_system"] == "cargo":
@@ -858,6 +1043,9 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     elif recipe["build_system"] == "data":
         build = ":"
         install = ":"
+    elif recipe["build_system"] == "python":
+        build = "python -m build --wheel --no-isolation"
+        install = 'python -m installer --destdir="$pkgdir" dist/*.whl'
     elif recipe["build_system"] == "custom":
         build = "\n  ".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
         install = custom_commands(recipe, "install", "$pkgdir")
@@ -897,6 +1085,7 @@ url={source!r}
 license=({recipe['license']!r})
 makedepends=({makedepends})
 depends=({depends})
+provides=({provides})
 source=(
 {source_lines}
 )

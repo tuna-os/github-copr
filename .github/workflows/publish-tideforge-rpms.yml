@@ -1,0 +1,282 @@
+# Publish Tideforge-built el10 RPMs to the R2-backed repos (#439).
+#
+# The rpm half of publish-tideforge-debs.yml, and the missing convergence
+# step of the package factory: cells verify cross-cell deps against the
+# target's published_index (#440/#442) and resolve cross-cell BuildRequires
+# from the same repo, but nothing ever PUBLISHED a tideforge rpm cell's
+# output — the only writers of the served el10 repo are the COPR-mirror
+# chains (build.yml, build-distributed.yml). So a green leaf cell
+# (pop-icon-theme, libseat, gtk-layer-shell) stayed invisible to its
+# dependents, and the factory could not converge no matter how many waves
+# ran.
+#
+# Destinations follow the precedents:
+#   * x86_64 → repo/10-stream-x86_64 + repo/10-x86_64, the served
+#     repo.tunaos.org/repo/10/x86_64/ that published_index.x86_64 already
+#     names and every el10 image already consumes (build.yml's paths).
+#   * aarch64 → rpm/el10/aarch64, the target contract's r2_path — this
+#     CREATES the served aarch64 index the contract documents as missing;
+#     flip published_index.aarch64 to it once this has run green.
+#
+# Dispatch-only, like the deb publisher: publishing is a deliberate act,
+# not a side effect of a merge. The gate cells prove PRs; this workflow
+# ships what main has. Widen the default package list in lockstep with the
+# factory run — nothing gets published that a factory cell has not proven.
+name: Publish Tideforge RPMs
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Comma-separated recipe names under packages/ to build and publish
+        # The wave-1 default: every tideforge el10 cell green on BOTH arches
+        # in factory run 32382594650.
+        default: libseat,greetd,gtk-layer-shell,wayland-protocols,ninja-build,libunwind-devel,python3-evdev,evtest,uupd,oversteer-udev,kairpods,dgop,danksearch,xfwm4-themes,cosmic-panel,cosmic-randr
+        required: true
+      arches:
+        description: Comma-separated arches; empty means every arch the target declares
+        default: x86_64,aarch64
+        required: true
+      target:
+        description: Which contract target to publish (el10, opensuse-tumbleweed)
+        default: el10
+        required: true
+
+concurrency:
+  # SHARED with publish-build-chain-rpms.yml, not a group of its own. Both
+  # publishers `rclone sync` into the same bucket, and sync makes the
+  # destination match the source -- two running at once can delete each
+  # other's packages (#124 / INCIDENT-repo-wipe-gnome).
+  group: publish-rpms
+  cancel-in-progress: false
+
+env:
+  R2_BUCKET: bluefin
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      publish_matrix: ${{ steps.plan.outputs.publish_matrix }}
+      arches: ${{ steps.plan.outputs.arches }}
+      image: ${{ steps.plan.outputs.image }}
+      target: ${{ steps.plan.outputs.target }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - id: plan
+        run: |
+          set -euo pipefail
+          python3 scripts/plan-rpm-publish.py \
+            --target '${{ inputs.target }}' \
+            --packages '${{ inputs.packages }}' \
+            --arches '${{ inputs.arches }}' \
+            --github-output "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.package }} (${{ matrix.arch }})
+    needs: plan
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      # The GATE's cell id, so a restore lands where the build would have
+      # written. See .github/actions/tideforge-cached-cell (#481).
+      CELL_ID: ${{ matrix.cell_id }}
+      RECIPE: packages/${{ matrix.package }}/package.yaml
+      IMAGE: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: ${{ env.RECIPE }}
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh "$IMAGE"
+      - name: Restore the gated build, or build it if there is none
+        uses: ./.github/actions/tideforge-cached-cell
+        with:
+          cell-id: ${{ matrix.cell_id }}
+          package: ${{ matrix.package }}
+          recipe: packages/${{ matrix.package }}/package.yaml
+          target: ${{ matrix.target }}
+          format: rpm
+          architecture: ${{ matrix.arch }}
+          image: ${{ matrix.image }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: publish-rpm-${{ matrix.target }}-${{ matrix.arch }}-${{ matrix.package }}
+          path: .factory/${{ env.CELL_ID }}/artifacts/*.rpm
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    strategy:
+      # Serial: both arches talk to the same bucket and rclone config; one
+      # at a time keeps the failure story readable (deb publisher precedent).
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.plan.outputs.publish_matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install tooling
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q createrepo-c rpm gpg gpgconf
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+      - name: Import GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Configure rpmsign and rclone
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          echo "%_signature gpg" > ~/.rpmmacros
+          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
+          mkdir -p ~/.config/rclone
+          umask 077
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = ${R2_ENDPOINT}
+          EOF
+      - name: Sync down the existing repo
+        run: |
+          set -euo pipefail
+          mkdir -p repo
+          src='${{ matrix.src }}'
+          echo "src=$src" >> "$GITHUB_ENV"
+          # NOT `|| true`. The sync-up later in this job makes the bucket MATCH
+          # repo/, so any object that failed to come down here is DELETED from
+          # the bucket there. Swallowing a partial sync-down is precisely how
+          # repo/10/x86_64 lost ~160 served package names between 2026-08-20
+          # and 2026-08-25 (#519) -- gdk-pixbuf2, harfbuzz, gnome-desktop3 and
+          # malcontent among them. Those are dependencies, not leaves, so dnf
+          # then reported gtk4 and 17 others as BROKEN rather than missing, and
+          # tunaOS shipped a hummingbird:gnome image containing no GNOME at all
+          # (410 packages: wallpapers and docs). Same shape as #124 /
+          # INCIDENT-repo-wipe-gnome, one prefix at a time.
+          #
+          # publish-rpm-wave.sh's NEVER SHRINK guard cannot catch this: it
+          # counts RPMs in the local tree, and these files were never synced
+          # down to be counted.
+          #
+          # rclone exit 3 is "directory not found" -- the legitimate
+          # first-publish case for a new prefix. Every other non-zero status is
+          # a real failure and must stop the job BEFORE the destructive
+          # sync-up, not after.
+          set +e
+          rclone sync "r2:${R2_BUCKET}/${src}/" repo/ --exclude "repodata/**"
+          _sync_rc=$?
+          set -e
+          if ((_sync_rc == 3)); then
+            echo "::notice::no existing objects at ${src} — treating as first publish"
+          elif ((_sync_rc != 0)); then
+            echo "::error::sync-down of ${src} failed (rclone rc=${_sync_rc}); refusing to continue — the sync-up in this job would DELETE every object that failed to come down"
+            exit 1
+          fi
+          # The #124 / INCIDENT-repo-wipe-gnome lesson: rclone sync makes the
+          # destination match the source, so an accidentally-partial local
+          # tree would DELETE the served repo. A prefix known to hold hundreds
+          # of packages refuses to continue from a suspiciously small
+          # download; a prefix this workflow CREATES starts empty by design
+          # and carries min_rpms 0, because a minimum would make the first
+          # publish impossible. The planner decides which is which.
+          min_rpms='${{ matrix.min_rpms }}'
+          if [ "${min_rpms:-0}" -gt 0 ]; then
+            count=$(find repo -name '*.rpm' | wc -l)
+            if [ "$count" -lt "$min_rpms" ]; then
+              echo "ERROR: only $count RPMs synced down from ${src}; expected at least ${min_rpms}; refusing to risk a repo wipe" >&2
+              exit 1
+            fi
+          fi
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: publish-rpm-${{ needs.plan.outputs.target }}-${{ matrix.arch }}-*
+          path: staged
+          merge-multiple: true
+      - name: Sign and index
+        # Shared with publish-build-chain-rpms.yml. Every rule in that script
+        # -- refuse an empty wave, never let the tree shrink, rename '+' across
+        # the WHOLE tree, exclude srpms -- was learned from an incident here,
+        # and a hand-copied second publisher would have to learn each one
+        # again. scripts/publish-rpm-wave.sh carries the reasoning inline and
+        # tests/test_publish_rpm_wave.py pins the behaviour.
+        run: |
+          set -euo pipefail
+          bash scripts/publish-rpm-wave.sh \
+            --staged staged --repo repo --subdir tideforge
+      - name: Sync up
+        run: |
+          set -euo pipefail
+          rclone sync repo/ "r2:${R2_BUCKET}/${src}/"
+          # el10 x86_64 additionally mirrors into the legacy COPR prefix that
+          # buildroots actually read. Only that one row declares a mirror.
+          mirror='${{ matrix.mirror }}'
+          if [ -n "$mirror" ]; then
+            rclone sync repo/ "r2:${R2_BUCKET}/${mirror}/"
+          fi
+
+  # The anti-#179 job, from the FIRST publish: install every published
+  # package from the SERVED URL on a clean image-contract container, in the
+  # TARGET'S package manager. The el10 branch enables base + crb + epel (its
+  # system_repositories); the tumbleweed branch adds the served repo with
+  # the same inverted-priority semantics the cell runner uses (system repos
+  # at 99, ours at 200, so shared names stay Tumbleweed's). A dnf script
+  # inside a zypper image dies on 'dnf: command not found' — the first
+  # tumbleweed wave's verify proved that — so a repo that was never
+  # actually published can never sit behind a green workflow, on any target.
+  verify:
+    needs: [plan, publish]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.publish_matrix) }}
+    steps:
+      - name: Install the published wave from the served repo
+        env:
+          PACKAGES: ${{ inputs.packages }}
+          TARGET: ${{ needs.plan.outputs.target }}
+        run: |
+          set -euo pipefail
+          url='${{ matrix.served }}'
+          docker run --rm --env PACKAGES --env TARGET --env URL="$url" '${{ needs.plan.outputs.image }}' bash -lc '
+            set -euo pipefail
+            if [[ "$TARGET" == opensuse-tumbleweed ]]; then
+              zypper --non-interactive addrepo --no-gpgcheck --priority 200 "$URL" tunaos
+              zypper --non-interactive refresh
+              zypper --non-interactive install --no-recommends $(echo "$PACKAGES" | tr "," " ")
+            else
+              dnf -y install epel-release "dnf-command(config-manager)"
+              dnf config-manager --set-enabled crb
+              dnf -y install --nogpgcheck --repofrompath tunaos,"$URL" --enablerepo=tunaos \
+                $(echo "$PACKAGES" | tr "," " ")
+            fi
+            rpm -q $(echo "$PACKAGES" | tr "," " ")
+          '

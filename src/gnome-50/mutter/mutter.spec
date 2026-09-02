@@ -26,6 +26,10 @@ Summary:       Window and compositing manager based on Clutter
 License:       GPL-2.0-or-later
 URL:           http://www.gnome.org
 Source0:        https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
+# pango 1.58 (src/deps/pango) defines the PangoRenderer autoptr; clutter's
+# own definition then collides. Guarded by PANGO_VERSION_CHECK in-source,
+# so the patch is safe against any pango.
+Patch0: mutter-50-pango-158-autoptr.patch
 
 BuildRequires: gcc
 BuildRequires: gcc-c++
@@ -162,7 +166,7 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 Viewer for nested mutter instances.
 
 %prep
-%autosetup -n %{name}-%{tarball_version}
+%autosetup -n %{name}-%{tarball_version} -p1
 
 %build
 meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build -Degl_device=true
@@ -225,5 +229,5 @@ DESTDIR=%{buildroot} meson install -C build
 - Add missing atk and libdecor BuildRequires
 - Enable libcanberra BuildRequires (now GTK3-free)
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-2
-- Fix: move meson setup/compile from %prep to %build
+- Fix: move meson setup/compile from %%prep to %%build
 - EL10: gate libcanberra BuildRequires behind %if !0%?rhel (pulls in gtk3)

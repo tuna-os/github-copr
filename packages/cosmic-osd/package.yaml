@@ -31,11 +31,20 @@ dependencies:
     capabilities: [rust]
     targets:
       el10: [cargo, clang, clang-devel, just, libinput-devel, libxkbcommon-devel, lld, pipewire-devel, pulseaudio-libs-devel, systemd-devel, wayland-devel]
+      ubuntu: [cargo, clang, just, libinput-dev, libxkbcommon-dev, lld, libpipewire-0.3-dev, libpulse-dev, libsystemd-dev, libwayland-dev]
+      debian: [cargo, clang, just, libinput-dev, libxkbcommon-dev, lld, libpipewire-0.3-dev, libpulse-dev, libsystemd-dev, libwayland-dev]
   runtime:
     targets:
+      # cosmic-icon-theme is TunaOS-built and ships in neither deb archive;
+      # the gate's clean-install repo only holds the cell's own artifact
+      # (same call as cosmic-settings, #225). pulseaudio-utils is stock.
       el10: [cosmic-icon-theme >= 1.4.0, pulseaudio-utils]
+      ubuntu: [pulseaudio-utils]
+      debian: [pulseaudio-utils]
 files:
   common: [usr/bin/cosmic-osd]
 install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
-targets: [el10]
+verify:
+  smoke: test -x /usr/bin/cosmic-osd
+targets: [el10, ubuntu, debian]

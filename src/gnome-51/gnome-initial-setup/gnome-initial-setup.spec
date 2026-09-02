@@ -5,8 +5,8 @@
 %global geoclue_version 2.6.0
 %global gnome_desktop_version 44.0-7
 
-%global tarball_version 50.0
-%global major_version 50
+%global tarball_version 51.beta
+%global major_version 51
 
 %if 0%{?rhel}
 %bcond_with webkitgtk
@@ -15,8 +15,8 @@
 %endif
 
 Name:           gnome-initial-setup
-Version:        50.0
-Release:        5%{?dist}
+Version:        51~beta
+Release:        1%{?dist}
 Summary:        Bootstrapping your OS
 
 License:        GPL-2.0-or-later
@@ -134,26 +134,4 @@ useradd -rM -d /run/gnome-initial-setup/ -s /sbin/nologin %{name} &>/dev/null ||
 %{_userunitdir}/*
 
 %changelog
-* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-5
-- Re-enable parental controls (-Dparental_controls=enabled)
-- Add BuildRequires: pkgconfig(malcontent-0), pkgconfig(malcontent-ui-1)
-- flatpak-devel and appstream-devel now available from our COPR
-- malcontent 0.14.0 now built in COPR
-
-* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-4
-- Revert parental_controls=enabled: flatpak-devel and appstream-devel not
-  available in EL10/EPEL 10 (needed by libmalcontent-ui). Track in TODO.
-
-* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
-- Enable parental controls (-Dparental_controls=enabled); malcontent and
-  libglib-testing are now available in the COPR
-- Add BuildRequires: malcontent-0, malcontent-ui-1
-
-* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
-- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
-  to avoid "fg: no job control" on COPR builders (non-interactive bash)
-
-* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
-- Update to 50.0 for GNOME 50 on EL10
-- Track F44 branch; webkitgtk disabled for RHEL builds
-- Replace %%autorelease/%%autochangelog with manual macros (EL10 compat)
+%autochangelog

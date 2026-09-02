@@ -1,4 +1,4 @@
-%global commit eab153323158378a180cd7104d1d8f024631bea0
+%global commit ea7af5bdbeaa0ffb62213e55c5546cfc9c287d68
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: xfconf
 Version: 4.21.2
@@ -63,5 +63,5 @@ building against xfconf.
 
 %changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
-- Packaged for the XFCE Wayland stack (tuna-os/github-copr#65)
+- Packaged for the XFCE Wayland stack (tuna-os/tunaos-packages#65)
 

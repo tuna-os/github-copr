@@ -1,0 +1,175 @@
+name: Chain band (reusable)
+
+# One BAND of build-chain-fanout.yml: a contiguous run of build-order tiers,
+# split into disjoint package shards that build concurrently on free hosted
+# runners, then collected by exactly ONE writer into the cumulative band
+# repo. Packages within a tier are dependency-independent by construction,
+# which is what makes the shard split legal; dependencies on EARLIER bands
+# come from the cumulative artifact, and dependencies already published come
+# from the served index (both via the local-repo / priority mechanism the
+# single-runner chain already uses).
+#
+# A shard that needs a same-band package owned by another shard resolves it
+# from the SERVED index when an earlier leg published it, and fails fast when
+# nothing serves it yet -- that package heals on the next fanout run, after
+# the collector has merged its dependency. Fan-out is a gap-closer riding a
+# mostly-served index, not a from-scratch bootstrapper; the first full
+# bootstrap of a target belongs to the single-runner chain.
+
+on:
+  workflow_call:
+    inputs:
+      cell_id: {type: string, required: true}
+      target: {type: string, required: true}
+      architecture: {type: string, required: true}
+      runner: {type: string, required: true}
+      image: {type: string, required: true}
+      manifest: {type: string, required: true}
+      mock_config: {type: string, required: true}
+      epoch: {type: string, required: true}
+      band_index: {type: number, required: true}
+      band_tiers: {type: string, required: true}
+      # JSON array of arrays: shards_json[i] lists shard i's src/ paths.
+      shards_json: {type: string, required: true}
+      served_index_url: {type: string, required: true}
+
+permissions:
+  contents: read
+
+jobs:
+  shard:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 350
+    strategy:
+      # One red shard must not cancel its siblings: every finished package
+      # still reaches the collector, and the next run heals the failure.
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(inputs.shards_json) }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install native build tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q createrepo-c podman rpm
+          # Same knob #564 documented: Ubuntu 24.04's default AppArmor
+          # confinement kills rootless podman's first clone(); hosted images
+          # ship it off, but a no-op re-set is cheaper than assuming.
+          sudo sysctl -e -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Pull the declared build image
+        run: docker pull -q '${{ inputs.image }}'
+      - name: Restore the cumulative band repo
+        if: ${{ inputs.band_index != 0 }}
+        uses: actions/download-artifact@v8
+        with:
+          name: fanout-repo-${{ inputs.cell_id }}
+          path: .factory/${{ inputs.cell_id }}/artifacts
+      - name: Index what was restored
+        run: |
+          set -euo pipefail
+          mkdir -p '.factory/${{ inputs.cell_id }}/artifacts'
+          find '.factory/${{ inputs.cell_id }}/artifacts' -maxdepth 1 -name '*.rpm' \
+            -printf '%f\n' | sort > /tmp/rpms-before.txt
+          wc -l < /tmp/rpms-before.txt
+      - name: List what the published index already serves
+        run: |
+          set -euo pipefail
+          python3 scripts/list-served-nvrs.py '${{ inputs.served_index_url }}' \
+            > /tmp/served-nvrs.txt
+          echo "served NVRs: $(wc -l < /tmp/served-nvrs.txt)"
+      - name: Write this shard's package list
+        env:
+          SHARD_JSON: ${{ toJSON(matrix.shard) }}
+        run: |
+          set -euo pipefail
+          python3 -c 'import json,os; print("\n".join(json.loads(os.environ["SHARD_JSON"])))' \
+            > /tmp/shard-packages.txt
+          cat /tmp/shard-packages.txt
+      - name: Build the shard
+        env:
+          CELL_ID: ${{ inputs.cell_id }}
+          ENGINE: build-chain
+          TARGET: ${{ inputs.target }}
+          ARCHITECTURE: ${{ inputs.architecture }}
+          IMAGE: ${{ inputs.image }}
+          MANIFEST: ${{ inputs.manifest }}
+          MOCK_CONFIG: ${{ inputs.mock_config }}
+          SOURCE_DATE_EPOCH: ${{ inputs.epoch }}
+          TIERS: ${{ inputs.band_tiers }}
+          CHAIN_PACKAGES_FILE: /tmp/shard-packages.txt
+          CHAIN_SERVED_NVRS: /tmp/served-nvrs.txt
+          # A shard holds a fraction of a band; 4.5h of budget inside the
+          # 350-minute ceiling is generous, and the drain semantics match
+          # the single-runner chain.
+          CHAIN_BUDGET_SECONDS: 16200
+        run: bash scripts/run-package-factory-cell.sh
+      - name: Stage only what this shard built
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/shard-new
+          find '.factory/${{ inputs.cell_id }}/artifacts' -maxdepth 1 -name '*.rpm' \
+            -printf '%f\n' | sort > /tmp/rpms-after.txt
+          comm -13 /tmp/rpms-before.txt /tmp/rpms-after.txt | while IFS= read -r f; do
+            cp ".factory/${{ inputs.cell_id }}/artifacts/$f" /tmp/shard-new/
+          done
+          # Failure logs and buildroot manifests ride along for diagnosis.
+          for extra in failure-logs buildroots; do
+            if [ -d ".factory/${{ inputs.cell_id }}/artifacts/$extra" ]; then
+              cp -r ".factory/${{ inputs.cell_id }}/artifacts/$extra" /tmp/shard-new/
+            fi
+          done
+          echo "new RPMs: $(find /tmp/shard-new -maxdepth 1 -name '*.rpm' | wc -l)"
+      # always(): a shard that failed one package still built others, and
+      # publishing the built ones is the whole point (#563's lesson, applied
+      # at shard granularity). warn: a shard whose every package was already
+      # served has nothing new, and that is success, not error.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: fanout-new-${{ inputs.cell_id }}-b${{ inputs.band_index }}-s${{ strategy.job-index }}
+          path: /tmp/shard-new/
+          if-no-files-found: warn
+
+  collect:
+    needs: shard
+    # !cancelled(): red shards still produced artifacts worth merging; a
+    # cancelled run must not write the cumulative artifact at all.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Restore the cumulative band repo
+        if: ${{ inputs.band_index != 0 }}
+        uses: actions/download-artifact@v8
+        with:
+          name: fanout-repo-${{ inputs.cell_id }}
+          path: repo
+      - name: Merge every shard's new packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: fanout-new-${{ inputs.cell_id }}-b${{ inputs.band_index }}-s*
+          path: shards
+          merge-multiple: true
+      - name: Index the merged repo
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q && sudo apt-get install -y -q createrepo-c
+          mkdir -p repo
+          # Shards are disjoint by construction, so -n never actually
+          # collides; it is a guard, not a policy.
+          find shards -maxdepth 1 -name '*.rpm' -exec cp -n {} repo/ \; 2>/dev/null || true
+          for extra in failure-logs buildroots; do
+            if [ -d "shards/$extra" ]; then
+              mkdir -p "repo/$extra"
+              cp -rn "shards/$extra/." "repo/$extra/" || true
+            fi
+          done
+          createrepo_c repo/
+          echo "cumulative RPMs after band ${{ inputs.band_index }}: $(find repo -maxdepth 1 -name '*.rpm' | wc -l)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: fanout-repo-${{ inputs.cell_id }}
+          path: repo/
+          overwrite: true
+          if-no-files-found: warn

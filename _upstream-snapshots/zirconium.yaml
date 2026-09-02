@@ -1,0 +1,76 @@
+# Zirconium snapshot package declarations.
+#
+# Zirconium is the Niri/DMS desktop and session integration upstream.  This
+# snapshot declares the curated packages the register (docs/UPSTREAM_PARITY.md)
+# tracks; greetd PAM/sysusers/tmpfiles/DMS-policy/session-file configuration is
+# image-owned curated configuration and is not a package declaration, so it is
+# recorded in the register rather than here.
+#
+# `disposition` is verified against this repository by
+# scripts/audit-upstream-parity.py (see _upstream-snapshots/bluefin-lts.yaml
+# for the disposition vocabulary).
+schema: 1
+upstream: zirconium-dev/zirconium
+flavor: zirconium
+revision: c43b53abfb75296f8517990823fd2cc9f095d837
+snapshotted_at: 2026-08-11
+scope: Niri/DMS desktop and session integration
+packages:
+  - name: niri
+    source: yalter/niri-git (Zirconium COPR chain)
+    disposition: recipe
+    note: >-
+      Niri compositor.  Source RPM builds and clean-installs on EL10
+      (packages/niri, src/hummingbird/niri); user-session validation gates
+      promotion.
+  - name: quickshell
+    source: AvengeMedia COPR
+    disposition: recipe
+    note: >-
+      Shell used by DMS.  Source recipe in packages/quickshell.
+  - name: dms
+    source: AvengeMedia COPR
+    disposition: recipe
+    note: >-
+      DMS shell.  Source recipe in packages/dms.
+  - name: dms-cli
+    source: AvengeMedia COPR
+    disposition: recipe
+    note: >-
+      DMS command-line companion.  Source recipe in packages/dms-cli.
+  - name: dms-greeter
+    source: AvengeMedia COPR
+    disposition: recipe
+    note: >-
+      DMS greetd greeter.  Source recipe in packages/dms-greeter; absent from
+      Fedora entirely, so it cannot come from dist-git.
+  - name: iio-niri
+    source: Zirconium's iio-niri
+    disposition: recipe
+    note: >-
+      Niri accelerometer/hardware integration.  Source recipe in
+      packages/iio-niri; rotation behavior must be tested on hardware-capable
+      runners before promotion.
+  - name: dgop
+    source: Zirconium
+    disposition: recipe
+    note: >-
+      Niri companion tool.  Source recipe in packages/dgop.
+  - name: danksearch
+    source: Zirconium (dsearch, now upstream danksearch)
+    disposition: recipe
+    note: >-
+      Niri search launcher.  Source recipe in packages/danksearch.
+  - name: dankcalendar
+    source: Zirconium (dankcalendar-git)
+    disposition: recipe
+    note: >-
+      Niri calendar.  Source recipe in packages/dankcalendar; DEB intake
+      waits for a source-built Go 1.26 toolchain.
+  - name: valent
+    source: Zirconium optional content
+    disposition: out-of-scope
+    reason: >-
+      valent is not stock Zirconium content and remains an optional
+      source-intake candidate rather than a target dependency
+      (docs/UPSTREAM_PARITY.md).

@@ -23,7 +23,7 @@ import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location(
-    "gap", ROOT / "scripts" / "measure-hummingbird-gap.py"
+    "gap", ROOT / "scripts" / "gap_engine.py"
 )
 gap = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gap)
@@ -91,3 +91,53 @@ def test_a_buildrequires_nothing_provides_is_reported_not_dropped() -> None:
     _, _, unresolved = gap.closure(["app"], reference(), set(), source_index=src)
     assert "nonexistent-tool" in unresolved
     assert "lib" in unresolved["nonexistent-tool"]
+
+
+def test_buildrequires_found_even_when_every_runtime_dep_is_already_shipped() -> None:
+    """The KDE case: plasma-workspace's runtime deps are in the target, so the
+    runtime walk stops immediately -- but extra-cmake-modules must still be
+    reached through the BuildRequires fold.
+
+    Without the fixpoint fold (#289) this would return {plasma-workspace} only.
+    """
+    ref = {
+        "packages": {
+            "plasma-workspace": {
+                "arch": "x86_64", "evr": "1-1",
+                "srpm": "plasma-workspace-1-1.fc45.src.rpm",
+                "requires": ["kf6-kio", "qt6-qtbase"],
+            },
+            "extra-cmake-modules": {
+                "arch": "noarch", "evr": "1-1",
+                "srpm": "extra-cmake-modules-1-1.fc45.src.rpm",
+                "requires": ["cmake"],
+            },
+            "cmake": {
+                "arch": "x86_64", "evr": "1-1",
+                "srpm": "cmake-1-1.fc45.src.rpm",
+                "requires": [],
+            },
+        },
+        "provides": {
+            "plasma-workspace": {"plasma-workspace"},
+            "kf6-kio": {"kf6-kio"},
+            "qt6-qtbase": {"qt6-qtbase"},
+            "extra-cmake-modules": {"extra-cmake-modules"},
+            "cmake": {"cmake"},
+        },
+        "files": set(),
+    }
+    source_index = {
+        "plasma-workspace": ["extra-cmake-modules"],
+        "extra-cmake-modules": [],
+        "cmake": [],
+    }
+    # All of plasma-workspace's runtime Requires: are already shipped.
+    have = {"kf6-kio", "qt6-qtbase"}
+    seen, _, _ = gap.closure(["plasma-workspace"], ref, have, source_index)
+    assert "extra-cmake-modules" in seen, (
+        "BuildRequires-only package not reached when runtime closure is trivial"
+    )
+    assert "cmake" in seen, (
+        "runtime dep of the build tool must also be reached"
+    )

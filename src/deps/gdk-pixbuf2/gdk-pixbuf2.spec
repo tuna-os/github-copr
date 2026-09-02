@@ -18,13 +18,21 @@ BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  gettext
 BuildRequires:  pkgconfig(gio-2.0) >= %{glib2_version}
+# glycin is Rust-built and absent from EL10; the loaders it provides
+# (JXL/HEIF/AVIF/WebP/SVG) are a feature loss there, not a build loss --
+# same posture as mutter's disable-glycin.patch and gtk4's %%if !rhel
+# guards for tracker/gstreamer.
+%if !0%{?rhel}
 BuildRequires:  pkgconfig(glycin-2) >= %{glycin_version}
+%endif
 BuildRequires:  meson
 BuildRequires:  pkgconfig(gobject-introspection-1.0)
 BuildRequires:  shared-mime-info
 
 Requires: glib2%{?_isa} >= %{glib2_version}
+%if !0%{?rhel}
 Requires: glycin-libs%{?_isa} >= %{glycin_version}
+%endif
 Requires: shared-mime-info
 
 # All modules previously provided by gdk-pixbuf itself are obsoleted by Glycin.
@@ -82,7 +90,11 @@ meson setup \
     -Ddocumentation=false \
     -Dman=false \
     -Dintrospection=enabled \
+%if !0%{?rhel}
     -Dglycin=enabled \
+%else
+    -Dglycin=disabled \
+%endif
     build
 meson compile -C build
 

@@ -20,6 +20,17 @@ source:
 #     destination: third-party/vendor
 #     strip_components: 1
 build_system: meson
+# Build reuse is detected by Tideforge rather than declared here. Data recipes
+# are candidates for one noarch payload; standardized Go recipes are candidates
+# for one payload per CPU architecture and are reused only after ELF inspection
+# proves them fully static. All other recipes keep their target-native build.
+# python is also a first-class build system for PEP 517 projects (pyproject.toml
+# and setup.py).  It renders %pyproject_wheel/%pyproject_install for RPM,
+# --buildsystem=pybuild for DEB, and python -m build + python -m installer for
+# Arch.  Like meson/cmake/autotools, it needs target-native build tools:
+#   el10: [python3-devel, python3-setuptools]
+#   ubuntu/debian: [python3, python3-setuptools, dh-python, pybuild-plugin-pyproject]
+#   arch: [python, python-build, python-installer, python-setuptools]
 dependencies:
   build:
     common: [gcc, pkgconf-pkg-config, meson, ninja-build]
@@ -36,10 +47,11 @@ files:
   common:
     - usr/bin/example-tool
 # How the gate proves this package actually installed and works. These used to
-# be hand-written matrix keys in build-tideforge-supported.yml, which is how a
+# be hand-written matrix keys in per-family payload workflows, which is how a
 # target could be declared with no cell asserting it at all (#139) -- nothing
-# connected the recipe to the job. State it here and the cell follows the
-# recipe instead of being remembered separately.
+# connected the recipe to the job. State it here and the unified factory
+# (plan-package-factory.py) derives the cell from the recipe instead of
+# remembering it separately.
 #
 # `smoke` runs inside a clean container after the built package is installed
 # from an ephemeral repository. It must fail loudly if the package is broken;

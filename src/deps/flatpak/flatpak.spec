@@ -6,42 +6,30 @@
 %global ostree_version 2020.8
 %global wayland_protocols_version 1.32
 %global wayland_scanner_version 1.15
+%global xdg_portal_version 1.7.0
 
 # Disable parental control for RHEL builds
 %bcond malcontent %[!0%{?rhel}]
 
 Name:           flatpak
-Version:        1.16.0
-Release:        7.2.tuna%{?dist}
+Version:        1.17.3
+Release:        1%{?dist}
 Summary:        Application deployment framework for desktop apps
 
 License:        LGPL-2.1-or-later
 URL:            https://flatpak.org/
 Source0:        https://github.com/flatpak/flatpak/releases/download/%{version}/%{name}-%{version}.tar.xz
 
-# systemd-sysusers config. Only used for the %%pre macro. Must be kept in sync
-# with the config from upstream sources.
-Source2:        flatpak.sysusers.conf
-
-# Implement /etc/containers/certs.d for OCI registries
-# https://github.com/flatpak/flatpak/pull/5916
-Patch0:         flatpak-implement-etc-containers-certs-for-oci-registries.patch
-# Allow direct installation from OCI images
-# https://github.com/flatpak/flatpak/pull/5972
-Patch1:         flatpak-allow-direct-installation-from-oci-images.patch
-# Support sideload repositories for OCI remotes
-# https://github.com/owtaylor/flatpak/commits/oci-sideload
-Patch2:         flatpak-support-sideload-repositories-for-oci-remotes.patch
-# Add support for preinstalling flatpaks
-# https://github.com/flatpak/flatpak/pull/6116
-Patch3:         flatpak-add-support-for-preinstalling-flatpaks.patch
-# Enable collection IDs for OCI remotes
-# https://github.com/flatpak/flatpak/pull/6083
-Patch4:         flatpak-enable-collection-ids-for-oci-remotes.patch
-# Fix crash and installatcion of OCI images
-Patch5:         flatpak-pass-token-to-flatpak-image-source-new-remote.patch
-# /etc/pki/entitlement
-Patch6:         flatpak-for-registry.redhat.io-get-certificates-from-etc-pki.patch
+# Fix a use-after-free crash in flatpak_context_make_sandboxed() with
+# multiarch enabled. Merged upstream 2026-03-19, four days after 1.17.3 was
+# tagged (2026-03-15), so it isn't in the release tarball yet. Carried the
+# same way ublue-os/packages does for this exact version.
+# https://github.com/flatpak/flatpak/pull/6535
+Patch0:         flatpak-fix-crash-in-context-make-sandboxed-with-multiarch.patch
+# Get certificates from /etc/pki/entitlement for registry.redhat.io. Red
+# Hat/subscription-manager-specific; not upstreamable, still absent from
+# flatpak's own git history as of 1.17.3.
+Patch1:         flatpak-for-registry.redhat.io-get-certificates-from-etc-pki.patch
 
 # ostree not on i686 for RHEL 10
 # https://github.com/containers/composefs/pull/229#issuecomment-1838735764
@@ -77,6 +65,7 @@ BuildRequires:  bubblewrap >= %{bubblewrap_version}
 BuildRequires:  docbook-dtds
 BuildRequires:  docbook-style-xsl
 BuildRequires:  gettext-devel
+BuildRequires:  gtk-doc
 BuildRequires:  libcap-devel
 BuildRequires:  meson
 BuildRequires:  gcc
@@ -90,8 +79,6 @@ BuildRequires:  /usr/bin/socat
 BuildRequires:  /usr/bin/xdg-dbus-proxy
 BuildRequires:  /usr/bin/xmlto
 BuildRequires:  /usr/bin/xsltproc
-
-%{?sysusers_requires_compat}
 
 Requires:       appstream%{?_isa} >= %{appstream_version}
 Requires:       bubblewrap >= %{bubblewrap_version}
@@ -108,9 +95,9 @@ Recommends:     p11-kit-server
 
 # Make sure the document portal is installed
 %if 0%{?fedora} || 0%{?rhel} > 7
-Recommends:     xdg-desktop-portal > 0.10
+Recommends:     xdg-desktop-portal >= %{xdg_portal_version}
 %else
-Requires:       xdg-desktop-portal > 0.10
+Requires:       xdg-desktop-portal >= %{xdg_portal_version}
 %endif
 
 %description
@@ -184,7 +171,6 @@ This package contains installed tests for %{name}.
     -Dmalcontent=disabled \
 %endif
     -Dwayland_security_context=enabled \
-    -Dgtkdoc=disabled \
     %{nil}
 %meson_build
 
@@ -193,17 +179,14 @@ This package contains installed tests for %{name}.
 %meson_install
 install -pm 644 NEWS README.md %{buildroot}/%{_pkgdocdir}
 # The system repo is not installed by the flatpak build system.
+install -d %{buildroot}%{_datadir}/%{name}/preinstall.d
+install -d %{buildroot}%{_datadir}/%{name}/remotes.d
 install -d %{buildroot}%{_localstatedir}/lib/flatpak
+install -d %{buildroot}%{_sysconfdir}/%{name}/installations.d
+install -d %{buildroot}%{_sysconfdir}/%{name}/preinstall.d
 install -d %{buildroot}%{_sysconfdir}/flatpak/remotes.d
 
-%if 0%{?fedora}
-install -D -t %{buildroot}%{_unitdir} %{SOURCE1}
-%endif
-
 %find_lang %{name}
-
-%pre
-%sysusers_create_compat %{SOURCE2}
 
 
 %post selinux
@@ -229,6 +212,7 @@ fi
 %{_datadir}/dbus-1/interfaces/org.freedesktop.Flatpak.Authenticator.xml
 %{_datadir}/dbus-1/services/org.flatpak.Authenticator.Oci.service
 %{_datadir}/dbus-1/services/org.freedesktop.portal.Flatpak.service
+%{_datadir}/dbus-1/system.d/org.freedesktop.Flatpak.SystemHelper.conf
 %{_datadir}/dbus-1/system-services/org.freedesktop.Flatpak.SystemHelper.service
 %{_datadir}/fish/
 %{_datadir}/%{name}
@@ -249,8 +233,9 @@ fi
 %{_mandir}/man5/flatpak-remote.5*
 %{_mandir}/man5/flatpakref.5*
 %{_mandir}/man5/flatpakrepo.5*
-%{_sysconfdir}/dbus-1/system.d/org.freedesktop.Flatpak.SystemHelper.conf
 %dir %{_sysconfdir}/flatpak
+%{_sysconfdir}/%{name}/installations.d
+%{_sysconfdir}/%{name}/preinstall.d
 %{_sysconfdir}/flatpak/remotes.d
 %{_sysconfdir}/profile.d/flatpak.csh
 %{_sysconfdir}/profile.d/flatpak.sh
@@ -264,6 +249,7 @@ fi
 
 %files devel
 %{_datadir}/gir-1.0/Flatpak-1.0.gir
+%{_datadir}/gtk-doc/
 %{_includedir}/%{name}/
 %{_libdir}/libflatpak.so
 %{_libdir}/pkgconfig/%{name}.pc
@@ -290,13 +276,62 @@ fi
 
 
 %changelog
-* Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 1.16.0-7.2.tuna
-- Disable gtkdoc (-Dgtkdoc=disabled); gtk-doc not available on EL10
-- Remove gtk-doc %files devel entry (no docs built)
-- Remove Fedora-only Source1 (flatpak-add-fedora-repos.service)
+* Fri Aug 28 2026 James Reilly <jreilly1821@gmail.com> - 1.17.3-1
+- Bump to 1.17.3, merged from ublue-os/packages' staged spec (the safer of
+  two available bridges: it already carries the RHEL10 ExcludeArch/malcontent
+  guards this repo's flatpak.spec originated from, and needs no Fedora-repo
+  scaffolding stripped, unlike plain Rawhide's newer 1.19.0 which still ships
+  Source1: flatpak-add-fedora-repos.service under %%if 0%%{?fedora} -- live in
+  our buildroot since mock/hummingbird-ci.cfg bases on fedora-rawhide-x86_64,
+  not a real EL10 chroot).
+- Dropped 6 of our 7 downstream OCI/registry patches: each backported a named
+  upstream flatpak PR (certs.d for OCI registries #5916, direct OCI install
+  #5972, OCI collection IDs #6083, preinstalling flatpaks #6116, OCI sideload
+  repos -- eventually merged as #6294 -- and the token-to-new_remote() fix)
+  that has since landed on flatpak's own main branch, all between 2025-05 and
+  2025-10, well before 1.17.3 released (2026-03-15). Confirmed two ways: `gh
+  api .../pulls/<n>` shows each merged, and a real `patch --dry-run --forward`
+  against the fetched 1.17.3 tarball reports every substantive hunk in each
+  as "Reversed (or previously applied)" -- i.e. the code is already there.
+  The collection-IDs and token-passing patches were also verified by reading
+  the resulting flatpak-dir.c/flatpak-repo-utils.c/flatpak-image-source.c
+  directly: the exact conditions and parameters our patches added are already
+  present, byte for byte.
+- Kept flatpak-for-registry.redhat.io-get-certificates-from-etc-pki.patch
+  (Patch1): a genuine Red Hat/subscription-manager-only feature with no
+  upstream PR and no trace in flatpak's git history as of 1.17.3. Applies
+  clean against the new tarball (line-offset only, no fuzz).
+- Added flatpak-fix-crash-in-context-make-sandboxed-with-multiarch.patch
+  (Patch0, upstream flatpak#6535): a real use-after-free crash fix that
+  merged 2026-03-19, four days after 1.17.3 was tagged, so it is not in the
+  release tarball. ublue-os/packages carries the same patch on the same
+  version for the same reason; fetched the merge commit directly from GitHub
+  and verified it applies clean.
+- Adopted ublue's %%build/%%install/%%files structure wholesale rather than
+  patching ours piecemeal: re-enabled gtk-doc (BuildRequires + %%files devel
+  entry) since build-order-hummingbird-desktops.yml documents gtk-doc as a
+  BuildRequires-only tool resolved from the buildroot's inherited Rawhide
+  fallback (mock/hummingbird-ci.cfg, priority 99) -- the EL10-target
+  "-Dgtkdoc=disabled" workaround from 1.16.0-7.1.tuna predates the Hummingbird
+  pipeline (added 2026-03-30, pipeline added 2026-07-24) and was never
+  re-validated against this buildroot. Added the preinstall.d/remotes.d/
+  installations.d dirs and %%files entries the preinstall feature (now
+  native to 1.17.3 instead of backported) installs. Dropped the manual
+  Source2 (flatpak.sysusers.conf) + %%pre %%sysusers_create_compat scriptlet:
+  neither ublue's nor plain Rawhide's spec carries it any more for this
+  version, because %%{_sysusersdir}/%%{name}.conf is now generated by
+  flatpak's own meson build (system-helper/flatpak.conf.in) and picked up by
+  rpm's automatic sysusers file trigger instead of a manual pre-scriptlet.
+  Kept the explicit gcc/gcc-c++ BuildRequires (neither reference spec lists
+  them) since 1.16.0-7.1.tuna added them for a real observed EL10 buildroot
+  gap and leaving them in is a zero-cost safety margin.
+- Release reset from the RHEL-SRPM-derived "N.tuna" scheme (tracking patches
+  atop a rebased flatpak-1.16.0-7.el10 base) to a plain "1%%{?dist}": no other
+  spec in this repo uses ".tuna", and the base itself has now changed instead
+  of just gaining patches on top of it.
 
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 1.16.0-7.1.tuna
-- EL10 override: add gcc/gcc-c++ BRs; gate gtk-doc %files behind %%if fedora
+- EL10 override: add gcc/gcc-c++ BRs; gate gtk-doc %%files behind %%if fedora
 
 * Mon Oct 13 2025 Jan Grulich <jgrulich@redhat.com> - 1.16.0-7
 - Get certificates from /etc/pki/entitlement for registry.redhat.io

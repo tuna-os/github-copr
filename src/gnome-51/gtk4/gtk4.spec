@@ -3,13 +3,19 @@
 %endif
 
 %global glib2_version 2.84.0
-%global pango_version 1.56.0
-%global cairo_version 1.18.0
+# Load-bearing, not cosmetic: GTK 4.23.3's own meson.build declares
+# pango_major_req=1, pango_minor_req=58. A floor below 1.58 is satisfiable
+# by an older pango, which used to make gtk4 silently vendor its own copy
+# of pango as a meson subproject instead of failing the BuildRequires
+# (#567/#580). Guarded by tests/test_gtk4_and_libadwaita_floors_match_upstream.py
+# -- don't lower this without re-checking that test.
+%global pango_version 1.58.0
+%global cairo_version 1.18.2
 %global gdk_pixbuf_version 2.30.0
 %global gstreamer_version 1.24.0
-%global harfbuzz_version 8.4
-%global wayland_protocols_version 1.31
-%global wayland_version 1.21.0
+%global harfbuzz_version 8.4.0
+%global wayland_protocols_version 1.48
+%global wayland_version 1.24.0
 %global epoxy_version 1.4
 
 %global bin_version 4.0.0
@@ -26,9 +32,18 @@
 %endif
 
 Name:           gtk4
-Version:        4.22.1
-Release:        2%{?dist}
+Version:        4.23.3
+Release:        3%{?dist}
 Summary:        GTK graphical user interface library
+
+# Rawhide's current spec sources the download.gnome.org path segment from a
+# %{gnome_major_minor_version} macro that Fedora's GNOME SIG tooling injects
+# into the Rawhide buildroot; it is not defined in our el10/hummingbird mock
+# config. Compute it locally instead (same pattern already used by
+# src/gnome-51/gobject-introspection.spec) so Source0 stays correct on
+# version bumps without depending on an undefined macro. Must be defined
+# after Version: is set, since %%() shell expansion runs eagerly.
+%global gnome_major_minor_version %(echo %{version} | cut -d. -f1-2)
 
 # Most files are either LGPL-2.0-or-later or LGPL-2.1-or-later.
 # gtk/roaring/ and gtk/timsort/ are Apache-2.0
@@ -71,8 +86,7 @@ Summary:        GTK graphical user interface library
 # The license was last checked for GTK 4.19.3.
 License:        LGPL-2.0-or-later AND LGPL-2.1-or-later AND Apache-2.0 AND CC0-1.0 AND MIT AND MIT-open-group AND HPND-sell-variant AND GPL-2.0-or-later AND GPL-3.0-or-later AND OFL-1.1
 URL:            https://www.gtk.org
-Source0:        https://download.gnome.org/sources/gtk/4.22/gtk-%{version}.tar.xz
-Patch: 0001-gtkapplication-wayland-null-check.patch
+Source0:        https://download.gnome.org/sources/gtk/%{gnome_major_minor_version}/gtk-%{version}.tar.xz
 
 BuildRequires:  cups-devel
 BuildRequires:  desktop-file-utils
@@ -90,6 +104,7 @@ BuildRequires:  pkgconfig(cairo-gobject) >= %{cairo_version}
 BuildRequires:  pkgconfig(colord)
 BuildRequires:  pkgconfig(egl)
 BuildRequires:  pkgconfig(epoxy)
+BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(gdk-pixbuf-2.0) >= %{gdk_pixbuf_version}
 BuildRequires:  pkgconfig(glib-2.0) >= %{glib2_version}
 BuildRequires:  pkgconfig(gobject-introspection-1.0)
@@ -193,43 +208,38 @@ This package contains helpful applications for developers using GTK.
 
 %build
 export CFLAGS='-std=c11 -fno-strict-aliasing -DG_DISABLE_CAST_CHECKS -DG_DISABLE_ASSERT %optflags'
-meson setup _build \
-    --buildtype=plain \
-    --prefix=%{_prefix} \
-    --libdir=%{_libdir} \
-    --libexecdir=%{_libexecdir} \
-    --bindir=%{_bindir} \
-    --sbindir=%{_sbindir} \
-    --includedir=%{_includedir} \
-    --datadir=%{_datadir} \
-    --mandir=%{_mandir} \
-    --infodir=%{_infodir} \
-    --localedir=%{_datadir}/locale \
-    --sysconfdir=%{_sysconfdir} \
-    --localstatedir=%{_localstatedir} \
-    --sharedstatedir=%{_sharedstatedir} \
-    --wrap-mode=nodownload \
-    --auto-features=enabled \
+# --wrap-mode=nodownload and --auto-features=enabled are pinned explicitly
+# here (Rawhide's own %%meson invocation leaves them implicit, relying on
+# Fedora's redhat-rpm-config default). Losing --wrap-mode=nodownload is
+# exactly the regression #567/#580 diagnosed: without it, an unsatisfied
+# BuildRequires makes meson silently fetch/vendor a subproject (e.g. pango)
+# instead of failing fast. Our el10-based buildroot's redhat-rpm-config
+# isn't guaranteed to default the same way Fedora's does, so both flags are
+# spelled out rather than trusted to %%meson's default.
+%meson \
+        --wrap-mode=nodownload \
+        --auto-features=enabled \
 %if 0%{?with_broadway}
-    -Dbroadway-backend=true \
+        -Dbroadway-backend=true \
 %endif
-    -Dsysprof=enabled \
+        -Dsysprof=enabled \
 %if 0%{?rhel}
-    -Dmedia-gstreamer=disabled \
-    -Dtracker=disabled \
+        -Dmedia-gstreamer=disabled \
+        -Dtracker=disabled \
 %else
-    -Dtracker=enabled \
+        -Dtracker=enabled \
 %endif
-    -Dcolord=enabled \
-    -Ddocumentation=true \
-    -Dman-pages=true \
-    -Dbuild-testsuite=false \
-    -Dbuild-tests=false \
-    -Dbuild-examples=false
-ninja -C _build -j%{_smp_build_ncpus}
+        -Dcolord=enabled \
+        -Ddocumentation=true \
+        -Dman-pages=true \
+        -Dbuild-testsuite=false \
+        -Dbuild-tests=false \
+        -Dbuild-examples=false
+
+%meson_build
 
 %install
-DESTDIR=%{buildroot} ninja -C _build install
+%meson_install
 
 %find_lang gtk40
 
@@ -273,7 +283,6 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_includedir}/*
 %{_libdir}/pkgconfig/*
 %{_bindir}/gtk4-builder-tool
-%{_bindir}/gtk4-encode-symbolic-svg
 %{_bindir}/gtk4-path-tool
 %{_bindir}/gtk4-query-settings
 %{_datadir}/bash-completion/completions/gtk4-builder-tool
@@ -282,7 +291,6 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_datadir}/gtk-4.0/gtk4builder.rng
 %{_datadir}/gtk-4.0/valgrind/
 %{_mandir}/man1/gtk4-builder-tool.1*
-%{_mandir}/man1/gtk4-encode-symbolic-svg.1*
 %{_mandir}/man1/gtk4-path-tool.1*
 %{_mandir}/man1/gtk4-query-settings.1*
 
@@ -296,7 +304,6 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %files devel-tools
 %{_bindir}/gtk4-demo
 %{_bindir}/gtk4-demo-application
-%{_bindir}/gtk4-icon-editor
 %{_bindir}/gtk4-image-tool
 %{_bindir}/gtk4-node-editor
 %{_bindir}/gtk4-print-editor
@@ -305,7 +312,6 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_datadir}/applications/org.gtk.gtk4.NodeEditor.desktop
 %{_datadir}/applications/org.gtk.Demo4.desktop
 %{_datadir}/applications/org.gtk.PrintEditor4.desktop
-%{_datadir}/applications/org.gtk.Shaper.desktop
 %{_datadir}/applications/org.gtk.WidgetFactory4.desktop
 %{_datadir}/bash-completion/completions/gtk4-demo
 %{_datadir}/bash-completion/completions/gtk4-image-tool
@@ -317,7 +323,6 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_datadir}/icons/hicolor/*/apps/org.gtk.gtk4.NodeEditor*.svg
 %{_datadir}/icons/hicolor/*/apps/org.gtk.Demo4*.svg
 %{_datadir}/icons/hicolor/*/apps/org.gtk.PrintEditor4*.svg
-%{_datadir}/icons/hicolor/*/apps/org.gtk.Shaper*.svg
 %{_datadir}/icons/hicolor/*/apps/org.gtk.WidgetFactory4*.svg
 %{_datadir}/glib-2.0/schemas/org.gtk.Demo4.gschema.xml
 %{_metainfodir}/org.gtk.gtk4.NodeEditor.appdata.xml
@@ -332,6 +337,46 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_mandir}/man1/gtk4-widget-factory.1*
 
 %changelog
+* Fri Aug 28 2026 James Reilly <jreilly1821@gmail.com> - 4.23.3-3
+- Re-fork from Fedora Rawhide's current gtk4.spec. #580's two fixes
+  (pango_version floor, removed gtk4-encode-symbolic-svg/gtk4-icon-editor
+  tools) are naturally inherited: Rawhide's own spec now declares
+  pango_version 1.58.0 and no longer packages either tool.
+- Bump cairo_version 1.18.0 -> 1.18.2, harfbuzz_version 8.4 -> 8.4.0,
+  wayland_protocols_version 1.31 -> 1.48, wayland_version 1.21.0 -> 1.24.0
+  to match Rawhide's current floors; these had drifted stale since this
+  spec was last hand-forked.
+- Drop the local libdrm BuildRequires comment: Rawhide now carries
+  pkgconfig(libdrm) unconditionally (no longer behind any gate), so this
+  is no longer our delta to explain.
+- Define %%{gnome_major_minor_version} locally (Fedora's GNOME SIG tooling
+  injects it; our buildroot doesn't have that tooling), matching the
+  precedent in src/gnome-51/gobject-introspection.spec, and switch Source0
+  to use it instead of a hardcoded "4.23" path component.
+- Adopt Rawhide's %%meson/%%meson_build/%%meson_install in place of the
+  hand-rolled meson setup/ninja invocation (a COPR-era workaround from
+  4.22.1-2 that predates this repo's mock+podman build backend; proven
+  unnecessary on this backend by xdg-desktop-portal's %%meson adoption
+  this session), but pin --wrap-mode=nodownload and --auto-features=enabled
+  explicitly rather than trust %%meson's default, since losing
+  --wrap-mode=nodownload silently reopens the #567/#580 vendoring bug.
+- Preserve our genuine EL10 deltas Rawhide doesn't carry: the RHEL-only
+  gates (behind %%if !0%%{?rhel}) on gstreamer-player-1.0/tracker-sparql-3.0
+  BuildRequires, the gstreamer1-plugins-bad-free-libs Requires, and the
+  -Dmedia-gstreamer=disabled/-Dtracker=disabled %%build branch (gtk3 was
+  removed on EL10 and gstreamer1-plugins-bad-free-devel still depends on
+  it; tracker3/tinysparql isn't available on EL10 either).
+
+* Wed Aug 26 2026 James Reilly <jreilly1821@gmail.com> - 4.23.3-2
+- Drop 0001-gtkapplication-wayland-null-check.patch: upstream carries the
+  same GDK_IS_WAYLAND_TOPLEVEL check in 4.23.3 (MR 9643 landed), so the hunk
+  no longer applies and %%prep failed with "1 out of 1 hunk FAILED"
+- Correct the 4.21.6-{1,2,3} changelog dates, which ascended and made rpm
+  print "%%changelog not in descending chronological order" on every build
+
+* Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 4.23.3-1
+- Update to 4.23.3 (GNOME 51 beta cycle)
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 4.22.1-2
 - Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
   to avoid non-deterministic "fg: no job control" on COPR builders.
@@ -344,14 +389,14 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 - Adopt %meson build macros
 - EL10: preserve gstreamer/tracker disable guards
 
-* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-3
+* Mon Mar 16 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-3
 - EL10: disable tracker/tinysparql integration (not available on EL10); gate
   tracker-sparql-3.0 BuildRequires and -Dtracker=enabled behind %%if !0%%{?rhel}
 
-* Sat Mar 15 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-2
+* Sun Mar 15 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-2
 - EL10: gate gstreamer1-plugins-bad-free-devel BR and gstreamer1-plugins-bad-free-libs
   runtime Requires behind %%if !0%%{?rhel} to fix buildroot on EL10 (gtk3 was removed
   and gstreamer1-plugins-bad-free-devel still depends on libgtk-3.so.0)
 
-* Fri Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-1
+* Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 4.21.6-1
 - Initial local spec based on Fedora rawhide gtk4 4.21.6

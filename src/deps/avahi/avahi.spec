@@ -62,7 +62,7 @@
 
 Name:             avahi
 Version:          0.9%{?rc:~%{rc}}
-Release:          8%{?dist}
+Release:          9%{?dist}
 Summary:          Local network service discovery
 License:          LGPL-2.1-or-later AND LGPL-2.0-or-later AND BSD-2-Clause-Views AND MIT
 URL:              http://avahi.org
@@ -172,7 +172,17 @@ Requires:         %{name} = %{version}-%{release}
 Requires:         %{name}-libs%{?_isa} = %{version}-%{release}
 Requires:         %{name}-glib%{?_isa} = %{version}-%{release}
 Requires:         %{name}-ui-gtk3%{?_isa} = %{version}-%{release}
-Requires:         tigervnc
+# tigervnc is not in EL10 BaseOS, AppStream, CRB or EPEL 10, on either arch
+# (measured against the repository metadata; EPEL 10 lists 25573 names and no
+# tigervnc at all). A hard Requires therefore makes avahi-ui-tools impossible
+# to install on this target, which failed the cell's verify step:
+#
+#   nothing provides tigervnc needed by avahi-ui-tools-0.9~rc2-8.el10.aarch64
+#
+# Weak, so the package installs where tigervnc is absent and still pulls it in
+# on targets that do carry it. bvnc is the only thing that needs it; bssh and
+# the rest of the subpackage work without.
+Recommends:       tigervnc
 Requires:         openssh-clients
 %if %{WITH_PYTHON}
 Requires:         gdbm
@@ -851,6 +861,11 @@ fi
 
 
 %changelog
+* Sun Aug 23 2026 TunaOS Package Factory <packages@tunaos.org> - 0.9~rc2-9
+- Weaken avahi-ui-tools' tigervnc dependency to Recommends. EL10 has no
+  tigervnc in BaseOS, AppStream, CRB or EPEL on either arch, so the hard
+  Requires made the subpackage uninstallable and failed the cell (#480)
+
 * Fri Jan 16 2026 Fedora Release Engineering <releng@fedoraproject.org> - 0.9~rc2-8
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_44_Mass_Rebuild
 

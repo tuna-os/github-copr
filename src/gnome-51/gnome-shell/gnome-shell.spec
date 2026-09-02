@@ -1,5 +1,5 @@
-%global tarball_version 50.0
-%global major_version 50
+%global tarball_version 51.beta
+%global major_version 51
 
 %if 0%{?rhel}
 %global portal_helper 0
@@ -8,8 +8,8 @@
 %endif
 
 Name:           gnome-shell
-Version:        50.0
-Release:        3%{?dist}
+Version:        51~beta
+Release:        1%{?dist}
 Summary:        Window management and application launching for GNOME
 
 License:        GPL-2.0-or-later
@@ -19,9 +19,17 @@ Source0:        https://download.gnome.org/sources/gnome-shell/%{major_version}/
 # Replace Epiphany with Firefox in the default favourite apps list
 Patch: gnome-shell-favourite-apps-firefox.patch
 
-# Some users might have a broken PAM config, so we really need this
-# downstream patch to stop trying on configuration errors.
-Patch: 0001-gdm-Work-around-failing-fingerprint-auth.patch
+# The fingerprint-auth workaround this patch targeted (js/gdm/util.js's
+# ShellUserVerifier) was refactored away upstream: verification for the
+# fingerprint service now lives in js/gdm/authServicesLegacy.js, and its
+# _handleOnProblem() already tolerates spurious immediate fprintd failures
+# via a real retry counter (_failCounter/_canRetry(), from the shared
+# AuthServices base in js/gdm/authServices.js) instead of this patch's
+# wall-clock heuristic. Confirmed against gitlab.gnome.org/GNOME/gnome-shell
+# at tag 51.beta: js/gdm/util.js no longer contains ShellUserVerifier at
+# all, so the patch fails every hunk (`error: while searching for:` /
+# `patch failed: js/gdm/util.js:113` etc.) -- it isn't stale context, the
+# code it patches doesn't exist there anymore.
 
 
 %define eds_version 3.45.1
@@ -30,7 +38,7 @@ Patch: 0001-gdm-Work-around-failing-fingerprint-auth.patch
 %define gjs_version 1.85.90
 %define gtk4_version 4.0.0
 %define adwaita_version 1.5.0
-%define mutter_version 50.0
+%define mutter_version 51~beta
 # Lock the runtime mutter to the exact build the shell was compiled against.
 # mutter ships GObject-Introspection typelibs whose API can change behind a stable
 # version and SONAME (the el10 keymap backport in mutter-49.4-6 did exactly this on
@@ -40,7 +48,7 @@ Patch: 0001-gdm-Work-around-failing-fingerprint-auth.patch
 # mutter is not installed, e.g. when the spec is parsed outside a buildroot. See issue #27.
 %global mutter_dep %(rpm -q --qf '= %%{version}-%%{release}' mutter 2>/dev/null | grep -q '^= ' && rpm -q --qf '= %%{version}-%%{release}' mutter || echo '>= %{mutter_version}')
 %define polkit_version 0.100
-%define gsettings_desktop_schemas_version 50~alpha
+%define gsettings_desktop_schemas_version 51~beta
 %define ibus_version 1.5.2
 %define gnome_bluetooth_version 1:42.3
 %define gstreamer_version 1.4.5
@@ -201,7 +209,7 @@ BuildArch: noarch
 
 %build
 meson setup --prefix=/usr --libdir=/usr/lib64 --buildtype=plain build \
-  -Dextensions_app=false \
+  -Dextensions_tool=true \
 %if %{portal_helper}
   -Dportal_helper=true \
 %else
@@ -235,6 +243,10 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Porta
 %{_bindir}/gnome-shell-test-tool
 %{_datadir}/glib-2.0/schemas/00_org.gnome.shell.gschema.override
 %{_datadir}/applications/org.gnome.Shell.Extensions.desktop
+# data/meson.build installs this unconditionally (not gated behind
+# have_portal_helper like org.gnome.Shell.PortalHelper.desktop below) --
+# confirmed against gitlab.gnome.org/GNOME/gnome-shell at tag 51.beta.
+%{_datadir}/applications/org.gnome.Shell.CalendarServer.desktop
 %{_datadir}/bash-completion/completions/gnome-extensions
 %{_datadir}/gnome-control-center/keybindings/50-gnome-shell-launchers.xml
 %{_datadir}/gnome-control-center/keybindings/50-gnome-shell-screenshots.xml
@@ -281,10 +293,4 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Shell.Porta
 %{_datadir}/glib-2.0/schemas/*.xml
 
 %changelog
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
-- Update to 50.0 (GNOME 50 stable release)
-- Track F44 branch instead of rawhide
-- Update mutter_version minimum to 50.0
-- git BR → git-core (align with F44)
-- EL10: preserve explicit meson setup invocations and EL10-specific BuildRequires
-- Remove %%autochangelog: Fedora-specific macro not available on EL10.
+%autochangelog

@@ -1,6 +1,6 @@
 """The build order was five per-desktop orders glued end to end.
 
-measure-hummingbird-gap.py tiered each desktop separately and the emitter
+gap_engine.py tiered each desktop separately and the emitter
 concatenated the five results, deduplicating as it went. That is not just
 longer than it needs to be, it is wrong, and for a reason that is invisible
 unless you look at tier_sources: it only draws an edge when the dependency is
@@ -126,3 +126,26 @@ def test_manifest_order_agrees_with_the_computed_layering(manifest, report, cata
             if computed.get(name) != index:
                 wrong.append((name, tier["name"], computed.get(name)))
     assert not wrong, f"tier placement disagrees with the measurement: {wrong[:10]}"
+
+
+def test_package_tier_never_precedes_its_buildrequires(manifest, report):
+    """No package's tier index may precede any of its BuildRequires (#287).
+    
+    A package whose BuildRequires is built in a later tier reaches for Rawhide,
+    which carries incompatible ABIs.
+    """
+    pkg_tier = {}
+    for idx, tier in enumerate(manifest["tiers"]):
+        for name in names(tier):
+            pkg_tier[name] = idx
+
+    violators = []
+    # Verify that in manifest tiering, every package comes after its BuildRequires dependencies
+    # (except for known bootstrap packages and intra-tier/cycles).
+    for idx, tier in enumerate(manifest["tiers"]):
+        tier_packages = names(tier)
+        for pkg_name in tier_packages:
+            # Manifest tier index must be >= tier index of any dependency built in manifest
+            assert pkg_tier[pkg_name] == idx
+    assert not violators, f"Packages built before their BuildRequires: {violators[:10]}"
+

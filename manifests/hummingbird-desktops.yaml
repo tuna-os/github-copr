@@ -4,10 +4,14 @@
 # gate refuses to ship an image without.  `install_packages` is the full set
 # tunaOS actually installs (manifests/desktops/<desktop>.yaml, `fedora:`
 # section on tuna-os/tunaOS).  Both are inputs to
-# scripts/measure-hummingbird-gap.py, which resolves their Requires: closure
-# against Fedora Rawhide and subtracts everything the target repository already
-# ships.  The result is docs/hummingbird-desktop-gap.json and the generated
-# build-order-hummingbird-desktops.yml.
+# scripts/measure-target-gap.py --target hummingbird (scripts/gap_engine.py
+# underneath), which resolves their Requires: closure against Fedora Rawhide
+# and subtracts everything the target repository already ships.  The result
+# is docs/hummingbird-desktop-gap.json and the generated
+# build-order-hummingbird-desktops.yml.  Reproducing that command by hand
+# needs `pip install PyYAML zstandard` (Rawhide's primary.xml is .zst);
+# .github/workflows/gap-drift.yml already installs zstandard for the
+# scheduled CI run, so this is a manual-reproduction note, not a CI gap.
 #
 # Measurement, 2026-08-06, against the target's own primary.xml (revision
 # 1786016019, sha256 b92541eaf43fd4a8…): the target repository ships 3384
@@ -15,11 +19,38 @@
 # not gtk4, not cairo, not wayland, not mesa, not pipewire.  See
 # docs/hummingbird-desktop-gap.md for the full method and numbers.
 schema: 1
+
+# Where this target's reviewed spec directories live, in lookup order, and
+# where dist-git imports land for packages that have none. Declared here —
+# a property of the target's source tree — so the gap engine stays free of
+# any one family's layout (it used to hard-code exactly these four).
+source_paths: [src/gnome-51, src/deps, src/hummingbird, src/xfce-wayland]
+distgit_prefix: src/hummingbird
+# Names that must come from Fedora Rawhide dist-git even though a directory
+# of that name exists under `source_paths:` -- the directory belongs to
+# another target.  src/deps/libnotify was added 2026-08-23 (#490) for EL10,
+# five days after this build order was last measured, and pins 0.8.7 with
+# the comment "0.8.7 rather than the newer 0.8.8 deliberately: it is the
+# minimum that satisfies the requirement and it matches the version already
+# published".  That is right for EL10 and wrong for a Rawhide rebuild, which
+# gets 0.8.8.  Without this line the next scheduled re-measure would have
+# quietly moved libnotify onto the EL10 pin.
+prefer_distgit: [libnotify]
+# What the generated build order contains.  `runtime` builds only what images
+# ship; BuildRequires-only tools (bison, transfig, gtk-doc, the Java stack the
+# documentation toolchains drag in) come from the buildroot's inherited
+# Rawhide fallback at priority 99 (mock/hummingbird-ci.cfg) and are never
+# rebuilt here.  The alternative, `selfhost`, folds the full BuildRequires:
+# closure into the build order -- measured 2026-08-17 that is 3282 source
+# packages against runtime's 663, a 5x factory for tools no image ships.
+# Decided with the fixed fold of #289; the 1248-package order this replaced
+# was an artifact of the fold bug, neither closure.
+membership: runtime
 target:
   id: hummingbird-20251124-x86_64
   baseurl: https://packages.redhat.com/api/pulp-content/public-hummingbird/$arch/
   r2_path: hummingbird/20251124-x86_64
-  dist: .fc43
+  dist: .bfin1
   # Sources come from Fedora Rawhide dist-git, imported at build time by
   # scripts/import-fedora-distgit.py.  Rawhide is the right branch and this is
   # measured, not assumed: of 38 core packages present in both indexes, 30 are
@@ -28,17 +59,20 @@ target:
   # 6.11.1-5, rust 1.97.1-2, meson 1.11.2-2, …).  Fedora 43 ships glib2 2.86.5
   # and systemd 258.10; the target is nowhere near it.
   reference: fedora-rawhide
-  # The target's own packages carry .hum1, not .fc43 — every one of the 16506
-  # (name, evr, arch) tuples in its primary.xml ends in .hum1.  `.fc43` above
-  # is what build-chain.sh stamps on OUR rebuilds; it is deliberately distinct
-  # from the target's own tag so a rebuild is identifiable, but note it sorts
-  # BELOW .hum1 for the same version, so it can never shadow a package the
-  # target later starts shipping itself.
+  # The target's own packages carry .hum1, not .bfin1 — every one of the 16506
+  # (name, evr, arch) tuples in its primary.xml ends in .hum1.  `.bfin1` above
+  # is what build-chain.sh stamps on OUR rebuilds (named for the Bluefin
+  # parity this desktop targets, was .fc43 through 2026-08-29 -- retired for
+  # reading as a real Fedora 43 tie-in, which it never was); it is
+  # deliberately distinct from the target's own tag so a rebuild is
+  # identifiable, but note it sorts BELOW .hum1 for the same version
+  # ('b' < 'h'), so it can never shadow a package the target later starts
+  # shipping itself.
 
 desktops:
   gnome:
-    release: "50"
-    sources: [{local: src/gnome-50}, {local: src/deps}]
+    release: "51"
+    sources: [{local: src/gnome-51}, {local: src/deps}]
     required_packages: [gdm, gjs, gnome-control-center, gnome-initial-setup, gnome-session, gnome-settings-daemon, gnome-shell, mutter, nautilus, xdg-desktop-portal-gnome]
     # Contract surface tunaOS's desktop gate checks by command/path/unit, which
     # the required_packages list above does not name: gnome-keyring-daemon,
@@ -63,8 +97,68 @@ desktops:
   xfce:
     release: "4.21"
     sources: [{local: src/xfce-wayland}]
-    required_packages: [xfconf, libxfce4ui, xfwl4]
-    install_packages: [gdm, xfwl4, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, thunar, mousepad, ristretto, xfce4-terminal, xfce4-session, xfce4-panel, xfce4-settings, xfdesktop, xfwm4, xfconf, libxfce4ui]
+    # greetd + gtkgreet + cage are the XFCE Wayland greetd login path from the
+    # upstream parity register (docs/UPSTREAM_PARITY.md): gtkgreet is a project
+    # recipe (packages/gtkgreet), cage is a Fedora distro package, greetd is
+    # rebuilt from src/hummingbird/greetd.  They were named in the base-image
+    # audit (#228) and are part of the desktop's contract surface.
+    required_packages: [xfconf, libxfce4ui, xfwl4, greetd, gtkgreet, cage]
+    install_packages: [gdm, greetd, gtkgreet, cage, xfwl4, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, thunar, mousepad, ristretto, xfce4-whiskermenu-plugin, xfce4-terminal, xfce4-session, xfce4-panel, xfce4-settings, xfdesktop, xfwm4, xfwm4-themes, xfconf, libxfce4ui]
+  # Bluefin's own package contract, layered on top of any desktop by
+  # hanthor/utah's "Bluefin on Hummingbird" build (`dnf install` of
+  # packages/bluefin.toml's [fedora] + [multimedia_overrides] + [fedora_v43]
+  # + [fedora_v44] sections, read via scripts/install-packages.py in that
+  # repo, BEFORE it overlays a 10-package GNOME set from tunaos-hummingbird).
+  # This is not a desktop -- it is the base-image root every Bluefin-on-
+  # Hummingbird image needs regardless of which desktop it later selects --
+  # but `desktops:` is where the gap engine reads its roots from (see
+  # scripts/gap_engine.py `roots = required_packages + install_packages`),
+  # so it is declared as an entry here rather than invented as a new
+  # manifest concept.
+  #
+  # Every "Build Utah" CI run on hanthor/utah has failed at `dnf install`
+  # (run 33043290631, job 98421527500) because ~41 of these 77 names do not
+  # exist in public-hummingbird or tunaos-hummingbird. install_packages adds
+  # three more: fuse, ntfs-3g, device-mapper-persistent-data are not part of
+  # bluefin.toml, but dracut-live and lvm2 (both already shipped by
+  # public-hummingbird) BuildRequire/Require them and the target does not
+  # ship them either -- the exact "nothing provides fuse needed by
+  # dracut-live" failure in that same log. The gap engine only walks
+  # Requires: of packages NOT already in the target (need_roots), so a
+  # dependency missing underneath an already-shipped package is invisible
+  # unless named as a root directly, which is why they are listed here
+  # rather than left to be discovered.
+  #
+  # pipewire-libs-extra is the one name in required_packages/install_packages
+  # below that this measurement cannot close: it is absent from Fedora
+  # Rawhide entirely (docs/hummingbird-desktop-gap.json
+  # .desktops.bluefin.roots_absent_from_reference), because it is a
+  # negativo17/fedora-multimedia-only concept with no Fedora dist-git
+  # equivalent to rebuild from. Decision: build it ourselves from pipewire's
+  # own upstream source, as separate follow-up work -- not negativo17,
+  # per the no-third-party-repo policy this catalog already follows
+  # elsewhere. Left in both lists as-is; the gap engine tolerates a root
+  # absent from the reference (it is reported, not a hard failure), so this
+  # is tracked here rather than blocking on it.
+  bluefin:
+    sources: [{fedora_distgit: bootc}, {fedora_distgit: bootupd}, {fedora_distgit: distrobox}, {fedora_distgit: fish}, {fedora_distgit: gcc}, {fedora_distgit: just}, {fedora_distgit: wireguard-tools}, {fedora_distgit: zsh}]
+    required_packages: [adw-gtk3-theme, adwaita-fonts-all, alsa-firmware, alsa-tools-firmware, anaconda-live, bootc, bootupd, containerd, ddcutil, distrobox, dracut-live, evtest, fastfetch, firewall-config, fish, flatpak-spawn, firefox, fzf, gcc, gcc-c++, git-credential-libsecret, gnome-ponytail-daemon, gnome-tweaks, google-noto-sans-cjk-vf-fonts, grub2-efi-x64-cdboot, gum, gvfs-nfs, ibus-mozc, ibus-unikey, igt-gpu-tools, input-remapper, isomd5sum, just, libappindicator-gtk3, libayatana-appindicator-gtk3, libblockdev-btrfs, libblockdev-dm, libblockdev-lvm, libblockdev-mpath, libcamera-gstreamer, libcamera-tools, libratbag-ratbagd, libva-utils, libxcrypt-compat, livesys-scripts, make, mesa-libGLU, mozc, nautilus-gsconnect, openrgb-udev-rules, openssh-askpass, pipewire-libs-extra, python3-gnome-ponytail-daemon, slitherer, squashfs-tools, switcheroo-control, waypipe, wireguard-tools, wl-clipboard, xdg-terminal-exec, xorriso, zenity, zsh, intel-gmmlib, intel-mediasdk, intel-vpl-gpu-rt, libheif, libva, libva-intel-media-driver, mesa-dri-drivers, mesa-filesystem, mesa-libEGL, mesa-libGL, mesa-libgbm, mesa-vulkan-drivers, evolution-ews-core, gnupg2-scdaemon]
+    install_packages: [adw-gtk3-theme, adwaita-fonts-all, alsa-firmware, alsa-tools-firmware, anaconda-live, bootc, bootupd, containerd, ddcutil, distrobox, dracut-live, evtest, fastfetch, firewall-config, fish, flatpak-spawn, firefox, fzf, gcc, gcc-c++, git-credential-libsecret, gnome-ponytail-daemon, gnome-tweaks, google-noto-sans-cjk-vf-fonts, grub2-efi-x64-cdboot, gum, gvfs-nfs, ibus-mozc, ibus-unikey, igt-gpu-tools, input-remapper, isomd5sum, just, libappindicator-gtk3, libayatana-appindicator-gtk3, libblockdev-btrfs, libblockdev-dm, libblockdev-lvm, libblockdev-mpath, libcamera-gstreamer, libcamera-tools, libratbag-ratbagd, libva-utils, libxcrypt-compat, livesys-scripts, make, mesa-libGLU, mozc, nautilus-gsconnect, openrgb-udev-rules, openssh-askpass, pipewire-libs-extra, python3-gnome-ponytail-daemon, slitherer, squashfs-tools, switcheroo-control, waypipe, wireguard-tools, wl-clipboard, xdg-terminal-exec, xorriso, zenity, zsh, intel-gmmlib, intel-mediasdk, intel-vpl-gpu-rt, libheif, libva, libva-intel-media-driver, mesa-dri-drivers, mesa-filesystem, mesa-libEGL, mesa-libGL, mesa-libgbm, mesa-vulkan-drivers, evolution-ews-core, gnupg2-scdaemon, fuse, ntfs-3g, device-mapper-persistent-data]
+
+# Base-image component audit (tuna-os/tunaos-packages#228).
+#
+# quay.io/hummingbird-community/bootc-os:latest ships 262 packages total (a
+# minimal bootc container OS with the CKI ARK kernel) and NONE of the
+# submodules/applets below -- it does ship NetworkManager itself.  Each
+# component is attributed to the desktop edition that must install it, and
+# scripts/validate-hummingbird-catalog.py fails any commit that drops a
+# component from its desktop's install_packages, so the availability audit
+# is an invariant of the manifest rather than a one-off measurement.
+components:
+  gnome: [NetworkManager-openvpn-gnome, NetworkManager-openconnect-gnome, NetworkManager-wwan, gnome-keyring, nautilus, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk]
+  kde: [xdg-desktop-portal-kde]
+  niri: [NetworkManager-tui, blueman, brightnessctl, playerctl, pavucontrol, gnome-keyring, nautilus, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk, SwayNotificationCenter, waybar, fuzzel]
+  xfce: [greetd, gtkgreet, cage, xdg-desktop-portal-gtk]
 
 # The PEP-517 build backends Hummingbird does not ship (#268).
 #

@@ -15,7 +15,7 @@
       "platformAutomerge": true
     },
     {
-      "description": "Upstream package source pins (commits/versions this repo packages) still automerge, but only once the real mock/podman build for that package passes as a required status check \u2014 a bare version bump alone has repeatedly hidden real breakage (new MSRV, new/dropped files) that only a build catches. See build-xfce-fedora.yml / build-xfce-package.yml / build-fprintd-validation.yml / build-xfce-arch-validation.yml path triggers.",
+      "description": "Upstream package source pins (commits/versions this repo packages) still automerge, but only once the real mock/podman build for that package passes as a required status check \u2014 a bare version bump alone has repeatedly hidden real breakage (new MSRV, new/dropped files) that only a build catches. See build-tideforge-supported.yml / build-xfce-package.yml / build-fprintd-validation.yml / build-xfce-arch-validation.yml path triggers.",
       "matchDepTypes": [
         "upstream-source"
       ],
@@ -92,7 +92,237 @@
     },
     {
       "customType": "regex",
-      "description": "xfconf: tracks gitlab.xfce.org/xfce/xfconf's master branch (no stable release yet \u2014 xfwl4's crates require post-4.20 development commits).",
+      "description": "GNOME 51 shell: follow only GNOME's tagged releases; every update is built and boot-tested on CentOS Stream 10 before merge/publish. Added because src/gnome-51 forked from src/gnome-50 without carrying its own Renovate coverage — the six gnome-50 managers above never matched this path, so gtk4/libadwaita/gnome-shell etc. drifted silently until #580 caught it by hand.",
+      "fileMatch": ["^src/gnome-51/gnome-shell/gnome-shell\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-shell",
+      "packageNameTemplate": "GNOME/gnome-shell",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "GNOME 51 Mutter releases.",
+      "fileMatch": ["^src/gnome-51/mutter/mutter\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "mutter",
+      "packageNameTemplate": "GNOME/mutter",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "GNOME 51 settings daemon releases.",
+      "fileMatch": ["^src/gnome-51/gnome-settings-daemon/gnome-settings-daemon\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-settings-daemon",
+      "packageNameTemplate": "GNOME/gnome-settings-daemon",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "GNOME 51 session releases.",
+      "fileMatch": ["^src/gnome-51/gnome-session/gnome-session\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-session",
+      "packageNameTemplate": "GNOME/gnome-session",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "GNOME 51 control-center releases.",
+      "fileMatch": ["^src/gnome-51/gnome-control-center/gnome-control-center\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-control-center",
+      "packageNameTemplate": "GNOME/gnome-control-center",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "GDM (GNOME 51) releases.",
+      "fileMatch": ["^src/gnome-51/gdm/gdm\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gdm",
+      "packageNameTemplate": "GNOME/gdm",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "GTK4 (GNOME 51 copy): src/deps/gtk4 above tracks only the deps copy — gnome-49/50/51 each fork their own gtk4.spec and none of the three were covered.",
+      "fileMatch": ["^src/gnome-51/gtk4/gtk4\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gtk4",
+      "packageNameTemplate": "GNOME/gtk",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "libadwaita (GNOME 51): no manager existed for any generation of this file before.",
+      "fileMatch": ["^src/gnome-51/libadwaita/libadwaita\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "libadwaita",
+      "packageNameTemplate": "GNOME/libadwaita",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gnome-desktop3 (GNOME 51): tracks GNOME/gnome-desktop.",
+      "fileMatch": ["^src/gnome-51/gnome-desktop3/gnome-desktop3\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-desktop3",
+      "packageNameTemplate": "GNOME/gnome-desktop",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "nautilus (GNOME 51) releases.",
+      "fileMatch": ["^src/gnome-51/nautilus/nautilus\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "nautilus",
+      "packageNameTemplate": "GNOME/nautilus",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "xdg-desktop-portal-gnome (GNOME 51) releases.",
+      "fileMatch": ["^src/gnome-51/xdg-desktop-portal-gnome/xdg-desktop-portal-gnome\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "xdg-desktop-portal-gnome",
+      "packageNameTemplate": "GNOME/xdg-desktop-portal-gnome",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "xdg-desktop-portal (GNOME 51 copy): upstream is flatpak/xdg-desktop-portal on GitHub, not GNOME's gitlab — unlike every other entry in this block.",
+      "fileMatch": ["^src/gnome-51/xdg-desktop-portal/xdg-desktop-portal\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "xdg-desktop-portal",
+      "packageNameTemplate": "flatpak/xdg-desktop-portal",
+      "depTypeTemplate": "upstream-source"
+    },
+    {
+      "customType": "regex",
+      "description": "gnome-online-accounts (GNOME 51 copy): src/deps/gnome-online-accounts above tracks a different file.",
+      "fileMatch": ["^src/gnome-51/gnome-online-accounts/gnome-online-accounts\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-online-accounts",
+      "packageNameTemplate": "GNOME/gnome-online-accounts",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gnome-initial-setup (GNOME 51) releases.",
+      "fileMatch": ["^src/gnome-51/gnome-initial-setup/gnome-initial-setup\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gnome-initial-setup",
+      "packageNameTemplate": "GNOME/gnome-initial-setup",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gjs (GNOME 51) releases.",
+      "fileMatch": ["^src/gnome-51/gjs/gjs\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gjs",
+      "packageNameTemplate": "GNOME/gjs",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gobject-introspection (GNOME 51) releases.",
+      "fileMatch": ["^src/gnome-51/gobject-introspection/gobject-introspection\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gobject-introspection",
+      "packageNameTemplate": "GNOME/gobject-introspection",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "gsettings-desktop-schemas (GNOME 51) releases.",
+      "fileMatch": ["^src/gnome-51/gsettings-desktop-schemas/gsettings-desktop-schemas\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "gsettings-desktop-schemas",
+      "packageNameTemplate": "GNOME/gsettings-desktop-schemas",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "vte291 (GNOME 51 copy): src/deps/vte291 above tracks a different file.",
+      "fileMatch": ["^src/gnome-51/vte291/vte291\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "vte291",
+      "packageNameTemplate": "GNOME/vte",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "ptyxis (GNOME 51) releases.",
+      "fileMatch": ["^src/gnome-51/ptyxis/ptyxis\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "ptyxis",
+      "packageNameTemplate": "GNOME/ptyxis",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "orca (GNOME 51) releases.",
+      "fileMatch": ["^src/gnome-51/orca/orca\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "orca",
+      "packageNameTemplate": "GNOME/orca",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "glib2 (GNOME 51) releases.",
+      "fileMatch": ["^src/gnome-51/glib2/glib2\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>\\S+)\\s*$"],
+      "datasourceTemplate": "gitlab-releases",
+      "depNameTemplate": "glib2",
+      "packageNameTemplate": "GNOME/glib",
+      "depTypeTemplate": "upstream-source",
+      "registryUrlTemplate": "https://gitlab.gnome.org"
+    },
+    {
+      "customType": "regex",
+      "description": "xfconf: tracks gitlab.xfce.org/xfce/xfconf's master branch (no stable release yet \u2014 xfwl4's crates require post-4.20 development commits). Deliberately NOT packages/xfconf/package.yaml: a Tideforge recipe pins source.sha256 and source.directory alongside the URL, and a regex manager can only rewrite the digest, so #339 bumped the URL to eab1533 while leaving the a6f0a7aa checksum and directory behind and broke Validate Package Factory for every branch (#170).",
       "fileMatch": [
         "^src/xfce-wayland/xfconf/xfconf\\.spec$",
         "^src/xfce-wayland/xfconf/packaging/arch/PKGBUILD$"
@@ -121,22 +351,6 @@
       "depNameTemplate": "libxfce4ui",
       "depTypeTemplate": "upstream-source",
       "packageNameTemplate": "https://gitlab.xfce.org/xfce/libxfce4ui"
-    },
-    {
-      "customType": "regex",
-      "description": "xfwl4: tracks gitlab.xfce.org/xfce/xfwl4's main branch \u2014 pre-1.0 compositor, no tagged releases to pin to instead.",
-      "fileMatch": [
-        "^src/xfce-wayland/xfwl4/xfwl4\\.spec$",
-        "^src/xfce-wayland/xfwl4/packaging/arch/PKGBUILD$"
-      ],
-      "matchStrings": [
-        "(?:%global commit\\s+|\\n_commit=)(?<currentDigest>[a-f0-9]{40})"
-      ],
-      "currentValueTemplate": "main",
-      "datasourceTemplate": "git-refs",
-      "depNameTemplate": "xfwl4",
-      "depTypeTemplate": "upstream-source",
-      "packageNameTemplate": "https://gitlab.xfce.org/xfce/xfwl4"
     },
     {
       "customType": "regex",

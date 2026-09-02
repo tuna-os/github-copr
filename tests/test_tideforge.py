@@ -257,6 +257,26 @@ def test_rpm_and_deb_preserve_runtime_dependencies(recipe: dict) -> None:
     assert "Depends: ${shlibs:Depends}, ${misc:Depends}, dbus, bluez" in deb
 
 
+def test_provides_renders_in_rpm_deb_and_arch(recipe: dict) -> None:
+    """A declared `provides:` alias lands in every format (#169)."""
+    recipe["provides"] = ["cosmic-icons"]
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "ubuntu")["debian/control"]
+    assert "Provides:       cosmic-icons" in rpm
+    assert "Provides: cosmic-icons" in deb
+    recipe["targets"] = ["arch"]
+    pkgbuild = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "provides=('cosmic-icons')" in pkgbuild
+
+
+def test_recipe_without_provides_renders_no_provides_lines(recipe: dict) -> None:
+    """Recipes without the key keep clean spec/control output."""
+    rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    deb = tideforge.render(recipe, "ubuntu")["debian/control"]
+    assert "Provides:" not in rpm
+    assert "Provides:" not in deb
+
+
 @pytest.mark.parametrize(
     ("recipe_name", "target", "expected"),
     [
@@ -590,8 +610,18 @@ def test_cmake_ninja_generator_renders_for_every_native_format(recipe: dict) -> 
     deb = tideforge.render(recipe, "ubuntu")["debian/rules"]
     arch = tideforge.render(recipe, "arch")["PKGBUILD"]
     assert "%cmake -G Ninja -DUSE_DEMO=OFF" in rpm
-    assert "dh_auto_configure -- -G Ninja -DUSE_DEMO=OFF" in deb
     assert "cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr -G Ninja -DUSE_DEMO=OFF" in arch
+    # deb expresses the generator as the BUILDSYSTEM, not as a flag, and this
+    # test used to assert the flag. That was the bug: debhelper's `cmake`
+    # buildsystem runs make in dh_auto_build whatever -G says, so the flag
+    # configured Ninja and then make ran against build.ninja --
+    # "No targets specified and no makefile found" on every deb cell that asked
+    # for Ninja (run 32556308211). cmake+ninja passes -GNinja itself and builds
+    # with ninja, so passing -G by hand as well would put two -G flags on one
+    # command line.
+    assert "--buildsystem=cmake+ninja" in deb
+    assert "dh_auto_configure -- -DUSE_DEMO=OFF" in deb
+    assert "-G Ninja" not in deb
 
 
 def test_dependency_capabilities_resolve_to_native_target_packages(recipe: dict) -> None:
@@ -695,3 +725,68 @@ def test_autotools_deb_rules_delete_libtool_archives(recipe: dict) -> None:
 def test_non_autotools_deb_rules_carry_no_libtool_cleanup(recipe: dict) -> None:
     rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
     assert "*.la" not in rules
+
+
+def test_python_rpm_renders_pyproject_macros(recipe: dict) -> None:
+    recipe["build_system"] = "python"
+    recipe["dependencies"]["build"]["common"] = ["python3-devel", "python3-setuptools"]
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "%pyproject_wheel" in spec
+    assert "%pyproject_install" in spec
+    assert "BuildRequires: python3-devel" in spec
+
+
+def test_python_rpm_disables_empty_debug_packages(recipe: dict) -> None:
+    """Pure-Python packages produce no debuginfo; the build must not abort.
+
+    C-extensions linked into a Python wheel can produce native debuginfo, but
+    %pyproject_install does not generate the RPM debugsource payload the
+    automatic debug package relies on.  Disable it the same way go/data/custom
+    do so rpmbuild does not abort with "Empty %files file debugsourcefiles.list".
+    """
+    recipe["build_system"] = "python"
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert spec.startswith("%global debug_package %{nil}\nName:")
+
+
+def test_python_deb_renders_pybuild(recipe: dict) -> None:
+    recipe["build_system"] = "python"
+    recipe["dependencies"]["build"]["targets"]["ubuntu"] = ["python3", "python3-setuptools", "dh-python"]
+    rendered = tideforge.render(recipe, "ubuntu")
+    rules = rendered["debian/rules"]
+    control = rendered["debian/control"]
+    assert "dh $@ --buildsystem=pybuild" in rules
+    assert "Build-Depends: debhelper-compat (= 13), meson, python3, python3-setuptools, dh-python" in control
+    # Native build system, so auto-test is skipped.
+    assert "override_dh_auto_test:" in rules
+    # Single binary package stages directly; no .install file.
+    assert "debian/hello-tuna.install" not in rendered
+
+
+def test_python_arch_renders_build_and_installer(recipe: dict) -> None:
+    recipe["build_system"] = "python"
+    recipe["targets"] = ["arch"]
+    recipe["dependencies"]["build"]["targets"]["arch"] = ["python", "python-build", "python-installer", "python-setuptools"]
+    pkgbuild = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "python -m build --wheel --no-isolation" in pkgbuild
+    assert 'python -m installer --destdir="$pkgdir" dist/*.whl' in pkgbuild
+    assert "python-build" in pkgbuild
+
+
+def test_python_recipe_respects_prepare_commands(recipe: dict) -> None:
+    recipe["build_system"] = "python"
+    recipe["build"] = {"prepare": ["make generate-protos"]}
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "make generate-protos" in spec
+    assert "make generate-protos\n%pyproject_wheel" in spec
+
+
+def test_python_recipe_with_install_files_appends_to_staged_wheel(recipe: dict) -> None:
+    recipe["build_system"] = "python"
+    recipe["install"] = {"files": [{"source": "demo.service", "destination": "usr/lib/systemd/system/demo.service"}]}
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "install -Dm0644 demo.service %{buildroot}/usr/lib/systemd/system/demo.service" in spec
+    rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    assert "install -Dm0644 demo.service debian/hello-tuna/usr/lib/systemd/system/demo.service" in rules
+    pkgbuild = tideforge.render(recipe, "arch")["PKGBUILD"]
+    assert "install -Dm0644 demo.service $pkgdir/usr/lib/systemd/system/demo.service" in pkgbuild

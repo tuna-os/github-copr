@@ -49,11 +49,13 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
-      - run: pip install pyyaml
+      - run: python -m pip install pyyaml==6.0.3
       - run: python3 scripts/validate-package-factory.py manifests/package-factory.yaml
       - run: python3 scripts/validate-target-queues.py
       # A recipe declaring a target that no cell builds is untested while looking
@@ -70,14 +72,58 @@ jobs:
           else
             python3 scripts/check-gate-coverage.py
           fi
-      - name: Validate and render Tideforge recipes
+      - name: Select affected Tideforge recipes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          for recipe in packages/*/package.yaml; do
-            # The template documents the schema with an intentionally
-            # non-fetchable example source; it is not a package candidate.
-            [[ "$recipe" == packages/_template/* ]] && continue
+          changed=$(mktemp)
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            git diff --name-only "$BASE_SHA"...HEAD > "$changed"
+          elif git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            git diff --name-only HEAD^ HEAD > "$changed"
+          else
+            find packages -mindepth 2 -maxdepth 2 -name package.yaml -print > "$changed"
+          fi
+
+          declare -A selected=()
+          common=false
+          while IFS= read -r path; do
+            case "$path" in
+              packages/*/*)
+                IFS=/ read -r _ package _ <<<"$path"
+                recipe="packages/$package/package.yaml"
+                [[ -f "$recipe" && "$package" != _template ]] && selected["$recipe"]=1
+                ;;
+              manifests/package-factory.yaml|scripts/tideforge.py|scripts/verify-tideforge-source.py|scripts/fetch-tideforge-sources.py|scripts/validate-package-factory.py|packaging/*|.github/workflows/validate-package-factory.yml)
+                common=true
+                ;;
+              scripts/compare-official-package.py)
+                selected["packages/niri/package.yaml"]=1
+                ;;
+            esac
+          done < "$changed"
+
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            while IFS= read -r recipe; do selected["$recipe"]=1; done \
+              < <(find packages -mindepth 2 -maxdepth 2 -name package.yaml ! -path 'packages/_template/*')
+          elif [[ "$common" == true ]]; then
+            selected["packages/wayland-protocols/package.yaml"]=1
+          fi
+
+          : > .factory-validation-recipes
+          if ((${#selected[@]})); then
+            printf '%s\n' "${!selected[@]}" | sort > .factory-validation-recipes
+          fi
+          echo "Selected recipe validation set:"
+          sed 's/^/  /' .factory-validation-recipes
+
+      - name: Validate and render affected Tideforge recipes
+        run: |
+          set -euo pipefail
+          while IFS= read -r recipe; do
+            [[ -n "$recipe" ]] || continue
             python3 scripts/tideforge.py validate "$recipe"
             python3 scripts/verify-tideforge-source.py "$recipe"
             while IFS= read -r target; do
@@ -86,6 +132,9 @@ jobs:
               test -n "$(find "$output" -type f -print -quit)"
               find "$output" -depth -delete
             done < <(python3 -c 'import sys,yaml; print("\n".join(yaml.safe_load(open(sys.argv[1]))["targets"]))' "$recipe")
-          done
-      - name: Compare Niri with Arch metadata
-        run: python3 scripts/compare-official-package.py packages/niri/package.yaml --strict
+          done < .factory-validation-recipes
+      - name: Compare changed Niri recipe with Arch metadata
+        run: |
+          if grep -qx 'packages/niri/package.yaml' .factory-validation-recipes; then
+            python3 scripts/compare-official-package.py packages/niri/package.yaml --strict
+          fi

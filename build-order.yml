@@ -116,6 +116,7 @@ tiers:
   # Tier 11: GTK Core.
   - name: gtk-core
     packages:
+      - path: src/deps/libnotify
       - path: src/gnome-50/gsettings-desktop-schemas
       - path: src/gnome-50/gnome-desktop3
       - path: src/deps/gtk4
@@ -140,6 +141,7 @@ tiers:
   # Tier 13: Compositor & Shell.
   - name: shell-foundations
     packages:
+      - path: src/deps/tecla
       - path: src/gnome-50/gnome-settings-daemon
       - path: src/gnome-50/mutter
 
@@ -162,3 +164,16 @@ tiers:
   - name: post-session
     packages:
       - path: src/gnome-50/gnome-initial-setup
+
+  # Tier 17: Peripheral and input-device tooling (#122, #126).
+  # python3-evdev ships first: input-remapper BuildRequires/Requires it, and
+  # build-chain.sh populates [local-build] as it walks tiers, so by the time
+  # input-remapper's dnf builddep runs, python3-evdev is installable from the
+  # local file:// repo.
+  - name: peripheral-tools-evdev
+    packages:
+      - path: src/python3-evdev
+
+  - name: peripheral-tools
+    packages:
+      - path: src/input-remapper

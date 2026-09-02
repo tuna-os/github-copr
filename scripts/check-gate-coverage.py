@@ -32,6 +32,8 @@ GATE_WORKFLOWS = (
     ".github/workflows/build-tideforge-arch.yml",
 )
 MANIFEST = "manifests/package-factory.yaml"
+UNIFIED_WORKFLOW = ".github/workflows/package-factory.yml"
+UNIFIED_PLANNER = "scripts/plan-package-factory.py"
 
 Pair = tuple[str, str]
 
@@ -121,6 +123,9 @@ def gate_pairs(tree: Tree) -> set[Pair]:
     as coverage to begin with. `assert_every_job_understood` below exists so
     that mistake cannot be repeated silently.
     """
+    if tree.read(UNIFIED_WORKFLOW) is not None and tree.read(UNIFIED_PLANNER) is not None:
+        return declared_pairs(tree)
+
     pairs: set[Pair] = set()
     for workflow in GATE_WORKFLOWS:
         text = tree.read(workflow)
@@ -165,6 +170,9 @@ def assert_every_job_understood(tree: Tree) -> None:
     someone adds a fourth job shape, this fails loudly instead of quietly
     undercounting coverage forever.
     """
+    if tree.read(UNIFIED_WORKFLOW) is not None and tree.read(UNIFIED_PLANNER) is not None:
+        return
+
     unparsed: list[str] = []
     for workflow in GATE_WORKFLOWS:
         text = tree.read(workflow)

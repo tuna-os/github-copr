@@ -1,7 +1,5 @@
 %global _hardened_build 1
 
-%define gtk3_version 2.99.2
-
 %global major_version %%(echo %{version} | cut -d '.' -f1 | cut -d '~' -f1)
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
@@ -15,8 +13,8 @@
 
 Name:           gdm
 Epoch:          1
-Version:        50.0
-Release:        3%{?dist}
+Version:        51~beta
+Release:        1%{?dist}
 Summary:        The GNOME Display Manager
 
 License:        GPL-2.0-or-later
@@ -24,6 +22,8 @@ URL:            https://wiki.gnome.org/Projects/GDM
 Source0:        https://download.gnome.org/sources/gdm/%{major_version}/gdm-%{tarball_version}.tar.xz
 Source1:        org.gnome.login-screen.gschema.override
 Source2:        gdm.sysusers
+
+# Upstream patches
 
 # Downstream patches
 Patch:          0001-Honor-initial-setup-being-disabled-by-distro-install.patch
@@ -41,13 +41,9 @@ BuildRequires:  pkgconfig(accountsservice) >= 0.6.3
 BuildRequires:  pkgconfig(audit)
 BuildRequires:  pkgconfig(check)
 BuildRequires:  pkgconfig(gobject-introspection-1.0)
-BuildRequires:  pkgconfig(gtk+-3.0) >= %{gtk3_version}
 BuildRequires:  pkgconfig(gudev-1.0)
 BuildRequires:  pkgconfig(iso-codes)
 BuildRequires:  pkgconfig(json-glib-1.0)
-%if !0%{?rhel}
-BuildRequires:  pkgconfig(libcanberra-gtk3)
-%endif
 BuildRequires:  pkgconfig(libkeyutils)
 BuildRequires:  pkgconfig(libselinux)
 BuildRequires:  pkgconfig(libsystemd)
@@ -69,11 +65,19 @@ Requires: dbus-common
 Requires: dconf
 # since we use it, and pam spams the log if the module is missing
 Requires: gnome-keyring-pam
-Requires: gnome-session >= 50~alpha
-Requires: gnome-session-wayland-session >= 50~alpha
+Requires: gnome-session >= 51~beta
+Requires: gnome-session-wayland-session >= 51~beta
 Requires: gnome-settings-daemon >= 3.27.90
 Requires: gnome-shell
+# el10-only: it exists only in build-order-gnome51.yml's src/deps/, not in
+# build-order-hummingbird-desktops.yml. Unconditional here made it a hard,
+# unsatisfiable dependency on the hummingbird (Fedora-Rawhide) target --
+# `nothing provides gnome50-el10-compat needed by gdm` broke dnf5 builddep
+# for every consumer, gnome-initial-setup among them, without touching gdm
+# itself: rpmbuild never verifies Requires: satisfiability at build time.
+%if 0%{?rhel}
 Requires:       gnome50-el10-compat
+%endif
 Requires: iso-codes
 # We need 1.0.4-5 since it lets us use "localhost" in auth cookies
 Requires: libXau >= 1.0.4-4
@@ -119,35 +123,20 @@ GDM specific authentication features.
 %autosetup -S git -p1 -n gdm-%{tarball_version}
 
 %build
-meson setup _build \
-    --buildtype=plain \
-    --prefix=%{_prefix} \
-    --libdir=%{_libdir} \
-    --libexecdir=%{_libexecdir} \
-    --bindir=%{_bindir} \
-    --sbindir=%{_sbindir} \
-    --includedir=%{_includedir} \
-    --datadir=%{_datadir} \
-    --mandir=%{_mandir} \
-    --infodir=%{_infodir} \
-    --localedir=%{_datadir}/locale \
-    --sysconfdir=%{_sysconfdir} \
-    --localstatedir=%{_localstatedir} \
-    --sharedstatedir=%{_sharedstatedir} \
-    --wrap-mode=nodownload \
-    -Ddbus-sys=%{_datadir}/dbus-1/system.d \
-    -Ddefault-path=/usr/local/bin:/usr/bin \
-    -Ddefault-pam-config=redhat \
-    -Ddistro=redhat \
+%meson -Ddbus-sys=%{_datadir}/dbus-1/system.d \
+       -Ddefault-path=/usr/local/bin:/usr/bin \
+       -Ddefault-pam-config=redhat \
+       -Ddistro=redhat \
 %if %{with x11}
-    -Dx11-support=true
+       -Dx11-support=true \
 %else
-    -Dx11-support=false
+       -Dx11-support=false \
 %endif
-ninja -C _build -j%{_smp_build_ncpus}
+
+%meson_build
 
 %install
-DESTDIR=%{buildroot} ninja -C _build install
+%meson_install
 
 cp -a %{SOURCE1} %{buildroot}%{_datadir}/glib-2.0/schemas
 
@@ -175,8 +164,21 @@ ln -sf ../X11/xinit/Xsession %{buildroot}%{_sysconfdir}/gdm/
 %license COPYING
 %dir %{_sysconfdir}/gdm
 %config(noreplace) %{_sysconfdir}/gdm/custom.conf
-%config %{_sysconfdir}/pam.d/gdm-autologin
-%config %{_sysconfdir}/pam.d/gdm-password
+# GNOME 51 installs PAM services into the PAM VENDOR directory, not /etc:
+# gdm's meson.build computes
+#   pam_sys_services_dir = pam_prefix / 'lib' / 'pam.d'
+# so every gdm-*.pam lands in /usr/lib/pam.d. Files previously listed
+# under %%{_sysconfdir}/pam.d were reported missing by rpmbuild for exactly
+# this reason. They are vendor defaults now, so they are no longer %%config
+# (an admin override belongs in /etc/pam.d, which PAM still reads first).
+# Rawhide's own spec enumerates these individually instead (gdm-autologin,
+# gdm-password(-auth-substack), gdm-smartcard(-auth-substack),
+# gdm-fingerprint(-auth-substack), gdm-switchable-auth(-substack),
+# gdm-launch-environment) -- ten files today, six when this glob was first
+# written here. We keep the glob rather than switching to match: it already
+# absorbed that growth for free, and confirmed via a real local build that
+# all ten current names are still covered by it.
+%{_prefix}/lib/pam.d/gdm-*
 # not config files
 %if %{with x11}
 %{_sysconfdir}/gdm/Xsession
@@ -218,10 +220,6 @@ ln -sf ../X11/xinit/Xsession %{buildroot}%{_sysconfdir}/gdm/
 %ghost %dir %{_localstatedir}/log/gdm
 %ghost %dir %{_localstatedir}/lib/gdm
 %ghost %dir %{_rundir}/gdm
-%config %{_sysconfdir}/pam.d/gdm-smartcard
-%config %{_sysconfdir}/pam.d/gdm-fingerprint
-%config %{_sysconfdir}/pam.d/gdm-switchable-auth
-%{_sysconfdir}/pam.d/gdm-launch-environment
 %{_unitdir}/gdm.service
 %{_unitdir}/gnome-headless-session@.service
 %dir %{_userunitdir}/gnome-session@gnome-login.target.d/
@@ -248,19 +246,4 @@ ln -sf ../X11/xinit/Xsession %{buildroot}%{_sysconfdir}/gdm/
 %{_libdir}/pkgconfig/gdm-pam-extensions.pc
 
 %changelog
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-3
-- Add explicit BuildRequires: gcc (COPR EL10 minimal buildroot does not
-  pre-install gcc unlike Fedora; meson compiler detection fails without it)
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-2
-- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
-  to avoid "fg: no job control" on COPR builders (non-interactive bash).
-- Remove %%autorelease/%%autochangelog: Fedora-specific macros not available on EL10.
-
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 50.0-1
-- Update to 50.0 (GNOME 50 stable release)
-- Track F44 branch instead of rawhide
-- Drop gcc BuildRequires (pulled in transitively)
-- Drop dbus-daemon Requires (covered by dbus-common)
-- EL10: gate libcanberra-gtk3 BR behind %%if !0%%{?rhel} (no gtk3 on EL10)
-- EL10: retain gnome50-el10-compat Requires (SELinux/PAM compat)
+%autochangelog

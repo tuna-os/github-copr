@@ -32,10 +32,21 @@ dependencies:
   build:
     capabilities: [rust]
     targets:
+      # desktop-backgrounds-compat is a TunaOS RPM-only shim (also required by
+      # the hummingbird plasma-desktop/sddm specs); the deb targets ship the
+      # background schema dirs themselves (files.common) and drop it rather
+      # than pull an RPM-only name into a deb Build-Depends.
       el10: [cargo, lld, just, wayland-devel, libxkbcommon-devel, desktop-backgrounds-compat, libdav1d-devel]
+      ubuntu: [cargo, lld, just, libwayland-dev, libxkbcommon-dev, libdav1d-dev]
+      debian: [cargo, lld, just, libwayland-dev, libxkbcommon-dev, libdav1d-dev]
   runtime:
     targets:
+      # cosmic-icon-theme and desktop-backgrounds-compat are TunaOS-built and
+      # ship in neither deb archive; the gate's clean-install repo only holds
+      # the cell's own artifact (same call as cosmic-settings, #225).
       el10: [cosmic-icon-theme >= 1.4.0, desktop-backgrounds-compat]
+      ubuntu: []
+      debian: []
 files:
   common:
     - usr/bin/cosmic-bg
@@ -45,4 +56,4 @@ install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
 verify:
   smoke: "test -x /usr/bin/cosmic-bg && test -f /usr/share/cosmic/com.system76.CosmicBackground/v1/all"
-targets: [el10]
+targets: [el10, ubuntu, debian]

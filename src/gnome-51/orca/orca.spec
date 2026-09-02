@@ -1,11 +1,13 @@
 Name:           orca
-Version:        50.0.9
-Release:        1%{?dist}
+Version:        51~beta
+Release:        %autorelease
 Summary:        Assistive technology for people with visual impairments
 
 License:        LGPL-2.1-or-later AND CC-BY-SA-3.0
 URL:            https://wiki.gnome.org/Projects/Orca
-Source0:        https://download.gnome.org/sources/orca/50/orca-50.0.9.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+
+%gnome_check_version
 
 BuildArch:      noarch
 
@@ -21,6 +23,9 @@ BuildRequires:  intltool
 BuildRequires:  gtk3-devel
 BuildRequires:  itstool
 BuildRequires:  meson
+# Rawhide dropped this explicit BR (the %%meson_build macro resolves ninja via
+# meson's own dependency chain). We still call meson/ninja by hand below, so
+# keep it explicit rather than relying on transitivity.
 BuildRequires:  ninja-build
 BuildRequires:  python3-brlapi
 BuildRequires:  python3-dasbus
@@ -38,6 +43,10 @@ Requires:       python3-speechd
 Requires:       speech-dispatcher
 # For the battery and system usage information commands
 Recommends:     python3-psutil
+%if 0%{?fedora}
+# only needed in X11 sessions
+Recommends:     libwnck3
+%endif
 
 %description
 Orca is a screen reader that provides access to the graphical desktop via
@@ -46,10 +55,25 @@ applications and toolkits that support the assistive technology service
 provider interface (AT-SPI), e.g. the GNOME desktop.
 
 %prep
-%autosetup -p1 -n orca-50.0.9
+%autosetup -p1 -n %{name}-%{gnome_tarball_version}
 
 %build
-# Expand %%meson macro manually to avoid "fg: no job control" in EL10 mock chroot
+# Expand %%meson/%%meson_build manually instead of using the macros: this
+# repo's gnome-51/glib2, gnome-51/gtk4 and gnome-51/gjs specs all carry the
+# identical workaround, with their changelogs attributing it to an
+# intermittent "fg: no job control" failure from meson's ninja wrapper on
+# COPR builders (a job-control shell builtin with no controlling tty). Not
+# independently reproduced against this specific spec/pipeline, but the
+# failure was non-deterministic where it was found, so one clean build here
+# would not be evidence it's safe to drop -- keeping it matches every other
+# meson-based spec in this tree.
+#
+# -Dmathcat=false: orca 51.beta added MathCAT (math speech/braille) support,
+# on by default (meson_options.txt: `option('mathcat', type: 'boolean',
+# value: true)`). meson.build's own check hard-errors when the option is on
+# and `cargo` isn't found (find_program(required: false) then an explicit
+# error()) -- we don't BuildRequire a Rust toolchain, and neither does
+# Rawhide's current spec, which carries this same flag.
 meson setup redhat-linux-build \
     --buildtype=plain \
     --prefix=%{_prefix} \
@@ -57,7 +81,8 @@ meson setup redhat-linux-build \
     --sysconfdir=%{_sysconfdir} \
     --localstatedir=%{_localstatedir} \
     --wrap-mode=nodownload \
-    -Ddefault_library=shared
+    -Ddefault_library=shared \
+    -Dmathcat=false
 meson compile -C redhat-linux-build
 
 %install
@@ -82,6 +107,4 @@ desktop-file-validate %{buildroot}%{_sysconfdir}/xdg/autostart/orca-autostart.de
 %{_userunitdir}/orca.service
 
 %changelog
-* Mon Mar 23 2026 James <james@example.com> - 50.0.9-1
-- Update to 50.0.9 (GNOME 50)
-- Expand %%meson macro to avoid "fg: no job control" failure in EL10 mock chroot
+%autochangelog

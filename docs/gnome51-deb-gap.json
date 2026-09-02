@@ -1,0 +1,221 @@
+{
+  "roots": [
+    "gnome-shell",
+    "mutter",
+    "gnome-session",
+    "gnome-settings-daemon",
+    "gnome-control-center",
+    "gnome-initial-setup",
+    "gdm3",
+    "nautilus",
+    "xdg-desktop-portal-gnome",
+    "accountsservice"
+  ],
+  "stack": "gnome-51",
+  "targets": {
+    "debian": {
+      "donor_cannot_build": {},
+      "donor_sources": 41365,
+      "donor_suites": [
+        "experimental",
+        "sid"
+      ],
+      "missing_roots": [],
+      "needed_count": 1,
+      "packages": [
+        {
+          "depth": 0,
+          "donor_version": "51~beta-1",
+          "reason": "target is older",
+          "source": "mutter",
+          "target_version": "50.4-1"
+        }
+      ],
+      "target_sources": 41215,
+      "target_suite": "sid",
+      "tiers": [
+        [
+          "mutter"
+        ]
+      ],
+      "unattributable": {}
+    },
+    "ubuntu": {
+      "donor_cannot_build": {},
+      "donor_sources": 41957,
+      "donor_suites": [
+        "stonking",
+        "stonking-proposed"
+      ],
+      "missing_roots": [],
+      "needed_count": 19,
+      "packages": [
+        {
+          "depth": 2,
+          "donor_version": "14.3ubuntu1",
+          "reason": "target is older",
+          "source": "debhelper",
+          "target_version": "13.31ubuntu1"
+        },
+        {
+          "depth": 2,
+          "donor_version": "1.58.0-1",
+          "reason": "target is older",
+          "source": "pango1.0",
+          "target_version": "1.57.0-1"
+        },
+        {
+          "depth": 2,
+          "donor_version": "1.26.0-1",
+          "reason": "target is older",
+          "source": "wayland",
+          "target_version": "1.24.0-2"
+        },
+        {
+          "depth": 2,
+          "donor_version": "1.49-1",
+          "reason": "target is older",
+          "source": "wayland-protocols",
+          "target_version": "1.47-1"
+        },
+        {
+          "depth": 1,
+          "donor_version": "0.16.2-1",
+          "reason": "target is older",
+          "source": "gexiv2",
+          "target_version": "0.14.6-2"
+        },
+        {
+          "depth": 1,
+          "donor_version": "51~alpha-4",
+          "reason": "target is older",
+          "source": "gnome-desktop",
+          "target_version": "44.5-1ubuntu1"
+        },
+        {
+          "depth": 1,
+          "donor_version": "51~beta-0ubuntu2",
+          "reason": "target is older",
+          "source": "gnome-session",
+          "target_version": "50.0-0ubuntu3"
+        },
+        {
+          "depth": 1,
+          "donor_version": "51~beta-1ubuntu1",
+          "reason": "target is older",
+          "source": "gsettings-desktop-schemas",
+          "target_version": "50.0-1ubuntu2"
+        },
+        {
+          "depth": 1,
+          "donor_version": "4.23.2+ds-1",
+          "reason": "target is older",
+          "source": "gtk4",
+          "target_version": "4.22.2+ds-1ubuntu1"
+        },
+        {
+          "depth": 1,
+          "donor_version": "51~beta-1ubuntu2",
+          "reason": "target is older",
+          "source": "mutter",
+          "target_version": "50.1-0ubuntu2"
+        },
+        {
+          "depth": 1,
+          "donor_version": "1.0.0ubuntu",
+          "reason": "target is older",
+          "source": "ubuntu-insights",
+          "target_version": "0.9.3ubuntu"
+        },
+        {
+          "depth": 0,
+          "donor_version": "26.27.3-0ubuntu1",
+          "reason": "target is older",
+          "source": "accountsservice",
+          "target_version": "23.13.9-8ubuntu5"
+        },
+        {
+          "depth": 0,
+          "donor_version": "51~beta-0ubuntu1",
+          "reason": "target is older",
+          "source": "gdm3",
+          "target_version": "50.0-0ubuntu1"
+        },
+        {
+          "depth": 0,
+          "donor_version": "1:51~beta-1ubuntu1",
+          "reason": "target is older",
+          "source": "gnome-control-center",
+          "target_version": "1:50.0-0ubuntu6"
+        },
+        {
+          "depth": 0,
+          "donor_version": "51~alpha-0ubuntu2",
+          "reason": "target is older",
+          "source": "gnome-initial-setup",
+          "target_version": "50.0-0ubuntu7"
+        },
+        {
+          "depth": 0,
+          "donor_version": "51~beta-2ubuntu2",
+          "reason": "target is older",
+          "source": "gnome-settings-daemon",
+          "target_version": "50.0-1ubuntu1"
+        },
+        {
+          "depth": 0,
+          "donor_version": "51~beta-0ubuntu1",
+          "reason": "target is older",
+          "source": "gnome-shell",
+          "target_version": "50.1-0ubuntu1"
+        },
+        {
+          "depth": 0,
+          "donor_version": "1:51~alpha-0ubuntu1",
+          "reason": "target is older",
+          "source": "nautilus",
+          "target_version": "1:50.0-0ubuntu2"
+        },
+        {
+          "depth": 0,
+          "donor_version": "51~alpha-0ubuntu1",
+          "reason": "target is older",
+          "source": "xdg-desktop-portal-gnome",
+          "target_version": "50.0-0ubuntu1"
+        }
+      ],
+      "target_sources": 39736,
+      "target_suite": "resolute",
+      "tiers": [
+        [
+          "accountsservice",
+          "debhelper",
+          "gdm3",
+          "gnome-initial-setup",
+          "gnome-session",
+          "pango1.0",
+          "ubuntu-insights",
+          "wayland",
+          "xdg-desktop-portal-gnome"
+        ],
+        [
+          "gexiv2",
+          "gnome-desktop",
+          "gnome-settings-daemon",
+          "gsettings-desktop-schemas",
+          "wayland-protocols"
+        ],
+        [
+          "gtk4",
+          "mutter",
+          "nautilus"
+        ],
+        [
+          "gnome-control-center",
+          "gnome-shell"
+        ]
+      ],
+      "unattributable": {}
+    }
+  }
+}

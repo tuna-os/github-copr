@@ -1,0 +1,51 @@
+# Roots manifest for the xfce-fedora family — RFC 011 Phase 1 conversion
+# input. `package-factory.yaml`'s fedora target already points its
+# gap_measurement.roots_manifest here; until this file existed, that contract
+# named a path that 404'd on disk and `measure-target-gap.py --target fedora`
+# could not run at all.
+#
+# Same schema as manifests/hummingbird-desktops.yaml, deliberately: the gap
+# engine consumes one shape, and new families are configuration, not forks.
+#
+# THE ROOT IS ONE PACKAGE, AND THAT IS THE POINT of this family's conversion
+# gate. The curated build-order-xfce-fedora.yml carries three packages
+# (xfconf, libxfce4ui, xfwl4), and its own header records why: xfwl4's -sys
+# crates pin `libxfconf-0 >= 4.21.2` and `libxfce4kbd-private-3 >= 4.21.4`
+# while Fedora 44 ships 4.20.x — package PRESENCE was never evidence of
+# version ADEQUACY. Today's closure() stops at anything the target index
+# `have`s by NAME, so a naive regeneration will emit xfwl4 alone and drop the
+# two version-forced rebuilds. That is the expected, explained diff this
+# family's conversion PR must resolve — by teaching the engine version-aware
+# requirement satisfaction — before the curated file may be deleted per the
+# Phase 1 gate ("generated == curated, exact-or-explained").
+schema: 1
+
+# The xfce family builds from reviewed specs only; a package the engine
+# cannot locate would be a manifest error, and the distgit prefix names
+# where an import WOULD land if one were ever added.
+source_paths: [src/xfce-wayland]
+distgit_prefix: src/xfce-wayland
+
+# Only what images ship is built here; build tooling comes from the
+# buildroot's own Fedora 44 repos.
+membership: runtime
+
+target:
+  id: fedora-44-x86_64
+  # Read path and write path are recorded in package-factory.yaml
+  # (gap_measurement / r2_path); repeated here only where build-chain.sh
+  # derives %{dist} from the id.
+  r2_path: xfce/44-x86_64
+  dist: .fc44
+
+desktops:
+  xfce:
+    release: "4.21"
+    sources:
+      - local: src/xfce-wayland
+    required_packages:
+      # The deliverable: the Wayland XFCE compositor stack. Its
+      # version-pinned build inputs (xfconf 4.21, libxfce4ui 4.21) are NOT
+      # roots — whether they must be rebuilt is exactly the question the gap
+      # engine answers, once it can compare versions and not just names.
+      - xfwl4

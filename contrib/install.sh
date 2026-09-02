@@ -52,20 +52,26 @@ detect_version() {
 
 install_gpg_key() {
     echo "Installing GPG key..."
-    curl -sSLo /etc/pki/rpm-gpg/RPM-GPG-KEY-james-rc "$REPO_URL/public.gpg"
-    rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-james-rc 2>/dev/null || true
+    curl -sSLo /etc/pki/rpm-gpg/RPM-GPG-KEY-tunaos "$REPO_URL/public.gpg"
+    rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-tunaos 2>/dev/null || true
 }
 
 install_repo_file() {
     local version
     version=$(detect_version)
     
+    # gpgcheck=1 verifies each RPM against the tuna-os signing key -- every
+    # repo.tunaos.org publish pipeline signs its RPMs with `rpmsign
+    # --addsign` before upload (see tuna-os/tunaos-packages#394). repo_gpgcheck
+    # stays 0: repomd.xml isn't detached-signed (no repomd.xml.asc published),
+    # so =1 there would hard-fail every dnf transaction rather than add a
+    # check. Matches the working contrib/install-gnome49.sh pattern.
     cat > "/etc/yum.repos.d/${REPO_NAME}.repo" << EOF
 [${REPO_NAME}]
 name=Tuna OS - \$releasever
 baseurl=${REPO_URL}/repo/\$releasever/\$basearch/
 enabled=1
-gpgcheck=0
+gpgcheck=1
 gpgkey=${REPO_URL}/public.gpg
 repo_gpgcheck=0
 metadata_expire=3600

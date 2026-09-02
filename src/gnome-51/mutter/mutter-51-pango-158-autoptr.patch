@@ -1,0 +1,16 @@
+diff -ur a/clutter/clutter/pango/clutter-pango-private.h b/clutter/clutter/pango/clutter-pango-private.h
+--- a/clutter/clutter/pango/clutter-pango-private.h	2026-08-27 21:02:10.546931996 +0000
++++ b/clutter/clutter/pango/clutter-pango-private.h	2026-08-27 21:02:10.684795295 +0000
+@@ -80,8 +80,12 @@
+                           ClutterColorState *target_color_state);
+ 
+ #if !PANGO_VERSION_CHECK(1, 57, 2)
++/* pango 1.58 defines the PangoRenderer autoptr itself; defining it again
++ * is a hard error under glib's redefinition check. */
++#if !PANGO_VERSION_CHECK (1, 58, 0)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC (PangoRenderer, g_object_unref)
+ #endif
++#endif
+ 
+ static inline PangoDirection
+ clutter_text_direction_to_pango_direction (ClutterTextDirection dir)

@@ -104,9 +104,16 @@ tiers:
   # Tier 11: GTK Core.
   - name: gtk-core
     packages:
+      - path: src/deps/libnotify
       - path: src/gnome-51/gsettings-desktop-schemas
       - path: src/gnome-51/gnome-desktop3
-      - path: src/deps/gtk4
+      # The track's OWN gtk4, not src/deps/. src/deps/gtk4 is 4.21.6 and is
+      # shared with build-order.yml; the GNOME 51 modules need 4.23.3, and
+      # libadwaita/nautilus/xdg-desktop-portal-gnome all died on
+      # "Run-time dependency gtk4 found: NO" while a bumped 4.23.3 sat
+      # unreferenced in src/gnome-51/gtk4. Per-track copies are the
+      # convention the hummingbird order already follows (src/gnome-50/gtk4).
+      - path: src/gnome-51/gtk4
       - copr_name: highway
       - path: src/deps/glycin
       - path: src/deps/libgda
@@ -117,7 +124,9 @@ tiers:
       - path: src/gnome-51/libadwaita
       - path: src/gnome-51/xdg-desktop-portal
       - path: src/deps/localsearch
-      - path: src/deps/vte291
+      # Same reason as gtk4 above: src/deps/vte291 is 0.84.0, the track
+      # carries 0.84.1.
+      - path: src/gnome-51/vte291
         spec_override: vte291.spec
 
   # Tier 12b: Parental controls stack (needs gtk4, libadwaita, flatpak).
@@ -128,6 +137,7 @@ tiers:
   # Tier 13: Compositor & Shell.
   - name: shell-foundations
     packages:
+      - path: src/deps/tecla
       - path: src/gnome-51/gnome-settings-daemon
       - path: src/gnome-51/mutter
 

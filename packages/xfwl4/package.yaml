@@ -53,6 +53,9 @@ dependencies:
       el10: [libdrm-devel, libinput-devel, mesa-libgbm-devel, libseat-devel, libxkbcommon-devel, pixman-devel, wayland-devel, wayland-protocols-devel, gtk3-devel, gdk-pixbuf2-devel, libdisplay-info-devel, libSM-devel, systemd-devel, startup-notification-devel, xfconf-devel, libxfce4ui-devel, gettext-devel]
       ubuntu: [libdrm-dev, libinput-dev, libgbm-dev, libseat-dev, libxkbcommon-dev, libpixman-1-dev, libwayland-dev, wayland-protocols, libgtk-3-dev, libgdk-pixbuf-2.0-dev, libdisplay-info-dev, libsm-dev, libsystemd-dev, libstartup-notification0-dev, libxfconf-0-dev, libxfce4ui-2-dev, gettext]
       debian: [libdrm-dev, libinput-dev, libgbm-dev, libseat-dev, libxkbcommon-dev, libpixman-1-dev, libwayland-dev, wayland-protocols, libgtk-3-dev, libgdk-pixbuf-2.0-dev, libdisplay-info-dev, libsm-dev, libsystemd-dev, libstartup-notification0-dev, libxfconf-0-dev, libxfce4ui-2-dev, gettext]
+  runtime:
+    targets:
+      el10: [xfwm4-themes]
 files:
   common: [usr/bin/xfwl4, usr/share/xfce4/xfwl4/defaults]
 install:

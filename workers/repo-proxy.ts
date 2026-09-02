@@ -14,14 +14,21 @@ const CACHE_TTL = 3600;
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    let path = url.pathname;
+    const path = decodePathname(url.pathname);
+    if (path === null) {
+      return new Response("Bad Request", {
+        status: 400,
+        headers: getCorsHeaders(),
+      });
+    }
+    let routedPath = path;
 
     // Route: Handle $releasever/$basearch path rewriting
     // Convert paths like /repo/fedora-40/x86_64/ to /repo/fedora-40-x86_64/
-    path = transformPath(path);
+    routedPath = transformPath(routedPath);
 
     // Log request (consider sending to analytics/Logflare)
-    console.log(`${request.method} ${path} from ${request.headers.get("cf-connecting-ip")}`);
+    console.log(`${request.method} ${routedPath} from ${request.headers.get("cf-connecting-ip")}`);
 
     // Handle CORS preflight
     if (request.method === "OPTIONS") {
@@ -29,8 +36,8 @@ export default {
     }
 
     // Route: Serve GPG public key or Release.gpg signature
-    if (path === "/public.gpg" || path === "/keys/RPM-GPG-KEY-james-rc" || path.endsWith("/Release.gpg")) {
-      return serveFromR2(env, path === "/public.gpg" || path === "/keys/RPM-GPG-KEY-james-rc" ? "public.gpg" : path, {
+    if (routedPath === "/public.gpg" || routedPath === "/keys/RPM-GPG-KEY-james-rc" || routedPath.endsWith("/Release.gpg")) {
+      return serveFromR2(env, routedPath === "/public.gpg" || routedPath === "/keys/RPM-GPG-KEY-james-rc" ? "public.gpg" : routedPath, {
         contentType: "application/pgp-keys",
         addHeaders: {
           "Content-Disposition": "attachment; filename=\"RPM-GPG-KEY-james-rc\"",
@@ -39,24 +46,24 @@ export default {
     }
  
     // Route: Serve Debian/Ubuntu APT Release metadata files (InRelease, Release)
-    if (path.endsWith("/InRelease") || path.endsWith("/Release")) {
-      return serveFromR2(env, path, {
+    if (routedPath.endsWith("/InRelease") || routedPath.endsWith("/Release")) {
+      return serveFromR2(env, routedPath, {
         contentType: "text/plain",
         cacheable: true,
       });
     }
 
     // Route: Serve Debian/Ubuntu APT Packages indices and metadata
-    if (path.endsWith("/Packages") || path.endsWith("/Packages.gz") || path.endsWith("/Sources.gz")) {
-      return serveFromR2(env, path, {
-        contentType: path.endsWith(".gz") ? "application/x-gzip" : "text/plain",
+    if (routedPath.endsWith("/Packages") || routedPath.endsWith("/Packages.gz") || routedPath.endsWith("/Sources.gz")) {
+      return serveFromR2(env, routedPath, {
+        contentType: routedPath.endsWith(".gz") ? "application/x-gzip" : "text/plain",
         cacheable: true,
       });
     }
 
     // Route: Serve Debian packages
-    if (path.endsWith(".deb")) {
-      return serveFromR2(env, path, {
+    if (routedPath.endsWith(".deb")) {
+      return serveFromR2(env, routedPath, {
         contentType: "application/x-debian-package",
         addHeaders: {
           "Content-Disposition": "attachment",
@@ -65,27 +72,27 @@ export default {
     }
 
     // Route: Serve repomd.xml (metadata)
-    if (path.endsWith("repomd.xml")) {
-      return serveFromR2(env, path, {
+    if (routedPath.endsWith("repomd.xml")) {
+      return serveFromR2(env, routedPath, {
         contentType: "application/xml",
         cacheable: true,
       });
     }
 
     // Route: Serve primary/comps/filelists XML
-    if (path.includes("-primary.xml.gz") ||
-        path.includes("-filelists.xml.gz") ||
-        path.includes("-other.xml.gz") ||
-        path.includes("-comps.xml")) {
-      return serveFromR2(env, path, {
-        contentType: path.includes("gz") ? "application/x-gzip" : "application/xml",
+    if (routedPath.includes("-primary.xml.gz") ||
+        routedPath.includes("-filelists.xml.gz") ||
+        routedPath.includes("-other.xml.gz") ||
+        routedPath.includes("-comps.xml")) {
+      return serveFromR2(env, routedPath, {
+        contentType: routedPath.includes("gz") ? "application/x-gzip" : "application/xml",
         cacheable: true,
       });
     }
 
     // Route: Serve RPM packages
-    if (path.endsWith(".rpm")) {
-      return serveFromR2(env, path, {
+    if (routedPath.endsWith(".rpm")) {
+      return serveFromR2(env, routedPath, {
         contentType: "application/x-rpm",
         addHeaders: {
           "Content-Disposition": "attachment",
@@ -94,17 +101,29 @@ export default {
     }
 
     // Route: Serve module metadata
-    if (path.includes("modules.")) {
-      return serveFromR2(env, path, {
+    if (routedPath.includes("modules.")) {
+      return serveFromR2(env, routedPath, {
         contentType: "application/x-yaml",
         cacheable: true,
       });
     }
 
     // Default: try serving directly
-    return serveFromR2(env, path, { cacheable: true });
+    return serveFromR2(env, routedPath, { cacheable: true });
   },
 };
+
+function decodePathname(path) {
+  try {
+    // Decode one URL segment at a time so an encoded slash cannot change the
+    // releasever/basearch route before transformPath runs. It is still part of
+    // the final R2 key, where `%2F` and `/` identify the same object path.
+    return path.split("/").map((segment) => decodeURIComponent(segment)).join("/");
+  } catch {
+    // A malformed escape is a client error, not an R2 miss or worker failure.
+    return null;
+  }
+}
 
 function transformPath(path) {
   // /repo/fedora-40/x86_64/ -> /repo/fedora-40-x86_64/

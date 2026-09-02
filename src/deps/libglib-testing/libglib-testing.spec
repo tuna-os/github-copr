@@ -1,9 +1,9 @@
 Name:           libglib-testing
 Version:        0.1.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        GLib-based test library and harness
 
-License:        LicenseRef-Callaway-LGPLv2+
+License:        LGPL-2.1-or-later
 URL:            https://gitlab.gnome.org/pwithnall/libglib-testing
 Source0:        https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.bz2
 
@@ -18,7 +18,7 @@ any project which uses GLib and which wants to write internal unit tests.
 
 %package devel
 Summary:        Development files for %{name}
-License:        LicenseRef-Callaway-LGPLv2+
+License:        LGPL-2.1-or-later
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 
 %description devel
@@ -54,6 +54,11 @@ DESTDIR=%{buildroot} ninja -C _build install
 %{_libdir}/pkgconfig/glib-testing-0.pc
 
 %changelog
+* Sun Aug 23 2026 TunaOS Package Factory <packages@tunaos.org> - 0.1.0-4
+- Use the SPDX identifier LGPL-2.1-or-later. LicenseRef-Callaway-LGPLv2+ is
+  not a valid LicenseRef: SPDX allows only [A-Za-z0-9.-] in the idstring, so
+  the trailing + made it invalid and rpmlint failed the cell (#480)
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 0.1.0-3
 - Fix %%files devel: include dir is glib-testing-0/ not libglib-testing-0/
 

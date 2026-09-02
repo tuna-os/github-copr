@@ -37,9 +37,20 @@ BUILD_CHAIN="${REPO_ROOT}/scripts/build-chain.sh"
 
 @test "build-chain.sh: passes shellcheck" {
   if command -v shellcheck &>/dev/null; then
-    run shellcheck "${BUILD_CHAIN}"
+    run shellcheck "${BUILD_CHAIN}" "${REPO_ROOT}/scripts/lib/build-chain/native.sh"
     [ "$status" -eq 0 ]
   else
     skip "shellcheck not installed"
   fi
+}
+
+@test "build-chain.sh: loads native backend through the module boundary" {
+  run grep -F 'source "${SCRIPT_DIR}/lib/build-chain/native.sh"' "${BUILD_CHAIN}"
+  [ "$status" -eq 0 ]
+
+  run grep -F 'build_package_native()' "${BUILD_CHAIN}"
+  [ "$status" -ne 0 ]
+
+  run grep -F 'build_package_native()' "${REPO_ROOT}/scripts/lib/build-chain/native.sh"
+  [ "$status" -eq 0 ]
 }

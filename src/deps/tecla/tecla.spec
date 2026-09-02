@@ -1,8 +1,8 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:           tecla
-Version:        50~rc
-Release:        100%{?dist}
+Version:        50.0
+Release:        1%{?dist}
 Summary:        Keyboard layout viewer
 
 License:        GPL-2.0-or-later
@@ -67,5 +67,9 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.gnome.Tecla.deskt
 
 
 %changelog
+* Sun Aug 23 2026 TunaOS Package Factory <packages@tunaos.org> - 50.0-1
+- Build the final 50.0 rather than 50~rc, and put the recipe in a build order
+  so it is actually built (#480)
+
 * Sat Mar 14 2026 James Reilly <jreilly1821@gmail.com> - 50~rc-100
 - Initial build for GNOME 50 bootstrap on EL10

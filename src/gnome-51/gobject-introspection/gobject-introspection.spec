@@ -7,11 +7,26 @@ Summary:        Introspection system for GObject-based libraries
 
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND BSD-2-Clause
 URL:            https://wiki.gnome.org/Projects/GObjectIntrospection
-Source:         https://download.gnome.org/sources/%{name}/1.86/%{name}-%{version}.tar.xz
+# Rawhide's current spec sources this path segment from a
+# %{gnome_major_minor_version} macro that Fedora's GNOME SIG tooling injects
+# into the Rawhide buildroot; it is not defined in our el10/hummingbird mock
+# config. Compute it locally instead (same pattern already used by
+# src/gnome-51/vte291's %{major_minor_version}) so the Source: URL stays
+# correct on version bumps without depending on an undefined macro. Must be
+# defined after Version: is set, since %() shell expansion runs eagerly.
+%global gnome_major_minor_version %(echo %{version} | cut -d. -f1-2)
+Source:         https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{version}.tar.xz
 
 # Workaround for Python 3.12 compatibility
 # https://bugzilla.redhat.com/show_bug.cgi?id=2208966
 Patch:          workaround.patch
+
+# Fix test_ccompiler.py for setuptools >= 84 (spawn() replaced by call() ->
+# subprocess.check_call()). Carried by Rawhide; adopted here for %check
+# parity since our el10/hummingbird buildroot's setuptools may be >= 84.
+# Safe unconditionally: it falls back to the old spawn()-based assertion
+# when check_call was never invoked.
+Patch:          fix-test-ccompiler-setuptools84.patch
 
 BuildRequires:  bison
 BuildRequires:  flex

@@ -42,6 +42,14 @@ def main():
         "--tiers", action="store_true", help="Print tier names only"
     )
     parser.add_argument(
+        "--all", action="store_true",
+        help="Print all packages from all tiers in order (tab-separated path\\tspec)"
+    )
+    parser.add_argument(
+        "--tiers-filter", default="",
+        help="Comma-separated tier names; when set, --all only outputs these tiers"
+    )
+    parser.add_argument(
         "--validate", action="store_true", help="Validate manifest against schema"
     )
     args = parser.parse_args()
@@ -56,6 +64,18 @@ def main():
     if args.tiers:
         for tier in data["tiers"]:
             print(tier["name"])
+        return
+
+    if args.all:
+        allowed = set(t.strip() for t in args.tiers_filter.split(",") if t.strip()) if args.tiers_filter else None
+        for tier in data["tiers"]:
+            if allowed and tier["name"] not in allowed:
+                continue
+            for pkg in tier.get("packages", []):
+                if "path" not in pkg:
+                    continue
+                spec = pkg.get("spec_override", "")
+                print(f"{pkg['path']}\t{spec}")
         return
 
     if args.tier:

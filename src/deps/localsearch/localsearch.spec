@@ -203,10 +203,4 @@ DESTDIR=%{buildroot} ninja -C _build install
 
 
 %changelog
-* Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 3.11~rc-1
-- Replace %%meson/%%meson_build/%%meson_install with explicit meson/ninja
-  to avoid "fg: no job control" on COPR builders (non-interactive bash).
-- EL10: gate asciidoc BR behind %%if !0%%{?rhel} (asciidoc pulls in
-  source-highlight which needs libboost_regex.so.1.83.0, absent on EL10).
-- EL10: disable man pages via -Dman=false; gate man %%files entry.
-- Remove %%autorelease/%%autochangelog: Fedora-specific macros not available on EL10.
+%autochangelog
