@@ -84,6 +84,9 @@ def test_the_gate_materialises_consumed_repositories_from_their_digests():
     text = GATE.read_text()
     assert 'ref="${consumed_ref[$id]#oci://}"' in text
     assert "podman create --pull=always" in text and "podman cp" in text
+    # podman cp does not create the host directory; the first CI run died on
+    # exactly that after pulling 500 MB (run 33619237851).
+    assert text.index('mkdir -p "$work/consumed/${id}"') < text.index('podman cp "${container}:/repository/."')
     assert "baseurl=file:///consumed/" in text
     assert "priority=5" in text, "consumed beats the prefix (11), matching gnome.yaml's priorities on the tunaOS side"
 

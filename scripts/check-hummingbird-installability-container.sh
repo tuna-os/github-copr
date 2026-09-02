@@ -87,6 +87,10 @@ for id in "${!consumed_ref[@]}"; do
 	ref="${consumed_ref[$id]#oci://}"
 	echo "==> materialising consumed repository ${id} from ${ref}"
 	container="$(podman create --pull=always "$ref")"
+	# podman cp needs the host directory to exist: on the first CI run it did
+	# not, and the copy died with "could not be found on the host" after the
+	# 500 MB pull (run 33619237851).
+	mkdir -p "$work/consumed/${id}"
 	podman cp "${container}:/repository/." "$work/consumed/${id}/"
 	podman rm "$container" >/dev/null
 	test -f "$work/consumed/${id}/repodata/repomd.xml" || {
@@ -162,7 +166,7 @@ INSIDE
 echo "==> ${PROBE_IMAGE}"
 set +e
 podman run --rm \
-	-v "$work:/work:ro,Z" \
+	-v "$work:/work:Z" \
 	-v "$work/consumed:/consumed:ro,Z" \
 	"$PROBE_IMAGE" bash /work/inside.sh "${desktops[@]}" | tee "$work/table.md"
 rc=${PIPESTATUS[0]}
