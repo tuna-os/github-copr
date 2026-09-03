@@ -1,6 +1,6 @@
 Name:           gnome50-el10-compat
 Version:        1.2.10
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        GNOME 50 Compatibility workarounds for EL10
 
 License:        MIT
@@ -43,8 +43,8 @@ It provides:
 - A `useradd` wrapper, installed via `alternatives`, working around EL10
   shadow-utils 4.15's fatal E_HOMEDIR exit when `-m` targets a home
   directory that already exists (e.g. preserved /var/home on reinstall).
-  See the %%post scriptlet and issue #17 for the failure mode, and #392 for
-  the condition under which this wrapper can be deleted.
+  See the post-install scriptlet and issue #17 for the failure mode, and
+  #392 for the condition under which this wrapper can be deleted.
 
 %prep
 cp %{SOURCE1} gdm-gnome50.te
@@ -161,6 +161,13 @@ fi
 %{_libexecdir}/%{name}/useradd
 
 %changelog
+* Thu Sep 03 2026 TunaOS Bot <bot@tunaos.org> - 1.2.10-2
+- Describe the useradd wrapper's scriptlet in prose. `%%post` in the spec
+  renders as a literal %%post in the BINARY package's description, which
+  rpmlint reports as unexpanded-macro -- a curated fatal check in
+  scripts/lint-generated-rpm.sh, and the only one the whole 345-package
+  gnome50 chain trips (run 33772858015).
+
 * Wed Sep 02 2026 James Reilly <jreilly1821@gmail.com> - 1.2.10-1
 - useradd-wrapper: document an expiry condition for the workaround
   (tunaos-packages#392). The wrapper is still needed -- EL10 4.15's

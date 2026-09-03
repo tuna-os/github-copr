@@ -28,7 +28,8 @@ noise that hides the two that do not.
 ## What is deliberately NOT in el10's list
 
 The other build-chain families publish to their own prefixes too
-(gnome49/10-stream-x86_64, gnome51/10-stream-x86_64). They are NOT declared,
+(gnome49/10-stream-x86_64, gnome50/10-stream-x86_64, gnome51/10-stream-x86_64).
+They are NOT declared,
 and that is a decision, not an omission: those prefixes carry GNOME 50/51
 bootstrap builds of glib2 whose `Obsoletes: glib2 < 2.87.3` REPLACES the
 AppStream package in any transaction regardless of repo priority — publish

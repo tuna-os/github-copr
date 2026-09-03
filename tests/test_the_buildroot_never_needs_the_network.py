@@ -102,9 +102,13 @@ def test_the_backend_pip_is_told_to_reuse_is_actually_installed():
 
 
 def test_the_changelog_records_the_release_that_carries_this():
+    """The offline-pip fix shipped as 2.2.1-3; later releases (2.2.1-4 added
+    the systemd-rpm-macros BuildRequires) build on it, never below it."""
+    import re
     text = SPEC.read_text(encoding="utf-8")
-    assert "Release:        3%{?dist}" in text
-    assert "2.2.1-3" in text, "the changelog does not name the new release"
+    release = re.search(r"^Release:\s+(\d+)%\{\?dist\}", text, re.M)
+    assert release and int(release.group(1)) >= 3, "the release went backwards past the fix"
+    assert "2.2.1-3" in text, "the changelog does not name the release that carried the fix"
 
 
 def test_no_spec_in_the_tree_disables_network_by_patching_upstream():

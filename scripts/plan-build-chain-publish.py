@@ -11,16 +11,19 @@ DESTINATION COLLISION. publish-tideforge-rpms.yml syncs x86_64 to
 
     rclone sync repo/ "r2:${R2_BUCKET}/repo/10-x86_64/"
 
-`gnome50-el10-x86_64` declares exactly that path. `rclone sync` makes the
-destination match the source, so publishing gnome50 there means the next
-tideforge publish deletes every gnome50 package, and this publish deletes
-every tideforge package in between. Serialising the two workflows (the shared
-concurrency group) stops them racing; it does not stop them overwriting.
+`gnome50-el10-x86_64` declared exactly that path until 2026-09-03 (it now
+owns gnome50/10-stream-x86_64, like every other family). `rclone sync` makes
+the destination match the source, so publishing a family there means the
+next tideforge publish deletes every one of its packages, and the family's
+publish deletes every tideforge package in between. Serialising the two
+workflows (the shared concurrency group) stops them racing; it does not stop
+them overwriting.
 
-That is a catalog question -- either gnome50 wants its own prefix, or the
-mirror wants to be a union rather than a copy -- and it is not one to guess
-at while holding credentials that can empty a live repo. So it is refused
-here by name, loudly, with the reason.
+That is a catalog question -- the family wants its own prefix, or the mirror
+wants to be a union rather than a copy -- and it is not one to guess at
+while holding credentials that can empty a live repo. So it is refused here
+by name, loudly, with the reason. Run 33751204743 is what that looks like:
+gnome50 refused at plan, nothing touched.
 
 NO DESTINATION. A cell with an empty `r2_path`, or `publish: false`, is
 declaring it has nowhere to go. `fprintd-el10-x86_64` is both.

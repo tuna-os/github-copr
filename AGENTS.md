@@ -95,7 +95,9 @@ src/gnome-49/ specs
 R2 path layout — GNOME 49 and GNOME 50 are fully separate, do not cross them:
 
 - GNOME 49: `r2:bluefin/gnome49/10-stream-x86_64/` -> `https://repo.tunaos.org/gnome49/10-stream-x86_64/`
-- GNOME 50: `r2:bluefin/repo/10-x86_64/` -> `https://repo.tunaos.org/repo/10/x86_64/`
+- GNOME 50: `r2:bluefin/gnome50/10-stream-x86_64/` -> `https://repo.tunaos.org/gnome50/10-stream-x86_64/`
+  (the factory's family prefix since 2026-09-03; `repo/10-x86_64` is the tideforge
+  mirror and is never a build-chain destination -- see `docs/GNOME50-REPO-PUBLISH.md`)
 
 The Cloudflare Worker's path transform only touches `/repo/...`; `/gnome49/...`
 is served directly from R2 with no transform — don't add one without reason.
