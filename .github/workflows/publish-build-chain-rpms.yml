@@ -334,7 +334,11 @@ jobs:
     needs: [plan, build]
     permissions:
       contents: read
-      packages: read
+      # packages: write for the OCI publish of the family index below (it was
+      # read: for the ORAS staging pull); id-token: write for cosign's keyless
+      # signature over the pushed digest.
+      packages: write
+      id-token: write
     # Publish whatever the build banked, even when the build job itself is
     # red: one failed package must not hold the other built packages hostage,
     # or the chain can never accumulate across legs (#544). cancelled() still
@@ -451,6 +455,77 @@ jobs:
         run: |
           set -euo pipefail
           rclone sync repo/ "r2:${R2_BUCKET}/${{ matrix.r2_path }}/"
+      # The same tree, as an OCI image consumed BY DIGEST -- the shape
+      # projectbluefin/utah-packages publishes and tunaOS already consumes for
+      # hummingbird:gnome (image-versions.yaml pins the digest,
+      # Containerfile.el10 bind-mounts /repository, the manifest enables it as
+      # a file:// repo). Maintainer directive 2026-09-03: no more COPR, build
+      # in GitHub like utah-packages; tuna-os/tunaos-packages#673.
+      #
+      # R2 stays the live endpoint for installed systems (dnf on a host reads
+      # https://repo.tunaos.org). What a registry adds is for the IMAGE
+      # BUILD: a digest names exactly the index an image was built against,
+      # an rclone sync cannot move under it, a rebuild from the same pins
+      # gets the same bytes, and provenance is a signature over the digest
+      # rather than trust in a bucket. The tag is the cell id
+      # (gnome50-el10-x86_64), so one image per family and architecture;
+      # consumers never follow the tag, they pin what the summary prints.
+      #
+      # Content is the synced tree exactly as R2 now serves it: the signed
+      # RPMs and the repodata createrepo_c just wrote, nothing else, so the
+      # two are the same index by two names. FROM scratch: this is data, not
+      # a runnable image.
+      - name: Publish the family index as an OCI image
+        id: oci
+        if: ${{ !inputs.dry_run }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCKER_CONFIG: ${{ runner.temp }}/.docker
+          IMAGE: ghcr.io/${{ github.repository_owner }}/tunaos-packages
+          TAG: ${{ matrix.id }}
+          R2_PATH: ${{ matrix.r2_path }}
+        run: |
+          set -euo pipefail
+          image=$(echo "${IMAGE}" | tr '[:upper:]' '[:lower:]')
+          printf 'FROM scratch\nCOPY repo /repository\n' > Containerfile.repo
+          # cosign signs by pushing to the same registry and reads the Docker
+          # config rather than podman's own auth file, so the login lands
+          # where both look: DOCKER_CONFIG here and on the signing step.
+          mkdir -p "${DOCKER_CONFIG}"
+          echo "${GITHUB_TOKEN}" | podman login ghcr.io -u "${{ github.actor }}" \
+            --password-stdin --authfile "${DOCKER_CONFIG}/config.json"
+          podman build --tag "${image}:${TAG}" --file Containerfile.repo .
+          podman push "${image}:${TAG}" --digestfile /tmp/digest \
+            --authfile "${DOCKER_CONFIG}/config.json"
+          digest=$(cat /tmp/digest)
+          echo "ref=${image}:${TAG}" >> "$GITHUB_OUTPUT"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "published ${image}:${TAG} = ${image}@${digest} (same index as ${R2_PATH})"
+          {
+            echo "### Family index published as an OCI image"
+            echo
+            echo '```'
+            echo "${image}:${TAG}"
+            echo "${image}@${digest}"
+            echo '```'
+            echo
+            echo "Pin the digest in tunaOS image-versions.yaml and bind-mount /repository (the utah-packages shape):"
+            echo '```dockerfile'
+            echo "FROM ${image}@${digest} AS ${TAG}"
+            echo "RUN --mount=type=bind,from=${TAG},source=/repository,target=/run/${TAG} ..."
+            echo '```'
+            echo
+            echo "The same index is served at https://repo.tunaos.org/${R2_PATH}/ for installed systems."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Install cosign
+        if: ${{ !inputs.dry_run }}
+        uses: sigstore/cosign-installer@v3
+      - name: Sign the published image
+        if: ${{ !inputs.dry_run }}
+        env:
+          COSIGN_YES: "true"
+          DOCKER_CONFIG: ${{ runner.temp }}/.docker
+        run: cosign sign "${{ steps.oci.outputs.ref }}@${{ steps.oci.outputs.digest }}"
       - name: Report a dry run honestly
         if: ${{ inputs.dry_run }}
         run: |

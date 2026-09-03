@@ -109,6 +109,17 @@ package affects a session. Only then may CI sign and promote it to the stable R2
 path. ORAS is suitable for immutable source/SBOM/provenance bundles, not as the
 live DNF/APT/Pacman endpoint.
 
+The same promoted index is also published as an OCI image, one tag per
+build-chain cell (`ghcr.io/tuna-os/tunaos-packages:gnome50-el10-x86_64`),
+content `/repository` = the signed RPMs and repodata exactly as R2 serves them,
+cosign-signed by digest. That is the **image build's** input, not the live
+endpoint: tunaOS pins the digest in `image-versions.yaml` and bind-mounts
+`/repository` as a `file://` repo for the desktop install, the way it consumes
+`projectbluefin/utah-packages` for hummingbird:gnome. A digest names exactly
+the index an image was built against; a bucket sync cannot move under it.
+Installed systems keep reading `https://repo.tunaos.org` (maintainer directive
+2026-09-03: no more COPR, build in GitHub like utah-packages; #673).
+
 ### What enforces this today
 
 The unified factory from RFC 011 (`docs/rfc/rfc011-unified-gap-driven-factory.md`)
