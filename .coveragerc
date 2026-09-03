@@ -1,0 +1,29 @@
+# Coverage settings for the Python Tests job (.github/workflows/lint.yml).
+#
+# WHY parallel + a COVERAGE_PROCESS_START pointing here: most of this repo's
+# scripts are tested the way CI runs them -- as a subprocess:
+#
+#     subprocess.run([sys.executable, str(PLANNER), "--packages", "evtest"])
+#
+# A subprocess is a fresh interpreter. Without coverage's process-startup hook
+# it is invisible to the parent's measurement, so a script driven by dozens of
+# passing tests still reports 0% and reads as untested. Measured on 6a3e0f2b:
+# eight scripts jumped from 0% to 70-97% once the hook was on, and the repo
+# total went 59% -> 67%.
+#
+# parallel = True is what makes that safe: every process writes its own
+# .coverage.<host>.<pid>.<random> file and pytest-cov combines them at the end.
+# Without it the subprocesses race the parent for one file.
+#
+# sigterm = True saves the data of a subprocess that CI kills on a timeout
+# rather than dropping it silently.
+
+[run]
+parallel = True
+sigterm = True
+source = scripts
+
+[report]
+# A partially-executed line is not a covered line; keep the two apart.
+show_missing = True
+skip_empty = True
