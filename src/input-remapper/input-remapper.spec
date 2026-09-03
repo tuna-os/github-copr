@@ -14,7 +14,7 @@
 
 Name:           input-remapper
 Version:        2.2.1
-Release:        4%{?dist}
+Release:        5%{?dist}
 Summary:        Change the mapping of input device buttons
 
 License:        GPL-3.0-or-later
@@ -30,6 +30,12 @@ BuildRequires:  gettext
 # begin with "/": %%{_unitdir}/input-remapper.service' -- the one failure
 # in the 2026-08-30 weekly gnome50 chain (run 33303057118, 57 of 58 built).
 BuildRequires:  systemd-rpm-macros
+# Pure Python plus data files: nothing here is compiled, so built as
+# x86_64 the debuginfo pass finds no sources and rpmbuild fails with
+# 'Empty %%files file .../debugsourcefiles.list' (run 33753245495, the
+# failure behind the one the systemd-rpm-macros line fixed). noarch is
+# what Fedora builds it as and turns the debuginfo pass off entirely.
+BuildArch:      noarch
 # The bundled installer shells out to pip and imports gi, even though this
 # spec deliberately avoids pip as the INSTALL METHOD (see above).
 # install/module.py's build_input_remapper_module() runs
@@ -158,6 +164,10 @@ python3 -m install --root %{buildroot}
 %{python3_sitelib}/input_remapper-*.dist-info/
 
 %changelog
+* Thu Sep 03 2026 TunaOS Bot <bot@tunaos.org> - 2.2.1-5
+- BuildArch noarch: pure Python, and the x86_64 build failed on an empty
+  debugsourcefiles.list once %%files resolved (run 33753245495).
+
 * Thu Sep 03 2026 TunaOS Bot <bot@tunaos.org> - 2.2.1-4
 - BuildRequires systemd-rpm-macros: %%{_unitdir} and %%{_udevrulesdir} were
   undefined in the mock buildroot, so %%files failed with 'File must begin

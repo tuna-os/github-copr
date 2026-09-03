@@ -958,7 +958,15 @@ build_package_podman() {
         # chroot wedged (mock's --no-clean is otherwise intentional so the
         # package's buildroot survives for diagnostics). The retry caller can
         # request a clean chroot without duplicating this invocation.
-        local mock_clean_flag="${2:---no-clean}"
+        # "clean" means: no flag at all. mock cleans the chroot before a
+        # build BY DEFAULT; --no-clean is what suppresses it. Passing --clean
+        # instead makes mock run its `clean` COMMAND and nothing else (one
+        # command per invocation, the last one wins), which is what the retry
+        # did on the gnome50 gate of 2026-09-03 (run 33753245495):
+        # "Start: clean chroot / Finish: clean chroot / Finish: run", no
+        # rebuild, "No RPMs produced".
+        local mock_clean_flag="--no-clean"
+        [ "${2:-}" = "clean" ] && mock_clean_flag=""
         timeout --kill-after=60s "${MOCK_TIMEOUT_MINUTES:-180}m" \
         podman run --rm --privileged \
             --pull=always \
@@ -1135,9 +1143,16 @@ build_package_podman() {
     # BuildRequires transaction can leave its rpm/dnf state wedged, and the
     # second mock invocation otherwise hangs during create skeleton dirs.
     if ! _run_mock_container ""; then
-        if grep -qs "is already installed" "${builddir}/results/root.log"; then
+        # The exact signature, not a bare "is already installed": dnf5 also
+        # prints "Package <nevra> is already installed." as INFORMATION for
+        # every already-satisfied BuildRequires (root.log is full of them on
+        # a healthy build), and matching those turned a genuine %files
+        # failure into a mislabelled "dnf5 bug" retry (input-remapper, run
+        # 33753245495). Only the transaction failure is the bug, and dnf5
+        # prints it across two lines.
+        if tr '\n' ' ' < "${builddir}/results/root.log" 2>/dev/null | grep -q "Failed to resolve the transaction:.*is already installed"; then
             echo "==> [${pkg_name}] mock hit the dnf5 already-installed dynamic-BuildRequires bug; cleaning chroot and retrying with dynamic_buildrequires=False"
-            _run_mock_container "--config-opts=dynamic_buildrequires=False" "--clean"
+            _run_mock_container "--config-opts=dynamic_buildrequires=False" "clean"
         else
             return 1
         fi

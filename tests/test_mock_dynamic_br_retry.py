@@ -88,7 +88,10 @@ def test_already_installed_failure_retries_once_with_the_override(tmp_path):
     assert status == 0, "the retry should carry the build to success"
     assert len(calls) == 2, f"expected exactly one retry, got {calls}"
     assert calls[0] == "|<none>", "the first attempt must be unmodified"
-    assert calls[1] == "--config-opts=dynamic_buildrequires=False|--clean"
+    assert calls[1] == "--config-opts=dynamic_buildrequires=False|clean", (
+        "the retry asks for a clean-before-build chroot by name; passing mock's "
+        "--clean COMMAND instead only cleans and never rebuilds (run 33753245495)"
+    )
 
 
 def test_unrelated_failure_does_not_retry(tmp_path):
@@ -134,3 +137,33 @@ def test_the_container_call_is_a_single_definition(tmp_path):
     text = SCRIPT.read_text()
     assert text.count("_run_mock_container() {") == 1
     assert "${mock_extra_args}" in text, "the hook the retry rides on is gone"
+
+
+INFORMATIONAL = (
+    'DEBUG util.py:537:  Package gettext-0.22.5-6.el10.x86_64 is already installed.\n'
+    'DEBUG util.py:537:  Package python3-devel-3.12.14-1.el10.x86_64 is already installed.\n'
+)
+
+
+def test_dnf5_informational_already_installed_lines_do_not_retry(tmp_path):
+    """dnf5 prints "Package <nevra> is already installed." for every satisfied
+    BuildRequires on a HEALTHY build. Matching those lines turned a genuine
+    %files failure (input-remapper, run 33753245495) into a mislabelled
+    "dnf5 bug" retry that hid the real error. Only the transaction failure
+    is the bug."""
+    status, calls = run_case(tmp_path, root_log=INFORMATIONAL, first_call_fails=True)
+    assert status != 0
+    assert len(calls) == 1, f"informational lines must not trigger the retry, got {calls}"
+
+
+def test_clean_means_mock_cleans_before_the_build_not_the_clean_command():
+    """mock takes one command per invocation and the last wins: `--rebuild
+    ... --clean` runs `clean` and nothing else. A clean-before-build is
+    mock's DEFAULT, so the retry must drop --no-clean rather than add
+    --clean."""
+    text = SCRIPT.read_text()
+    fn = text[text.index("_run_mock_container() {"):]
+    fn = fn[: fn.index("timeout --kill-after")]
+    assert 'local mock_clean_flag="--no-clean"' in fn
+    assert '[ "${2:-}" = "clean" ] && mock_clean_flag=""' in fn
+    assert '"--clean"' not in text, "nothing may pass mock's --clean command alongside --rebuild"
