@@ -14,7 +14,7 @@
 
 Name:           input-remapper
 Version:        2.2.1
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Change the mapping of input device buttons
 
 License:        GPL-3.0-or-later
@@ -24,6 +24,12 @@ Source0:        https://github.com/sezanzeb/input-remapper/archive/refs/tags/%{v
 BuildRequires:  python3-devel
 BuildRequires:  python3-setuptools
 BuildRequires:  gettext
+# %%{_unitdir} and %%{_udevrulesdir} come from systemd-rpm-macros, which is
+# not in the CentOS Stream 10 mock buildroot by default. Without it the
+# macros expand to nothing and rpmbuild dies at %%files with 'File must
+# begin with "/": %%{_unitdir}/input-remapper.service' -- the one failure
+# in the 2026-08-30 weekly gnome50 chain (run 33303057118, 57 of 58 built).
+BuildRequires:  systemd-rpm-macros
 # The bundled installer shells out to pip and imports gi, even though this
 # spec deliberately avoids pip as the INSTALL METHOD (see above).
 # install/module.py's build_input_remapper_module() runs
@@ -152,6 +158,11 @@ python3 -m install --root %{buildroot}
 %{python3_sitelib}/input_remapper-*.dist-info/
 
 %changelog
+* Thu Sep 03 2026 TunaOS Bot <bot@tunaos.org> - 2.2.1-4
+- BuildRequires systemd-rpm-macros: %%{_unitdir} and %%{_udevrulesdir} were
+  undefined in the mock buildroot, so %%files failed with 'File must begin
+  with "/"' (weekly chain run 33303057118).
+
 * Sun Aug 23 2026 TunaOS Bot <bot@tunaos.org> - 2.2.1-3
 - Build the bundled installer's pip step offline: PIP_NO_BUILD_ISOLATION
   so it uses the buildroot's setuptools instead of fetching one from

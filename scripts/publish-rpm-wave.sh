@@ -49,19 +49,45 @@
 #                   the same name is removed from anywhere else in the tree.
 #                   Subtracted from the NEVER SHRINK baseline, since this is
 #                   the one shrink that is intended.
+#
+#   FOREIGN CONTENT A family prefix carries what this factory built and
+#   (--evict-foreign) signed, and nothing else. gnome50/10-stream-x86_64 was
+#                   filled on 2026-08-04 by the since-deleted
+#                   refresh-gnome50-r2.yml, which downloaded the
+#                   jreilly1821/c10s-gnome-50 COPR and synced it in: 466
+#                   package names signed by the COPR project key
+#                   (99b9f29ec528e021), not the publisher's. A consumer
+#                   with gpgcheck=1 and the publisher's public.gpg fails on
+#                   every one of them -- tunaOS run 33750514082: 'GPG check
+#                   FAILED, Public key for glib2-2.88.0-4.el10.x86_64.rpm
+#                   is not installed'. And the maintainer's directive
+#                   (2026-09-03) is no more COPR: build in GitHub. So an
+#                   RPM in the synced-down tree whose header signature is
+#                   not by the publisher's key (any subkey of %_gpg_name)
+#                   is evicted before indexing, and the sync-up deletes it
+#                   from the bucket. Opt-in per publisher: the build-chain
+#                   publisher owns its family prefixes outright; the
+#                   tideforge publisher writes into repo/10-stream-x86_64,
+#                   which has more history than one key, and does not ask.
+#                   Guarded: the freshly signed staged RPMs must be
+#                   recognised as the publisher's own before anything is
+#                   evicted -- a key-id derivation that fails that check
+#                   would otherwise evict the whole tree, which is #124 by
+#                   another road.
 set -euo pipefail
 
-STAGED="" REPO="" SUBDIR=""
+STAGED="" REPO="" SUBDIR="" EVICT_FOREIGN=0
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--staged) STAGED="$2"; shift 2 ;;
 	--repo) REPO="$2"; shift 2 ;;
 	--subdir) SUBDIR="$2"; shift 2 ;;
+	--evict-foreign) EVICT_FOREIGN=1; shift ;;
 	*) echo "unknown argument: $1" >&2; exit 2 ;;
 	esac
 done
 [ -n "$STAGED" ] && [ -n "$REPO" ] && [ -n "$SUBDIR" ] || {
-	echo "usage: $0 --staged DIR --repo DIR --subdir NAME" >&2
+	echo "usage: $0 --staged DIR --repo DIR --subdir NAME [--evict-foreign]" >&2
 	exit 2
 }
 
@@ -90,10 +116,62 @@ else
 fi
 
 mkdir -p "$REPO"
-baseline=$(count_rpms "$REPO")
-echo "==> staged ${staged_count} RPM(s); repo already holds ${baseline}"
 
 find "$STAGED" -name '*.rpm' ! -name '*.src.rpm' -exec rpmsign --addsign {} \;
+
+# Which key IDs count as "ours": every subkey of the key rpmsign just used,
+# because gpg signs with a signing SUBKEY and rpm reports that subkey's ID,
+# not the primary's. Lower-cased to match rpm's pgpsig rendering.
+signature_key_ids() {
+	rpm -qp --nosignature --qf '%{RSAHEADER:pgpsig}|%{SIGPGP:pgpsig}|%{DSAHEADER:pgpsig}|%{SIGGPG:pgpsig}' "$1" 2>/dev/null \
+		| tr '[:upper:]' '[:lower:]' | grep -o 'key id [0-9a-f]*' | sed 's/^key id //' | sort -u
+}
+evicted=0
+if [ "$EVICT_FOREIGN" -eq 1 ]; then
+	gpg_name=$(rpm --eval '%{?_gpg_name}')
+	if [ -z "$gpg_name" ]; then
+		echo "ERROR: --evict-foreign needs %_gpg_name (~/.rpmmacros) to know whose signature counts as ours" >&2
+		exit 1
+	fi
+	mapfile -t publisher_keys < <(gpg --batch --with-colons --list-keys "$gpg_name" 2>/dev/null \
+		| awk -F: '($1 == "pub" || $1 == "sub") && $5 != "" { print tolower($5) }' | sort -u)
+	if [ "${#publisher_keys[@]}" -eq 0 ]; then
+		echo "ERROR: gpg lists no key for %_gpg_name=${gpg_name}; refusing to decide what is foreign" >&2
+		exit 1
+	fi
+	is_ours() {
+		local id
+		while IFS= read -r id; do
+			local k
+			for k in "${publisher_keys[@]}"; do
+				[ "$id" = "$k" ] && return 0
+			done
+		done < <(signature_key_ids "$1")
+		return 1
+	}
+	# The guard: rpmsign just signed the staged wave with this very key. If
+	# that signature does not read as ours, the key-id derivation is wrong
+	# and eviction would empty the tree. Stop here, touch nothing.
+	probe=$(find "$STAGED" -name '*.rpm' ! -name '*.src.rpm' | head -n 1)
+	if ! is_ours "$probe"; then
+		echo "ERROR: freshly signed ${probe} is not recognised as signed by ${gpg_name}" \
+		     "(publisher keys: ${publisher_keys[*]}; found: $(signature_key_ids "$probe" | tr '\n' ' '))" >&2
+		echo "       refusing to evict anything: with that mismatch every package would look foreign" >&2
+		exit 1
+	fi
+	while IFS= read -r f; do
+		if ! is_ours "$f"; then
+			echo "==> evicting foreign package: ${f} (signed by: $(signature_key_ids "$f" | tr '\n' ' ')" \
+			     "-- not the publisher's key)"
+			rm -f "$f"
+			evicted=$((evicted + 1))
+		fi
+	done < <(find "$REPO" -name '*.rpm')
+	[ "$evicted" -eq 0 ] || echo "==> evicted ${evicted} foreign RPM(s); the sync-up deletes them from the bucket"
+fi
+
+baseline=$(count_rpms "$REPO")
+echo "==> staged ${staged_count} RPM(s); repo already holds ${baseline}"
 
 mkdir -p "${REPO}/${SUBDIR}"
 find "$STAGED" -name '*.rpm' ! -name '*.src.rpm' -exec cp -t "${REPO}/${SUBDIR}" {} +

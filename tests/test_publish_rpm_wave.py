@@ -489,3 +489,143 @@ def test_a_first_publish_with_no_served_repodata_skips_the_gate(tmp_path, stubbe
     r = run(tmp_path, stubbed)
     assert r.returncode == 0, r.stderr
     assert "reverse-dep gate skipped" in r.stdout
+
+
+# --- foreign content --------------------------------------------------------
+#
+# gnome50/10-stream-x86_64 was filled by the deleted refresh-gnome50-r2.yml
+# with a COPR mirror signed by the COPR project key; a gpgcheck=1 consumer of
+# public.gpg cannot install one package of it (tunaOS run 33750514082). With
+# --evict-foreign the build-chain publisher removes every RPM in the synced
+# tree that the publisher's key did not sign, so the family prefix carries
+# only factory output. The tideforge publisher never passes the flag.
+
+OUR_KEY = "F7A5375898C78B31"      # a signing subkey; rpm reports subkey ids
+OUR_PRIMARY = "629BE6EA45188366"
+COPR_KEY = "99B9F29EC528E021"
+
+
+def _foreign_aware(stubbed, tmp_path, *, signer_of):
+    """Stub `rpm` (pgpsig by file name, via signer_of) and `gpg --list-keys`
+    (primary + subkey of the publisher). Real rpm reads the header; the
+    stub answers the same query from the mapping so no keyring is needed."""
+    binq = Path(stubbed["PATH"].split(":")[0])
+    table = tmp_path / "signers.txt"
+    table.write_text("".join(f"{name}={key}\n" for name, key in signer_of.items()))
+    rpm = binq / "rpm"
+    rpm.write_text(
+        "#!/bin/sh\n"
+        'case "$*" in\n'
+        "  *--eval*) echo '" + OUR_PRIMARY + "' ;;\n"
+        "  *-qp*) for a in \"$@\"; do f=\"$a\"; done\n"
+        f'         key=$(grep "^$(basename "$f")=" "{table}" | cut -d= -f2)\n'
+        '         if [ -n "$key" ]; then'
+        ' printf "RSA/SHA512, Thu Sep  3 12:00:00 2026, Key ID %s|(none)|(none)|(none)" "$key";'
+        ' else printf "(none)|(none)|(none)|(none)"; fi ;;\n'
+        "esac\nexit 0\n"
+    )
+    rpm.chmod(0o755)
+    gpg = binq / "gpg"
+    gpg.write_text(
+        "#!/bin/sh\n"
+        'echo "gpg $*" >> "$STUB_LOG"\n'
+        'case "$*" in\n'
+        "  *--list-keys*) printf 'pub:u:4096:1:%s:0:::u:::scESC::::::23::0:\\nsub:u:4096:1:%s:0::::::s::::::23:\\n' "
+        f"'{OUR_PRIMARY}' '{OUR_KEY}' ;;\n"
+        '  *) out=""; while [ $# -gt 0 ]; do case "$1" in --output) out="$2"; shift ;; esac; shift; done\n'
+        '     [ -n "$out" ] && printf SIGNATURE > "$out" ;;\n'
+        "esac\nexit 0\n"
+    )
+    gpg.chmod(0o755)
+    return stubbed
+
+
+def run_evicting(tmp_path, env):
+    return subprocess.run(
+        ["bash", str(SCRIPT), "--staged", str(tmp_path / "staged"),
+         "--repo", str(tmp_path / "repo"), "--subdir", "build-chain", "--evict-foreign"],
+        capture_output=True, text=True, env=env, cwd=tmp_path,
+    )
+
+
+def test_a_copr_signed_package_is_evicted_and_a_factory_signed_one_kept(tmp_path, stubbed) -> None:
+    make(tmp_path / "repo", "mutter-50~rc-3.el10.x86_64.rpm", "glib2-2.88.0-4.el10.x86_64.rpm",
+         "exo-4.21.0-1.el10.x86_64.rpm")
+    make(tmp_path / "staged", "gnome-shell-50.0-3.el10.x86_64.rpm")
+    env = _foreign_aware(stubbed, tmp_path, signer_of={
+        "mutter-50~rc-3.el10.x86_64.rpm": COPR_KEY,
+        "glib2-2.88.0-4.el10.x86_64.rpm": COPR_KEY,
+        "exo-4.21.0-1.el10.x86_64.rpm": OUR_KEY,
+        "gnome-shell-50.0-3.el10.x86_64.rpm": OUR_KEY,
+    })
+    r = run_evicting(tmp_path, env)
+    assert r.returncode == 0, r.stderr
+    assert rpms(tmp_path / "repo") == ["exo-4.21.0-1.el10.x86_64.rpm", "gnome-shell-50.0-3.el10.x86_64.rpm"]
+    assert "evicting foreign package" in r.stdout
+    assert COPR_KEY.lower() in r.stdout
+    assert "evicted 2 foreign RPM(s)" in r.stdout
+    # The eviction is the intended shrink: the baseline is taken after it.
+    assert "repo already holds 1" in r.stdout
+    assert "repo now holds 2" in r.stdout
+
+
+def test_an_unsigned_package_is_foreign_too(tmp_path, stubbed) -> None:
+    make(tmp_path / "repo", "legacy-1.0-1.el10.x86_64.rpm")
+    make(tmp_path / "staged", "new-1.0-1.el10.x86_64.rpm")
+    env = _foreign_aware(stubbed, tmp_path, signer_of={"new-1.0-1.el10.x86_64.rpm": OUR_KEY})
+    r = run_evicting(tmp_path, env)
+    assert r.returncode == 0, r.stderr
+    assert rpms(tmp_path / "repo") == ["new-1.0-1.el10.x86_64.rpm"]
+
+
+def test_without_the_flag_nothing_is_evicted(tmp_path, stubbed) -> None:
+    make(tmp_path / "repo", "mutter-50~rc-3.el10.x86_64.rpm")
+    make(tmp_path / "staged", "gnome-shell-50.0-3.el10.x86_64.rpm")
+    env = _foreign_aware(stubbed, tmp_path, signer_of={
+        "mutter-50~rc-3.el10.x86_64.rpm": COPR_KEY,
+        "gnome-shell-50.0-3.el10.x86_64.rpm": OUR_KEY,
+    })
+    r = run(tmp_path, env)
+    assert r.returncode == 0, r.stderr
+    assert "mutter-50~rc-3.el10.x86_64.rpm" in rpms(tmp_path / "repo")
+    assert "evict" not in r.stdout
+
+
+def test_a_key_mismatch_evicts_nothing_and_fails(tmp_path, stubbed) -> None:
+    """If the freshly signed wave does not read as the publisher's own, the
+    key-id derivation is wrong and eviction would empty the tree (#124 by
+    another road). Refuse before touching anything."""
+    make(tmp_path / "repo", "ours-1.0-1.el10.x86_64.rpm", "theirs-1.0-1.el10.x86_64.rpm")
+    make(tmp_path / "staged", "new-1.0-1.el10.x86_64.rpm")
+    env = _foreign_aware(stubbed, tmp_path, signer_of={
+        "new-1.0-1.el10.x86_64.rpm": "0123456789ABCDEF",   # not a listed key
+        "ours-1.0-1.el10.x86_64.rpm": OUR_KEY,
+        "theirs-1.0-1.el10.x86_64.rpm": COPR_KEY,
+    })
+    r = run_evicting(tmp_path, env)
+    assert r.returncode == 1
+    assert "not recognised as signed by" in r.stderr
+    assert "refusing to evict anything" in r.stderr
+    assert sorted(rpms(tmp_path / "repo")) == ["ours-1.0-1.el10.x86_64.rpm", "theirs-1.0-1.el10.x86_64.rpm"]
+
+
+def test_eviction_needs_a_named_publisher_key(tmp_path, stubbed) -> None:
+    make(tmp_path / "repo", "x-1.0-1.el10.x86_64.rpm")
+    make(tmp_path / "staged", "new-1.0-1.el10.x86_64.rpm")
+    env = _foreign_aware(stubbed, tmp_path, signer_of={})
+    rpm = Path(env["PATH"].split(":")[0]) / "rpm"
+    rpm.write_text("#!/bin/sh\ncase \"$*\" in *--eval*) echo '' ;; esac\nexit 0\n")
+    r = run_evicting(tmp_path, env)
+    assert r.returncode == 1
+    assert "%_gpg_name" in r.stderr
+    assert rpms(tmp_path / "repo") == ["x-1.0-1.el10.x86_64.rpm"]
+
+
+def test_only_the_build_chain_publisher_evicts() -> None:
+    """Family prefixes are owned outright; repo/10-stream-x86_64 has more
+    history than one key and the tideforge publisher must not decide what
+    is foreign there."""
+    chain = (ROOT / ".github" / "workflows" / "publish-build-chain-rpms.yml").read_text()
+    tideforge = (ROOT / ".github" / "workflows" / "publish-tideforge-rpms.yml").read_text()
+    assert "--evict-foreign" in chain
+    assert "--evict-foreign" not in tideforge

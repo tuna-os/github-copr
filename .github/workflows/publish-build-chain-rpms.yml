@@ -443,11 +443,17 @@ jobs:
         run: echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Pull everything staged in ORAS
         run: python3 scripts/oras-stage-artifacts.py pull-all staged/oras
+      # --evict-foreign: a family prefix carries only what this factory
+      # built and signed. gnome50/10-stream-x86_64 held a COPR mirror
+      # (refresh-gnome50-r2.yml, 2026-08-04, signed by the COPR project key)
+      # that no gpgcheck=1 consumer of public.gpg could install; the first
+      # factory publish replaces it. publish-rpm-wave.sh carries the rule and
+      # its guard; publish-tideforge-rpms.yml deliberately does not pass this.
       - name: Sign and index
         run: |
           set -euo pipefail
           bash scripts/publish-rpm-wave.sh \
-            --staged staged --repo repo --subdir build-chain
+            --staged staged --repo repo --subdir build-chain --evict-foreign
       - name: Sync up
         if: ${{ !inputs.dry_run }}
         env:

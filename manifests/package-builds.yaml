@@ -40,7 +40,17 @@ native_builds:
     # directories; without them listed, editing those specs does not re-key
     # this cell and the cache serves a build made from the old spec.
     source_paths: [src/gnome-50/, src/deps/, src/input-remapper/, src/python3-evdev/]
-    r2_path: repo/10-x86_64
+    # The family's OWN prefix, like gnome51/ and xfce/. It used to say
+    # repo/10-x86_64, the tideforge mirror prefix, which the publish planner
+    # refuses by name (two `rclone sync` writers delete each other's
+    # packages; run 33751204743 failed at plan on exactly that) -- so this
+    # family had never been published by the factory at all. What was
+    # served at gnome50/10-stream-x86_64 until the first factory publish was
+    # a COPR mirror written by the deleted refresh-gnome50-r2.yml
+    # (2026-08-04); publish-rpm-wave.sh --evict-foreign clears it, because a
+    # family prefix carries only what this factory built and signed
+    # (maintainer directive 2026-09-03: no more COPR, build in GitHub).
+    r2_path: gnome50/10-stream-x86_64
     # Bounds the PR gate to this chain's FIRST tier. The nightly, the
     # publish legs and the fan-out are unbounded and still build the whole
     # family; only the --canary-common plan (pull_request/merge_group/push)
@@ -70,11 +80,10 @@ native_builds:
   # cell's. That is the pattern xfce-el10-aarch64 and hummingbird-aarch64
   # already use -- neither has an arch-specific manifest.
   #
-  # A FRESH r2 prefix, not the x86_64 one. gnome50's x86_64 leg publishes into
-  # repo/10-x86_64, the shared pre-existing COPR-mirror prefix that el10
-  # tideforge packages also merge into; there is no aarch64 equivalent and
-  # inventing one would mean a new leg writing into a prefix it does not own.
-  # gnome50/10-stream-aarch64 matches how gnome51 already names its own.
+  # Its own r2 prefix, the straight arch swap of the x86_64 leg's
+  # gnome50/10-stream-x86_64: one prefix per family and arch, never shared,
+  # because two `rclone sync` writers into one prefix delete each other's
+  # packages (#124).
   #
   # Not yet in el10's published_index.aarch64: manifests/package-factory.yaml
   # says a prefix goes in only once it actually resolves, and this one 404s

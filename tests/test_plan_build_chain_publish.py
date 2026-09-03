@@ -6,7 +6,8 @@ destination is SAFE, and two answers are no:
 
   collision   publish-tideforge-rpms.yml syncs into repo/10-stream-x86_64,
               repo/10-x86_64 and rpm/el10/aarch64. gnome50-el10-x86_64
-              declares repo/10-x86_64. `rclone sync` makes the destination
+              declared repo/10-x86_64 until 2026-09-03 (run 33751204743 was
+              refused on it). `rclone sync` makes the destination
               match the source, so the two publishers would delete each
               other's packages -- serialising them stops a race, not an
               overwrite.
@@ -59,13 +60,24 @@ def test_a_tideforge_destination_is_refused(dest) -> None:
     assert "delete" in rejections[0]
 
 
-def test_the_real_gnome50_path_is_one_of_them() -> None:
-    """Pins the actual collision rather than a hypothetical one.
+def test_the_tideforge_mirror_prefix_stays_refused() -> None:
+    """Pins the collision that actually happened rather than a hypothetical.
 
     publish-tideforge-rpms.yml mirrors x86_64 to repo/10-x86_64, and that is
-    exactly what gnome50-el10-x86_64 declares.
+    what gnome50-el10-x86_64 declared until it got its own prefix; the guard
+    stays so the next family cannot make the same catalog mistake quietly.
     """
     assert "repo/10-x86_64" in planner.TIDEFORGE_DESTINATIONS
+
+
+def test_no_real_build_chain_cell_is_refused_for_its_prefix() -> None:
+    """Every published family must own a prefix the planner accepts; a cell
+    that trips the collision guard is a family that can never publish."""
+    cells = planner.build_chain_cells()
+    publishable = [c for c in cells.values() if c.get("publish") is not False and c.get("r2_path")]
+    selected, rejections = planner.resolve([c["id"] for c in publishable], cells)
+    assert rejections == [], rejections
+    assert {c["id"] for c in selected} == {c["id"] for c in publishable}
 
 
 def test_a_leading_or_trailing_slash_does_not_evade_the_guard() -> None:

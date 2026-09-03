@@ -20,11 +20,11 @@ Two things this must not get wrong:
               arch-specific manifest, and that is because its aarch64 leg
               builds genuinely different content.
 
-  r2 prefix   gnome50's x86_64 leg publishes into repo/10-x86_64, the shared
-              pre-existing COPR-mirror prefix that el10 tideforge packages also
-              merge into. There is no aarch64 equivalent, and a new leg must
-              not write into a prefix it does not own, so aarch64 gets a fresh
-              family-owned path.
+  r2 prefix   one family-owned prefix per arch, never shared. gnome50's
+              x86_64 leg once declared repo/10-x86_64, the tideforge mirror
+              prefix, and the publish planner refused it for that; it now
+              owns gnome50/10-stream-x86_64 and the aarch64 leg the arch
+              swap of it.
 """
 from __future__ import annotations
 
@@ -114,11 +114,12 @@ def test_the_aarch64_leg_gets_its_own_r2_prefix():
         assert defined[cell_id]["r2_path"].endswith("aarch64"), cell_id
 
 
-def test_gnome50_aarch64_does_not_inherit_the_legacy_shared_prefix():
-    """repo/10-x86_64 is the pre-existing COPR-mirror prefix that el10
-    tideforge packages merge into as well. A new leg must own its path."""
+def test_gnome50_owns_a_family_prefix_on_both_arches():
+    """repo/10-x86_64 is the tideforge mirror prefix; a family that declares
+    it can never be published (plan-build-chain-publish.py refuses it by
+    name). Both legs own gnome50/<chroot>, the shape gnome51 and xfce use."""
     defined = cells()
-    assert defined["gnome50-el10-x86_64"]["r2_path"] == "repo/10-x86_64"
+    assert defined["gnome50-el10-x86_64"]["r2_path"] == "gnome50/10-stream-x86_64"
     assert defined["gnome50-el10-aarch64"]["r2_path"] == "gnome50/10-stream-aarch64"
 
 
