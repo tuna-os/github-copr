@@ -35,7 +35,14 @@ native_builds:
     image: ghcr.io/tuna-os/mock-runner:centos-stream-10
     verify_image: quay.io/centos/centos:stream10
     manifest: build-order.yml
-    mock_config: centos-stream-10-ci
+    # centos-stream-10-ci, the generic config, was what this cell used, and it
+    # declares the XFCE family's published index and not this one's. Since
+    # build-chain.sh skips any package the published index already serves, a
+    # skipped GNOME package landed in no repo the buildroot could see; run
+    # 33835533548 burned 64 minutes and failed gtk4 and pango on the glib2 and
+    # pango it had skipped. centos-stream-10-ci-gnome50 declares
+    # [tunaos-gnome50], so the skip and the buildroot finally agree.
+    mock_config: centos-stream-10-ci-gnome50
     # input-remapper and python3-evdev are built out of their own top-level
     # directories; without them listed, editing those specs does not re-key
     # this cell and the cache serves a build made from the old spec.
