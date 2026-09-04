@@ -5970,23 +5970,23 @@
       "unresolved_capabilities": {}
     }
   },
-  "measured_at": "2026-09-03T04:47:23.315413+00:00",
+  "measured_at": "2026-09-04T13:31:28.816503+00:00",
   "membership": "runtime",
   "reference_index": {
     "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/",
-    "primary_bytes": 16137857,
-    "primary_href": "repodata/a91e40ccab3a123bfba90d0cbaab79b17385af0ce4b2145f94d134a4543ab75b-primary.xml.zst",
-    "primary_sha256": "a91e40ccab3a123bfba90d0cbaab79b17385af0ce4b2145f94d134a4543ab75b",
-    "primary_sha256_declared": "a91e40ccab3a123bfba90d0cbaab79b17385af0ce4b2145f94d134a4543ab75b",
-    "revision": "1788327218"
+    "primary_bytes": 16136469,
+    "primary_href": "repodata/33c0cf439a28a214173c727bbefeb652ede3745ee396ac0c72bf4d2d0b3f340b-primary.xml.zst",
+    "primary_sha256": "33c0cf439a28a214173c727bbefeb652ede3745ee396ac0c72bf4d2d0b3f340b",
+    "primary_sha256_declared": "33c0cf439a28a214173c727bbefeb652ede3745ee396ac0c72bf4d2d0b3f340b",
+    "revision": "1788414429"
   },
   "source_reference_index": {
     "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/source/tree/",
-    "primary_bytes": 6078052,
-    "primary_href": "repodata/e0a1f7713d11848aaf043b5accbb8e823562a28aaf738c59439433e84a279932-primary.xml.zst",
-    "primary_sha256": "e0a1f7713d11848aaf043b5accbb8e823562a28aaf738c59439433e84a279932",
-    "primary_sha256_declared": "e0a1f7713d11848aaf043b5accbb8e823562a28aaf738c59439433e84a279932",
-    "revision": "1788327123"
+    "primary_bytes": 6079998,
+    "primary_href": "repodata/990fb7c354f6b7fb4393305453e232a7b58f38394450254f316d956a41a29601-primary.xml.zst",
+    "primary_sha256": "990fb7c354f6b7fb4393305453e232a7b58f38394450254f316d956a41a29601",
+    "primary_sha256_declared": "990fb7c354f6b7fb4393305453e232a7b58f38394450254f316d956a41a29601",
+    "revision": "1788414342"
   },
   "target": {
     "baseurl": "https://packages.redhat.com/api/pulp-content/public-hummingbird/$arch/",
@@ -5999,11 +5999,11 @@
   "target_binary_packages": 3510,
   "target_index": {
     "baseurl": "https://packages.redhat.com/api/pulp-content/public-hummingbird/x86_64/",
-    "primary_bytes": 4378169,
-    "primary_href": "repodata/db6854ad8eb60ae543678ef9128198c61d9e422b14dbe249b603e1dc27557b7a-primary.xml.gz",
-    "primary_sha256": "db6854ad8eb60ae543678ef9128198c61d9e422b14dbe249b603e1dc27557b7a",
-    "primary_sha256_declared": "db6854ad8eb60ae543678ef9128198c61d9e422b14dbe249b603e1dc27557b7a",
-    "revision": "1788400649"
+    "primary_bytes": 4427582,
+    "primary_href": "repodata/7d4fe6b3cf1e0c4c843496140730bf388c70a20b3567aa37cad89c6f5f21ff0f-primary.xml.gz",
+    "primary_sha256": "7d4fe6b3cf1e0c4c843496140730bf388c70a20b3567aa37cad89c6f5f21ff0f",
+    "primary_sha256_declared": "7d4fe6b3cf1e0c4c843496140730bf388c70a20b3567aa37cad89c6f5f21ff0f",
+    "revision": "1788512576"
   },
   "tier_ordering": "buildrequires"
 }

@@ -16,9 +16,9 @@
 # from the buildroot's inherited Rawhide fallback at priority 99
 # (the target's mock config), never from this build order.
 #
-# Measured 2026-09-03T04:47:23.315413+00:00
-# target primary.xml   sha256 db6854ad8eb60ae543678ef9128198c61d9e422b14dbe249b603e1dc27557b7a
-# reference primary.xml sha256 a91e40ccab3a123bfba90d0cbaab79b17385af0ce4b2145f94d134a4543ab75b
+# Measured 2026-09-04T13:31:28.816503+00:00
+# target primary.xml   sha256 7d4fe6b3cf1e0c4c843496140730bf388c70a20b3567aa37cad89c6f5f21ff0f
+# reference primary.xml sha256 33c0cf439a28a214173c727bbefeb652ede3745ee396ac0c72bf4d2d0b3f340b
 # consumed utah-packages  oci://ghcr.io/projectbluefin/utah-packages@sha256:9cb667291a1a0b112c39d3c6a69116bb52cb1a10c7df12290b9c298b5682426c (primary sha256 38da5357b241, 421 binaries counted as had)
 #
 # `distgit:` means the packaging is imported from Fedora Rawhide
