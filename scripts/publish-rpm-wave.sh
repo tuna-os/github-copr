@@ -152,7 +152,15 @@ if [ "$EVICT_FOREIGN" -eq 1 ]; then
 	# The guard: rpmsign just signed the staged wave with this very key. If
 	# that signature does not read as ours, the key-id derivation is wrong
 	# and eviction would empty the tree. Stop here, touch nothing.
-	probe=$(find "$STAGED" -name '*.rpm' ! -name '*.src.rpm' | head -n 1)
+	# `-print -quit`, never `| head -n 1`: under `set -o pipefail` head closes
+	# the pipe after the first line, find dies of EPIPE, and the pipeline's
+	# non-zero status kills the script. That is not hypothetical -- it is how
+	# the first real publish of this family died (run 33819328227:
+	# "find: 'standard output': Broken pipe / find: write error"), after the
+	# wave was already signed. It hid in testing because the race needs enough
+	# files for find to still be writing when head exits; one staged RPM never
+	# reproduces it, 345 always do.
+	probe=$(find "$STAGED" -name '*.rpm' ! -name '*.src.rpm' -print -quit)
 	if ! is_ours "$probe"; then
 		echo "ERROR: freshly signed ${probe} is not recognised as signed by ${gpg_name}" \
 		     "(publisher keys: ${publisher_keys[*]}; found: $(signature_key_ids "$probe" | tr '\n' ' '))" >&2
