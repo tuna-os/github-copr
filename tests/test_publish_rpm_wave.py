@@ -629,3 +629,36 @@ def test_only_the_build_chain_publisher_evicts() -> None:
     tideforge = (ROOT / ".github" / "workflows" / "publish-tideforge-rpms.yml").read_text()
     assert "--evict-foreign" in chain
     assert "--evict-foreign" not in tideforge
+
+
+def test_a_large_wave_does_not_die_of_a_broken_pipe(tmp_path, stubbed) -> None:
+    """The eviction guard picks one staged RPM to probe. Doing that with
+    `find ... | head -n 1` makes head close the pipe, find die of EPIPE, and
+    `set -o pipefail` kill the whole publish -- AFTER the wave is signed.
+
+    That is how the GNOME 50 family's first real publish died (run
+    33819328227). It survived every test above because the race needs enough
+    files that find is still writing when head exits: one staged RPM never
+    reproduces it. This stages 300, which does.
+    """
+    make(tmp_path / "repo", "old-1.0-1.el10.x86_64.rpm")
+    make(tmp_path / "staged", *[f"pkg{i:03d}-1.0-1.el10.x86_64.rpm" for i in range(300)])
+    env = _foreign_aware(
+        stubbed,
+        tmp_path,
+        signer_of={f"pkg{i:03d}-1.0-1.el10.x86_64.rpm": OUR_KEY for i in range(300)}
+        | {"old-1.0-1.el10.x86_64.rpm": OUR_KEY},
+    )
+    r = run_evicting(tmp_path, env)
+    assert r.returncode == 0, r.stderr
+    assert "Broken pipe" not in r.stderr
+    assert len(rpms(tmp_path / "repo")) == 301
+
+
+def test_the_probe_never_pipes_find_into_head() -> None:
+    """Pins the mechanism, not just the symptom: any `find | head` under
+    pipefail is the same latent failure waiting for a big enough wave."""
+    body = SCRIPT.read_text()
+    code = "\n".join(l for l in body.splitlines() if not l.lstrip().startswith("#"))
+    assert "| head" not in code, "a find|head pipeline is back; use -print -quit"
+    assert "-print -quit" in code
