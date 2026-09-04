@@ -182,7 +182,31 @@ baseline=$(count_rpms "$REPO")
 echo "==> staged ${staged_count} RPM(s); repo already holds ${baseline}"
 
 mkdir -p "${REPO}/${SUBDIR}"
-find "$STAGED" -name '*.rpm' ! -name '*.src.rpm' -exec cp -t "${REPO}/${SUBDIR}" {} +
+
+# ONE COPY PER FILENAME. The same wave reaches this job twice: once as the
+# run's own upload-artifact (flat in staged/) and once from
+# `oras-stage-artifacts.py pull-all`, which re-pulls what this very run
+# staged (staged/oras/.factory/<cell>/artifacts/). Handing `cp -t` two
+# sources with the same basename in one invocation makes it refuse the
+# second -- "cp: will not overwrite just-created ..." -- and exit 1, which
+# is how run 33823845082 died after evicting 358 foreign RPMs and signing
+# 192 good ones. Whether it fires at all depends on whether the duplicates
+# land in the same `-exec ... {} +` batch, so it is a latent coin flip for
+# every publisher, not a property of this family.
+#
+# The two copies are the same bytes from the same build, and both were
+# signed by the loop above, so either is correct; take the first and skip
+# the rest by name.
+declare -A _wave_seen=()
+while IFS= read -r -d '' _staged_rpm; do
+	_rpm_name=$(basename "$_staged_rpm")
+	if [ -n "${_wave_seen[$_rpm_name]:-}" ]; then
+		continue
+	fi
+	_wave_seen[$_rpm_name]=1
+	cp "$_staged_rpm" "${REPO}/${SUBDIR}/${_rpm_name}"
+done < <(find "$STAGED" -name '*.rpm' ! -name '*.src.rpm' -print0)
+echo "==> placed ${#_wave_seen[@]} distinct RPM(s) from ${staged_count} staged file(s)"
 
 # '^' joins '+': same worker, same failure. Fedora's snapshot-version
 # convention puts '^' in filenames (quickshell-0.2.1^git…, signon-8.60^…);

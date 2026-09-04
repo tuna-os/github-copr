@@ -662,3 +662,40 @@ def test_the_probe_never_pipes_find_into_head() -> None:
     code = "\n".join(l for l in body.splitlines() if not l.lstrip().startswith("#"))
     assert "| head" not in code, "a find|head pipeline is back; use -print -quit"
     assert "-print -quit" in code
+
+
+def test_the_same_rpm_staged_twice_is_placed_once(tmp_path, stubbed) -> None:
+    """The wave reaches the publish job twice -- as the run's own
+    upload-artifact (flat in staged/) and from `oras pull-all`, which
+    re-pulls what the same run staged. `cp -t` refuses two sources with one
+    basename in a single invocation ("will not overwrite just-created") and
+    exits 1: that killed run 33823845082 after it had evicted 358 foreign
+    RPMs and signed 192 good ones.
+    """
+    make(tmp_path / "staged", "gtk4-4.22.1-1.el10.x86_64.rpm", "mutter-50.0-4.el10.x86_64.rpm")
+    make(
+        tmp_path / "staged" / "oras" / ".factory" / "gnome50-el10-x86_64" / "artifacts",
+        "gtk4-4.22.1-1.el10.x86_64.rpm",
+        "mutter-50.0-4.el10.x86_64.rpm",
+        "gnome-shell-50.0-3.el10.x86_64.rpm",
+    )
+    r = run(tmp_path, stubbed)
+    assert r.returncode == 0, r.stderr
+    assert "will not overwrite just-created" not in r.stdout + r.stderr
+    placed = sorted(p.name for p in (tmp_path / "repo" / "build-chain").glob("*.rpm"))
+    assert placed == [
+        "gnome-shell-50.0-3.el10.x86_64.rpm",
+        "gtk4-4.22.1-1.el10.x86_64.rpm",
+        "mutter-50.0-4.el10.x86_64.rpm",
+    ], placed
+    assert "placed 3 distinct RPM(s) from 5 staged file(s)" in r.stdout
+
+
+def test_the_wave_is_never_copied_with_a_batched_cp() -> None:
+    """Pins the mechanism: `cp -t ... {} +` batches sources, so whether the
+    duplicate collision fires at all depends on batch boundaries. Copy one
+    file at a time, keyed by basename, so it cannot depend on luck."""
+    code = "\n".join(
+        l for l in SCRIPT.read_text().splitlines() if not l.lstrip().startswith("#")
+    )
+    assert "-exec cp -t" not in code, "a batched cp -t is back; dedupe by basename instead"
