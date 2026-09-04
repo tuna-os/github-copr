@@ -24,6 +24,7 @@ The failure modes pinned here are the quiet ones:
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -153,36 +154,69 @@ def test_the_restore_searches_by_base_id():
     assert "--cell-id '${{ matrix.base_id || matrix.id }}'" in text
 
 
-def _gate_script() -> tuple[str, dict]:
-    jobs = _jobs()
-    step = jobs["gate"]["steps"][0]
-    return step["run"], step["env"]
+def _gate_script() -> str:
+    """The gate's real shell. Found by having a `run:`, not by index — the
+    job gained a checkout step when the logic moved into a script."""
+    steps = _jobs()["gate"]["steps"]
+    return next(s["run"] for s in steps if "run" in s)
 
 
-def test_the_gate_requires_every_occupied_shard(tmp_path):
-    """Run the gate's real shell against the case the old logic passed:
-    COUNT under 200 (so ceil says one shard) but an occupied, FAILED
-    continuation shard."""
-    script, _ = _gate_script()
-    env = {"PLAN": "success", "COUNT": "2",
-           "COUNT_0": "2", "COUNT_1": "2", "COUNT_2": "2",
-           "SHARD_0": "success", "SHARD_1": "failure", "SHARD_2": "success"}
-    proc = subprocess.run(["bash", "-c", script], env=env,
-                          capture_output=True, text=True, timeout=30)
-    assert proc.returncode != 0, (
-        "gate passed with a failed occupied continuation shard — a green run "
-        "whose chain extension silently died"
+def _chain(cell_id: str) -> tuple[str, str, str]:
+    """The three matrices the planner emits for one full-chain cell."""
+    return (
+        json.dumps({"include": [{"id": cell_id}]}),
+        json.dumps({"include": [{"id": f"{cell_id}-c1", "base_id": cell_id}]}),
+        json.dumps({"include": [{"id": f"{cell_id}-c2", "base_id": cell_id}]}),
     )
 
 
-def test_the_gate_ignores_empty_shards(tmp_path):
-    script, _ = _gate_script()
-    env = {"PLAN": "success", "COUNT": "2",
-           "COUNT_0": "2", "COUNT_1": "0", "COUNT_2": "0",
-           "SHARD_0": "success", "SHARD_1": "skipped", "SHARD_2": "skipped"}
-    proc = subprocess.run(["bash", "-c", script], env=env,
-                          capture_output=True, text=True, timeout=30)
-    assert proc.returncode == 0, proc.stderr
+def _run_gate(**env) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["bash", "-c", _gate_script()], env=env, cwd=ROOT,
+        capture_output=True, text=True, timeout=60,
+    )
+
+
+def test_the_gate_fails_when_the_last_continuation_dies():
+    """The case the strictness exists for: nothing runs after build-2, so
+    nothing supersedes it, and its failure is the chain extension dying with
+    the day's remaining hours."""
+    m0, m1, m2 = _chain("gnome50-el10-x86_64")
+    proc = _run_gate(
+        PATH=os.environ["PATH"], PLAN="success", COUNT="1",
+        COUNT_0="1", COUNT_1="1", COUNT_2="1",
+        SHARD_0="success", SHARD_1="success", SHARD_2="failure",
+        MATRIX_0=m0, MATRIX_1=m1, MATRIX_2=m2,
+    )
+    assert proc.returncode != 0, (
+        "gate passed with a failed final continuation — a green run whose "
+        "chain extension silently died\n" + proc.stdout
+    )
+
+
+def test_the_gate_forgives_a_shard_a_later_continuation_carried():
+    """tunaos-packages#684. Run 33840428161: build-0 failed on a transient
+    upstream fetch, build-1 resumed its partial and built through it,
+    build-2 finished. The chain completed; the gate used to call it red."""
+    m0, m1, m2 = _chain("gnome50-el10-x86_64")
+    proc = _run_gate(
+        PATH=os.environ["PATH"], PLAN="success", COUNT="1",
+        COUNT_0="1", COUNT_1="1", COUNT_2="1",
+        SHARD_0="failure", SHARD_1="success", SHARD_2="success",
+        MATRIX_0=m0, MATRIX_1=m1, MATRIX_2=m2,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+def test_the_gate_ignores_empty_shards():
+    proc = _run_gate(
+        PATH=os.environ["PATH"], PLAN="success", COUNT="2",
+        COUNT_0="2", COUNT_1="0", COUNT_2="0",
+        SHARD_0="success", SHARD_1="skipped", SHARD_2="skipped",
+        MATRIX_0=json.dumps({"include": [{"id": "a"}, {"id": "b"}]}),
+        MATRIX_1='{"include":[]}', MATRIX_2='{"include":[]}',
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
 
 
 def test_a_deferred_build_still_uploads_its_partial():
