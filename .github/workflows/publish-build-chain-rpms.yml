@@ -525,7 +525,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Install cosign
         if: ${{ !inputs.dry_run }}
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@v4.1.2
       - name: Sign the published image
         if: ${{ !inputs.dry_run }}
         env:
