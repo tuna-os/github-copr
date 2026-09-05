@@ -250,29 +250,45 @@ jobs:
     needs: [plan, build-0, build-1, build-2]
     runs-on: ubuntu-24.04
     steps:
-      - name: Require every planned shard to pass
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Every occupied shard must pass, with one exception the shard results
+      # alone cannot express: build-1 and build-2 carry CONTINUATIONS of
+      # build-0's full-chain cells, and a continuation resumes its
+      # predecessor's partial by base_id. So three shard results are not
+      # three independent verdicts -- they are one chain observed three
+      # times, and the last observation is the one that counts. Run
+      # 33840428161: build-0 failed on a transient upstream fetch, build-1
+      # resumed the partial and built through it, build-2 finished, and this
+      # gate still called the run red (#684).
+      #
+      # The strictness that DOES survive, and the reason this is not simply
+      # relaxed: a failed continuation still fails. Nothing runs after it to
+      # supersede it, so its failure is the chain extension dying with the
+      # day's remaining hours -- the class this factory keeps re-learning.
+      # Forgiveness is also conservative, because a shard result covers every
+      # cell in it and GitHub gives no per-cell verdict: one cell without a
+      # successful later continuation and the shard stays red.
+      #
+      # The reasoning is in scripts/gate-shard-results.py, where it can be
+      # tested (tests/test_a_superseded_shard_does_not_fail_the_gate.py)
+      # rather than only observed in production.
+      - name: Require every planned chain to pass
         env:
           PLAN: ${{ needs.plan.result }}
           COUNT: ${{ needs.plan.outputs.count || '0' }}
-          # Per-shard occupancy, not ceil(COUNT/200): continuation cells put
-          # work into build-1/build-2 even when COUNT <= 200, and a failed
-          # continuation passing the gate would be a green run whose chain
-          # extension silently died -- the day's extra hours lost with no red
-          # anywhere, which is the exact class this factory keeps re-learning.
           COUNT_0: ${{ needs.plan.outputs.count || '0' }}
           COUNT_1: ${{ needs.plan.outputs.count_1 || '0' }}
           COUNT_2: ${{ needs.plan.outputs.count_2 || '0' }}
           SHARD_0: ${{ needs.build-0.result }}
           SHARD_1: ${{ needs.build-1.result }}
           SHARD_2: ${{ needs.build-2.result }}
+          MATRIX_0: ${{ needs.plan.outputs.matrix_0 }}
+          MATRIX_1: ${{ needs.plan.outputs.matrix_1 }}
+          MATRIX_2: ${{ needs.plan.outputs.matrix_2 }}
         run: |
           set -euo pipefail
-          test "$PLAN" = success
-          results=("$SHARD_0" "$SHARD_1" "$SHARD_2")
-          counts=("$COUNT_0" "$COUNT_1" "$COUNT_2")
-          for index in 0 1 2; do
-            if (( counts[index] > 0 )); then
-              test "${results[$index]}" = success
-            fi
-          done
-          echo "$COUNT package action(s) planned; occupied shards: ${counts[*]}."
+          python3 scripts/gate-shard-results.py \
+            --plan "$PLAN" --count "$COUNT" \
+            --count-0 "$COUNT_0" --result-0 "$SHARD_0" --matrix-0 "$MATRIX_0" \
+            --count-1 "$COUNT_1" --result-1 "$SHARD_1" --matrix-1 "$MATRIX_1" \
+            --count-2 "$COUNT_2" --result-2 "$SHARD_2" --matrix-2 "$MATRIX_2"
