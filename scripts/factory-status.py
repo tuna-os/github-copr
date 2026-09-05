@@ -211,8 +211,12 @@ def add_trend(report: dict, previous: dict | None) -> None:
     artifact itself from the previously COMMITTED measurement:
 
       * what moved since last time (built/needed deltas, the names);
-      * what REGRESSED — a name that was served and no longer is, which
-        is the repo-wipe shape (#124) one measurement early;
+      * what REGRESSED — a name the catalog still asks for that was
+        served and no longer is, which is the repo-wipe shape (#124)
+        one measurement early. Names the CATALOG dropped are reported
+        separately as `retired`: the target adopted them, so `built`
+        falls with nothing lost, and folding the two together would
+        make the detector alarm on its own success;
       * how long each unfinished target has gone without movement, from
         a compact per-measurement history the JSON now carries forward.
 
@@ -250,17 +254,31 @@ def add_trend(report: dict, previous: dict | None) -> None:
                                       "built_delta": len(built_now),
                                       "needed_delta": len(data["needed"]),
                                       "newly_built": sorted(built_now),
-                                      "regressed": []}
+                                      "regressed": [], "retired": []}
                 continue
             built_before = set(before.get("built") or [])
+            # BUILT is catalog n index, so a name leaves it for two very
+            # different reasons: the index stopped serving it (#124), or the
+            # CATALOG stopped asking for it because upstream adopted it --
+            # RFC 011 success criterion 2, work removed. Subtracting the
+            # second is the same subtraction the NEVER SHRINK baseline makes
+            # for evicted foreign content: compare like against like, or the
+            # detector cries wolf on its own success and nobody believes the
+            # real wipe when it comes.
+            catalog_now = built_now | set(data["needed"] or [])
             trend["rows"][key] = {
                 "new": False,
                 "built_delta": len(built_now) - len(built_before),
                 "needed_delta": len(data["needed"]) - len(before.get("needed") or []),
                 "newly_built": sorted(built_now - built_before),
-                # Served then, absent now: the repo-wipe shape, caught at
-                # measurement time instead of at a user's failed install.
-                "regressed": sorted(built_before - built_now),
+                # Wanted then AND now, served then, absent now: the repo-wipe
+                # shape, caught at measurement time instead of at a user's
+                # failed install.
+                "regressed": sorted((built_before & catalog_now) - built_now),
+                # Served, and no longer asked for. Reported so the drop in
+                # `built` is explained rather than unaccounted, but it is a
+                # catalog shrinking, not an index losing content.
+                "retired": sorted(built_before - catalog_now),
                 "stalled": _stalled(report, key, len(built_now)),
             }
     report["trend"] = trend
@@ -385,6 +403,18 @@ def render_trend(report: dict) -> list[str]:
                      "statistic:")
         lines.append("")
         for key, names in sorted(regressions.items()):
+            lines.append(f"- {key}: {_trim(names, 12)}")
+        lines.append("")
+    retirements = {key: row["retired"]
+                   for key, row in trend["rows"].items() if row.get("retired")}
+    if retirements:
+        lines.append("**Retired — built by the previous measurement, no "
+                     "longer in the catalog.** The target adopted them, so "
+                     "the factory stopped owing them; this is work REMOVED "
+                     "(RFC 011 criterion 2), and it is why `built` can fall "
+                     "without anything being lost:")
+        lines.append("")
+        for key, names in sorted(retirements.items()):
             lines.append(f"- {key}: {_trim(names, 12)}")
         lines.append("")
     return lines

@@ -165,3 +165,57 @@ def test_a_newly_measured_target_is_labelled_not_misread_as_growth():
     assert row["new"] is True
     rendered = "\n".join(status.render_trend(current))
     assert "newly measured" in rendered
+
+
+def test_a_name_the_catalog_dropped_is_retired_not_regressed():
+    """The false alarm this distinction exists for.
+
+    BUILT is catalog n index, so a name leaves it two ways. On
+    2026-09-04 hummingbird's catalog went 778 -> 665 entries because
+    upstream adopted the difference, and the detector called all 194
+    departures across both arches the repo-wipe shape (#124) -- while
+    the served index had GROWN, aarch64 3424 -> 3881 packages. Not one
+    of those names was still in the catalog. A detector that alarms on
+    RFC 011 criterion 2 -- a distro catching up, work REMOVED -- is a
+    detector nobody believes when the real wipe arrives.
+    """
+    previous = report("2026-09-02T09:47:13+00:00",
+                      {"hummingbird": {"x86_64": arch(
+                          ["adwaita-fonts", "chrony", "glib2"], ["still-owed"])}})
+    # adwaita-fonts and chrony left the catalog entirely: neither built
+    # nor needed names them any more.
+    current = report("2026-09-04T09:47:56+00:00",
+                     {"hummingbird": {"x86_64": arch(
+                         ["glib2"], ["still-owed"])}})
+    status.add_trend(current, previous)
+    row = current["trend"]["rows"]["hummingbird/x86_64"]
+    assert row["retired"] == ["adwaita-fonts", "chrony"]
+    assert row["regressed"] == [], (
+        "a name the catalog stopped asking for was reported as the "
+        "repo-wipe shape"
+    )
+    rendered = "\n".join(status.render_trend(current))
+    assert "Retired" in rendered and "adwaita-fonts" in rendered
+    assert "REGRESSED" not in rendered
+
+
+def test_a_real_wipe_is_still_caught_while_the_catalog_shrinks():
+    """The control: the subtraction must not become an excuse.
+
+    A name the catalog STILL asks for, served then and absent now, is a
+    regression even when other names retired in the same measurement.
+    """
+    previous = report("2026-09-02T09:47:13+00:00",
+                      {"hummingbird": {"x86_64": arch(
+                          ["adwaita-fonts", "harfbuzz"], [])}})
+    current = report("2026-09-04T09:47:56+00:00",
+                     {"hummingbird": {"x86_64": arch([], ["harfbuzz"])}})
+    status.add_trend(current, previous)
+    row = current["trend"]["rows"]["hummingbird/x86_64"]
+    assert row["regressed"] == ["harfbuzz"], (
+        "still wanted, served then, gone now -- that is #124 and it must "
+        "survive the catalog-departure subtraction"
+    )
+    assert row["retired"] == ["adwaita-fonts"]
+    rendered = "\n".join(status.render_trend(current))
+    assert "REGRESSED" in rendered and "Retired" in rendered
